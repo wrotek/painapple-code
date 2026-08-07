@@ -1,0 +1,433 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SELECTION FLOATING PANEL
+   Compact floating window for text selection actions
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Show the floating panel when in selection mode (class on body) */
+body.selection-mode .selection-bar {
+    display: flex !important;
+}
+
+/* Floating panel - positioned bottom-right, resizable.
+   Default size is generous so first-time use isn't cramped; the resize
+   handle + localStorage persistence let the user dial it in further. */
+.selection-bar {
+    display: none;
+    position: fixed;
+    bottom: 80px; /* Above input area */
+    right: 16px;
+    width: 480px;
+    min-width: 240px;
+    max-width: calc(100vw - 32px);
+    flex-direction: column;
+    gap: var(--sp-6);
+    padding: var(--sp-10);
+    padding-top: var(--sp-4);
+    background: var(--bg-secondary, #1a1a1a);
+    border: 1px solid var(--border-primary, #333);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: var(--z-selection-panel); /* Above widgets + FAB, below toasts/tooltips */
+    animation: selection-float-in 0.15s ease-out;
+    overflow: visible;
+}
+
+/* Drag handle at top */
+.selection-bar::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 4px;
+    background: var(--text-muted, #666);
+    border-radius: var(--radius-xs);
+    opacity: 0.4;
+    cursor: grab;
+}
+
+.selection-bar.dragging::before {
+    opacity: 0.8;
+}
+
+.selection-bar.dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.selection-bar.resizing {
+    user-select: none;
+}
+
+/* Resize handle (bottom-right corner) */
+.selection-bar-resize {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
+    touch-action: none;
+}
+
+/* Resize grip visual */
+.selection-bar-resize::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--text-muted, #666);
+    border-bottom: 2px solid var(--text-muted, #666);
+    opacity: 0.5;
+}
+
+.selection-bar-resize:hover::after {
+    opacity: 0.8;
+}
+
+@keyframes selection-float-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Drag header - invisible but captures drag events */
+.selection-bar-drag {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    cursor: grab;
+}
+
+.selection-bar-drag:active {
+    cursor: grabbing;
+}
+
+/* ── Quote block ────────────────────────────────────────────────────
+   Collapsed: 2-line clamp. Expanded: scrollable full text.
+   Never silently truncated in JS — the whole selection is in the DOM.
+
+   Everything chrome-ish (meta line, expand toggle, utility buttons) lives
+   in ONE footer strip inside this block — no separate header row, so the
+   panel doesn't waste a whole row on three icons. */
+.selection-quote-wrap {
+    margin-top: var(--sp-12); /* Clear the drag strip at the panel's top */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 0 1 auto;
+    background: var(--bg-tertiary, #252525);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-md);
+    /* visible, not hidden: the multi-select count badge overhangs its button
+       inside the footer. Nothing else paints outside — the quote clips itself. */
+    overflow: visible;
+    padding-bottom: var(--sp-4);
+}
+
+.selection-quote {
+    min-height: 0;
+    /* NO bottom padding while clamped: overflow:hidden clips at the PADDING
+       box, so a bottom pad lets the first clipped line bleed through, half-cut.
+       The wrapper carries the bottom spacing instead. */
+    padding: var(--sp-6) var(--sp-10) 0;
+    font-size: var(--font-size-sm);
+    line-height: 1.45;
+    color: var(--text-secondary, #b0b0b0);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow: hidden;
+    /* -webkit-box + -webkit-line-clamp only. Do NOT add the standard
+       `line-clamp` alongside it — in Chromium 138+ the pair cancels out and
+       the text spills a half-cut extra line behind the toggle row. */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.selection-quote-wrap.expanded .selection-quote {
+    display: block;
+    padding-bottom: var(--sp-4);
+    max-height: 190px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    color: var(--text-primary, #fff);
+}
+
+.selection-quote::before,
+.selection-quote::after {
+    content: none;
+}
+
+/* Expand chevron — the ONLY chrome on the quote block, and only when the
+   text is actually clipped. Corner-anchored so it costs no extra row. */
+.selection-quote-toggle {
+    display: none;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 18px;
+    padding: 0;
+    background: var(--bg-tertiary, #252525);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted, #888);
+    cursor: pointer;
+}
+
+.selection-quote-wrap.has-overflow .selection-quote-toggle {
+    display: flex;
+}
+
+/* Clicking the text does the same thing — the chevron is just the hint */
+.selection-quote-wrap.has-overflow .selection-quote {
+    cursor: pointer;
+    padding-right: 26px; /* keep the clamp's ellipsis clear of the chevron */
+}
+
+.selection-quote-toggle:hover {
+    color: var(--text-primary, #fff);
+}
+
+.selection-quote-toggle svg {
+    width: 13px;
+    height: 13px;
+    transition: transform 0.12s ease;
+}
+
+.selection-quote-wrap.expanded .selection-quote-toggle svg {
+    transform: rotate(180deg);
+}
+
+/* Close button — transparent, sits in the panel's top-right corner */
+.selection-close {
+    position: relative;
+    width: var(--layout-btn-xs);
+    height: var(--layout-btn-xs);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-muted, #888);
+    cursor: pointer;
+    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease, opacity 0.1s ease;
+}
+
+.selection-close svg {
+    width: 14px;
+    height: 14px;
+}
+
+.selection-close:hover {
+    background: var(--bg-hover, #333);
+    color: var(--text-primary, #fff);
+}
+
+/* Close sits in the panel's own top-right corner (over the drag strip, which
+   is otherwise dead space) — costs zero height and is where people reach for it. */
+.selection-close-corner {
+    position: absolute;
+    top: var(--sp-2);
+    right: var(--sp-2);
+    z-index: 2;
+    /* Absolutely positioned, so a comfortable hit area costs no panel height */
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+}
+
+
+/* Input - expands to fill available space.
+   min-height keeps a comfortable 3-4 line box while leaving room for the
+   quote block above it (which can now be expanded to read the selection). */
+.selection-input {
+    width: 100%;
+    min-height: 64px;
+    flex: 1 1 auto; /* Grow to fill space when panel is resized */
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--bg-primary, #0d0d0d);
+    border: 1px solid var(--border-primary, #333);
+    border-radius: var(--radius-md);
+    color: var(--text-primary, #fff);
+    font-size: var(--font-size-base);
+    font-family: var(--font-sans);
+    line-height: 1.3;
+    resize: none;
+    outline: none;
+}
+
+.selection-input:focus {
+    border-color: var(--accent);
+}
+
+.selection-input::placeholder {
+    color: var(--text-muted, #666);
+}
+
+.selection-input.error {
+    border-color: var(--error, #ef4444);
+}
+
+/* Actions row */
+.selection-actions {
+    display: flex;
+    gap: var(--sp-6);
+    flex-shrink: 0;
+}
+
+/* Action buttons - compact, equal width */
+.selection-action-btn {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-10);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease, opacity 0.1s ease;
+}
+
+/* Inline keyboard hint on the action buttons */
+.selection-action-kbd {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    opacity: 0.55;
+    letter-spacing: 0.03em;
+}
+
+.selection-action-btn:active {
+    transform: scale(0.98);
+}
+
+.selection-action-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+/* Discuss button */
+.selection-discuss-btn {
+    background: var(--bg-tertiary, #252525);
+    color: var(--text-primary, #fff);
+}
+
+.selection-discuss-btn:hover {
+    background: var(--bg-hover, #333);
+}
+
+/* Stash button - primary */
+.selection-stash-btn {
+    background: var(--accent);
+    color: white;
+}
+
+.selection-stash-btn:hover {
+    background: var(--accent-hover);
+}
+
+/* Keyboard hints */
+.selection-action-btn .kbd-hint {
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOUCH DEVICE - Slightly larger
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (pointer: coarse) {
+    .selection-bar {
+        width: 480px;
+        max-width: calc(100vw - 16px);
+        padding: var(--sp-8);
+        padding-top: var(--sp-4);
+        gap: var(--sp-6);
+    }
+
+    .selection-close {
+        width: var(--layout-btn-md);
+        height: var(--layout-btn-md);
+    }
+
+    .selection-close svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .selection-quote-toggle {
+        width: 30px;
+        height: 24px;
+    }
+
+    .selection-quote-wrap.has-overflow .selection-quote {
+        padding-right: 34px;
+    }
+
+    .selection-input {
+        font-size: var(--font-size-lg); /* Prevent iOS zoom */
+        padding: var(--sp-6) var(--sp-8);
+    }
+
+    .selection-quote {
+        font-size: var(--font-size-md);
+        /* bottom pad MUST stay 0 — see the clamp note above */
+        padding: var(--sp-8) var(--sp-10) 0;
+    }
+
+    .selection-quote-wrap.expanded .selection-quote {
+        max-height: 240px;
+    }
+
+    .selection-action-btn {
+        padding: var(--sp-6) var(--sp-10);
+        font-size: var(--font-size-md);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PHONE - Full width at bottom
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+    .selection-bar {
+        bottom: 70px;
+        right: 8px;
+        left: 8px;
+        width: auto;
+        max-width: calc(100vw - 16px);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TEXT SELECTION HIGHLIGHT
+   Purple tint on native text selection inside commentable areas.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.preview-rendered::selection,
+.preview-rendered *::selection,
+.message-content::selection,
+.message-content *::selection {
+    background: rgba(139, 92, 246, 0.3);
+    color: inherit;
+}

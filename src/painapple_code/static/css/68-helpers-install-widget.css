@@ -1,0 +1,487 @@
+/* Helpers Install Widget — install/update bundled CLI + agent template */
+
+.helpers-install-widget {
+    padding: 0;
+    overflow-y: auto;
+}
+
+.helpers-install-content {
+    padding: var(--sp-16) var(--sp-20);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-14);
+    color: var(--text-primary);
+}
+
+.helpers-install-title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.helpers-install-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+    margin: 0;
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+.helpers-install-body p {
+    margin: 0;
+}
+.helpers-body-feature {
+    padding-left: var(--sp-14);
+    border-left: 2px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+.helpers-body-feature strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.helpers-file-list {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-12);
+    list-style: none;
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+}
+
+.helpers-file-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    font-size: var(--font-size-sm);
+}
+
+.helpers-file-target {
+    flex: 1 1 auto;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    word-break: break-all;
+}
+
+/* Quieter than uppercase pills — auto-journal works without these,
+   so we don't yell about a missing file. */
+.helpers-file-state {
+    flex: 0 0 auto;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+.helpers-file-state::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: var(--sp-6);
+    vertical-align: 1px;
+}
+.helpers-file-state.current  { color: var(--text-muted); }
+.helpers-file-state.current::before  { background: var(--success); }
+.helpers-file-state.outdated { color: var(--warning); }
+.helpers-file-state.outdated::before { background: var(--warning); }
+.helpers-file-state.missing  { color: var(--text-muted); }
+.helpers-file-state.missing::before  { background: var(--text-muted); opacity: 0.6; }
+
+.helpers-dont-show {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+}
+.helpers-dont-show input[type="checkbox"] { margin: 0; cursor: pointer; }
+
+.helpers-install-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-8);
+}
+
+.helpers-btn {
+    height: var(--layout-btn-sm);
+    padding: 0 var(--sp-14);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    background: transparent;
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+}
+.helpers-btn:hover:not(:disabled) {
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
+}
+.helpers-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.helpers-btn-primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--bg, #0d1117);
+    font-weight: 600;
+}
+.helpers-btn-primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+    background: var(--accent);
+}
+
+.helpers-install-result {
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    padding-top: var(--sp-10);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+}
+.helpers-install-result[hidden] { display: none; }
+
+.helpers-install-status {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+.helpers-install-status.running  { color: var(--warning); }
+.helpers-install-status.success  { color: var(--success); }
+.helpers-install-status.failure  { color: var(--error); }
+
+.helpers-install-log {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-10);
+    background: var(--bg, #0d1117);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.helpers-install-error {
+    padding: var(--sp-16);
+    color: var(--error);
+    font-size: var(--font-size-base);
+}
+
+/* Status banner — independent indicators for recording state and helpers
+   state. The helpers indicator only renders when non-current. */
+.helpers-status-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-24);
+    flex-wrap: wrap;
+    padding: var(--sp-8) var(--sp-12);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+}
+.status-pair {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+.status-pair-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+.pair-recording-full   .status-pair-dot { background: var(--success); }
+.pair-recording-full   .status-pair-text { color: var(--success); }
+.pair-recording-basic  .status-pair-dot { background: var(--text-muted); }
+.pair-recording-basic  .status-pair-text { color: var(--text-muted); }
+.pair-project-disabled .status-pair-dot { background: var(--text-muted); opacity: 0.5; }
+.pair-project-disabled .status-pair-text { color: var(--text-muted); }
+.pair-helpers-missing  .status-pair-dot { background: var(--error); }
+.pair-helpers-missing  .status-pair-text { color: var(--error); }
+.pair-helpers-outdated .status-pair-dot { background: var(--warning); }
+.pair-helpers-outdated .status-pair-text { color: var(--warning); }
+
+/* Section block — labeled group of toggles or file rows */
+.helpers-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+}
+.helpers-section-title {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.helpers-section-hint {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Section header — title on left, status tag on right */
+.helpers-section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-8);
+}
+.helpers-section-tag {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-muted);
+}
+.helpers-section-tag::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: var(--sp-6);
+    vertical-align: 1px;
+}
+.helpers-section-tag.tag-current::before  { background: var(--success); }
+.helpers-section-tag.tag-current  { color: var(--text-muted); }
+.helpers-section-tag.tag-outdated::before { background: var(--warning); }
+.helpers-section-tag.tag-outdated { color: var(--warning); }
+.helpers-section-tag.tag-missing::before  { background: var(--text-muted); opacity: 0.6; }
+.helpers-section-tag.tag-missing  { color: var(--text-muted); }
+
+/* Usage example — small block showing concrete invocation */
+.helpers-usage-example {
+    margin: 0;
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+.helpers-usage-example code {
+    padding: 1px var(--sp-5);
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-primary);
+}
+
+/* Per-project toggle rows — checkbox + label + small hint */
+.helpers-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-8);
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+}
+.helpers-toggle input[type="checkbox"] {
+    margin: var(--sp-2) 0 0 0;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.helpers-toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+.helpers-toggle-label {
+    color: var(--text-primary);
+}
+.helpers-toggle-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* Secondary action row — text-link buttons separated by · dots */
+.helpers-secondary-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    flex-wrap: wrap;
+    font-size: var(--font-size-sm);
+}
+.helpers-link {
+    height: var(--layout-btn-sm);
+    background: transparent;
+    border: none;
+    padding: var(--sp-4) var(--sp-2);
+    color: var(--text-muted);
+    cursor: pointer;
+    font: inherit;
+    text-decoration: none;
+}
+.helpers-link:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+.helpers-link-danger:hover {
+    color: var(--error);
+}
+.helpers-sep {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+/* Current-state action layout — single right-aligned primary CTA */
+.helpers-actions-current {
+    justify-content: flex-end;
+}
+
+/* Sections sub-block — appears under Rich Commits toggle */
+.helpers-sections-block {
+    margin: var(--sp-4) 0 0 var(--sp-24);  /* indent under the rich-commits checkbox */
+    padding: var(--sp-8) var(--sp-10);
+    border-left: 2px solid var(--border, rgba(255, 255, 255, 0.08));
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+    transition: opacity 0.15s ease;
+}
+.helpers-sections-block.dimmed {
+    opacity: 0.4;
+}
+.helpers-sections-header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    flex-wrap: wrap;
+}
+.helpers-sections-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.helpers-sections-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+.helpers-sections-customize {
+    margin-left: auto;
+    font-size: var(--font-size-xs);
+}
+.helpers-sections-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4) var(--sp-6);
+}
+.helpers-section-chip {
+    height: var(--layout-btn-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-10);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: var(--radius-lg);
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease, opacity 0.1s ease;
+}
+.helpers-section-chip:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.25);
+    opacity: 0.85;
+}
+.helpers-section-chip:disabled {
+    cursor: default;
+}
+.helpers-section-chip-mark {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    flex: 0 0 auto;
+}
+.helpers-section-chip-label {
+    color: inherit;
+}
+.helpers-section-chip.enabled {
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.05));
+    border-color: rgba(63, 185, 80, 0.5);
+    color: var(--text-primary);
+    opacity: 1;
+}
+.helpers-section-chip.enabled:hover:not(:disabled) {
+    background: rgba(63, 185, 80, 0.10);
+}
+.helpers-section-chip.enabled .helpers-section-chip-mark {
+    background: var(--success);
+    border-color: var(--success);
+}
+.helpers-section-chip.custom {
+    border-style: dashed;
+}
+
+/* Subagent model selector — segmented styled buttons (no native select) */
+.helpers-model-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+    padding-top: var(--sp-4);
+}
+.helpers-model-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.helpers-model-opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+}
+.helpers-model-opt {
+    padding: var(--sp-4) var(--sp-12);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: var(--radius-sm);
+    background: transparent;
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+.helpers-model-opt:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-primary);
+}
+.helpers-model-opt.active {
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.05));
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+.helpers-model-hint {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+    color: var(--text-muted);
+}

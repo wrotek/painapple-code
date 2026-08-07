@@ -1,0 +1,224 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SNIPPETS AUTOCOMPLETE (#-trigger)
+   Agents and user-defined snippets
+   Shared by skills-autocomplete (`$` trigger) for visual consistency.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.snippets-autocomplete {
+    position: absolute;
+    bottom: 100%;
+    min-width: 280px;
+    width: max-content;
+    max-width: min(680px, 85vw);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+    box-shadow: var(--shadow);
+    display: none;
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: var(--z-overlay-autocomplete);
+}
+
+.snippets-autocomplete.visible {
+    display: block;
+}
+
+/* Section header (Agents / Snippets) */
+.snippets-section {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-3) var(--sp-10);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-secondary);
+    position: sticky;
+    top: 0;
+}
+
+.snippets-edit-link {
+    font-size: 10px;
+    color: var(--accent);
+    text-decoration: none;
+    text-transform: none;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.snippets-edit-link:hover {
+    text-decoration: underline;
+}
+
+/* Individual snippet/agent item */
+.snippets-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-5) var(--sp-10);
+    cursor: pointer;
+    transition: background 0.1s ease;
+    scroll-margin-top: 24px;
+}
+
+.snippets-item:hover,
+.snippets-item.selected {
+    background: var(--bg-tertiary);
+}
+
+.snippets-item.selected {
+    background: var(--accent-muted);
+}
+
+/* Content wrapper (name + description) */
+.snippets-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+/* Name */
+.snippets-name {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Highlighted match characters */
+.snippets-name mark {
+    background: transparent;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Description */
+.snippets-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Type badge (project-local agents only) */
+.snippets-type-badge {
+    font-size: 9px;
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.snippets-type-badge.project {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+/* Action buttons container */
+.snippets-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    flex-shrink: 0;
+    margin-left: var(--sp-8);
+}
+
+/* Action buttons (insert / insert-name / send) */
+.snippets-insert-btn,
+.snippets-insertname-btn,
+.snippets-send-btn {
+    padding: var(--sp-3);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.snippets-insert-btn svg,
+.snippets-insertname-btn svg,
+.snippets-send-btn svg {
+    width: 11px;
+    height: 11px;
+    display: block;
+}
+
+/* Default: Insert (Enter) is the primary action — highlights on row hover/selection */
+.snippets-item:hover .snippets-insert-btn,
+.snippets-item.selected .snippets-insert-btn {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-muted);
+}
+
+/* Alt held: Insert-name (Alt+Enter) becomes primary; Insert dims back */
+.snippets-autocomplete.mod-alt .snippets-item:hover .snippets-insert-btn,
+.snippets-autocomplete.mod-alt .snippets-item.selected .snippets-insert-btn {
+    border-color: transparent;
+    color: var(--text-muted);
+    background: none;
+}
+.snippets-autocomplete.mod-alt .snippets-item:hover .snippets-insertname-btn,
+.snippets-autocomplete.mod-alt .snippets-item.selected .snippets-insertname-btn {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-muted);
+}
+
+/* Ctrl/Cmd held: Send (Ctrl+Enter) becomes primary; Insert dims back */
+.snippets-autocomplete.mod-ctrl .snippets-item:hover .snippets-insert-btn,
+.snippets-autocomplete.mod-ctrl .snippets-item.selected .snippets-insert-btn {
+    border-color: transparent;
+    color: var(--text-muted);
+    background: none;
+}
+.snippets-autocomplete.mod-ctrl .snippets-item:hover .snippets-send-btn,
+.snippets-autocomplete.mod-ctrl .snippets-item.selected .snippets-send-btn {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-muted);
+}
+
+/* Direct hover on insert-name / send still highlights (touch users without modifiers) */
+.snippets-insertname-btn:hover,
+.snippets-send-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Responsive adjustments
+   ───────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .snippets-autocomplete {
+        min-width: 240px;
+        max-width: 90vw;
+        max-height: 240px;
+    }
+
+    .snippets-item {
+        padding: var(--sp-6) var(--sp-10);
+    }
+
+    .snippets-name {
+        font-size: var(--font-size-base);
+    }
+}
+

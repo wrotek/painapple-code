@@ -1,0 +1,30 @@
+{
+    "name": "My Project + pAInapple Code",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+
+    "features": {
+        "ghcr.io/wrotek/painapple-code/painapple-code:1": {
+            "version": "main",
+            "port": "8765",
+            "instanceName": "CODESPACE",
+            "accent": "blue"
+        }
+    },
+
+    "forwardPorts": [8765],
+    "portsAttributes": {
+        "8765": {
+            "label": "pAInapple Code",
+            "onAutoForward": "notify",
+            "visibility": "private"
+        }
+    },
+
+    "secrets": {
+        "ANTHROPIC_API_KEY": {
+            "description": "Used by the in-container `claude` CLI. Set as a Codespaces user or repo secret."
+        }
+    },
+
+    "postAttachCommand": "echo 'pAInapple Code UI:' && grep -m1 'Log in once via' /tmp/painapple-code.log 2>/dev/null || echo '  (starting — tail /tmp/painapple-code.log)'"
+}

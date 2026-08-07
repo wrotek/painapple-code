@@ -1,0 +1,127 @@
+diff --git a/src/platform_impl/ios/app_state.rs b/src/platform_impl/ios/app_state.rs
+index e1c5e26..6042e4d 100644
+--- a/src/platform_impl/ios/app_state.rs
++++ b/src/platform_impl/ios/app_state.rs
+@@ -520,6 +520,16 @@ pub unsafe fn connect_scene(scene: &UIScene, options: &UISceneConnectionOptions)
+     };
+     if let Some(window) = window {
+       let () = msg_send![window, setWindowScene: window_scene];
++      // The window was sized at construction time from `inner_size` or the
++      // launch-time screen bounds, which doesn't match a scene the system
++      // brought up at a different size (split view, Stage Manager half).
++      // Without this re-frame, the UIWindow paints at its original size
++      // and the rest of the scene shows the background (black). Queued
++      // pre-launch windows get an equivalent fixup via the screen-dance
++      // in `on_app_ready`; this is the post-launch path.
++      let coord_space: id = msg_send![window_scene, coordinateSpace];
++      let scene_bounds: CGRect = msg_send![coord_space, bounds];
++      let () = msg_send![window, setFrame: scene_bounds];
+       let () = msg_send![window, release];
+     } else if !is_first_scene {
+       // only emit the SceneRequest event for scenes that were not requested by a tao window
+diff --git a/src/platform_impl/ios/scene.rs b/src/platform_impl/ios/scene.rs
+index 23414f0..dcbfa1d 100644
+--- a/src/platform_impl/ios/scene.rs
++++ b/src/platform_impl/ios/scene.rs
+@@ -1,7 +1,7 @@
+ // Copyright 2021-2025 Tauri Programme within The Commons Conservancy
+ // SPDX-License-Identifier: Apache-2.0
+ 
+-use objc2::{define_class, rc::Retained, MainThreadMarker, MainThreadOnly};
++use objc2::{define_class, rc::Retained, runtime::AnyObject, MainThreadMarker, MainThreadOnly};
+ use objc2_foundation::{
+   NSBundle, NSDictionary, NSError, NSNumber, NSObject, NSObjectProtocol, NSSet, NSString,
+   NSUserActivity,
+@@ -13,7 +13,7 @@ use objc2_ui_kit::{
+ 
+ use crate::{
+   event::{Event, WindowEvent},
+-  platform_impl::platform::{app_state, event_loop::EventWrapper},
++  platform_impl::platform::{app_state, event_loop::EventWrapper, ffi::CGRect},
+   window::WindowId as RootWindowId,
+ };
+ 
+@@ -182,4 +182,31 @@ define_class!(
+     #[unsafe(method(scene:didUpdateUserActivity:))]
+     fn scene_didUpdateUserActivity(&self, _scene: &UIScene, _user_activity: &NSUserActivity) {}
+   }
++
++  // UIWindowSceneDelegate callback. We don't conform to that protocol in
++  // Rust — the obj-c runtime only checks respondsToSelector, so an inherent
++  // method registered via `#[unsafe(method(…))]` is enough. Fired by iPadOS
++  // when the scene's coordinate space changes (Stage Manager drag, split
++  // view resize, orientation flip). Without it, the UIWindow keeps the
++  // frame it had at scene-attach time and the newly-exposed area paints as
++  // the scene's background (black).
++  #[allow(non_snake_case)]
++  impl TaoSceneDelegate {
++    #[unsafe(method(windowScene:didUpdateCoordinateSpace:interfaceOrientation:traitCollection:))]
++    fn windowScene_didUpdateCoordinateSpace_interfaceOrientation_traitCollection(
++      &self,
++      scene: &UIWindowScene,
++      _previous_coord_space: *mut AnyObject,
++      _previous_orientation: isize,
++      _previous_trait_collection: *mut AnyObject,
++    ) {
++      unsafe {
++        let coord_space: *mut AnyObject = msg_send![scene, coordinateSpace];
++        let scene_bounds: CGRect = msg_send![coord_space, bounds];
++        for window in scene.windows() {
++          let () = msg_send![&*window, setFrame: scene_bounds];
++        }
++      }
++    }
++  }
+ );
+diff --git a/src/platform_impl/ios/view.rs b/src/platform_impl/ios/view.rs
+index 7f37832..2a9673f 100644
+--- a/src/platform_impl/ios/view.rs
++++ b/src/platform_impl/ios/view.rs
+@@ -643,7 +643,14 @@ pub fn create_delegate_class() {
+ 
+       // Dynamically set the delegate class name
+       config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
+-      Retained::as_ptr(&config) as _
++      // ARC NARC convention: this selector doesn't start with new/alloc/copy/
++      // mutableCopy/init, so the caller (UIKit) expects an autoreleased +0
++      // reference. `Retained::as_ptr(&config)` returns a borrowed pointer; the
++      // owning `Retained` then drops at function end, sending `release` and
++      // deallocating the config before UIKit reads `delegateClass` — a
++      // use-after-free that manifests in release builds as a "(null)"
++      // delegate-class and immediate app-launch termination on iPad.
++      Retained::autorelease_return(config) as _
+     }
+   }
+ 
+diff --git a/src/platform_impl/ios/window.rs b/src/platform_impl/ios/window.rs
+index 7407a4b..f16f1f4 100644
+--- a/src/platform_impl/ios/window.rs
++++ b/src/platform_impl/ios/window.rs
+@@ -12,6 +12,7 @@ use objc2::{
+   runtime::{AnyClass, AnyObject},
+   MainThreadMarker,
+ };
++use objc2_foundation::NSString;
+ use objc2_ui_kit::{
+   UIApplication, UISceneActivationState, UISceneSessionActivationRequest, UIWindow,
+ };
+@@ -75,8 +76,17 @@ impl Drop for Inner {
+ }
+ 
+ impl Inner {
+-  pub fn set_title(&self, _title: &str) {
+-    debug!("`Window::set_title` is ignored on iOS")
++  pub fn set_title(&self, title: &str) {
++    // UIWindow itself has no title — the visible name lives on the parent
++    // UIScene. iPadOS reads UIScene.title for the Stage Manager Window menu,
++    // the App Exposé view, and the multitasking switcher. Empty string is
++    // legal and tells the system to fall back to the bundle display name.
++    unsafe {
++      let window = self.window();
++      let Some(scene) = window.windowScene() else { return };
++      let ns_title = NSString::from_str(title);
++      let () = msg_send![&*scene, setTitle: &*ns_title];
++    }
+   }
+ 
+   pub fn title(&self) -> String {

@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Feature Portal — Claude iPad Bridge</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg2: #161b22; --bg3: #1c2129;
+    --border: #30363d; --border-light: #3d444d;
+    --text: #e6edf3; --text-dim: #8b949e; --text-faint: #656d76;
+    --accent: #58a6ff; --accent-dim: rgba(88,166,255,0.15);
+    --green: #3fb950; --red: #f85149; --orange: #d29922;
+    --purple: #bc8cff; --cyan: #39d2c0; --yellow: #e3b341;
+    --keep-bg: rgba(63,185,80,0.12); --cut-bg: rgba(248,81,73,0.12);
+    --merge-bg: rgba(188,140,255,0.12); --rethink-bg: rgba(210,153,34,0.12);
+    --radius: 8px; --radius-lg: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100dvh; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    line-height: 1.5;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Header ─────────────────────────────────────────── */
+  .header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+    background: var(--bg); z-index: 20; position: relative;
+  }
+  .header-logo {
+    font-size: 15px; font-weight: 700; white-space: nowrap;
+    background: linear-gradient(135deg, var(--accent), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header-search {
+    flex: 1; max-width: 400px;
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 12px; border-radius: 20px; font-size: 13px; outline: none;
+  }
+  .header-search:focus { border-color: var(--accent); }
+  .header-search::placeholder { color: var(--text-faint); }
+  .header-nav { display: flex; gap: 2px; }
+  .header-nav button {
+    background: none; border: none; color: var(--text-dim);
+    padding: 6px 14px; border-radius: 6px; font-size: 13px;
+    cursor: pointer; font-weight: 500; transition: all 0.15s;
+  }
+  .header-nav button:hover { color: var(--text); background: var(--bg2); }
+  .header-nav button.active { color: var(--accent); background: var(--accent-dim); }
+  .header-stats {
+    font-size: 12px; color: var(--text-dim); white-space: nowrap;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .header-stats .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .header-stats .dot.keep { background: var(--green); }
+  .header-stats .dot.cut { background: var(--red); }
+  .header-stats .dot.merge { background: var(--purple); }
+  .header-stats .dot.rethink { background: var(--orange); }
+
+  /* ── Progress bar ───────────────────────────────────── */
+  .progress-bar {
+    height: 2px; background: var(--border);
+  }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--purple)); transition: width 0.4s; }
+
+  /* ── Views ──────────────────────────────────────────── */
+  .view { display: none; height: calc(100dvh - 50px - 2px); overflow-y: auto; }
+  .view.active { display: block; }
+
+  /* ── Grid View ──────────────────────────────────────── */
+  .grid-toolbar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); background: var(--bg);
+    position: sticky; top: 0; z-index: 10; flex-wrap: wrap;
+  }
+  .filter-chip {
+    padding: 4px 12px; border-radius: 14px; font-size: 12px;
+    border: 1px solid var(--border); background: none; color: var(--text-dim);
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .filter-chip:hover { border-color: var(--text-dim); color: var(--text); }
+  .filter-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  .filter-chip.keep.active { border-color: var(--green); color: var(--green); background: var(--keep-bg); }
+  .filter-chip.cut.active { border-color: var(--red); color: var(--red); background: var(--cut-bg); }
+  .filter-chip.merge.active { border-color: var(--purple); color: var(--purple); background: var(--merge-bg); }
+  .filter-chip.rethink.active { border-color: var(--orange); color: var(--orange); background: var(--rethink-bg); }
+  .filter-sep { width: 1px; height: 20px; background: var(--border); }
+  .grid-count { font-size: 12px; color: var(--text-faint); margin-left: auto; }
+
+  .grid-content { padding: 12px; }
+  .grid-group { margin-bottom: 20px; }
+  .grid-group-header {
+    display: flex; align-items: center; gap: 8px; padding: 6px 4px; margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .grid-group-header h2 {
+    font-size: 13px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .grid-group-header .count { font-size: 11px; color: var(--text-faint); }
+  .grid-group-header .chevron { color: var(--text-faint); font-size: 10px; transition: transform 0.2s; }
+  .grid-group-header.collapsed .chevron { transform: rotate(-90deg); }
+  .grid-group-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+
+  .tile {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+    padding: 14px; cursor: pointer; transition: all 0.15s; position: relative;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .tile.decision-keep { border-left: 3px solid var(--green); background: var(--keep-bg); }
+  .tile.decision-cut { border-left: 3px solid var(--red); background: var(--cut-bg); }
+  .tile.decision-merge { border-left: 3px solid var(--purple); background: var(--merge-bg); }
+  .tile.decision-rethink { border-left: 3px solid var(--orange); background: var(--rethink-bg); }
+  .tile-header { display: flex; align-items: center; gap: 8px; }
+  .tile-id {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    background: var(--accent-dim); padding: 2px 7px; border-radius: 4px;
+  }
+  .tile-name { font-size: 14px; font-weight: 600; flex: 1; line-height: 1.3; }
+  .tile-desc {
+    font-size: 12px; color: var(--text-dim); line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .tile-meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+  .tile-badge {
+    font-size: 10px; padding: 1px 6px; border-radius: 8px;
+    border: 1px solid var(--border); color: var(--text-dim);
+  }
+  .tile-badge.critical { color: var(--red); border-color: var(--red); }
+  .tile-badge.high { color: var(--orange); border-color: var(--orange); }
+  .tile-badge.b-count { color: var(--cyan); border-color: transparent; background: rgba(57,210,192,0.1); }
+  .tile-badge.f-count { color: var(--text-faint); border-color: transparent; }
+  .tile-decision-dot {
+    position: absolute; top: 10px; right: 10px;
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .tile-decision-dot.keep { background: var(--green); }
+  .tile-decision-dot.cut { background: var(--red); }
+  .tile-decision-dot.merge { background: var(--purple); }
+  .tile-decision-dot.rethink { background: var(--orange); }
+
+  /* ── Detail View ────────────────────────────────────── */
+  #detail-view { background: var(--bg); }
+  .detail-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    background: var(--bg); position: sticky; top: 0; z-index: 10;
+  }
+  .detail-back {
+    background: none; border: none; color: var(--text-dim); font-size: 18px;
+    cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  }
+  .detail-back:hover { color: var(--text); background: var(--bg2); }
+  .detail-title { flex: 1; }
+  .detail-title .id { font-size: 13px; color: var(--accent); font-weight: 700; }
+  .detail-title .name { font-size: 16px; font-weight: 600; margin-left: 8px; }
+  .detail-nav-btn {
+    background: var(--bg2); border: 1px solid var(--border); color: var(--text-dim);
+    width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .detail-nav-btn:hover { color: var(--text); border-color: var(--accent); }
+  .detail-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+  .detail-body { padding: 16px; max-width: 900px; }
+
+  .detail-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+  .pill {
+    font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .pill.critical { color: var(--red); border-color: var(--red); }
+  .pill.high { color: var(--orange); border-color: var(--orange); }
+  .pill.medium { color: var(--text-dim); }
+  .pill.low { color: var(--text-faint); }
+  .pill.complexity { color: var(--cyan); border-color: rgba(57,210,192,0.3); }
+  .pill.group { color: var(--purple); border-color: rgba(188,140,255,0.3); }
+  .pill.tag { color: var(--text-faint); border-color: var(--border); font-size: 10px; }
+
+  .detail-decisions { display: flex; gap: 8px; margin-bottom: 20px; }
+  .decision-btn {
+    padding: 7px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--bg2); color: var(--text-dim);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .decision-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .decision-btn.keep.selected { background: var(--keep-bg); border-color: var(--green); color: var(--green); }
+  .decision-btn.cut.selected { background: var(--cut-bg); border-color: var(--red); color: var(--red); }
+  .decision-btn.merge.selected { background: var(--merge-bg); border-color: var(--purple); color: var(--purple); }
+  .decision-btn.rethink.selected { background: var(--rethink-bg); border-color: var(--orange); color: var(--orange); }
+
+  .detail-notes {
+    width: 100%; min-height: 50px; max-height: 100px; padding: 10px 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); font-size: 13px; resize: vertical; outline: none;
+    font-family: inherit; margin-bottom: 20px;
+  }
+  .detail-notes:focus { border-color: var(--accent); }
+  .detail-notes::placeholder { color: var(--text-faint); }
+
+  /* ── Spec sections ──────────────────────────────────── */
+  .spec-section { margin-bottom: 2px; }
+  .spec-section-header {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .spec-section:last-child .spec-section-header { border-radius: var(--radius); }
+  .spec-section.open .spec-section-header { border-radius: var(--radius) var(--radius) 0 0; }
+  .spec-section.open:last-child .spec-section-header { border-radius: var(--radius) var(--radius) 0 0; }
+  .spec-section-header:hover { background: var(--bg3); }
+  .spec-section-header .chevron {
+    color: var(--text-faint); font-size: 10px; transition: transform 0.2s;
+    width: 14px; text-align: center;
+  }
+  .spec-section.open .spec-section-header .chevron { transform: rotate(90deg); }
+  .spec-section-header .title { font-size: 13px; font-weight: 600; flex: 1; }
+  .spec-section-header .count { font-size: 11px; color: var(--text-faint); }
+  .spec-section-content {
+    display: none; padding: 14px 16px;
+    border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    background: var(--bg);
+  }
+  .spec-section.open .spec-section-content { display: block; }
+
+  /* Markdown content styling */
+  .md-content { font-size: 13px; line-height: 1.6; color: var(--text); user-select: text; -webkit-user-select: text; }
+  .md-content p { margin-bottom: 10px; }
+  .md-content strong { color: var(--text); font-weight: 600; }
+  .md-content code {
+    background: var(--bg2); padding: 1px 5px; border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px;
+    border: 1px solid var(--border);
+  }
+  .md-content pre {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px; overflow-x: auto; margin: 10px 0;
+  }
+  .md-content pre code {
+    background: none; border: none; padding: 0; font-size: 12px; line-height: 1.5;
+    white-space: pre; color: var(--text-dim);
+  }
+  .md-content h4 {
+    font-size: 13px; font-weight: 600; color: var(--accent);
+    margin: 14px 0 6px 0; padding-bottom: 4px; border-bottom: 1px solid var(--border);
+  }
+  .md-content ul, .md-content ol { padding-left: 20px; margin: 8px 0; }
+  .md-content li { margin-bottom: 4px; }
+  .md-content table {
+    width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px;
+  }
+  .md-content th, .md-content td {
+    padding: 6px 10px; border: 1px solid var(--border); text-align: left;
+  }
+  .md-content th { background: var(--bg2); color: var(--text-dim); font-weight: 600; }
+
+  /* Behavior list */
+  .behavior-item {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 13px; line-height: 1.5; user-select: text; -webkit-user-select: text;
+  }
+  .behavior-item:last-child { border-bottom: none; }
+  .behavior-num {
+    display: inline-block; width: 24px; height: 24px; line-height: 24px;
+    text-align: center; background: var(--accent-dim); color: var(--accent);
+    border-radius: 50%; font-size: 11px; font-weight: 700;
+    margin-right: 8px; flex-shrink: 0; vertical-align: top;
+  }
+  .behavior-text { display: inline; }
+  .behavior-text strong { color: var(--cyan); }
+  .behavior-text code {
+    background: var(--bg2); padding: 1px 5px; border-radius: 3px;
+    font-family: 'SF Mono', monospace; font-size: 12px; border: 1px solid var(--border);
+  }
+
+  /* File inventory table */
+  .file-table { width: 100%; border-collapse: collapse; }
+  .file-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .file-table tr:last-child td { border-bottom: none; }
+  .file-table .ft-file {
+    font-family: 'SF Mono', monospace; color: var(--accent); cursor: pointer;
+  }
+  .file-table .ft-file:hover { text-decoration: underline; }
+  .file-table .ft-lines { color: var(--cyan); text-align: right; width: 60px; font-family: 'SF Mono', monospace; }
+  .file-table .ft-role { color: var(--text-dim); }
+
+  /* Related features */
+  .related-chip {
+    display: inline-block; padding: 3px 10px; border-radius: 10px;
+    font-size: 12px; font-weight: 600; cursor: pointer; margin: 2px;
+    background: var(--accent-dim); color: var(--accent); border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .related-chip:hover { border-color: var(--accent); }
+
+  /* ── Files View ─────────────────────────────────────── */
+  .files-content { padding: 12px 16px; }
+  .files-toolbar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    border-bottom: 1px solid var(--border); position: sticky; top: 0;
+    background: var(--bg); z-index: 10;
+  }
+  .files-search {
+    flex: 1; background: var(--bg2); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 12px; border-radius: 20px; font-size: 13px; outline: none;
+  }
+  .files-search:focus { border-color: var(--accent); }
+  .files-count { font-size: 12px; color: var(--text-faint); }
+  .file-group { margin-bottom: 16px; }
+  .file-group-header {
+    font-size: 12px; color: var(--text-faint); font-weight: 600;
+    padding: 4px 0; margin-bottom: 6px; border-bottom: 1px solid var(--border);
+    font-family: 'SF Mono', monospace;
+  }
+  .file-entry {
+    display: flex; align-items: center; gap: 10px; padding: 6px 8px;
+    border-radius: 6px; transition: background 0.1s;
+  }
+  .file-entry:hover { background: var(--bg2); }
+  .file-name {
+    font-size: 13px; font-family: 'SF Mono', monospace; color: var(--text);
+    min-width: 200px;
+  }
+  .file-lines { font-size: 11px; color: var(--cyan); font-family: 'SF Mono', monospace; width: 50px; }
+  .file-features { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  .file-feat-chip {
+    font-size: 10px; padding: 1px 7px; border-radius: 8px;
+    background: var(--accent-dim); color: var(--accent); cursor: pointer;
+    font-weight: 600;
+  }
+  .file-feat-chip:hover { background: rgba(88,166,255,0.25); }
+  .file-feat-chip.primary { background: rgba(57,210,192,0.15); color: var(--cyan); }
+
+  /* ── Summary View ───────────────────────────────────── */
+  .summary-content { padding: 16px; }
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); padding: 16px; text-align: center;
+  }
+  .stat-num { font-size: 32px; font-weight: 800; line-height: 1; }
+  .stat-num.keep { color: var(--green); }
+  .stat-num.cut { color: var(--red); }
+  .stat-num.merge { color: var(--purple); }
+  .stat-num.rethink { color: var(--orange); }
+  .stat-num.pending { color: var(--text-dim); }
+  .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .summary-section { margin-bottom: 24px; }
+  .summary-section h3 {
+    font-size: 14px; color: var(--text-dim); margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .summary-row {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+    border-radius: 6px; cursor: pointer; transition: background 0.1s;
+  }
+  .summary-row:hover { background: var(--bg2); }
+  .summary-row .sid { font-size: 11px; color: var(--accent); width: 32px; font-weight: 700; }
+  .summary-row .sname { font-size: 13px; flex: 1; }
+  .summary-row .spriority { font-size: 10px; }
+  .summary-row .spriority.critical { color: var(--red); }
+  .summary-row .spriority.high { color: var(--orange); }
+  .summary-row .sdecision {
+    font-size: 11px; padding: 2px 8px; border-radius: 8px;
+    font-weight: 600; text-transform: uppercase;
+  }
+  .summary-row .sdecision.keep { color: var(--green); background: var(--keep-bg); }
+  .summary-row .sdecision.cut { color: var(--red); background: var(--cut-bg); }
+  .summary-row .sdecision.merge { color: var(--purple); background: var(--merge-bg); }
+  .summary-row .sdecision.rethink { color: var(--orange); background: var(--rethink-bg); }
+  .summary-row .sdecision.pending { color: var(--text-faint); }
+  .summary-row .snote { font-size: 11px; color: var(--text-faint); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Export bar ─────────────────────────────────────── */
+  .export-bar {
+    display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--border);
+    background: var(--bg); position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  }
+  .export-btn {
+    padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border); background: var(--bg2); color: var(--text-dim);
+    cursor: pointer;
+  }
+  .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Toast ──────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+    background: var(--bg3); color: var(--text); padding: 8px 20px;
+    border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; z-index: 100; border: 1px solid var(--border);
+  }
+  .toast.show { opacity: 1; }
+
+  /* ── Responsive ─────────────────────────────────────── */
+  @media (max-width: 700px) {
+    .header { flex-wrap: wrap; gap: 8px; }
+    .header-search { max-width: none; order: 5; flex-basis: 100%; }
+    .summary-grid { grid-template-columns: repeat(3, 1fr); }
+    .grid-group-tiles { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    .detail-body { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">Feature Portal</div>
+  <input class="header-search" placeholder="Search features, behaviors, files..." id="global-search">
+  <nav class="header-nav">
+    <button data-view="grid" class="active">Grid</button>
+    <button data-view="files">Files</button>
+    <button data-view="summary">Summary</button>
+  </nav>
+  <div class="header-stats" id="header-stats"></div>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+
+<div id="grid-view" class="view active"></div>
+<div id="detail-view" class="view"></div>
+<div id="files-view" class="view"></div>
+<div id="summary-view" class="view"></div>
+
+<div class="export-bar" id="export-bar" style="display:none">
+  <button class="export-btn" onclick="exportMarkdown()">Export Markdown</button>
+  <button class="export-btn" onclick="exportJSON()">Export JSON</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────
+let FEATURES = [], GROUPS = [], FILE_MAP = {};
+let decisions = {}, notes = {};
+let currentView = 'grid';
+let searchQuery = '';
+let gridFilter = 'all';
+let detailFeatureId = null;
+let detailList = []; // filtered list for prev/next
+let collapsedGroups = {};
+
+// ── Data loading ───────────────────────────────────────────
+async function loadData() {
+  const [featRes, triageRes] = await Promise.all([
+    fetch('/api/features').then(r => r.json()),
+    fetch('/api/triage-state').then(r => r.json())
+  ]);
+  GROUPS = featRes.groups || [];
+  FEATURES = featRes.features || [];
+  decisions = triageRes.decisions || {};
+  notes = triageRes.notes || {};
+  buildFileMap();
+}
+
+function buildFileMap() {
+  FILE_MAP = {};
+  for (const f of FEATURES) {
+    const allFiles = [
+      ...(f.primary_files || []).map(p => ({ file: p, type: 'primary' })),
+      ...(f.supporting_files || []).map(p => ({ file: p, type: 'supporting' })),
+    ];
+    // Also include spec file inventory
+    if (f.spec && f.spec.file_inventory) {
+      for (const fi of f.spec.file_inventory) {
+        const exists = allFiles.find(a => a.file === fi.file || fi.file.endsWith(a.file) || a.file.endsWith(fi.file));
+        if (!exists) allFiles.push({ file: fi.file, type: 'inventory', lines: fi.lines, role: fi.role });
+      }
+    }
+    for (const af of allFiles) {
+      if (!FILE_MAP[af.file]) FILE_MAP[af.file] = { features: [], lines: af.lines, role: af.role };
+      FILE_MAP[af.file].features.push({ id: f.id, name: f.name, type: af.type });
+      if (af.lines && !FILE_MAP[af.file].lines) FILE_MAP[af.file].lines = af.lines;
+      if (af.role && !FILE_MAP[af.file].role) FILE_MAP[af.file].role = af.role;
+    }
+  }
+}
+
+// ── Persistence ────────────────────────────────────────────
+let saveTimeout = null;
+function persistState() {
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    fetch('/api/triage-state', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decisions, notes })
+    });
+  }, 500);
+}
+
+// ── Search ─────────────────────────────────────────────────
+function matchesSearch(f, q) {
+  if (!q) return true;
+  const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+  let haystack = `${f.id} ${f.name} ${f.group} ${f.priority} ${f.complexity} ${notes[f.id]||''} ${decisions[f.id]||''}`;
+  if (f.spec) {
+    haystack += ` ${f.spec.what_it_does} ${f.spec.why_it_exists}`;
+    if (f.spec.key_behaviors) haystack += ' ' + f.spec.key_behaviors.join(' ');
+    if (f.spec.edge_cases) haystack += ' ' + f.spec.edge_cases;
+  }
+  if (f.tags) haystack += ' ' + f.tags.join(' ');
+  if (f.primary_files) haystack += ' ' + f.primary_files.join(' ');
+  haystack = haystack.toLowerCase();
+  return terms.every(t => {
+    if (t.startsWith('-') && t.length > 1) return !haystack.includes(t.slice(1));
+    return haystack.includes(t);
+  });
+}
+
+function getFilteredFeatures() {
+  return FEATURES.filter(f => {
+    if (!matchesSearch(f, searchQuery)) return false;
+    if (gridFilter === 'all') return true;
+    if (gridFilter === 'pending') return !decisions[f.id];
+    return decisions[f.id] === gridFilter;
+  });
+}
+
+// ── View management ────────────────────────────────────────
+function showView(view, skipHash) {
+  currentView = view;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.header-nav button').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.header-nav button[data-view="${view}"]`);
+  if (btn) btn.classList.add('active');
+
+  if (view === 'detail') {
+    document.getElementById('detail-view').classList.add('active');
+    document.getElementById('export-bar').style.display = 'none';
+  } else {
+    document.getElementById(`${view}-view`).classList.add('active');
+    document.getElementById('export-bar').style.display = (view === 'summary') ? 'flex' : 'none';
+    if (view === 'grid') renderGrid();
+    if (view === 'files') renderFiles();
+    if (view === 'summary') renderSummary();
+  }
+  if (!skipHash) updateHash();
+}
+
+function updateHash() {
+  let hash = currentView;
+  if (currentView === 'detail' && detailFeatureId) hash = `feature/${detailFeatureId}`;
+  history.replaceState(null, '', '#' + hash);
+}
+
+function restoreFromHash() {
+  const hash = location.hash.slice(1);
+  if (!hash) return false;
+  const parts = hash.split('/');
+  if (parts[0] === 'feature' && parts[1]) {
+    openDetail(parts[1]);
+    return true;
+  }
+  if (parts[0] === 'tiles') {
+    // compat with old triage URLs
+    if (parts[1]) { openDetail(parts[1]); return true; }
+    showView('grid', true);
+    return true;
+  }
+  if (['grid', 'files', 'summary'].includes(parts[0])) {
+    showView(parts[0], true);
+    return true;
+  }
+  return false;
+}
+
+// ── Progress & stats ───────────────────────────────────────
+function updateStats() {
+  const counts = { keep: 0, cut: 0, merge: 0, rethink: 0 };
+  FEATURES.forEach(f => { if (decisions[f.id]) counts[decisions[f.id]]++; });
+  const decided = Object.values(counts).reduce((a, b) => a + b, 0);
+  const total = FEATURES.length;
+  const pct = total ? Math.round((decided / total) * 100) : 0;
+
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('header-stats').innerHTML = `
+    <span>${decided}/${total}</span>
+    <span class="dot keep"></span>${counts.keep}
+    <span class="dot cut"></span>${counts.cut}
+    <span class="dot merge"></span>${counts.merge}
+    <span class="dot rethink"></span>${counts.rethink}
+  `;
+}
+
+// ── Markdown renderer ──────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function inlineMd(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\b([A-H]\d{2})\b/g, (m, id) => {
+      const f = FEATURES.find(f => f.id === id);
+      return f ? `<a class="related-chip" onclick="openDetail('${id}')" title="${f.name}">${id}</a>` : m;
+    });
+}
+
+function renderMd(text) {
+  if (!text) return '<span style="color:var(--text-faint)">No content</span>';
+  const lines = text.split('\n');
+  let html = '';
+  let inCode = false, inList = false, listTag = '', inTable = false, isFirstTableRow = true;
+
+  function closeList() { if (inList) { html += `</${listTag}>`; inList = false; } }
+  function closeTable() { if (inTable) { html += '</tbody></table>'; inTable = false; } }
+
+  for (const line of lines) {
+    // Code blocks
+    if (line.trim().startsWith('```')) {
+      if (inCode) { html += '</code></pre>'; inCode = false; }
+      else { closeList(); closeTable(); html += '<pre><code>'; inCode = true; }
+      continue;
+    }
+    if (inCode) { html += escHtml(line) + '\n'; continue; }
+
+    // Tables
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      closeList();
+      if (line.trim().match(/^\|[\s:|-]+\|$/)) continue; // separator
+      const cells = line.split('|').slice(1, -1).map(c => c.trim());
+      if (!inTable) {
+        html += '<table><tbody>';
+        inTable = true;
+        isFirstTableRow = true;
+      }
+      const tag = isFirstTableRow ? 'th' : 'td';
+      html += '<tr>' + cells.map(c => `<${tag}>${inlineMd(c)}</${tag}>`).join('') + '</tr>';
+      isFirstTableRow = false;
+      continue;
+    }
+    closeTable();
+
+    const trimmed = line.trim();
+
+    // Sub-headers
+    if (trimmed.startsWith('### ')) {
+      closeList();
+      html += `<h4>${inlineMd(trimmed.slice(4))}</h4>`;
+      continue;
+    }
+
+    // Bullet lists
+    const bullet = trimmed.match(/^[-*]\s+(.+)/);
+    if (bullet) {
+      if (!inList || listTag !== 'ul') { closeList(); html += '<ul>'; inList = true; listTag = 'ul'; }
+      html += `<li>${inlineMd(bullet[1])}</li>`;
+      continue;
+    }
+
+    // Numbered lists
+    const num = trimmed.match(/^\d+\.\s+(.+)/);
+    if (num) {
+      if (!inList || listTag !== 'ol') { closeList(); html += '<ol>'; inList = true; listTag = 'ol'; }
+      html += `<li>${inlineMd(num[1])}</li>`;
+      continue;
+    }
+
+    // Empty line
+    if (!trimmed) { closeList(); continue; }
+
+    // Continuation of list item (indented)
+    if (inList && line.match(/^\s{2,}/)) {
+      html += ` ${inlineMd(trimmed)}`;
+      continue;
+    }
+
+    // Paragraph
+    closeList();
+    html += `<p>${inlineMd(trimmed)}</p>`;
+  }
+  closeList(); closeTable();
+  if (inCode) html += '</code></pre>';
+  return html;
+}
+
+// ── Grid View ──────────────────────────────────────────────
+function renderGrid() {
+  const filtered = getFilteredFeatures();
+  detailList = filtered.map(f => f.id);
+
+  // Build group structure
+  const groupedFeatures = {};
+  for (const g of GROUPS) groupedFeatures[g.id] = [];
+  for (const f of filtered) {
+    if (!groupedFeatures[f.group]) groupedFeatures[f.group] = [];
+    groupedFeatures[f.group].push(f);
+  }
+
+  let toolbarHtml = `
+    <div class="grid-toolbar">
+      <button class="filter-chip ${gridFilter==='all'?'active':''}" onclick="setGridFilter('all')">All</button>
+      <button class="filter-chip keep ${gridFilter==='keep'?'active':''}" onclick="setGridFilter('keep')">Keep</button>
+      <button class="filter-chip cut ${gridFilter==='cut'?'active':''}" onclick="setGridFilter('cut')">Cut</button>
+      <button class="filter-chip merge ${gridFilter==='merge'?'active':''}" onclick="setGridFilter('merge')">Merge</button>
+      <button class="filter-chip rethink ${gridFilter==='rethink'?'active':''}" onclick="setGridFilter('rethink')">Rethink</button>
+      <button class="filter-chip ${gridFilter==='pending'?'active':''}" onclick="setGridFilter('pending')">Pending</button>
+      <span class="grid-count">${filtered.length} features</span>
+    </div>
+  `;
+
+  let contentHtml = '<div class="grid-content">';
+  for (const g of GROUPS) {
+    const gf = groupedFeatures[g.id] || [];
+    if (gf.length === 0) continue;
+    const collapsed = collapsedGroups[g.id];
+    contentHtml += `<div class="grid-group">`;
+    contentHtml += `<div class="grid-group-header ${collapsed?'collapsed':''}" onclick="toggleGroup('${g.id}')">
+      <span class="chevron">\u25B6</span>
+      <h2>${g.id}: ${g.name}</h2>
+      <span class="count">${gf.length}</span>
+    </div>`;
+    if (!collapsed) {
+      contentHtml += '<div class="grid-group-tiles">';
+      for (const f of gf) {
+        const d = decisions[f.id];
+        const desc = f.spec?.what_it_does || '';
+        const bCount = f.spec?.key_behaviors?.length || 0;
+        const fCount = f.spec?.file_inventory?.length || 0;
+        contentHtml += `
+          <div class="tile ${d ? 'decision-'+d : ''}" onclick="openDetail('${f.id}')">
+            ${d ? `<div class="tile-decision-dot ${d}"></div>` : ''}
+            <div class="tile-header">
+              <span class="tile-id">${f.id}</span>
+              <span class="tile-name">${f.name}</span>
+            </div>
+            <div class="tile-desc">${desc ? escHtml(desc.split('.')[0] + '.') : ''}</div>
+            <div class="tile-meta">
+              <span class="tile-badge ${f.priority}">${f.priority}</span>
+              <span class="tile-badge">${f.complexity}</span>
+              ${bCount ? `<span class="tile-badge b-count">${bCount} behaviors</span>` : ''}
+              ${fCount ? `<span class="tile-badge f-count">${fCount} files</span>` : ''}
+            </div>
+          </div>
+        `;
+      }
+      contentHtml += '</div>';
+    }
+    contentHtml += '</div>';
+  }
+  contentHtml += '</div>';
+
+  document.getElementById('grid-view').innerHTML = toolbarHtml + contentHtml;
+}
+
+function setGridFilter(f) {
+  gridFilter = f;
+  renderGrid();
+}
+
+function toggleGroup(gid) {
+  collapsedGroups[gid] = !collapsedGroups[gid];
+  renderGrid();
+}
+
+// ── Detail View ────────────────────────────────────────────
+function openDetail(id) {
+  const f = FEATURES.find(x => x.id === id);
+  if (!f) return;
+  detailFeatureId = id;
+  if (!detailList.includes(id)) detailList = FEATURES.map(x => x.id);
+  renderDetail(f);
+  showView('detail');
+}
+
+function renderDetail(f) {
+  const idx = detailList.indexOf(f.id);
+  const prevId = idx > 0 ? detailList[idx - 1] : null;
+  const nextId = idx < detailList.length - 1 ? detailList[idx + 1] : null;
+  const d = decisions[f.id] || '';
+  const n = notes[f.id] || '';
+  const s = f.spec || {};
+  const group = GROUPS.find(g => g.id === f.group);
+
+  let html = `
+    <div class="detail-header">
+      <button class="detail-back" onclick="goBackFromDetail()" title="Back to grid">\u2190</button>
+      <div class="detail-title">
+        <span class="id">${f.id}</span>
+        <span class="name">${f.name}</span>
+      </div>
+      <span style="color:var(--text-faint);font-size:12px">${idx+1}/${detailList.length}</span>
+      <button class="detail-nav-btn" onclick="navDetail(-1)" ${!prevId?'disabled':''}  title="Previous (Left arrow)">\u2190</button>
+      <button class="detail-nav-btn" onclick="navDetail(1)" ${!nextId?'disabled':''} title="Next (Right arrow)">\u2192</button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-pills">
+        <span class="pill ${f.priority}">${f.priority}</span>
+        <span class="pill complexity">${f.complexity} complexity</span>
+        <span class="pill group">${group ? group.name : f.group}</span>
+        ${f.tags ? f.tags.map(t => `<span class="pill tag">${t}</span>`).join('') : ''}
+        ${s.journey_turns ? `<span class="pill tag">${s.journey_turns} journey turns</span>` : ''}
+      </div>
+
+      <div class="detail-decisions">
+        <button class="decision-btn keep ${d==='keep'?'selected':''}" onclick="setDecision('${f.id}','keep')">Keep</button>
+        <button class="decision-btn cut ${d==='cut'?'selected':''}" onclick="setDecision('${f.id}','cut')">Cut</button>
+        <button class="decision-btn merge ${d==='merge'?'selected':''}" onclick="setDecision('${f.id}','merge')">Merge</button>
+        <button class="decision-btn rethink ${d==='rethink'?'selected':''}" onclick="setDecision('${f.id}','rethink')">Rethink</button>
+      </div>
+
+      <textarea class="detail-notes" placeholder="Notes about this feature..."
+        oninput="setNotes('${f.id}', this.value)">${escHtml(n)}</textarea>
+  `;
+
+  // What It Does + Why It Exists (always open)
+  if (s.what_it_does || s.why_it_exists) {
+    html += `
+      <div class="spec-section open">
+        <div class="spec-section-header" onclick="toggleSection(this)">
+          <span class="chevron">\u25B6</span>
+          <span class="title">Overview</span>
+        </div>
+        <div class="spec-section-content">
+          <div class="md-content">
+            ${s.what_it_does ? `<p>${inlineMd(s.what_it_does)}</p>` : ''}
+            ${s.why_it_exists ? `<h4>Why It Exists</h4><p>${inlineMd(s.why_it_exists)}</p>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Key Behaviors
+  if (s.key_behaviors && s.key_behaviors.length) {
+    let bhtml = '';
+    s.key_behaviors.forEach((b, i) => {
+      const numMatch = b.match(/^(\d+)\.\s*(.*)/s);
+      const text = numMatch ? numMatch[2] : b;
+      bhtml += `<div class="behavior-item"><span class="behavior-num">${i+1}</span><span class="behavior-text">${inlineMd(text)}</span></div>`;
+    });
+    html += `
+      <div class="spec-section open">
+        <div class="spec-section-header" onclick="toggleSection(this)">
+          <span class="chevron">\u25B6</span>
+          <span class="title">Key Behaviors</span>
+          <span class="count">${s.key_behaviors.length}</span>
+        </div>
+        <div class="spec-section-content" style="padding:0">${bhtml}</div>
+      </div>
+    `;
+  }
+
+  // Architecture
+  if (s.architecture) {
+    html += makeSection('Architecture', s.architecture);
+  }
+
+  // API Surface
+  if (s.api_surface) {
+    html += makeSection('API Surface', s.api_surface);
+  }
+
+  // State Management
+  if (s.state_management) {
+    html += makeSection('State Management', s.state_management);
+  }
+
+  // File Inventory
+  if (s.file_inventory && s.file_inventory.length) {
+    const totalLines = s.file_inventory.reduce((sum, fi) => sum + (parseInt(fi.lines) || 0), 0);
+    let thtml = '<table class="file-table">';
+    for (const fi of s.file_inventory) {
+      thtml += `<tr>
+        <td class="ft-file" onclick="navigateToFile('${escHtml(fi.file)}')">${escHtml(fi.file)}</td>
+        <td class="ft-lines">${fi.lines}</td>
+        <td class="ft-role">${escHtml(fi.role)}</td>
+      </tr>`;
+    }
+    thtml += '</table>';
+    html += `
+      <div class="spec-section open">
+        <div class="spec-section-header" onclick="toggleSection(this)">
+          <span class="chevron">\u25B6</span>
+          <span class="title">File Inventory</span>
+          <span class="count">${s.file_inventory.length} files, ${totalLines.toLocaleString()} lines</span>
+        </div>
+        <div class="spec-section-content" style="padding:0">${thtml}</div>
+      </div>
+    `;
+  }
+
+  // Dependencies + Related Features
+  const relatedIds = f.related_features || [];
+  if (s.dependencies || relatedIds.length) {
+    let depHtml = '';
+    if (s.dependencies) depHtml += `<div class="md-content">${renderMd(s.dependencies)}</div>`;
+    if (relatedIds.length) {
+      depHtml += '<div style="margin-top:10px"><strong style="font-size:12px;color:var(--text-dim)">Related Features:</strong><div style="margin-top:4px">';
+      for (const rid of relatedIds) {
+        const rf = FEATURES.find(x => x.id === rid);
+        depHtml += `<span class="related-chip" onclick="openDetail('${rid}')" title="${rf ? rf.name : rid}">${rid}${rf ? ' ' + rf.name : ''}</span>`;
+      }
+      depHtml += '</div></div>';
+    }
+    html += `
+      <div class="spec-section">
+        <div class="spec-section-header" onclick="toggleSection(this)">
+          <span class="chevron">\u25B6</span>
+          <span class="title">Dependencies & Related</span>
+          <span class="count">${relatedIds.length} related</span>
+        </div>
+        <div class="spec-section-content">${depHtml}</div>
+      </div>
+    `;
+  }
+
+  // Decisions Made
+  if (s.decisions) {
+    html += makeSection('Decisions Made', s.decisions);
+  }
+
+  // Edge Cases
+  if (s.edge_cases) {
+    html += makeSection('Edge Cases & Constraints', s.edge_cases);
+  }
+
+  // Requirements for 2.0
+  if (s.requirements) {
+    html += makeSection('Requirements for 2.0', s.requirements);
+  }
+
+  // iPadOS workarounds
+  if (f.ipados_workarounds && f.ipados_workarounds.length) {
+    let wHtml = '<ul>';
+    for (const w of f.ipados_workarounds) wHtml += `<li>${inlineMd(w)}</li>`;
+    wHtml += '</ul>';
+    html += `
+      <div class="spec-section">
+        <div class="spec-section-header" onclick="toggleSection(this)">
+          <span class="chevron">\u25B6</span>
+          <span class="title">iPadOS Workarounds</span>
+          <span class="count">${f.ipados_workarounds.length}</span>
+        </div>
+        <div class="spec-section-content"><div class="md-content">${wHtml}</div></div>
+      </div>
+    `;
+  }
+
+  html += '</div>'; // detail-body
+  document.getElementById('detail-view').innerHTML = html;
+  document.getElementById('detail-view').scrollTop = 0;
+}
+
+function makeSection(title, content, open) {
+  return `
+    <div class="spec-section ${open ? 'open' : ''}">
+      <div class="spec-section-header" onclick="toggleSection(this)">
+        <span class="chevron">\u25B6</span>
+        <span class="title">${title}</span>
+      </div>
+      <div class="spec-section-content"><div class="md-content">${renderMd(content)}</div></div>
+    </div>
+  `;
+}
+
+function toggleSection(header) {
+  header.parentElement.classList.toggle('open');
+}
+
+function setDecision(id, dec) {
+  if (decisions[id] === dec) delete decisions[id];
+  else decisions[id] = dec;
+  persistState();
+  updateStats();
+  const f = FEATURES.find(x => x.id === id);
+  if (f) renderDetail(f);
+}
+
+function setNotes(id, text) {
+  if (text.trim()) notes[id] = text;
+  else delete notes[id];
+  persistState();
+}
+
+function navDetail(dir) {
+  const idx = detailList.indexOf(detailFeatureId);
+  const newIdx = idx + dir;
+  if (newIdx >= 0 && newIdx < detailList.length) {
+    openDetail(detailList[newIdx]);
+  }
+}
+
+function goBackFromDetail() {
+  showView('grid');
+}
+
+function navigateToFile(file) {
+  showView('files');
+  setTimeout(() => {
+    const input = document.querySelector('.files-search');
+    if (input) { input.value = file; input.dispatchEvent(new Event('input')); }
+  }, 50);
+}
+
+// ── Files View ─────────────────────────────────────────────
+function renderFiles() {
+  let fileSearch = '';
+  const el = document.querySelector('.files-search');
+  if (el) fileSearch = el.value;
+
+  // Build sorted file list
+  const entries = Object.entries(FILE_MAP).sort(([a], [b]) => a.localeCompare(b));
+  const filtered = fileSearch
+    ? entries.filter(([path]) => path.toLowerCase().includes(fileSearch.toLowerCase()))
+    : entries;
+
+  // Group by directory
+  const dirs = {};
+  for (const [path, info] of filtered) {
+    const parts = path.split('/');
+    const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+    if (!dirs[dir]) dirs[dir] = [];
+    dirs[dir].push({ path, ...info, filename: parts[parts.length - 1] });
+  }
+
+  let html = `
+    <div class="files-toolbar">
+      <input class="files-search" placeholder="Filter files..." value="${escHtml(fileSearch)}" oninput="renderFiles()">
+      <span class="files-count">${filtered.length} files across ${FEATURES.length} features</span>
+    </div>
+    <div class="files-content">
+  `;
+
+  for (const dir of Object.keys(dirs).sort()) {
+    html += `<div class="file-group">`;
+    html += `<div class="file-group-header">${dir}/</div>`;
+    for (const f of dirs[dir]) {
+      html += `<div class="file-entry">
+        <span class="file-name">${escHtml(f.filename)}</span>
+        <span class="file-lines">${f.lines || ''}</span>
+        <div class="file-features">
+          ${f.features.map(ff => `<span class="file-feat-chip ${ff.type === 'primary' ? 'primary' : ''}" onclick="openDetail('${ff.id}')" title="${ff.name}">${ff.id}</span>`).join('')}
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('files-view').innerHTML = html;
+}
+
+// ── Summary View ───────────────────────────────────────────
+function renderSummary() {
+  const counts = { keep: 0, cut: 0, merge: 0, rethink: 0 };
+  FEATURES.forEach(f => { if (decisions[f.id]) counts[decisions[f.id]]++; });
+  const pending = FEATURES.length - Object.values(counts).reduce((a, b) => a + b, 0);
+
+  let html = '<div class="summary-content">';
+  html += `<div class="summary-grid">
+    <div class="stat-card"><div class="stat-num keep">${counts.keep}</div><div class="stat-label">Keep</div></div>
+    <div class="stat-card"><div class="stat-num cut">${counts.cut}</div><div class="stat-label">Cut</div></div>
+    <div class="stat-card"><div class="stat-num merge">${counts.merge}</div><div class="stat-label">Merge</div></div>
+    <div class="stat-card"><div class="stat-num rethink">${counts.rethink}</div><div class="stat-label">Rethink</div></div>
+    <div class="stat-card"><div class="stat-num pending">${pending}</div><div class="stat-label">Pending</div></div>
+  </div>`;
+
+  // Priority breakdown
+  const byPriority = { critical: [], high: [], medium: [], low: [] };
+  FEATURES.forEach(f => { if (byPriority[f.priority]) byPriority[f.priority].push(f); });
+  html += `<div class="summary-section"><h3>Priority Breakdown</h3>`;
+  for (const [p, list] of Object.entries(byPriority)) {
+    if (!list.length) continue;
+    const decided = list.filter(f => decisions[f.id]).length;
+    html += `<div style="margin-bottom:4px;font-size:13px;color:var(--text-dim)">
+      <strong style="text-transform:capitalize">${p}</strong>: ${list.length} features (${decided} decided)
+    </div>`;
+  }
+  html += '</div>';
+
+  // Per-group rows
+  for (const g of GROUPS) {
+    const gf = FEATURES.filter(f => f.group === g.id);
+    if (!gf.length) continue;
+    html += `<div class="summary-section"><h3>${g.id}: ${g.name}</h3>`;
+    for (const f of gf) {
+      const d = decisions[f.id] || 'pending';
+      const n = notes[f.id] || '';
+      html += `
+        <div class="summary-row" onclick="openDetail('${f.id}')">
+          <span class="sid">${f.id}</span>
+          <span class="sname">${f.name}</span>
+          <span class="spriority ${f.priority}">${f.priority}</span>
+          ${n ? `<span class="snote" title="${escHtml(n)}">${escHtml(n)}</span>` : ''}
+          <span class="sdecision ${d}">${d}</span>
+        </div>
+      `;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('summary-view').innerHTML = html;
+}
+
+// ── Export ──────────────────────────────────────────────────
+function exportMarkdown() {
+  let md = '# Feature Triage Results\n\n';
+  md += `**Date:** ${new Date().toISOString().split('T')[0]}\n`;
+  const counts = { keep: 0, cut: 0, merge: 0, rethink: 0 };
+  FEATURES.forEach(f => { if (decisions[f.id]) counts[decisions[f.id]]++; });
+  md += `**Decisions:** ${counts.keep} keep, ${counts.cut} cut, ${counts.merge} merge, ${counts.rethink} rethink, ${FEATURES.length - Object.keys(decisions).length} pending\n\n`;
+  md += '| ID | Feature | Priority | Decision | Notes |\n';
+  md += '|----|---------|----------|----------|-------|\n';
+  for (const f of FEATURES) {
+    const d = decisions[f.id] || 'pending';
+    const n = (notes[f.id] || '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+    md += `| ${f.id} | ${f.name} | ${f.priority} | ${d} | ${n} |\n`;
+  }
+  copyToClipboard(md);
+  showToast('Markdown copied to clipboard');
+}
+
+function exportJSON() {
+  const data = FEATURES.map(f => ({
+    id: f.id, name: f.name, group: f.group, priority: f.priority,
+    decision: decisions[f.id] || null, notes: notes[f.id] || null
+  }));
+  copyToClipboard(JSON.stringify(data, null, 2));
+  showToast('JSON copied to clipboard');
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── Keyboard ───────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // Don't intercept when typing in inputs
+  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.target.tagName === 'INPUT') {
+    if (e.key === 'Escape') {
+      e.target.blur();
+      e.target.value = '';
+      searchQuery = '';
+      renderGrid();
+    }
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    if (currentView === 'detail') { goBackFromDetail(); return; }
+  }
+
+  // Detail view shortcuts
+  if (currentView === 'detail') {
+    if (e.key === 'ArrowLeft') { navDetail(-1); return; }
+    if (e.key === 'ArrowRight') { navDetail(1); return; }
+    if (e.key === '1') { setDecision(detailFeatureId, 'keep'); return; }
+    if (e.key === '2') { setDecision(detailFeatureId, 'cut'); return; }
+    if (e.key === '3') { setDecision(detailFeatureId, 'merge'); return; }
+    if (e.key === '4') { setDecision(detailFeatureId, 'rethink'); return; }
+  }
+
+  // Grid view: type to search
+  if (currentView === 'grid' && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const input = document.getElementById('global-search');
+    if (input) { input.focus(); return; }
+  }
+});
+
+// Global search
+document.getElementById('global-search').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  if (currentView === 'grid') renderGrid();
+});
+
+// Nav buttons
+document.querySelectorAll('.header-nav button').forEach(btn => {
+  btn.addEventListener('click', () => showView(btn.dataset.view));
+});
+
+// ── Init ───────────────────────────────────────────────────
+(async () => {
+  await loadData();
+  updateStats();
+  if (!restoreFromHash()) {
+    showView('grid');
+  }
+})();
+</script>
+</body>
+</html>

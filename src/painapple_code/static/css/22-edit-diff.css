@@ -1,0 +1,619 @@
+/* ═══════════════════════════════════════════════════════════════════
+   EDIT DIFF DISPLAY
+   ═══════════════════════════════════════════════════════════════════ */
+.edit-tool-block {
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+.edit-diff {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    font-family: var(--font-mono);
+}
+
+.edit-diff-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.edit-diff-icon {
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.edit-diff-path {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.edit-diff-stats {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    display: flex;
+    gap: var(--sp-6);
+}
+
+.diff-stat-added {
+    color: #22c55e;
+}
+
+.diff-stat-removed {
+    color: #ef4444;
+}
+
+/* Icon-only action buttons */
+.edit-actions {
+    display: flex;
+    gap: var(--sp-2);
+    margin-left: auto;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.edit-diff-header:hover .edit-actions {
+    opacity: 1;
+}
+
+.edit-action {
+    height: var(--layout-btn-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.edit-action:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.edit-action svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* No vertical scroll region: tall diffs collapse to the first rows with an
+   expand button instead, so page scrolling never gets trapped inside. */
+.edit-diff-content {
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+}
+
+/* Rows past the collapse limit — shown when .edit-diff gains .expanded */
+.edit-diff .diff-row-hidden {
+    display: none;
+}
+
+.edit-diff.expanded .diff-row-hidden {
+    display: flex;
+}
+
+.diff-expand-btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-4) var(--sp-8);
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s;
+}
+
+.diff-expand-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* Line position unknown (failed/pending edit, no structuredPatch):
+   hide the numbers instead of counting from 1. */
+.edit-diff.line-nums-unknown .diff-line-num {
+    display: none;
+}
+
+/* Hunk: a group of consecutive same-type rows that share one horizontal
+   scrollbar. The inner element sizes to max-content so the widest row
+   determines the hunk's scroll width and all rows scroll together. */
+.diff-hunk {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.diff-hunk::-webkit-scrollbar { height: 6px; }
+.diff-hunk::-webkit-scrollbar-thumb {
+    background: var(--border-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.diff-hunk-inner {
+    min-width: max-content;
+}
+
+.diff-line {
+    display: flex;
+    padding: 0 var(--sp-6) 0 var(--sp-4);
+    min-height: 18px;
+}
+
+.diff-line.diff-removed {
+    background: rgba(248, 113, 113, 0.15);
+}
+
+.diff-line.diff-added {
+    background: rgba(74, 222, 128, 0.15);
+}
+
+/* Context (unchanged) lines - dimmed */
+.diff-line.diff-context {
+    background: transparent;
+    opacity: 0.5;
+}
+
+.diff-context .diff-prefix {
+    color: var(--text-muted);
+}
+
+.diff-context .diff-text {
+    color: var(--text-secondary);
+}
+
+/* Modified lines - inline diff */
+.diff-line.diff-modified {
+    background: rgba(251, 191, 36, 0.12);
+}
+
+.diff-modified .diff-prefix {
+    color: #fbbf24;
+}
+
+.diff-modified .diff-text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--sp-4);
+}
+
+.diff-old-line {
+    color: #fca5a5;
+    text-decoration: line-through;
+    opacity: 0.8;
+}
+
+.diff-new-line {
+    color: #86efac;
+}
+
+.diff-arrow {
+    color: var(--text-muted);
+    font-size: 10px;
+    padding: 0 var(--sp-2);
+}
+
+/* Word-level highlights within lines
+   - Subtle background (readable text)
+   - Underline as secondary indicator
+   - Brighter text color for emphasis */
+.diff-word-removed {
+    background: rgba(248, 113, 113, 0.18);
+    border-bottom: 1.5px solid rgba(248, 113, 113, 0.7);
+    border-radius: var(--radius-xs);
+    color: #fecaca;
+}
+
+.diff-word-added {
+    background: rgba(74, 222, 128, 0.18);
+    border-bottom: 1.5px solid rgba(74, 222, 128, 0.7);
+    border-radius: var(--radius-xs);
+    color: #bbf7d0;
+}
+
+/* Collapsed unchanged sections */
+.diff-line.diff-collapse {
+    background: var(--bg-secondary);
+    cursor: pointer;
+    justify-content: center;
+    border-top: 1px dashed var(--border-secondary);
+    border-bottom: 1px dashed var(--border-secondary);
+    margin: var(--sp-2) 0;
+}
+
+.diff-collapse:hover {
+    background: var(--bg-hover);
+}
+
+.diff-collapse .diff-line-num {
+    color: var(--text-muted);
+    width: auto;
+}
+
+.diff-collapse-text {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    font-style: italic;
+}
+
+.diff-line-num {
+    flex-shrink: 0;
+    width: 36px;  /* fits 4-5 digit file line numbers */
+    text-align: right;
+    padding-right: var(--sp-6);
+    color: var(--text-tertiary);
+    font-size: var(--font-size-xs);
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 0.7;
+}
+
+.diff-prefix {
+    flex-shrink: 0;
+    width: 16px;
+    font-weight: 600;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.diff-removed .diff-prefix {
+    color: #f87171;
+}
+
+.diff-added .diff-prefix {
+    color: #4ade80;
+}
+
+.diff-text {
+    white-space: pre;
+}
+
+.diff-removed .diff-text {
+    color: #fca5a5;
+}
+
+.diff-added .diff-text {
+    color: #86efac;
+}
+
+/* Wrap mode: lines wrap inside their hunk, no horizontal scroll.
+   Shares the `.wrapped` class with Read/Write blocks and markdown code blocks —
+   one preference (`code-block-wrap`) drives all of them. */
+.edit-diff.wrapped .diff-hunk { overflow-x: hidden; }
+.edit-diff.wrapped .diff-hunk-inner { min-width: 0; }
+.edit-diff.wrapped .diff-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Active state for the wrap toggle button */
+.edit-action.is-active,
+.edit-action.wrap-toggle.active {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+    opacity: 1;
+}
+
+/* Read image preview */
+.read-image-preview {
+    padding: var(--sp-6);
+    background: var(--bg-primary);
+    text-align: center;
+}
+
+.read-image-preview img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.read-image-preview img:hover {
+    opacity: 0.9;
+}
+
+.edit-status {
+    padding: var(--sp-4) var(--sp-10);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+}
+
+.edit-status-success {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+}
+
+.edit-status-error {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+}
+
+.edit-status-pending {
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   READ BLOCK DISPLAY
+   ═══════════════════════════════════════════════════════════════════ */
+/* Compact Read Block */
+.read-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.read-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.read-icon {
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.read-filename {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.read-line-info {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.read-line-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px var(--sp-5);
+    background: rgba(255, 213, 79, 0.12);
+    border-radius: var(--radius-sm);
+    color: #ffd54f;
+}
+
+.read-lang {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    padding: 1px var(--sp-4);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    text-transform: lowercase;
+}
+
+/* Icon-only action buttons */
+.read-actions {
+    display: flex;
+    gap: var(--sp-2);
+    margin-left: auto;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.read-header:hover .read-actions {
+    opacity: 1;
+}
+
+.read-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.read-action:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.read-action svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Compact code content */
+.read-content {
+    position: relative;
+    font-family: var(--font-mono);
+    background: var(--bg-primary);
+}
+
+.read-code {
+    margin: 0;
+    padding: var(--sp-4) 0;
+    background: transparent;
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+    tab-size: 4;
+}
+
+.read-code code {
+    display: block;
+}
+
+.read-line {
+    display: flex;
+    padding: 0 var(--sp-8) 0 0;
+    min-height: 16px;
+}
+
+.read-line:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Hidden lines (collapsed) */
+.read-line-hidden {
+    display: none;
+}
+
+.read-block.expanded .read-line-hidden {
+    display: flex;
+}
+
+.read-line-num {
+    flex-shrink: 0;
+    width: 36px;
+    padding-right: var(--sp-8);
+    text-align: right;
+    color: var(--text-muted);
+    user-select: none;
+    -webkit-user-select: none;
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.read-line-content {
+    flex: 1;
+    min-width: 0;
+    white-space: pre;
+}
+
+/* Line-wrap toggle: wrap long lines inside their flex row instead of scrolling. */
+.read-block.wrapped .read-line-content {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.read-action.wrap-toggle.active {
+    color: var(--accent);
+    opacity: 1;
+}
+
+/* Expand button */
+.read-expand-btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-4) var(--sp-8);
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.read-expand-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.read-block.expanded .read-expand-btn {
+    border-top: 1px solid var(--border-secondary);
+}
+
+/* Loading state */
+.read-loading .read-header {
+    border-bottom: none;
+}
+
+.read-status-loading {
+    color: var(--warning);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    margin-left: auto;
+}
+
+/* Syntax highlighting for Read blocks (One Dark inspired) */
+.read-code .hljs-keyword,
+.read-code .hljs-selector-tag,
+.read-code .hljs-built_in,
+.read-code .hljs-meta {
+    color: #c678dd;
+}
+
+.read-code .hljs-string,
+.read-code .hljs-attr,
+.read-code .hljs-template-variable,
+.read-code .hljs-addition {
+    color: #98c379;
+}
+
+.read-code .hljs-number,
+.read-code .hljs-literal,
+.read-code .hljs-symbol,
+.read-code .hljs-bullet {
+    color: #d19a66;
+}
+
+.read-code .hljs-comment,
+.read-code .hljs-quote,
+.read-code .hljs-deletion {
+    color: #5c6370;
+    font-style: italic;
+}
+
+.read-code .hljs-function,
+.read-code .hljs-title,
+.read-code .hljs-section {
+    color: #61afef;
+}
+
+.read-code .hljs-variable,
+.read-code .hljs-params,
+.read-code .hljs-tag,
+.read-code .hljs-name {
+    color: #e06c75;
+}
+
+.read-code .hljs-type,
+.read-code .hljs-class,
+.read-code .hljs-title\.class_ {
+    color: #e5c07b;
+}
+
+.read-code .hljs-subst {
+    color: #abb2bf;
+}
+
+.read-code .hljs-punctuation {
+    color: #abb2bf;
+}
+

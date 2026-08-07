@@ -1,0 +1,332 @@
+/**
+ * Interactive Permission Card Styling
+ * Approve/deny card for the claude-sdk provider's can_use_tool asks —
+ * the provider process is paused until the user decides.
+ */
+
+/* Card container - mirrors plan-approval style, amber accent for "gate" */
+.message.permission-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--warning, #f59e0b);
+    border-radius: var(--radius-md);
+    padding: var(--sp-10);
+    margin: var(--sp-6) 0;
+}
+
+.message.permission-card:not(.answered) {
+    box-shadow: 0 0 0 1px var(--warning, #f59e0b);
+}
+
+.message.permission-card.answered {
+    opacity: 0.85;
+}
+
+.message.permission-card .message-header {
+    margin-bottom: var(--sp-6);
+}
+
+.message.permission-card .message-role.permission {
+    color: var(--warning, #f59e0b);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: var(--font-size-sm);
+}
+
+.message.permission-card .message-role.permission svg {
+    stroke: var(--warning, #f59e0b);
+    width: 12px;
+    height: 12px;
+}
+
+/* Body */
+.permission-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+}
+
+.permission-tool {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.permission-desc {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Tool input preview (command / file preview / diff / key-value table) */
+.permission-input {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-8);
+    margin: 0;
+    max-height: 200px;
+    overflow: auto;
+    font-size: var(--font-size-sm);
+    line-height: 1.45;
+}
+
+.permission-input code {
+    background: none;
+    padding: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* File header for Write/Edit targets */
+.permission-file-head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: var(--font-size-sm);
+    min-width: 0;
+}
+
+.permission-file-name {
+    font-family: var(--font-mono, monospace);
+    word-break: break-all;
+}
+
+.permission-file-tag {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xs);
+    padding: 1px var(--sp-4);
+    white-space: nowrap;
+}
+
+.permission-file-preview {
+    margin-top: var(--sp-4);
+}
+
+/* Edit / MultiEdit old→new diff */
+.permission-diff {
+    max-height: 220px;
+    overflow: auto;
+    font-family: var(--font-mono, monospace);
+    margin-top: var(--sp-4);
+}
+
+.permission-diff-hunk + .permission-diff-hunk {
+    margin-top: var(--sp-6);
+    padding-top: var(--sp-6);
+    border-top: 1px dashed var(--border-color);
+}
+
+.permission-diff-line {
+    position: relative;
+    padding-left: var(--sp-14, 14px);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.permission-diff-line::before {
+    position: absolute;
+    left: var(--sp-4);
+    font-weight: 600;
+}
+
+.permission-diff-line.removed {
+    background: color-mix(in srgb, var(--error, #ef4444) 10%, transparent);
+    color: color-mix(in srgb, var(--error, #ef4444) 80%, var(--text-primary));
+}
+
+.permission-diff-line.removed::before {
+    content: '-';
+    color: var(--error, #ef4444);
+}
+
+.permission-diff-line.added {
+    background: color-mix(in srgb, var(--success, #22c55e) 10%, transparent);
+    color: color-mix(in srgb, var(--success, #22c55e) 80%, var(--text-primary));
+}
+
+.permission-diff-line.added::before {
+    content: '+';
+    color: var(--success, #22c55e);
+}
+
+/* Optional deny-guidance input */
+.permission-feedback {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    padding: var(--sp-6) var(--sp-8);
+    outline: none;
+}
+
+.permission-feedback:focus {
+    border-color: var(--accent);
+}
+
+/* Action buttons row */
+.permission-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding-top: var(--sp-4);
+    flex-wrap: wrap;
+}
+
+.permission-allow-btn,
+.permission-deny-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-12);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.permission-allow-btn {
+    background: var(--success, #22c55e);
+    border: 1px solid var(--success, #22c55e);
+    color: #fff;
+}
+
+.permission-allow-btn:hover {
+    filter: brightness(1.1);
+}
+
+.permission-deny-btn {
+    background: transparent;
+    border: 1px solid var(--error, #ef4444);
+    color: var(--error, #ef4444);
+}
+
+.permission-deny-btn:hover {
+    background: color-mix(in srgb, var(--error, #ef4444) 12%, transparent);
+}
+
+.permission-waiting {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    margin-left: auto;
+}
+
+/* Elapsed-wait timer — how long the ask has been pending (not a countdown) */
+.permission-elapsed {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--warning, #f59e0b);
+    padding: 1px var(--sp-4);
+    border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 40%, transparent);
+    border-radius: var(--radius-xs);
+    white-space: nowrap;
+}
+
+/* "Always allow" rows — one per engine rule suggestion, below Allow/Deny */
+.permission-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    padding-top: var(--sp-6);
+    border-top: 1px dashed var(--border-primary);
+    margin-top: var(--sp-6);
+}
+
+.permission-suggestion-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.permission-suggestion-btn:hover {
+    border-color: var(--success, #22c55e);
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--success, #22c55e) 8%, transparent);
+}
+
+.permission-suggestion-btn svg {
+    flex-shrink: 0;
+    color: var(--success, #22c55e);
+}
+
+.permission-suggestion-btn code {
+    font-size: var(--font-size-xs);
+    background: var(--bg-tertiary);
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-xs);
+    word-break: break-all;
+}
+
+/* Resolved status chip */
+.permission-status {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.permission-status.allowed {
+    color: var(--success, #22c55e);
+}
+
+.permission-status.denied {
+    color: var(--error, #ef4444);
+}
+
+.permission-status.expired {
+    color: var(--text-secondary);
+}
+
+/* Frozen wait-duration on a resolved/expired card (muted, next to the label) */
+.permission-status-elapsed {
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+.permission-status-elapsed::before {
+    content: '·';
+    margin-right: var(--sp-4);
+}
+
+/* Deny guidance echoed on the answered card — truncates, full text in tooltip */
+.permission-status-feedback {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-secondary);
+    opacity: 0.9;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.permission-status-feedback::before {
+    content: '·';
+    margin-right: var(--sp-4);
+    font-style: normal;
+}

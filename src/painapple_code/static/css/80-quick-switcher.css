@@ -1,0 +1,317 @@
+/* ═══════════════════════════════════════════════════════════════════
+   QUICK SWITCHER (VS Code-style command palette / file picker)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.qs-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 12vh;
+    padding-left: var(--sp-16);
+    padding-right: var(--sp-16);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+.qs-overlay[hidden] {
+    display: none;
+}
+
+.qs-modal {
+    width: 100%;
+    max-width: 640px;
+    max-height: min(70vh, 600px);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: var(--font-sans);
+}
+
+/* ─── Input row ─── */
+.qs-input-wrap {
+    display: flex;
+    align-items: center;
+    padding: var(--sp-8) var(--sp-14);
+    border-bottom: 1px solid var(--border-primary);
+    gap: var(--sp-10);
+    flex-shrink: 0;
+}
+
+.qs-prefix-badge {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    color: var(--accent);
+    background: var(--accent-muted);
+    padding: 2px var(--sp-8);
+    border-radius: var(--radius-sm);
+    line-height: 1.3;
+    flex-shrink: 0;
+}
+
+.qs-prefix-badge[hidden] {
+    display: none;
+}
+
+.qs-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: var(--font-size-lg);
+    font-family: var(--font-sans);
+    outline: none;
+    padding: var(--sp-4) 0;
+    min-width: 0;
+}
+
+.qs-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* ─── Result list ─── */
+.qs-list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--sp-4) 0;
+    min-height: 0;
+}
+
+.qs-section {
+    padding: var(--sp-6) var(--sp-14) var(--sp-2);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    user-select: none;
+}
+
+.qs-section-count {
+    color: var(--text-muted);
+    opacity: 0.7;
+    font-weight: 400;
+    margin-left: 4px;
+}
+
+.qs-item {
+    display: flex;
+    align-items: center;
+    padding: var(--sp-4) var(--sp-14);
+    gap: var(--sp-8);
+    line-height: 1.35;
+    cursor: pointer;
+    user-select: none;
+    border-left: 2px solid transparent;
+}
+
+.qs-item:hover {
+    background: var(--bg-hover);
+}
+
+.qs-item.selected {
+    background: var(--bg-active);
+    border-left-color: var(--accent);
+}
+
+.qs-item-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qs-item.selected .qs-item-icon {
+    color: var(--accent);
+}
+
+.qs-item-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.qs-item-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    overflow: hidden;
+}
+
+.qs-item-label {
+    color: var(--text-primary);
+    font-size: var(--font-size-content);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    max-width: 100%;
+}
+
+.qs-item-label mark {
+    background: transparent;
+    color: var(--accent);
+    font-weight: 600;
+    padding: 0;
+}
+
+.qs-item-desc {
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    direction: rtl;       /* keep the leaf visible when truncating long paths */
+    text-align: left;
+}
+
+.qs-item-meta {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    background: var(--bg-tertiary);
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+/* Chevron on project items hints the user they can drill in with →. */
+.qs-item-project::after {
+    content: '›';
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0.35;
+    margin-left: 2px;
+    flex-shrink: 0;
+}
+.qs-item-project.selected::after {
+    opacity: 1;
+    color: var(--accent);
+}
+
+/* Pinned "Open Skills Manager" action at the bottom of the $ list. */
+.qs-item-skill-manager {
+    border-top: 1px solid var(--border-primary);
+    margin-top: var(--sp-4);
+    padding-top: var(--sp-6);
+}
+.qs-item-skill-manager:first-child {
+    border-top: none;
+    margin-top: 0;
+    padding-top: var(--sp-4);
+}
+
+.qs-empty {
+    padding: var(--sp-24) var(--sp-14);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+}
+
+/* ─── Footer ─── */
+.qs-footer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-14);
+    border-top: 1px solid var(--border-primary);
+    background: var(--bg-primary);
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    flex-shrink: 0;
+}
+
+.qs-footer-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-5) var(--sp-14);
+}
+
+/* Prefix legend sits on its own row under the action keys, divided subtly so
+ * the long list never crowds/wraps the navigation hints. */
+.qs-footer-prefixes {
+    gap: var(--sp-6) var(--sp-12);
+    padding-top: var(--sp-8);
+    border-top: 1px solid var(--border-secondary);
+}
+
+.qs-hint,
+.qs-prefix-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-5);
+    white-space: nowrap;      /* keep "↑↓ navigate" on one line */
+}
+
+/* display:inline-flex above would otherwise beat the UA [hidden] rule */
+.qs-hint[hidden] {
+    display: none;
+}
+
+.qs-hint-label {
+    color: var(--text-muted);
+}
+
+/* Keycap — the squarish key glyph. */
+.qs-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6em;
+    height: 1.55em;
+    padding: 0 var(--sp-5);
+    border: 1px solid var(--border-primary);
+    border-bottom-width: 2px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    line-height: 1;
+}
+
+/* Prefix glyphs carry the accent so the legend reads as "type this". */
+.qs-kbd-prefix {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* ─── Mobile / iPad-portrait tweaks ─── */
+@media (max-width: 600px) {
+    .qs-overlay {
+        padding-top: 6vh;
+        padding-left: var(--sp-8);
+        padding-right: var(--sp-8);
+    }
+
+    .qs-modal {
+        max-height: 80vh;
+    }
+
+    .qs-input {
+        font-size: var(--font-size-lg);        /* prevents iOS zoom on focus */
+    }
+
+    .qs-footer-prefixes {
+        display: none;          /* prefixes stay discoverable via the placeholder */
+    }
+
+    .qs-item-desc {
+        display: none;          /* keep label visible on narrow screens */
+    }
+}

@@ -1,0 +1,2240 @@
+/* ═══════════════════════════════════════════════════════════════════
+   INPUT AREA
+   ═══════════════════════════════════════════════════════════════════ */
+#input-area {
+    /* Stacking context so autocomplete dropdowns (which overflow upward into messages area)
+       paint above message content like turn-summary-bar and context indicators.
+       Needed because #input-container has isolation:isolate which caps child z-indexes. */
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-primary);
+    padding: var(--layout-input-padding-v) var(--layout-input-padding-h);
+    flex-shrink: 0;
+    position: relative;
+    z-index: var(--z-base-ui);
+}
+
+#input-wrapper {
+    /* Left-aligned layout for comment sidebar */
+    max-width: 900px;
+    margin: 0;  /* No longer centered - left-aligned */
+    position: relative;
+}
+
+#input-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gap-xs);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--layout-gap-md) var(--layout-gap-md) var(--layout-gap-sm);
+    transition: border-color 0.15s ease;
+}
+
+#input-container:focus-within {
+    border-color: var(--permission-color, var(--accent));
+}
+
+/* Resize handle at top of input container */
+#input-resize-handle {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 8px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease;
+}
+
+#input-resize-handle::before {
+    content: '';
+    width: 32px;
+    height: 3px;
+    background: var(--border-primary);
+    border-radius: var(--radius-xs);
+    transition: background 0.15s ease;
+}
+
+#input-resize-handle:hover::before,
+#input-resize-handle:active::before {
+    background: var(--text-muted);
+}
+
+#input-container.resizing {
+    user-select: none;
+}
+
+/* Allow position:relative for handle positioning */
+#input-container {
+    position: relative;
+}
+
+#input-container.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Input area with keyword highlighting overlay */
+#input-container {
+    /* Ensure stacking context for overlay */
+    isolation: isolate;
+}
+
+/* Wrapper for textarea with highlight overlay */
+.input-textarea-wrapper {
+    /* Force the textarea + its keyword-backdrop onto their own GPU
+       compositing layer so paints elsewhere in the page (activity-strip
+       text changes on every tool call, status-dot pulses, hover transitions
+       on toolbar buttons/icons, animations, etc.) don't invalidate the
+       iOS WebKit caret + selection paint inside the textarea.
+       This is the user-reported "cursor/selection blinks in the text input
+       during mouse move and continuously while Claude is working". */
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    /* Reset any inherited spacing */
+    margin: 0;
+    padding: 0;
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+#input-highlight-backdrop {
+    /* Position directly behind textarea */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* Match textarea height constraints for scroll sync */
+    height: 100%;
+    max-height: 400px;  /* Same as #message-input max-height */
+    pointer-events: none;
+    z-index: 0;
+
+    /* Match textarea styling EXACTLY */
+    font-size: var(--font-size-md);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow: hidden;  /* Content hidden but scrollTop still works programmatically */
+    padding: var(--sp-2) 0;  /* Match textarea padding */
+    box-sizing: border-box;
+
+    /* Text styling - non-keyword text is transparent, keywords show through */
+    color: var(--text-primary);
+}
+
+/* Override keyword styling in backdrop - NO PADDING/BOLD to maintain alignment */
+#input-highlight-backdrop .thinking-keyword {
+    padding: 0;
+    border-radius: 0;
+    font-weight: inherit;  /* Don't change font weight - affects character width */
+    text-shadow: none;     /* No shadow effects in input */
+}
+
+/* Show backdrop only when has content (hide placeholder state) */
+#input-highlight-backdrop:empty {
+    display: none;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   Shortcut Hints Overlay
+   Absolutely positioned inside the textarea wrapper so it behaves
+   like a richer placeholder — no layout shift when typing starts.
+   The wrapper gets .has-hints when the feature is enabled (bumps
+   textarea min-height so hints fit without jumping on first keystroke).
+   ═════════════════════════════════════════════════════════════ */
+.shortcut-hints-overlay {
+    /* Start below the first textarea row so the native "Message Claude..."
+       placeholder and the cursor have room at the top. */
+    position: absolute;
+    top: 36px;
+    left: 0;
+    right: 0;
+    bottom: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    padding: 0;
+    font-size: var(--font-size-sm);
+    line-height: 1.35;
+    color: var(--text-muted);
+    pointer-events: none;  /* clicks pass through to textarea */
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s ease;
+    z-index: 2;
+    overflow: hidden;
+}
+
+.shortcut-hints-overlay.visible {
+    opacity: 0.85;
+    visibility: visible;
+}
+
+.shortcut-hints-overlay.empty {
+    display: none !important;
+}
+
+/* Textarea gets taller when hints are active so placeholder + overlay fit
+   without triggering a layout shift when the user starts typing. */
+.input-textarea-wrapper.has-hints #message-input {
+    min-height: 102px;
+}
+
+.shortcut-hints-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.shortcut-hints-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--sp-2) 0;
+    align-items: center;
+}
+
+/* Each pair is a flex unit so its key+label stay glued together.
+   At wide viewports we switch to 2 auto-sized tracks centred as a group —
+   pairs hug their content with a modest fixed gap, so the dead space sits
+   symmetrically on the outside instead of ballooning between them. */
+.shortcut-hints-pair {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-width: 0;
+}
+
+@media (min-width: 700px) {
+    .shortcut-hints-grid {
+        grid-template-columns: auto auto;
+        justify-content: start;
+        column-gap: var(--sp-48);
+    }
+}
+
+@media (min-width: 820px) {
+    .shortcut-hints-grid {
+        grid-template-columns: auto auto auto;
+    }
+}
+
+.shortcut-hints-key {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: 1px var(--sp-6);
+    color: var(--text-primary);
+    white-space: nowrap;
+    min-width: 32px;
+    text-align: center;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+}
+
+.shortcut-hints-label {
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   Drafts Pill
+   Clickable "N drafts" entry point (→ Prompt Explorer · Drafts) at the
+   start of the toolbar's right cluster (first item in .toolbar-right,
+   before the permission chip), shown only on empty input.
+   Visibility driven by DraftsPill (drafts-pill.js); hidden while typing.
+   ═════════════════════════════════════════════════════════════ */
+.drafts-pill {
+    height: var(--layout-btn-xs);
+    flex-shrink: 0;
+    display: none;
+    align-items: center;
+    padding: 1px var(--sp-8);
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+    white-space: nowrap;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.drafts-pill.visible {
+    display: inline-flex;
+}
+
+.drafts-pill:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+/* Hide hints + drafts pill in shell/plan modes (redundant with JS suppression, belt-and-braces) */
+#input-container.shell-mode .shortcut-hints-overlay,
+#input-container.plan-input-mode .shortcut-hints-overlay,
+#input-container.shell-mode .drafts-pill,
+#input-container.plan-input-mode .drafts-pill {
+    display: none;
+}
+
+#message-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    /* Text color - switches to transparent when keywords detected */
+    color: var(--text-primary);
+    font-size: var(--font-size-md);
+    font-family: var(--font-sans);
+    resize: none;
+    min-height: var(--input-min-height, 24px);
+    max-height: 400px;
+    padding: var(--sp-2) 0;
+    line-height: 1.5;
+    /* Stack above backdrop */
+    position: relative;
+    z-index: 1;
+    /* Ensure it fills wrapper */
+    display: block;
+    box-sizing: border-box;
+    /* Reset any default margins */
+    margin: 0;
+    /* Ensure same word breaking as backdrop */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* When input has thinking keywords, make text transparent so backdrop shows through */
+#message-input.has-thinking-keywords {
+    color: transparent;
+    caret-color: var(--text-primary);  /* Keep cursor visible */
+}
+
+/* Selection visibility when text is transparent */
+#message-input.has-thinking-keywords::selection {
+    background: rgba(var(--accent-rgb), 0.3);
+}
+
+#message-input:focus {
+    outline: none;
+}
+
+#message-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Toolbar row - Slack-style layout with buttons below input */
+#input-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--layout-gap-md);
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--layout-gap-xs);
+    /* Allow scrolling on small screens */
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 1;
+    min-width: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.toolbar-left::-webkit-scrollbar {
+    display: none;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--layout-gap-xs);
+    /* CRITICAL: Never shrink - send button must always be visible */
+    flex-shrink: 0;
+}
+
+.toolbar-btn {
+    position: relative;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.toolbar-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+}
+
+.toolbar-btn:active {
+    background: var(--bg-active);
+}
+
+.toolbar-btn.tab-cycle-active,
+.toolbar-btn.trigger-armed {
+    background: var(--bg-active);
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.toolbar-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Favorite prompt button - mark current prompt as favorite */
+.favorite-prompt-btn {
+    position: relative;
+}
+
+.favorite-prompt-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.favorite-prompt-btn .heart-outline {
+    display: block;
+    color: var(--text-muted);
+}
+
+.favorite-prompt-btn .heart-filled {
+    display: none;
+    color: #ff4757;
+}
+
+.favorite-prompt-btn:hover {
+    background: rgba(255, 71, 87, 0.1) !important;
+}
+
+.favorite-prompt-btn:hover .heart-outline {
+    color: #ff4757;
+}
+
+.favorite-prompt-btn.active .heart-outline {
+    display: none;
+}
+
+.favorite-prompt-btn.active .heart-filled {
+    display: block;
+}
+
+#send-btn {
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+#send-btn:hover {
+    background: var(--accent-hover);
+}
+
+#send-btn:disabled {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+#send-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+#send-btn.hidden {
+    display: none;
+}
+
+/* Follow-up button - shown when Claude is processing (queues message) */
+#followup-btn {
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--accent);
+    color: white;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+#followup-btn:hover {
+    background: var(--accent-hover);
+}
+
+#followup-btn:disabled {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+#followup-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+#followup-btn.visible {
+    display: flex;
+}
+
+/* Stop button - shown when Claude is processing */
+#stop-btn {
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    border-radius: var(--radius-md);
+    border: none;
+    background: #ef4444;
+    color: white;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    flex-shrink: 0;
+}
+
+#stop-btn.visible {
+    display: flex;
+}
+
+#stop-btn:hover {
+    background: #dc2626;
+}
+
+#stop-btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+/* Combined status + hint bar */
+#input-hint {
+    display: none; /* Hidden - merged into status bar */
+}
+
+#input-hint kbd {
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+}
+
+#status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-4) var(--sp-4) 0;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+#status-bar .status-left {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+#status-bar .status-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+#status-bar #status-connection.connected    { color: var(--success); }
+#status-bar #status-connection.connecting   { color: var(--warning); }
+#status-bar #status-connection.disconnected { color: var(--error); }
+
+/* Clickable when not connected — tap to force-reconnect.
+   The :hover rule works with iPadOS trackpads; gating with `(hover: hover)`
+   would never match on iPadOS even with a Magic Keyboard. See
+   docs-ai/2026-02-12-ipados-tooltip-behavior.md */
+#status-bar #status-connection.clickable {
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 120ms ease, transform 120ms ease;
+}
+#status-bar #status-connection.clickable:hover {
+    background-color: var(--bg-hover, rgba(255, 255, 255, 0.08));
+}
+#status-bar #status-connection.clickable:active {
+    transform: scale(0.92);
+}
+/* Subtle pulse on the disconnected dot so it reads as actionable
+   rather than passive. */
+@keyframes status-connection-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+}
+#status-bar #status-connection.disconnected.clickable {
+    animation: status-connection-pulse 1.6s ease-in-out infinite;
+}
+
+#status-bar #status-helpers {
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0 var(--sp-4);
+    border-radius: var(--radius-sm);
+}
+#status-bar #status-helpers.current  { color: var(--text-muted); }
+#status-bar #status-helpers.outdated { color: var(--warning); }
+#status-bar #status-helpers.missing  { color: var(--error); }
+#status-bar #status-helpers:hover {
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
+}
+
+#status-bar .status-item svg {
+    width: 8px;
+    height: 8px;
+}
+
+#status-bar .status-right {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+#status-bar .cost {
+    font-family: var(--font-mono);
+}
+
+/* Git branch in status bar */
+#status-bar #status-branch {
+    display: none;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+#status-bar #status-branch.visible {
+    display: flex;
+}
+
+#status-bar #status-branch svg {
+    width: 12px;
+    height: 12px;
+    opacity: 0.7;
+}
+
+#status-bar #status-branch span {
+    white-space: nowrap;
+}
+
+/* Project name in status bar */
+#status-bar #status-project {
+    display: none;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+    max-width: 180px;
+}
+
+#status-bar #status-project.visible {
+    display: flex;
+}
+
+#status-bar #status-project:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+#status-bar #status-project svg {
+    width: 12px;
+    height: 12px;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+#status-bar #status-project span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#status-bar #status-project .project-sep {
+    opacity: 0.4;
+    margin: 0 var(--sp-2);
+}
+
+/* Model selector in status bar */
+#status-bar #status-model.clickable {
+    cursor: pointer;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+    color: var(--accent);
+}
+
+#status-bar #status-model.clickable:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.model-popup {
+    position: fixed;
+    z-index: var(--z-always-top);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--sp-4);
+    min-width: 180px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s, transform 0.12s;
+    pointer-events: none;
+}
+
+.model-popup.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.model-option {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-10);
+    line-height: var(--layout-menu-line-height);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.model-option:hover {
+    background: var(--bg-tertiary);
+}
+
+.model-option.selected {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.model-option-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: inherit;
+}
+
+.model-option-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.model-popup-footer {
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--sp-4);
+    padding: var(--sp-6) var(--sp-4) var(--sp-2);
+}
+
+.model-set-default {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-4) var(--sp-6);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+}
+
+.model-set-default:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* ── Engine (provider) chip + picker — mirrors the model popup ── */
+
+#status-bar #status-engine.clickable {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+    color: var(--text-secondary);
+}
+
+.engine-popup .model-option-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-5);
+}
+
+#status-bar #status-engine.clickable:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* Tab not yet bound — choice still open, hint that it's actionable */
+#status-bar #status-engine.pending {
+    color: var(--accent);
+    font-style: italic;
+}
+
+.engine-popup {
+    min-width: 240px;
+    max-width: 340px;
+}
+
+/* Engine rows stack label over the (longer) self-description */
+.engine-popup .engine-option {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+}
+
+.engine-popup .engine-option.unavailable {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.engine-popup .engine-option.unavailable:hover {
+    background: none;
+}
+
+.engine-popup-note {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: var(--sp-4) var(--sp-10) var(--sp-6);
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--sp-4);
+    max-width: 260px;
+}
+
+.engine-set-default {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-4) var(--sp-6);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s, color 0.1s;
+}
+
+.engine-set-default:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.engine-set-default:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* Keyboard hints shown in status bar */
+#status-bar .kbd-hints {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+
+#status-bar .kbd-hints kbd {
+    background: var(--bg-tertiary);
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+}
+
+#status-bar .kbd-hints .hint-sep {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+/* Token meter */
+#status-bar .token-meter {
+    display: none;
+    align-items: center;
+    gap: var(--sp-6);
+    cursor: help;
+}
+
+#status-bar .token-meter.visible {
+    display: flex;
+}
+
+#status-bar .token-bar {
+    width: 60px;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+#status-bar .token-fill {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--success);
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+#status-bar .token-fill.warning {
+    background: var(--warning, #f59e0b);
+}
+
+#status-bar .token-fill.danger {
+    background: var(--error);
+}
+
+#status-bar .token-text {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    white-space: nowrap;
+    color: var(--success);
+}
+
+#status-bar .token-text.warning {
+    color: var(--warning);
+}
+
+#status-bar .token-text.danger {
+    color: var(--error);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOOLBAR SEPARATOR
+   ═══════════════════════════════════════════════════════════════════ */
+.toolbar-separator {
+    width: 1px;
+    height: 18px;
+    background: var(--border-primary);
+    margin: 0 var(--sp-4);
+    opacity: 0.6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHAT SEARCH BAR
+   ═══════════════════════════════════════════════════════════════════ */
+.chat-search-bar {
+    display: none;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    flex-shrink: 0;
+}
+
+.chat-search-bar.visible {
+    display: flex;
+}
+
+.chat-search-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--sp-6) var(--sp-10);
+    transition: border-color 0.15s ease;
+}
+
+.chat-search-input-wrap:focus-within {
+    border-color: var(--accent);
+}
+
+.chat-search-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+#chat-search-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: var(--font-size-md);
+    font-family: var(--font-sans);
+    outline: none;
+    min-width: 0;
+}
+
+#chat-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.chat-search-count {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+}
+
+.chat-search-count:empty {
+    display: none;
+}
+
+.chat-search-count.no-results {
+    color: var(--error);
+}
+
+.chat-search-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.chat-search-nav-btn,
+.chat-search-close-btn {
+    position: relative;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.chat-search-nav-btn:hover,
+.chat-search-close-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.chat-search-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.chat-search-nav-btn:disabled:hover {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.chat-search-nav-btn svg,
+.chat-search-close-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Search match highlighting in messages */
+.search-highlight {
+    background-color: rgba(255, 200, 50, 0.35);
+    border-radius: var(--radius-xs);
+    padding: 0 1px;
+}
+
+.search-highlight.current {
+    background-color: rgba(255, 200, 50, 0.6);
+    outline: 2px solid rgba(255, 180, 0, 0.8);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    #input-area {
+        padding: var(--sp-6) var(--sp-12);
+    }
+
+    #status-bar .kbd-hints {
+        display: none;
+    }
+
+    .chat-search-bar {
+        padding: var(--sp-6) var(--sp-10);
+        gap: var(--sp-6);
+    }
+
+    .chat-search-input-wrap {
+        padding: var(--sp-5) var(--sp-8);
+        gap: var(--sp-6);
+    }
+
+    #chat-search-input {
+        font-size: var(--font-size-base);
+    }
+
+    .chat-search-count {
+        font-size: var(--font-size-xs);
+    }
+
+    .chat-search-nav-btn,
+    .chat-search-close-btn {
+        width: 26px;
+        height: 26px;
+    }
+
+    /* Hide secondary toolbar buttons on mobile */
+    .toolbar-secondary {
+        display: none !important;
+    }
+
+    /* Simplify toolbar spacing on mobile */
+    .toolbar-separator {
+        display: none;
+    }
+
+    /* Tighter toolbar gap on mobile to fit more icons */
+    .toolbar-left,
+    .toolbar-right {
+        gap: var(--sp-2);
+    }
+
+    /* Larger touch targets on mobile/tablet */
+    .toolbar-btn {
+        width: var(--layout-btn-md);
+        height: var(--layout-btn-md);
+    }
+
+    #input-toolbar .toolbar-btn {
+        margin-right: 0;
+    }
+
+    .toolbar-btn svg,
+    #input-toolbar .toolbar-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Hide shortcut hints — shortcuts need a physical keyboard, and the
+       taller textarea eats scarce vertical space on small screens. */
+    .shortcut-hints-overlay {
+        display: none;
+    }
+    .input-textarea-wrapper.has-hints #message-input {
+        min-height: var(--input-min-height, 24px);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STASH BUTTON & PICKER
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Stash button with badge */
+#stash-btn {
+    position: relative;
+}
+
+#stash-btn.has-items {
+    color: var(--accent);
+}
+
+.stash-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 var(--sp-4);
+    font-size: 10px;
+    font-weight: 700;
+    background: var(--accent);
+    color: white;
+    border-radius: var(--radius-md);
+    line-height: 1;
+    box-sizing: border-box;
+}
+
+.stash-badge:not(:empty) {
+    display: flex;
+}
+
+/* Stash picker dropdown */
+.stash-picker {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 8px;
+    width: 480px;
+    max-width: calc(100vw - 24px);
+    max-height: 400px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+}
+
+.stash-picker.visible {
+    display: flex;
+}
+
+/* Header mirrors .widget-header sizing so it tracks the density modes */
+.stash-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: var(--layout-widget-header-height);
+    flex-shrink: 0;
+    padding: 0 var(--sp-12);
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+}
+
+.stash-picker-title {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.stash-picker-actions {
+    display: flex;
+    gap: var(--sp-8);
+}
+
+.stash-picker-clear {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--radius-sm);
+}
+
+.stash-picker-clear:hover {
+    background: var(--bg-hover);
+    color: var(--error);
+}
+
+/* Two-click confirm: first click arms (red), second commits */
+.stash-picker-clear.armed {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--error);
+    font-weight: 600;
+}
+
+.stash-picker-close {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.stash-picker-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.stash-picker-close svg {
+    width: 14px;
+    height: 14px;
+}
+
+.stash-picker-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: var(--sp-6);
+}
+
+.stash-picker-empty {
+    padding: var(--sp-24);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+}
+
+/* Stash item in picker */
+.stash-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-8);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.stash-item + .stash-item {
+    margin-top: var(--sp-2);
+}
+
+.stash-item:hover {
+    background: var(--bg-hover);
+}
+
+.stash-item.disabled {
+    opacity: 0.5;
+}
+
+.stash-item-check {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    border: 2px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.stash-item:not(.disabled) .stash-item-check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.stash-item-check:hover {
+    border-color: var(--accent);
+    filter: brightness(1.15);
+}
+
+.stash-item-check svg {
+    width: 12px;
+    height: 12px;
+}
+
+.stash-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.stash-item-anchor {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    line-height: 18px; /* optically centers against the 18px checkbox */
+    color: var(--accent);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Quoted selection — neutral quote bar, reads as "what was selected" */
+.stash-item-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-top: var(--sp-4);
+    padding-left: var(--sp-8);
+    border-left: 2px solid var(--border-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+}
+
+/* User's note — sits BELOW the quote it comments on, accent-tinted */
+.stash-item-note {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-6);
+    font-size: var(--font-size-sm);
+    font-style: italic;
+    color: var(--text-primary);
+    margin-top: var(--sp-6);
+    padding: var(--sp-4) var(--sp-8);
+    background: rgba(139, 92, 246, 0.08);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.stash-item-note:hover {
+    background: rgba(139, 92, 246, 0.15);
+}
+
+.stash-item-note svg {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: #a78bfa; /* stash purple — matches the bubble/indicator family */
+}
+
+.stash-item-add-note {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    background: none;
+    border: 1px dashed var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-3) var(--sp-8);
+    margin-top: var(--sp-6);
+    cursor: pointer;
+}
+
+.stash-item-add-note:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.stash-item-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+}
+
+.stash-item-remove {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.stash-item:hover .stash-item-remove {
+    opacity: 1;
+}
+
+.stash-item-remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+}
+
+.stash-item-remove svg {
+    width: 12px;
+    height: 12px;
+}
+
+.stash-item-open {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.stash-item:hover .stash-item-open {
+    opacity: 1;
+}
+
+.stash-item-open:hover {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--accent);
+}
+
+.stash-item-open svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Touch devices have no hover — keep the item action buttons visible */
+@media (hover: none) and (pointer: coarse) {
+    .stash-item-open,
+    .stash-item-remove {
+        opacity: 1;
+    }
+}
+
+/* ─── Sent history (collapsible section below pending items) ─── */
+
+.stash-history {
+    margin-top: var(--sp-8);
+    border-top: 1px solid var(--border-secondary);
+    padding-top: var(--sp-4);
+}
+
+.stash-history-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    width: 100%;
+    padding: var(--sp-6) var(--sp-8);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.stash-history-header:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.stash-history-chevron {
+    width: 12px;
+    height: 12px;
+    transition: transform 0.15s ease;
+}
+
+.stash-history-chevron.expanded {
+    transform: rotate(90deg);
+}
+
+.stash-history-count {
+    margin-left: auto;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+.stash-history-item {
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+.stash-history-item:hover {
+    opacity: 1;
+}
+
+.stash-history-time {
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.stash-history-clear {
+    display: block;
+    margin: var(--sp-6) auto var(--sp-2);
+    padding: var(--sp-4) var(--sp-12);
+    background: none;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.stash-history-clear:hover {
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+.stash-history-clear.armed {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* Stash preview in input (shown above input when items exist) */
+.stash-preview {
+    display: none;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    margin-bottom: var(--sp-8);
+    background: rgba(139, 92, 246, 0.08);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.stash-preview.visible {
+    display: flex;
+}
+
+/* Paused state - dimmed appearance */
+.stash-preview.paused {
+    background: rgba(139, 92, 246, 0.03);
+    border-color: rgba(139, 92, 246, 0.1);
+}
+
+.stash-preview.paused .stash-preview-icon,
+.stash-preview.paused .stash-preview-count {
+    color: var(--text-muted);
+}
+
+.stash-preview.paused .stash-preview-text {
+    color: var(--text-muted);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-muted);
+}
+
+.stash-preview-icon {
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stash-preview-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.stash-preview-text {
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    padding: var(--sp-2) var(--sp-6);
+    margin: -2px -6px;
+    transition: background 0.15s ease;
+}
+
+.stash-preview-text:hover {
+    background: var(--bg-hover);
+}
+
+.stash-preview-count {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+/* Toggle switch - iOS style */
+.stash-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.stash-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.stash-toggle-track {
+    width: 32px;
+    height: 18px;
+    background: var(--text-muted);
+    border-radius: var(--radius-lg);
+    position: relative;
+    transition: background 0.2s ease;
+}
+
+.stash-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Checked state - green and thumb slides right */
+.stash-toggle input:checked + .stash-toggle-track {
+    background: var(--success, #22c55e);
+}
+
+.stash-toggle input:checked + .stash-toggle-track .stash-toggle-thumb {
+    transform: translateX(14px);
+}
+
+/* Hover effect */
+.stash-toggle:hover .stash-toggle-track {
+    opacity: 0.9;
+}
+
+/* Focus ring for accessibility */
+.stash-toggle input:focus-visible + .stash-toggle-track {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.stash-preview-edit {
+    font-size: var(--font-size-xs);
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--radius-sm);
+}
+
+.stash-preview-edit:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+/* Move-to-session footer */
+/* Compact "Move to…" header button — sessions open in a context menu.
+   Styled like the Clear All text button so the header stays quiet. */
+.stash-move-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-8);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.stash-move-btn[hidden] {
+    display: none;
+}
+
+.stash-move-btn:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+}
+
+.stash-move-btn.moving {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.stash-move-btn svg {
+    flex-shrink: 0;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   SHELL MODE VISUAL (! bang commands)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* $ prompt prefix — hidden by default, shown in shell mode */
+.shell-prompt-prefix {
+    display: none;
+    font-family: var(--font-mono);
+    font-size: 0.95em;
+    color: #3fb950;
+    padding-left: var(--sp-2);
+    padding-right: var(--sp-6);
+    padding-top: 1px;
+    line-height: 1.5;
+    flex-shrink: 0;
+    user-select: none;
+    pointer-events: none;
+}
+
+#input-container.shell-mode {
+    background: var(--bg-primary);
+    border-color: rgba(63, 185, 80, 0.4);
+}
+
+#input-container.shell-mode:focus-within {
+    border-color: #3fb950;
+}
+
+#input-container.shell-mode .shell-prompt-prefix {
+    display: inline;
+}
+
+#input-container.shell-mode #message-input {
+    font-family: var(--font-mono);
+    color: #e6edf3;
+    caret-color: #3fb950;
+}
+
+#input-container.shell-mode #message-input::placeholder {
+    color: #3fb95088;
+}
+
+/* Plan input mode (/plan command visual transform) */
+#input-container.plan-input-mode {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+#input-container.plan-input-mode:focus-within {
+    border-color: #a78bfa;
+}
+
+#input-container.plan-input-mode #message-input {
+    color: #e2d9f3;
+    caret-color: #a78bfa;
+}
+
+#input-container.plan-input-mode #message-input::placeholder {
+    color: #a78bfa88;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EFFORT LEVEL BUTTON & POPUP
+   ═══════════════════════════════════════════════════════════════════ */
+
+.effort-btn {
+    position: relative;
+    width: auto !important;
+    padding: 0 var(--sp-8) !important;
+    gap: var(--sp-4);
+}
+
+/* Level-based colors (minimal→ultra: the union across engine vocabularies —
+   each engine's popup only offers its own subset) */
+.effort-btn[data-level="minimal"] {
+    color: var(--text-muted);
+    opacity: 0.45;
+}
+
+.effort-btn[data-level="low"] {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.effort-btn[data-level="medium"] {
+    color: var(--accent-blue);
+}
+
+.effort-btn[data-level="high"] {
+    color: #8b5cf6; /* purple - default */
+}
+
+.effort-btn[data-level="xhigh"] {
+    color: #d946ef; /* fuchsia - between high purple and max pink */
+}
+
+.effort-btn[data-level="max"] {
+    color: #f472b6; /* pink */
+}
+
+.effort-btn[data-level="ultra"] {
+    color: #fb7185; /* rose — past max pink */
+}
+
+/* Level-fill indicator: matches popup's ◔/◑/◕/◉/● glyphs */
+.effort-fill {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    position: relative;
+    box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.effort-fill::after {
+    content: '';
+    position: absolute;
+    inset: 1.5px;
+    border-radius: 50%;
+    background: conic-gradient(currentColor var(--effort-fill, 0%), transparent var(--effort-fill, 0%));
+}
+
+.effort-btn[data-level="minimal"] { --effort-fill: 10%; }
+.effort-btn[data-level="low"]    { --effort-fill: 20%; }
+.effort-btn[data-level="medium"] { --effort-fill: 40%; }
+.effort-btn[data-level="high"]   { --effort-fill: 60%; }
+.effort-btn[data-level="xhigh"]  { --effort-fill: 80%; }
+.effort-btn[data-level="max"]    { --effort-fill: 100%; }
+.effort-btn[data-level="ultra"]  { --effort-fill: 100%; }
+
+.effort-btn[data-level="max"] .effort-fill {
+    filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.5));
+}
+
+.effort-btn[data-level="ultra"] .effort-fill {
+    filter: drop-shadow(0 0 5px rgba(251, 113, 133, 0.7));
+}
+
+@media (max-width: 768px) {
+    .effort-fill { width: 16px; height: 16px; }
+}
+
+/* One-shot override badge — shown only while a Ctrl+Shift+' override is armed.
+   Mirrors the "next send only" visual contract: the button's level color is
+   already promoted to the armed level (via updateButtonState swapping
+   data-level), and this badge marks why. */
+.effort-oneshot-badge {
+    display: none;
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 var(--sp-3);
+    border-radius: var(--radius-md);
+    background: var(--accent);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 13px;
+    text-align: center;
+    box-shadow: 0 0 0 1.5px var(--bg-secondary, #1a1a1a);
+    pointer-events: none;
+}
+
+.effort-btn[data-pending] .effort-oneshot-badge {
+    display: block;
+}
+
+/* Subtle pulse so the armed state reads at a glance without being noisy. */
+.effort-btn[data-pending] .effort-fill {
+    animation: effort-oneshot-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes effort-oneshot-pulse {
+    0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+    50%      { filter: drop-shadow(0 0 4px currentColor); }
+}
+
+/* Value display */
+.effort-value {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    margin-left: var(--sp-2);
+    color: currentColor;
+}
+
+/* Popup */
+.effort-popup {
+    position: fixed;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-8);
+    min-width: 180px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: var(--z-tooltip);
+    display: none;
+}
+
+.effort-popup.open {
+    display: block;
+    animation: fadeInUp 0.15s ease;
+}
+
+.effort-popup-header {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: var(--sp-4) var(--sp-8) var(--sp-8);
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: var(--sp-8);
+}
+
+.effort-popup-footer {
+    border-top: 1px solid var(--border-primary);
+    margin-top: var(--sp-4);
+    padding: var(--sp-6) var(--sp-4) var(--sp-2);
+}
+
+.effort-set-default {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--layout-btn-xs);
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    padding: 0 var(--sp-6);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+}
+
+.effort-set-default:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.effort-presets {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.effort-preset {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-5) var(--sp-8);
+    line-height: var(--layout-menu-line-height);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.effort-preset:hover {
+    background: var(--bg-hover);
+}
+
+.effort-preset.selected {
+    background: rgba(139, 92, 246, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.effort-preset .preset-icon {
+    font-size: var(--font-size-md);
+    width: 18px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.effort-preset[data-level="minimal"] .preset-icon { color: var(--text-muted); opacity: 0.6; }
+.effort-preset[data-level="low"] .preset-icon { color: var(--text-muted); }
+.effort-preset[data-level="medium"] .preset-icon { color: var(--accent-blue); }
+.effort-preset[data-level="high"] .preset-icon { color: #8b5cf6; }
+.effort-preset[data-level="xhigh"] .preset-icon { color: #d946ef; }
+.effort-preset[data-level="max"] .preset-icon { color: #f472b6; }
+.effort-preset[data-level="ultra"] .preset-icon { color: #fb7185; }
+
+.effort-preset .preset-label {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.effort-preset .preset-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* Dynamic "default" tag — shown on whichever preset matches the global
+   default (permission + effort popups). Mirrors token-profile's "default"
+   indicator. Toggled via .is-default on the preset element. */
+.preset-default-tag {
+    display: none;
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-sm);
+    margin-left: var(--sp-6);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    vertical-align: middle;
+}
+
+.permission-preset.is-default .preset-default-tag,
+.effort-preset.is-default .preset-default-tag {
+    display: inline-block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERMISSION LEVEL BUTTON & POPUP
+   ═══════════════════════════════════════════════════════════════════ */
+
+.permission-btn {
+    position: relative;
+    width: auto !important;
+    padding: 0 var(--sp-8) !important;
+    gap: var(--sp-4);
+}
+
+.permission-btn[data-level="bypassPermissions"] { color: #4ade80; }
+.permission-btn[data-level="acceptEdits"] { color: #fb923c; }
+.permission-btn[data-level="auto"]     { color: var(--accent-blue); }
+.permission-btn[data-level="dontAsk"]     { color: #facc15; }
+.permission-btn[data-level="plan"]        { color: #8b5cf6; }
+
+.permission-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+@media (max-width: 768px) {
+    .permission-btn svg,
+    #input-toolbar .permission-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.permission-label {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    margin-left: var(--sp-2);
+    color: currentColor;
+}
+
+/* Popup */
+.permission-popup {
+    position: fixed;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-8);
+    min-width: 210px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: var(--z-tooltip);
+    display: none;
+}
+
+.permission-popup.open {
+    display: block;
+    animation: fadeInUp 0.15s ease;
+}
+
+.permission-popup-header {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: var(--sp-4) var(--sp-8) var(--sp-8);
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: var(--sp-8);
+}
+
+.permission-presets {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.permission-preset {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-5) var(--sp-8);
+    line-height: var(--layout-menu-line-height);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.permission-preset:hover {
+    background: var(--bg-hover);
+}
+
+.permission-preset[data-level="bypassPermissions"].selected { background: rgba(74, 222, 128, 0.1);  border-color: rgba(74, 222, 128, 0.3); }
+.permission-preset[data-level="acceptEdits"].selected { background: rgba(251, 146, 60, 0.1); border-color: rgba(251, 146, 60, 0.3); }
+.permission-preset[data-level="auto"].selected     { background: rgba(96, 165, 250, 0.1); border-color: rgba(96, 165, 250, 0.3); }
+.permission-preset[data-level="dontAsk"].selected     { background: rgba(250, 204, 21, 0.1); border-color: rgba(250, 204, 21, 0.3); }
+.permission-preset[data-level="plan"].selected        { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.3); }
+
+.preset-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.preset-dot.bypassPermissions-dot { background: #4ade80; }
+.preset-dot.acceptEdits-dot { background: #fb923c; }
+.preset-dot.auto-dot        { background: var(--accent-blue); }
+.preset-dot.dontAsk-dot     { background: #facc15; }
+.preset-dot.plan-dot        { background: #8b5cf6; }
+
+.permission-preset .preset-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.permission-preset .preset-label {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.permission-preset .preset-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.permission-preset .preset-check {
+    width: 16px;
+    text-align: center;
+}
+
+.permission-preset.selected .preset-check::after {
+    content: '\2713';
+}
+
+.permission-preset[data-level="bypassPermissions"].selected .preset-check::after { color: #4ade80; }
+.permission-preset[data-level="acceptEdits"].selected .preset-check::after { color: #fb923c; }
+.permission-preset[data-level="auto"].selected .preset-check::after     { color: var(--accent-blue); }
+.permission-preset[data-level="dontAsk"].selected .preset-check::after     { color: #facc15; }
+.permission-preset[data-level="plan"].selected .preset-check::after        { color: #8b5cf6; }
+
+.permission-popup-footer {
+    border-top: 1px solid var(--border-primary);
+    margin-top: var(--sp-4);
+    padding: var(--sp-6) var(--sp-4) var(--sp-2);
+}
+
+.permission-set-default {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-4) var(--sp-6);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+}
+
+.permission-set-default:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}

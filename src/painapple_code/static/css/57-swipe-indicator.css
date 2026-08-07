@@ -1,0 +1,95 @@
+/* Swipe gesture indicator for tab navigation */
+
+.swipe-indicator {
+    position: fixed;
+    top: 48px; /* Below header */
+    left: 0;
+    right: 0;
+    height: 28px;
+    pointer-events: none;
+    z-index: var(--z-always-top-fab);
+    opacity: 0;
+    transition: opacity 0.15s ease-out;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--sp-12);
+}
+
+.swipe-indicator.visible {
+    opacity: 1;
+}
+
+/* Progress bar */
+.swipe-indicator-bar {
+    position: absolute;
+    top: 0;
+    height: 3px;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.05s linear, background 0.15s ease;
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+/* Direction: next (swipe left) - bar grows from left */
+.swipe-indicator.direction-next .swipe-indicator-bar {
+    left: 0;
+    right: auto;
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+/* Direction: prev (swipe right) - bar grows from right */
+.swipe-indicator.direction-prev .swipe-indicator-bar {
+    left: auto;
+    right: 0;
+    border-radius: var(--radius-xs) 0 0 var(--radius-xs);
+}
+
+/* Threshold reached - change color to green */
+.swipe-indicator.threshold-reached .swipe-indicator-bar {
+    background: #4caf50;
+}
+
+/* Label */
+.swipe-indicator-label {
+    position: absolute;
+    top: 6px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-secondary, #888);
+    background: var(--bg-secondary, #1e1e1e);
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+    transition: color 0.15s ease;
+}
+
+.swipe-indicator.direction-next .swipe-indicator-label {
+    right: 12px;
+}
+
+.swipe-indicator.direction-prev .swipe-indicator-label {
+    left: 12px;
+}
+
+.swipe-indicator.threshold-reached .swipe-indicator-label {
+    color: #4caf50;
+}
+
+/* Flash animation on successful switch */
+.swipe-indicator.flash .swipe-indicator-bar {
+    animation: swipe-flash 0.3s ease-out;
+}
+
+@keyframes swipe-flash {
+    0% {
+        opacity: 1;
+        transform: scaleY(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scaleY(2);
+    }
+    100% {
+        opacity: 0;
+        transform: scaleY(1);
+    }
+}

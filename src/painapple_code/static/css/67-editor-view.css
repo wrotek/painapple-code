@@ -1,0 +1,747 @@
+/* ═══════════════════════════════════════════════════════════════════
+   EDITOR VIEW (File tabs / Code editor)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* View switching - both session and editor views */
+.view {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+    flex-direction: column;
+    min-height: 0;  /* Important for flex children to scroll properly */
+}
+
+.view.active {
+    display: flex;
+}
+
+/* Session view - keep existing messages container behavior */
+#session-view {
+    /* Inherits from .view */
+}
+
+#session-view #messages-container {
+    flex: 1;
+    /* Scroll ownership moved to per-session containers (.session-messages) */
+    overflow: hidden;
+    padding: 0;
+}
+
+/* Editor view */
+#editor-view {
+    background: var(--bg-primary);
+}
+
+/* Editor toolbar */
+#editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+
+.editor-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    overflow: hidden;
+}
+
+.editor-path {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.editor-copy-path-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.editor-copy-path-btn:hover {
+    opacity: 1;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.editor-copy-path-btn.copied {
+    color: var(--success);
+    opacity: 1;
+}
+
+.editor-copy-path-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.editor-actions {
+    display: flex;
+    gap: var(--sp-4);
+    flex-shrink: 0;
+}
+
+.editor-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-8);
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.editor-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.editor-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Language selector (scratch tabs) */
+.editor-language-select {
+    appearance: none;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-4) var(--sp-24) var(--sp-4) var(--sp-8);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    transition: all 0.15s ease;
+}
+
+.editor-language-select:hover {
+    border-color: var(--text-muted);
+    color: var(--text-primary);
+}
+
+.editor-language-select:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Scratch/file-only controls - hidden by default */
+.scratch-only,
+.file-only {
+    display: none;
+}
+
+/* Show scratch controls when in scratch mode */
+#editor-view.scratch-mode .scratch-only {
+    display: flex;
+}
+
+/* Show file controls when in file mode (not scratch) */
+#editor-view:not(.scratch-mode) .file-only {
+    display: flex;
+}
+
+/* Save As dialog (inline) */
+.save-as-dialog {
+    display: none;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.save-as-dialog.visible {
+    display: flex;
+}
+
+.save-as-dialog label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.save-as-dialog input {
+    flex: 1;
+    min-width: 200px;
+    padding: var(--sp-6) var(--sp-10);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-base);
+    font-family: var(--font-mono);
+}
+
+.save-as-dialog input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.save-as-btn {
+    padding: var(--sp-6) var(--sp-12);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.save-as-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.save-as-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.save-as-btn.primary:hover {
+    background: var(--accent-hover);
+}
+
+/* Editor container */
+#editor-container {
+    flex: 1;
+    min-height: 0;  /* Allow flex item to shrink below content size */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;  /* CodeMirror handles its own scrolling */
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-primary);
+}
+
+/* CodeMirror wrapper - Phase 2 */
+#cm-editor-wrapper {
+    flex: 1;
+    min-height: 0;  /* Allow flex item to shrink for CodeMirror scrolling */
+    width: 100%;
+}
+
+/* CodeMirror fills its container */
+#cm-editor-wrapper .cm-editor {
+    height: 100%;
+}
+
+/* Override One Dark theme background to match app */
+#cm-editor-wrapper .cm-editor,
+#cm-editor-wrapper .cm-gutters {
+    background-color: var(--bg-primary);
+}
+
+/* Active line background - slightly lighter than bg-primary */
+#cm-editor-wrapper .cm-activeLine,
+#cm-editor-wrapper .cm-activeLineGutter {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* CodeMirror scroller area */
+#cm-editor-wrapper .cm-scroller {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+}
+
+/* Base text matches app foreground instead of One Dark's #abb2bf grey;
+   syntax token colors still apply on top. */
+#cm-editor-wrapper .cm-content {
+    color: var(--text-primary);
+}
+
+/* CodeMirror loading state */
+.cm-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: var(--font-size-md);
+}
+
+.cm-loading::before {
+    content: '';
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-primary);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin-right: 10px;
+    animation: cm-spin 1s linear infinite;
+}
+
+@keyframes cm-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* CodeMirror error state */
+.cm-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--error);
+    font-size: var(--font-size-md);
+    padding: var(--sp-20);
+    text-align: center;
+}
+
+/* Fallback pre/code display (when CodeMirror fails to load) */
+#editor-content {
+    margin: 0;
+    padding: var(--sp-16);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--text-primary);
+    background: transparent;
+    white-space: pre;
+    overflow-x: auto;
+    tab-size: 4;
+}
+
+#editor-content code {
+    display: block;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+}
+
+/* Markdown preview in editor (read-only mode) */
+#editor-container .markdown-preview {
+    flex: 1;
+    min-height: 0;  /* Allow flex item to shrink and enable scrolling */
+    overflow-y: auto;
+    overflow-x: hidden;  /* Prevent horizontal scroll - tables have their own scroll */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: var(--sp-16) var(--sp-20);
+    font-size: var(--font-size-md);
+    line-height: 1.7;
+    color: var(--text-primary);
+}
+
+#editor-container .markdown-preview h1,
+#editor-container .markdown-preview h2,
+#editor-container .markdown-preview h3,
+#editor-container .markdown-preview h4 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#editor-container .markdown-preview h1 { font-size: 1.8em; }
+#editor-container .markdown-preview h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-primary); padding-bottom: 0.3em; }
+#editor-container .markdown-preview h3 { font-size: 1.25em; }
+
+#editor-container .markdown-preview p {
+    margin: 1em 0;
+}
+
+#editor-container .markdown-preview code {
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+#editor-container .markdown-preview pre {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--sp-12);
+    overflow-x: auto;
+    overflow-y: clip;
+    margin: 1em 0;
+    touch-action: pan-x pan-y;
+}
+
+#editor-container .markdown-preview pre code {
+    background: transparent;
+    padding: 0;
+    overflow-y: clip;
+}
+
+#editor-container .markdown-preview ul,
+#editor-container .markdown-preview ol {
+    margin: 1em 0;
+    padding-left: 2em;
+}
+
+#editor-container .markdown-preview li {
+    margin: 0.3em 0;
+}
+
+#editor-container .markdown-preview blockquote {
+    border-left: 3px solid var(--accent);
+    margin: 1em 0;
+    padding-left: 1em;
+    color: var(--text-secondary);
+}
+
+/* Table wrapper for horizontal scrolling */
+#editor-container .markdown-preview .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 1em 0;
+}
+
+#editor-container .markdown-preview table {
+    border-collapse: collapse;
+    min-width: 100%;
+    margin: 0;
+}
+
+#editor-container .markdown-preview th,
+#editor-container .markdown-preview td {
+    border: 1px solid var(--border-primary);
+    padding: var(--sp-8) var(--sp-12);
+    text-align: left;
+}
+
+#editor-container .markdown-preview th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+}
+
+#editor-container .markdown-preview a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+#editor-container .markdown-preview a:hover {
+    text-decoration: underline;
+}
+
+/* Truncated code blocks in markdown preview */
+.markdown-preview .code-block-wrapper {
+    position: relative;
+}
+
+.markdown-preview .code-block-wrapper.truncated pre {
+    max-height: 250px;  /* ~10-12 lines */
+    overflow: hidden;
+}
+
+.markdown-preview .code-block-wrapper.truncated::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(transparent, var(--bg-secondary));
+    pointer-events: none;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.markdown-preview .code-expand-btn {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--sp-4) var(--sp-12);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    z-index: 1;
+    transition: all 0.15s ease;
+}
+
+.markdown-preview .code-expand-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.markdown-preview .code-block-wrapper.expanded pre {
+    max-height: none;
+}
+
+.markdown-preview .code-block-wrapper.expanded::after {
+    display: none;
+}
+
+.markdown-preview .code-block-wrapper.expanded .code-expand-btn {
+    position: static;
+    transform: none;
+    display: block;
+    margin: var(--sp-8) auto 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CodeMirror Search Panel (Cmd+F / Ctrl+F)
+   Unscoped: shared by BOTH CM hosts — the file-tab editor
+   (#cm-editor-wrapper) and the preview widget's Edit mode
+   (.preview-cm-container). Panel DOM built in editor-view.js
+   createSearchPanel(): two .cm-search-row rows; the replace row shows
+   only when the panel has .replace-visible (chevron or the toolbar's
+   search-&-replace button).
+   ═══════════════════════════════════════════════════════════════════ */
+
+.cm-editor .cm-panels {
+    background: var(--bg-secondary);
+    border: none;
+    z-index: var(--z-internal);
+}
+
+.cm-editor .cm-panels-top {
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.cm-panel.cm-search {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-10);
+    background: var(--bg-secondary);
+}
+
+.cm-search-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+}
+
+/* Replace row hidden until expanded */
+.cm-search-replace-row {
+    display: none;
+    /* Indent under the search field (chevron column = 22px + gap) */
+    padding-left: calc(22px + var(--sp-6));
+}
+
+.cm-search.replace-visible .cm-search-replace-row {
+    display: flex;
+}
+
+.cm-search.replace-visible .cm-search-expand svg {
+    transform: rotate(90deg);
+}
+
+/* Input fields */
+.cm-panel.cm-search .cm-textfield {
+    flex: 1;
+    max-width: 260px;
+    min-width: 100px;
+    padding: var(--sp-5) var(--sp-10);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono);
+    outline: none;
+}
+
+.cm-panel.cm-search .cm-textfield:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+}
+
+/* Icon buttons (chevron, prev/next, close) */
+.cm-search-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.cm-search-icon-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.cm-search-icon-btn svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.15s ease;
+}
+
+/* Pill toggles (Aa / .*) — styled buttons, not native checkboxes */
+.cm-search-toggle {
+    padding: var(--sp-2) var(--sp-6);
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    line-height: 1.4;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.cm-search-toggle:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.cm-search-toggle.active {
+    background: rgba(var(--accent-rgb), 0.18);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+/* Replace / All text buttons */
+.cm-panel.cm-search .cm-button {
+    padding: var(--sp-4) var(--sp-10);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.cm-panel.cm-search .cm-button:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+/* Match count display */
+.cm-search-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    white-space: nowrap;
+}
+
+.cm-search-count:empty {
+    display: none;
+}
+
+.cm-search-count.no-results {
+    color: var(--error);
+}
+
+/* Search match highlighting */
+.cm-editor .cm-searchMatch {
+    background-color: rgba(255, 200, 50, 0.3);
+    border-radius: var(--radius-xs);
+}
+
+.cm-editor .cm-searchMatch-selected {
+    background-color: rgba(255, 200, 50, 0.5);
+    outline: 1px solid rgba(255, 200, 50, 0.8);
+}
+
+/* Selection matches (non-search) */
+.cm-editor .cm-selectionMatch {
+    background-color: rgba(100, 180, 255, 0.2);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    #editor-toolbar {
+        padding: var(--sp-6) var(--sp-10);
+    }
+
+    .editor-breadcrumb {
+        font-size: var(--font-size-sm);
+    }
+
+    .editor-btn {
+        padding: var(--sp-4) var(--sp-6);
+    }
+
+    .editor-btn span {
+        display: none;  /* Hide button text on mobile, show only icon */
+    }
+
+    #editor-content {
+        padding: var(--sp-12);
+        font-size: var(--font-size-sm);
+    }
+
+    /* CodeMirror mobile adjustments */
+    #cm-editor-wrapper .cm-scroller {
+        font-size: var(--font-size-sm);
+    }
+
+    #editor-container .markdown-preview {
+        padding: var(--sp-12) var(--sp-16);
+        font-size: var(--font-size-base);
+    }
+
+    /* Search panel mobile adjustments */
+    .cm-panel.cm-search {
+        padding: var(--sp-4) var(--sp-8);
+        gap: var(--sp-4);
+    }
+
+    .cm-panel.cm-search .cm-textfield {
+        min-width: 80px;
+        font-size: var(--font-size-sm);
+        padding: var(--sp-4) var(--sp-8);
+    }
+
+    .cm-panel.cm-search .cm-button {
+        padding: var(--sp-4) var(--sp-8);
+        font-size: var(--font-size-xs);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHARED TOKEN PALETTE
+   Single source of truth for syntax colors. Both the CodeMirror editor and
+   the preview widget's Code view emit these classes via the shared
+   tagHighlighter (buildAppHighlighter in editor-view.js) — same parser, same
+   classes, same colors, so Code ⇄ Edit render identically.
+   Values mirror the original One-Dark-inspired hljs palette.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.tok-keyword { color: #c678dd; }             /* keywords, meta/decorators */
+.tok-string { color: #98c379; }              /* strings, regexps, attributes */
+.tok-number { color: #d19a66; }              /* numbers, bools, atoms */
+.tok-comment { color: #5c6370; font-style: italic; }
+.tok-function { color: #61afef; }            /* function names, headings */
+.tok-type { color: #e5c07b; }                /* types, classes, namespaces */
+.tok-tag { color: #e06c75; }                 /* markup tag names */
+.tok-link { color: #61afef; }
+.tok-emphasis { font-style: italic; }
+.tok-strong { font-weight: 600; }
+.tok-invalid { color: #e06c75; }

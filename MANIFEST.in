@@ -1,0 +1,24 @@
+# sdist contents policy (WP-15). The wheel is defined by package-data under
+# src/painapple_code/; this file trims the *source* distribution so it ships
+# the installable project + its corresponding source, not dev-only trees.
+#
+# Keep: src/, requirements.txt, pyproject.toml, README, LICENSE, notices
+# (setuptools includes these by default / via license-files).
+
+# Dev-only / native / CI / internal trees — never part of the Python artifact.
+prune tauri-app
+prune .github
+prune tests
+prune docs-ai
+prune docs
+prune ideas
+prune .claude
+prune examples
+prune features
+prune design
+prune tools
+
+# Stray build/editor cruft.
+global-exclude *.pyc *.pyo *.orig *.rej
+global-exclude .DS_Store
+prune **/__pycache__

@@ -1,0 +1,448 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SEARCH IN FILES WIDGET - Project-wide content search (VS Code-style)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.sf-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+.sf-hidden {
+    display: none !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Search bar
+   ───────────────────────────────────────────────────────────────────── */
+
+.sf-search-area {
+    flex-shrink: 0;
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.sf-search-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+}
+
+.sf-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    min-width: 0;
+    padding: 0 var(--sp-4) 0 var(--sp-8);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+}
+
+.sf-input-wrap:focus-within {
+    border-color: var(--accent);
+}
+
+.sf-search-icon {
+    display: flex;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.sf-search-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.sf-input {
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-6) 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+}
+
+.sf-input::placeholder {
+    color: var(--text-muted);
+}
+
+.sf-clear {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+}
+
+.sf-clear:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+/* Aa / ab / .* toggle buttons inside the input (VS Code idiom) */
+.sf-toggles {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+    padding-left: var(--sp-4);
+    border-left: 1px solid var(--border-secondary);
+}
+
+.sf-toggle {
+    min-width: 24px;
+    height: 22px;
+    padding: 0 var(--sp-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    border-radius: var(--radius-xs);
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+.sf-toggle u {
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+.sf-toggle:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.sf-toggle.active {
+    color: var(--accent);
+    background: var(--accent-muted);
+    border-color: var(--accent);
+}
+
+/* Filters disclosure button (right of the input) */
+.sf-filters-btn {
+    position: relative;
+    flex-shrink: 0;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.sf-filters-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.sf-filters-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.sf-filters-btn.active {
+    color: var(--accent);
+    background: var(--accent-muted);
+}
+
+/* Dot badge when any filter is set but the row is collapsed */
+.sf-filters-btn.has-filters::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Filters row (include / exclude globs, ignored files)
+   ───────────────────────────────────────────────────────────────────── */
+
+.sf-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+    margin-top: var(--sp-6);
+}
+
+.sf-filter-input {
+    flex: 1 1 160px;
+    min-width: 0;
+    padding: var(--sp-4) var(--sp-8);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+}
+
+.sf-filter-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.sf-filter-input::placeholder {
+    color: var(--text-muted);
+}
+
+.sf-pill {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-8);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.sf-pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: background 0.12s ease;
+}
+
+.sf-pill:hover {
+    color: var(--text-primary);
+}
+
+.sf-pill.active {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.sf-pill.active .sf-pill-dot {
+    background: var(--accent);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Summary line
+   ───────────────────────────────────────────────────────────────────── */
+
+.sf-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    margin-top: var(--sp-6);
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.sf-truncated {
+    color: var(--accent-yellow);
+}
+
+.sf-degraded {
+    color: var(--accent-yellow);
+    cursor: default;
+}
+
+.sf-spinner {
+    width: 10px;
+    height: 10px;
+    flex-shrink: 0;
+    border: 2px solid var(--border-primary);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: sf-spin 0.7s linear infinite;
+}
+
+@keyframes sf-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Results
+   ───────────────────────────────────────────────────────────────────── */
+
+.sf-body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.sf-results {
+    padding: var(--sp-4) 0 var(--sp-12);
+}
+
+.sf-file-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-12);
+    margin-top: var(--sp-4);
+    cursor: pointer;
+    user-select: none;
+    min-width: 0;
+}
+
+.sf-file-header:hover {
+    background: var(--bg-hover);
+}
+
+.sf-chevron {
+    display: flex;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform 0.12s ease;
+    transform: rotate(90deg);
+}
+
+.sf-file.collapsed .sf-chevron {
+    transform: rotate(0deg);
+}
+
+.sf-chevron svg {
+    width: 12px;
+    height: 12px;
+}
+
+.sf-file-name {
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sf-file-dir {
+    flex: 1;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;         /* ellipsis on the left — tail of the path matters */
+    text-align: left;
+}
+
+.sf-file-count {
+    flex-shrink: 0;
+    min-width: 18px;
+    padding: 0 var(--sp-4);
+    text-align: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-xs);
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.sf-match {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    padding: 2px var(--sp-12) 2px calc(var(--sp-12) + var(--sp-16));
+    cursor: pointer;
+    min-width: 0;
+}
+
+.sf-match:hover {
+    background: var(--bg-hover);
+}
+
+.sf-match.selected {
+    background: var(--bg-active);
+    box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.sf-line-no {
+    flex-shrink: 0;
+    min-width: 32px;
+    text-align: right;
+    color: var(--text-muted);
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs);
+}
+
+.sf-line-text {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs);
+    white-space: pre;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sf-ellipsis {
+    color: var(--text-muted);
+}
+
+.sf-hl {
+    background: var(--accent-muted);
+    color: var(--text-primary);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.sf-match.selected .sf-hl {
+    background: var(--accent);
+    color: var(--bg-primary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Empty / error / idle states
+   ───────────────────────────────────────────────────────────────────── */
+
+.sf-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-24) var(--sp-16);
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+
+.sf-idle-icon {
+    display: flex;
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.sf-idle-icon svg {
+    width: 28px;
+    height: 28px;
+}
+
+.sf-error .sf-message-title {
+    color: var(--accent-red);
+    font-weight: 600;
+}
+
+.sf-error .sf-message-detail {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs);
+    word-break: break-word;
+}

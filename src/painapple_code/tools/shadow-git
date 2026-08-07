@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+#
+# shadow-git - Git wrapper for shadow git repositories
+#
+# Usage:
+#   shadow-git log                    # View commit history
+#   shadow-git log --grep="JWT"       # Search commits
+#   shadow-git show HEAD              # Show last commit
+#   shadow-git diff HEAD~3..HEAD      # Compare changes
+#   shadow-git log --oneline -20      # Last 20 commits, one line each
+#
+# Special commands:
+#   shadow-git projects               # List all projects with shadow git
+#   shadow-git sessions               # List sessions in current project
+#   shadow-git search <pattern>       # Full-text search across all commits
+#
+# Environment:
+#   SHADOW_PROJECT=/path/to/project   # Override project detection
+#
+# Shadow git stores turn-by-turn history at:
+#   ~/.painapple-code/projects/{hash}/shadow-git/
+#
+
+set -e
+
+BRIDGE_DIR="${HOME}/.painapple-code"
+
+# Compute project hash (first 12 chars of SHA256)
+project_hash() {
+    echo -n "$1" | sha256sum | cut -c1-12
+}
+
+# Show help
+show_help() {
+    cat << 'EOF'
+shadow-git - Git wrapper for shadow git repositories
+
+Usage: shadow-git <command> [args...]
+
+Git Commands (passed through):
+  log [opts]              View commit history
+  show <ref>              Show commit details
+  diff <range>            Compare changes
+  blame <file>            Line-by-line history
+  (any git command)       Passed to shadow git
+
+Special Commands:
+  projects                List all projects with shadow git
+  sessions                List sessions in current project
+  branches                List shadow branches with commit counts
+  search <pattern>        Full-text search in commit messages
+  snapshot [msg]          Add all files and commit (create baseline)
+  help                    Show this help
+
+Examples:
+  shadow-git log --oneline -20              Last 20 commits
+  shadow-git log --grep="auth"              Search for "auth" in messages
+  shadow-git log shadow/main                Commits on shadow/main branch
+  shadow-git branches                       List all shadow branches
+  shadow-git show HEAD~2                    Show commit 2 back
+  shadow-git diff HEAD~5..HEAD              Changes in last 5 commits
+  shadow-git search "JWT refresh"           Full-text search
+  shadow-git log --all --oneline -- src/    Commits touching src/
+
+Environment:
+  SHADOW_PROJECT=/path    Use specific project instead of cwd
+EOF
+}
+
+# List all projects with shadow git
+list_projects() {
+    echo "Projects with shadow git:"
+    echo ""
+    for dir in "${BRIDGE_DIR}/projects"/*/shadow-git; do
+        if [[ -d "$dir" ]]; then
+            project_dir=$(dirname "$dir")
+            hash=$(basename "$project_dir")
+            path_file="${project_dir}/path"
+            if [[ -f "$path_file" ]]; then
+                path=$(cat "$path_file")
+                # Get commit count
+                count=$(git --git-dir="$dir" rev-list --count HEAD 2>/dev/null || echo "0")
+                printf "  %-12s %4d commits  %s\n" "$hash" "$count" "$path"
+            fi
+        fi
+    done
+}
+
+# List sessions in current project
+list_sessions() {
+    if [[ ! -d "$SHADOW_GIT_DIR" ]]; then
+        echo "No shadow git for current project" >&2
+        exit 1
+    fi
+    echo "Sessions in shadow git:"
+    echo ""
+    # Extract unique session IDs from commit messages
+    git --git-dir="$SHADOW_GIT_DIR" log --all --format="%s" | \
+        grep -oE '\[[a-zA-Z0-9_-]{8}' | \
+        sed 's/\[//' | \
+        sort -u | \
+        while read -r sid; do
+            count=$(git --git-dir="$SHADOW_GIT_DIR" log --all --grep="\[$sid" --oneline | wc -l)
+            last=$(git --git-dir="$SHADOW_GIT_DIR" log --all --grep="\[$sid" -1 --format="%ar" 2>/dev/null || echo "unknown")
+            printf "  %-10s %3d turns  (%s)\n" "$sid" "$count" "$last"
+        done
+}
+
+# List shadow branches with commit counts
+list_branches() {
+    if [[ ! -d "$SHADOW_GIT_DIR" ]]; then
+        echo "No shadow git for current project" >&2
+        exit 1
+    fi
+    echo "Shadow branches:"
+    echo ""
+
+    # Get current branch
+    current=$(git --git-dir="$SHADOW_GIT_DIR" symbolic-ref --short HEAD 2>/dev/null || echo "")
+
+    # List all branches (master + shadow/*)
+    git --git-dir="$SHADOW_GIT_DIR" for-each-ref --format="%(refname:short)" refs/heads/ 2>/dev/null | \
+        while read -r branch; do
+            count=$(git --git-dir="$SHADOW_GIT_DIR" rev-list --count "$branch" 2>/dev/null || echo "0")
+            last=$(git --git-dir="$SHADOW_GIT_DIR" log "$branch" -1 --format="%ar" 2>/dev/null || echo "never")
+
+            # Mark current branch with *
+            if [[ "$branch" == "$current" ]]; then
+                printf "* %-30s %4d commits  (%s)\n" "$branch" "$count" "$last"
+            else
+                printf "  %-30s %4d commits  (%s)\n" "$branch" "$count" "$last"
+            fi
+        done
+}
+
+# Sync shadow branch to match project's current branch
+sync_shadow_branch() {
+    if [[ ! -d "$SHADOW_GIT_DIR" ]]; then
+        return 1
+    fi
+
+    # Check if project is a git repo
+    if [[ ! -d "${PROJECT_PATH}/.git" ]]; then
+        return 0  # Not a git project, nothing to sync
+    fi
+
+    # Get project's current branch
+    local project_branch
+    project_branch=$(git -C "$PROJECT_PATH" branch --show-current 2>/dev/null)
+
+    if [[ -z "$project_branch" ]]; then
+        # Detached HEAD - get short hash
+        local short_hash
+        short_hash=$(git -C "$PROJECT_PATH" rev-parse --short HEAD 2>/dev/null)
+        project_branch="HEAD-${short_hash}"
+    fi
+
+    local shadow_branch="shadow/${project_branch}"
+
+    # Check if shadow branch exists
+    if git --git-dir="$SHADOW_GIT_DIR" rev-parse --verify "refs/heads/${shadow_branch}" >/dev/null 2>&1; then
+        # Switch to it
+        git --git-dir="$SHADOW_GIT_DIR" symbolic-ref HEAD "refs/heads/${shadow_branch}" 2>/dev/null
+    fi
+    # If branch doesn't exist, stay on current branch (will be created on next commit)
+}
+
+# Full-text search
+search_commits() {
+    local pattern="$1"
+    if [[ -z "$pattern" ]]; then
+        echo "Usage: shadow-git search <pattern>" >&2
+        exit 1
+    fi
+    if [[ ! -d "$SHADOW_GIT_DIR" ]]; then
+        echo "No shadow git for current project" >&2
+        exit 1
+    fi
+    echo "Searching for: $pattern"
+    echo ""
+    git --git-dir="$SHADOW_GIT_DIR" log --all -p --source -S "$pattern" --oneline 2>/dev/null || \
+    git --git-dir="$SHADOW_GIT_DIR" log --all --grep="$pattern" --oneline
+}
+
+# Create snapshot (add all files and commit)
+create_snapshot() {
+    if [[ ! -d "$SHADOW_GIT_DIR" ]]; then
+        echo "No shadow git for current project" >&2
+        exit 1
+    fi
+
+    local msg="${1:-Snapshot: $(date '+%Y-%m-%d %H:%M')}"
+
+    echo "Creating snapshot of all project files..."
+    git --git-dir="$SHADOW_GIT_DIR" --work-tree="$PROJECT_PATH" add -A
+
+    # Quarantine oversized files (matches the bridge's size cap, default 50MB):
+    # unstage + append to info/exclude so they never bloat the object store
+    local max_mb="${SHADOW_MAX_FILE_MB:-50}"
+    if (( max_mb > 0 )); then
+        while IFS= read -r -d '' f; do
+            local size
+            size=$(wc -c < "$PROJECT_PATH/$f" 2>/dev/null || echo 0)
+            if (( size > max_mb * 1024 * 1024 )); then
+                git --git-dir="$SHADOW_GIT_DIR" --work-tree="$PROJECT_PATH" rm --cached --quiet --force -- "$f"
+                printf '/%s\n' "$f" >> "$SHADOW_GIT_DIR/info/exclude"
+                echo "Skipped oversized file: $f ($(( size / 1024 / 1024 ))MB > ${max_mb}MB cap)"
+            fi
+        done < <(git --git-dir="$SHADOW_GIT_DIR" --work-tree="$PROJECT_PATH" diff --cached --name-only --diff-filter=AM -z 2>/dev/null)
+    fi
+
+    # Check if there's anything to commit
+    if git --git-dir="$SHADOW_GIT_DIR" --work-tree="$PROJECT_PATH" diff --cached --quiet; then
+        echo "No changes to snapshot (working tree matches shadow git)"
+    else
+        git --git-dir="$SHADOW_GIT_DIR" --work-tree="$PROJECT_PATH" commit -m "$msg"
+        echo "Snapshot created: $msg"
+    fi
+}
+
+# Handle special commands
+case "${1:-}" in
+    help|--help|-h)
+        show_help
+        exit 0
+        ;;
+    projects)
+        list_projects
+        exit 0
+        ;;
+esac
+
+# Get project path (default to current directory)
+PROJECT_PATH="${SHADOW_PROJECT:-$(pwd)}"
+HASH=$(project_hash "$PROJECT_PATH")
+SHADOW_GIT_DIR="${BRIDGE_DIR}/projects/${HASH}/shadow-git"
+
+# Handle commands that need project context
+case "${1:-}" in
+    sessions)
+        list_sessions
+        exit 0
+        ;;
+    branches)
+        list_branches
+        exit 0
+        ;;
+    search)
+        shift
+        search_commits "$@"
+        exit 0
+        ;;
+    snapshot)
+        shift
+        create_snapshot "$@"
+        exit 0
+        ;;
+esac
+
+# Check if shadow git exists
+if [[ ! -d "$SHADOW_GIT_DIR" ]]; then
+    echo "No shadow git found for: $PROJECT_PATH" >&2
+    echo "Hash: $HASH" >&2
+    echo "Expected: $SHADOW_GIT_DIR" >&2
+    exit 1
+fi
+
+# Sync shadow branch to project branch for certain commands
+# This ensures status/diff/log show the correct branch context
+case "${1:-}" in
+    status|diff|log|show|blame)
+        sync_shadow_branch
+        ;;
+esac
+
+# Pass through to git with shadow git dir
+exec git --git-dir="$SHADOW_GIT_DIR" --work-tree="$PROJECT_PATH" "$@"

@@ -1,0 +1,337 @@
+/* ============================================================
+   Browser Widget
+   Floating panel with a toolbar (back/forward/reload/home/url)
+   and an iframe filling the rest. External URLs load directly;
+   local files come through /api/browser/render with a sandboxed
+   iframe to keep their JS out of the bridge's auth surface.
+   ============================================================ */
+
+[data-widget-id="browser"] .widget-content {
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.browser-widget {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary, #0b1220);
+}
+
+/* ── Toolbar ── */
+.browser-widget .br-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-10);
+    background: var(--bg-secondary, #0f172a);
+    border-bottom: 1px solid var(--border-color);
+    flex: 0 0 auto;
+}
+
+.browser-widget .br-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary, #1e293b);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+    flex: 0 0 auto;
+}
+.browser-widget .br-nav-btn svg {
+    width: 16px;
+    height: 16px;
+}
+.browser-widget .br-nav-btn:hover:not([disabled]) {
+    background: var(--bg-hover, #334155);
+    border-color: var(--accent);
+}
+.browser-widget .br-nav-btn[disabled] {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* ── URL bar ── */
+.browser-widget .br-url-wrap {
+    position: relative; /* anchors the .br-url-ac dropdown */
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-width: 0;
+    background: var(--bg-tertiary, #1e293b);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0 var(--sp-8) 0 var(--sp-6);
+    height: 30px;
+}
+.browser-widget .br-url-wrap:focus-within {
+    border-color: var(--accent);
+}
+
+/* ── Local-path autocomplete dropdown ── */
+.browser-widget .br-url-ac {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bg-secondary, #16213a);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    z-index: var(--z-internal-raised, 10);
+    padding: var(--sp-4);
+}
+.browser-widget .br-url-ac.open {
+    display: block;
+}
+.browser-widget .br-ac-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-5) var(--sp-8);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.browser-widget .br-ac-item:hover,
+.browser-widget .br-ac-item.selected {
+    background: var(--bg-hover, rgba(var(--accent-rgb), 0.12));
+    color: var(--text-primary);
+}
+.browser-widget .br-ac-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+}
+.browser-widget .br-ac-icon svg {
+    width: 100%;
+    height: 100%;
+}
+.browser-widget .br-ac-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.browser-widget .br-scheme-badge {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    line-height: 1.4;
+}
+.browser-widget .br-scheme-badge.external {
+    background: rgba(96, 165, 250, 0.15);
+    color: var(--accent-blue);
+}
+.browser-widget .br-scheme-badge.local {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+}
+
+.browser-widget .br-proxy-toggle {
+    height: var(--layout-btn-xs);
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.browser-widget .br-proxy-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+.browser-widget .br-proxy-toggle.on {
+    color: var(--accent-orange);
+}
+.browser-widget .br-proxy-toggle.on:hover {
+    opacity: 1;
+    background: rgba(245, 158, 11, 0.12);
+}
+.browser-widget .br-proxy-toggle.off {
+    color: var(--accent-red);
+    opacity: 0.9;
+}
+.browser-widget .br-proxy-toggle.off:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.browser-widget .br-url {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: var(--font-size-sm);
+    height: 100%;
+    padding: 0;
+}
+.browser-widget .br-url::placeholder {
+    color: var(--text-muted);
+}
+
+/* ── Frame wrap + iframe ──
+   iPadOS Safari has a long-standing bug where cross-origin iframes won't
+   scroll if a hidden-overflow ancestor traps touch. The fix is to let the
+   wrap itself be touch-scrollable so the touch lands on the wrap first
+   and gets handed to the iframe. We do NOT set `position: absolute` on
+   the iframe — that triggers a separate iOS bug where the iframe loses
+   its internal scroll port. */
+.browser-widget .br-open-system,
+.browser-widget .br-open-preview {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.browser-widget .br-open-system svg,
+.browser-widget .br-open-preview svg {
+    width: 14px;
+    height: 14px;
+}
+.browser-widget .br-open-system:hover,
+.browser-widget .br-open-preview:hover {
+    opacity: 1;
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.12);
+}
+
+.browser-widget .br-frame-wrap {
+    flex: 1 1 auto;
+    background: var(--bg-primary, #0b1220);
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    min-height: 0;
+}
+
+.browser-widget .br-frame {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    background: var(--bg-primary, #0b1220);
+    touch-action: auto;
+}
+
+.browser-widget .br-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-14);
+    height: 100%;
+    color: var(--text-muted);
+    padding: var(--sp-32) var(--sp-24);
+    text-align: center;
+    background: var(--bg-primary, #0b1220);
+}
+.browser-widget .br-empty-icon {
+    width: 56px;
+    height: 56px;
+    color: var(--text-secondary, #475569);
+    opacity: 0.55;
+}
+.browser-widget .br-empty-title {
+    font-size: var(--font-size-content);
+    font-weight: 600;
+    color: var(--text-primary, #e2e8f0);
+    letter-spacing: 0.2px;
+}
+.browser-widget .br-empty-hint {
+    font-size: var(--font-size-sm);
+    line-height: 1.55;
+    max-width: 360px;
+    color: var(--text-muted);
+}
+.browser-widget .br-empty-warning {
+    margin-top: var(--sp-8);
+    font-size: var(--font-size-xs);
+    line-height: 1.55;
+    max-width: 440px;
+    padding: var(--sp-12) var(--sp-14);
+    border-radius: var(--radius-md);
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: var(--accent-orange);
+    text-align: left;
+}
+.browser-widget .br-warning-title {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    margin-bottom: var(--sp-6);
+}
+.browser-widget .br-warning-title svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+.browser-widget .br-warning-lead {
+    margin-bottom: var(--sp-6);
+}
+.browser-widget .br-warning-points {
+    margin: 0;
+    padding-left: var(--sp-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    opacity: 0.9;
+}
+
+/* ── Mobile/narrow widget ── */
+@media (max-width: 500px) {
+    .browser-widget .br-toolbar {
+        flex-wrap: wrap;
+        gap: var(--sp-4);
+        padding: var(--sp-6);
+    }
+    .browser-widget .br-url-wrap {
+        order: 10;
+        width: 100%;
+    }
+}

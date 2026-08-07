@@ -1,0 +1,750 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MESSAGES AREA
+   ═══════════════════════════════════════════════════════════════════ */
+#messages-container {
+    /* Scroll ownership moved to per-session containers (.session-messages)
+       so browser natively preserves scrollTop on display:none elements */
+    flex: 1;
+    overflow: hidden;
+    padding: 0;
+}
+
+#messages {
+    /* Fill container so per-session children can flex to full height */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Session Container Pool: Per-session scrollable containers for O(1) tab switching.
+   Each session owns its own scroll position — no manual save/restore needed.
+   Full-width (no max-width) so gutter collapse icons have room in the right margin.
+   Children get max-width: 900px instead. */
+.session-messages {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gap-sm);
+    /* Per-session scroll ownership */
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: var(--layout-content-padding);
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+}
+
+/* Content width constraint — moved from .session-messages to children
+   so the scroll container is full-width and gutter icons fit in the margin */
+.session-messages > * {
+    max-width: 900px;
+}
+
+/* Hidden session containers - display:none is sufficient, no extra rules needed */
+/* The container pool sets display:none directly via inline style */
+
+/* Virtual Scroll: Windowed rendering for 200+ message conversations */
+.virtual-viewport {
+    max-width: 900px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gap-md);
+}
+
+.virtual-spacer {
+    /* Spacers maintain scroll height for non-rendered items */
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+.message {
+    /* Isolate layout/style scope — streaming text + tool blocks inside a
+       message bubble cause frequent paints. Without containment those repaints
+       propagate up the tree and can invalidate other layers (incl. the
+       selection paint), which on iPadOS WebKit shows up as cursor blinking
+       and selection flicker while Claude is working. */
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gap-xs);
+    contain: layout style;
+}
+
+.message-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    font-size: var(--font-size-xs);
+}
+
+.message-role {
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+.message-role.user { color: var(--accent); }
+.message-role.assistant { color: var(--success); }
+.message-role.system { color: var(--text-muted); }
+.message-role.tool { color: var(--warning); }
+.message-role.error {
+    color: var(--error);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+.message-role.error svg {
+    flex-shrink: 0;
+}
+.message-role.info {
+    color: var(--accent-blue);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+.message-role.info svg {
+    flex-shrink: 0;
+}
+
+.message-time {
+    color: var(--text-muted);
+}
+
+/* Effort indicator - shows effort level on user messages (when not default) */
+.effort-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-3);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-sm);
+    background: rgba(139, 92, 246, 0.15);
+    color: #8b5cf6;
+}
+
+.effort-indicator[data-level="minimal"] {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-muted);
+    opacity: 0.8;
+}
+
+.effort-indicator[data-level="low"] {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-muted);
+}
+
+.effort-indicator[data-level="medium"] {
+    background: rgba(96, 165, 250, 0.15);
+    color: var(--accent-blue);
+}
+
+.effort-indicator[data-level="xhigh"] {
+    background: rgba(217, 70, 239, 0.15);
+    color: #d946ef;
+}
+
+.effort-indicator[data-level="max"] {
+    background: rgba(244, 114, 182, 0.15);
+    color: #f472b6;
+}
+
+.effort-indicator[data-level="ultra"] {
+    background: rgba(251, 113, 133, 0.15);
+    color: #fb7185;
+}
+
+.effort-indicator svg {
+    width: 10px;
+    height: 10px;
+}
+
+.effort-indicator-label {
+    line-height: 1;
+}
+
+.message-copy-btn {
+    margin-left: auto;
+    padding: var(--sp-2) var(--sp-6);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    opacity: 0;
+}
+
+.message:hover .message-copy-btn,
+.message-copy-btn:focus {
+    opacity: 1;
+}
+
+.message-copy-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.message-copy-btn.copied {
+    opacity: 1;
+    color: var(--success);
+}
+
+.message-copy-btn .copy-label {
+    font-family: var(--font-sans);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MESSAGE FAVORITE BUTTON (heart icon for user messages)
+   ═══════════════════════════════════════════════════════════════════ */
+.message-favorite-btn {
+    padding: var(--sp-2) var(--sp-4);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+}
+
+.message-favorite-btn.hidden {
+    display: none;
+}
+
+.message:hover .message-favorite-btn,
+.message-favorite-btn:focus,
+.message-favorite-btn.active {
+    opacity: 1;
+}
+
+.message-favorite-btn .heart-outline {
+    display: block;
+}
+
+.message-favorite-btn .heart-filled {
+    display: none;
+    color: #ff4757;
+}
+
+.message-favorite-btn:hover {
+    background: rgba(255, 71, 87, 0.1);
+}
+
+.message-favorite-btn:hover .heart-outline {
+    color: #ff4757;
+}
+
+.message-favorite-btn.active .heart-outline {
+    display: none;
+}
+
+.message-favorite-btn.active .heart-filled {
+    display: block;
+}
+
+/* Always show favorite button on touch devices (no hover) */
+@media (hover: none) {
+    .message-favorite-btn {
+        opacity: 0.6;
+    }
+    .message-favorite-btn:active,
+    .message-favorite-btn.active {
+        opacity: 1;
+    }
+}
+
+/* Always show on touch devices (no hover) */
+@media (hover: none) {
+    .message-copy-btn {
+        opacity: 0.6;
+    }
+    .message-copy-btn:active {
+        opacity: 1;
+    }
+}
+
+.message-content {
+    padding: var(--layout-msg-padding-v) var(--layout-msg-padding-h);
+    border-radius: var(--layout-msg-radius);
+    overflow-wrap: break-word;
+    font-size: var(--font-size-content);
+    line-height: var(--layout-line-height-tight);
+}
+
+.message.user .message-content {
+    background: var(--user-bg);
+    border: 1px solid #1c4a7f;
+}
+
+/* Plan mode user messages - purple styling to indicate planning context */
+.message.user.plan-mode .message-content {
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.message.user.plan-mode .message-role {
+    color: #a78bfa;
+}
+
+.message.user.plan-mode .message-role::after {
+    content: ' (plan)';
+    font-weight: 400;
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+/* Attachment indicator for user messages with files/images */
+.attachment-indicator {
+    display: inline-block;
+    margin-top: var(--sp-4);
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    font-style: italic;
+}
+
+.message.assistant .message-content {
+    background: var(--assistant-bg);
+    border: 1px solid var(--border-primary);
+}
+
+.message.system .message-content {
+    background: var(--system-bg);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    padding: var(--sp-8) 0;
+    border: none;
+}
+
+.message.error .message-content {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    font-size: var(--font-size-base);
+}
+
+.message.info .message-content {
+    background: rgba(96, 165, 250, 0.1);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    color: #93c5fd;
+    font-size: var(--font-size-base);
+}
+
+/* Auth-error affordance — reason text + one-click re-login button */
+.message.auth-error .message-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-10);
+}
+.message.auth-error .auth-error-reason {
+    line-height: 1.4;
+}
+.message.auth-error .auth-error-login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: 7px var(--sp-14);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: #fff;
+    background: rgba(239, 68, 68, 0.85);
+    border: 1px solid rgba(239, 68, 68, 0.6);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.06s ease;
+}
+.message.auth-error .auth-error-login-btn:hover {
+    background: rgba(239, 68, 68, 1);
+}
+.message.auth-error .auth-error-login-btn:active {
+    transform: translateY(1px);
+}
+.message.auth-error .auth-error-login-btn svg {
+    flex-shrink: 0;
+}
+
+/* Fork reference message (shown at start of forked sessions) */
+.message-role.fork {
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+.message-role.fork svg {
+    flex-shrink: 0;
+}
+
+.message.fork-reference .message-content {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+}
+
+.fork-parent-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+
+.fork-parent-link:hover {
+    color: #c4b5fd;
+    text-decoration: underline;
+}
+
+.fork-hint {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.message-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    padding-left: var(--sp-4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   NEW MESSAGES INDICATOR (Slack-style)
+   ═══════════════════════════════════════════════════════════════════ */
+.new-messages-btn {
+    position: sticky;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-16);
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    font-family: var(--font-sans);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 100;
+    margin: var(--sp-12) auto 0;
+}
+
+.new-messages-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.new-messages-btn:hover {
+    background: var(--accent-hover);
+    transform: translateX(-50%) scale(1.02);
+}
+
+.new-messages-btn:active {
+    transform: translateX(-50%) scale(0.98);
+}
+
+.new-messages-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+/* Subtle variant - no new messages, just scroll to bottom */
+.new-messages-btn.subtle {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.new-messages-btn.subtle:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   QUESTION INDICATOR (floating "Claude is asking" card)
+   ═══════════════════════════════════════════════════════════════════ */
+.question-indicator {
+    position: sticky;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: fit-content;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-10) var(--sp-16);
+    background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 100%);
+    color: #78350f;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-family: var(--font-sans);
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    z-index: 101;
+    margin: var(--sp-12) auto 0;
+    max-width: 90%;
+}
+
+.question-indicator.visible {
+    opacity: 1;
+    pointer-events: auto;
+    animation: qi-pulse 2s ease-in-out infinite;
+    will-change: transform;  /* Hint to browser for GPU acceleration */
+}
+
+/* GPU-accelerated pulse using transform instead of box-shadow (avoids repaint) */
+@keyframes qi-pulse {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.02); }
+}
+
+.question-indicator:hover {
+    transform: translateX(-50%) scale(1.02);
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+}
+
+.question-indicator:active {
+    transform: translateX(-50%) scale(0.98);
+}
+
+.qi-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(120, 53, 15, 0.15);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.qi-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.qi-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.qi-title {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+    margin-bottom: var(--sp-2);
+}
+
+.qi-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+}
+
+.qi-badge {
+    background: rgba(120, 53, 15, 0.12);
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.qi-more {
+    font-size: var(--font-size-xs);
+    opacity: 0.8;
+    padding: var(--sp-2) var(--sp-4);
+}
+
+.qi-arrow {
+    display: flex;
+    align-items: center;
+    opacity: 0.8;
+}
+
+.qi-arrow svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Highlight pulse for question when scrolled to */
+.message.question.highlight-pulse {
+    animation: highlight-glow 1.5s ease-out;
+}
+
+@keyframes highlight-glow {
+    0% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.6); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+/* Scroll-to highlight animation (used by Prompt Explorer "Session" button) */
+.message.scroll-highlight {
+    animation: scroll-highlight-pulse 2s ease-out;
+}
+
+.message.scroll-highlight .message-content {
+    animation: scroll-highlight-bg 2s ease-out;
+}
+
+@keyframes scroll-highlight-pulse {
+    0% { box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.5); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+}
+
+@keyframes scroll-highlight-bg {
+    0%, 30% { background: rgba(var(--accent-rgb), 0.15); }
+    100% { background: inherit; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STASH REFERENCES (attached to user messages)
+   ═══════════════════════════════════════════════════════════════════ */
+.stash-refs-block {
+    margin-top: var(--sp-10);
+    background: rgba(139, 92, 246, 0.08);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.stash-refs-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-sm);
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.stash-refs-header:hover {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.stash-refs-header::marker {
+    content: '';
+}
+
+.stash-refs-header::-webkit-details-marker {
+    display: none;
+}
+
+.stash-refs-header .refs-icon {
+    font-size: var(--font-size-md);
+}
+
+.stash-refs-header .refs-count {
+    font-weight: 500;
+}
+
+/* Arrow indicator */
+.stash-refs-block summary::before {
+    content: '▸';
+    margin-right: var(--sp-6);
+    transition: transform 0.15s ease;
+    display: inline-block;
+}
+
+.stash-refs-block[open] summary::before {
+    transform: rotate(90deg);
+}
+
+.stash-refs-content {
+    padding: 0 var(--sp-12) var(--sp-10);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+}
+
+.stash-ref-item {
+    padding: var(--sp-8) var(--sp-10);
+    background: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border-left: 2px solid var(--accent);
+}
+
+.stash-ref-item .ref-source {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-bottom: var(--sp-4);
+}
+
+.stash-ref-item .ref-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-style: italic;
+    line-height: 1.4;
+    /* Limit to 2 lines */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.stash-ref-item .ref-note {
+    margin-top: var(--sp-6);
+    padding-top: var(--sp-6);
+    border-top: 1px solid var(--border-primary);
+    font-size: var(--font-size-sm);
+    color: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THINKING KEYWORDS (ultrathink, megathink, think hard, etc.)
+   Highlights keywords that trigger extended thinking in Claude Code
+   ═══════════════════════════════════════════════════════════════════ */
+.thinking-keyword {
+    color: #ef4444;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    padding: 0 var(--sp-2);
+    cursor: help;
+    transition: background 0.15s ease;
+}
+
+.thinking-keyword:hover {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+/* Ultrathink (31,999 tokens) - brightest red, most prominent */
+.thinking-keyword-ultrathink {
+    color: #ff3333;
+    text-shadow: 0 0 8px rgba(255, 51, 51, 0.4);
+}
+
+/* Megathink (10,000 tokens) - medium red */
+.thinking-keyword-megathink {
+    color: #ef4444;
+}
+
+/* Think (4,000 tokens) - standard red, less prominent */
+.thinking-keyword-think {
+    color: #f87171;
+    font-weight: 500;
+}
+

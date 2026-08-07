@@ -1,0 +1,30 @@
+{
+    // Example: extra tooling baked into a personalized painapple-code image.
+    //
+    // Point painapple-docker.sh at this file and `build` will layer these
+    // features on top of the standard painapple-code base — without
+    // touching the Dockerfile:
+    //
+    //   ./painapple-docker.sh config set DEVCONTAINER_PATH=/abs/path/to/this/dir
+    //   ./painapple-docker.sh build
+    //
+    // Or as a one-off override:
+    //
+    //   ./painapple-docker.sh build --devcontainer /abs/path/to/this/dir
+    //
+    // Note: `image`, `forwardPorts`, `customizations`, `postCreateCommand`,
+    // and other fields are intentionally ignored. Personalize only takes
+    // bake-time concerns (features, containerEnv, remoteEnv, remoteUser).
+    "name": "painapple-code personalized example",
+    "features": {
+        "ghcr.io/devcontainers/features/go:1": {
+            "version": "1.22"
+        },
+        "ghcr.io/devcontainers/features/aws-cli:1": {},
+        "ghcr.io/devcontainers/features/terraform:1": {}
+    },
+    "containerEnv": {
+        "GOPATH": "/home/app/go"
+    },
+    "remoteUser": "app"
+}

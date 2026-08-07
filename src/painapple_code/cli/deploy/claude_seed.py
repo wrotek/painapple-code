@@ -1,0 +1,36 @@
+"""Seeding an isolated CLAUDE_HOME for container sandboxes."""
+
+import json
+from pathlib import Path
+
+# Subset of ~/.claude.json worth carrying into the container: "not a
+# fresh install" flags so the onboarding wizard doesn't re-run. The
+# host file's `projects` map is keyed by host paths (dead in the
+# container) and caches refetch on first run — deliberately skipped.
+# KEEP IN SYNC with CLAUDE_JSON_ALLOW in
+# tauri-app/src-tauri/src/local.rs (the desktop app's setup wizard
+# seeds an isolated CLAUDE_HOME the same way).
+CLAUDE_JSON_ALLOW = {
+    "hasCompletedOnboarding",
+    "lastOnboardingVersion",
+    "installMethod",
+    "migrationVersion",
+    "claudeCodeFirstTokenDate",
+    "opusProMigrationComplete",
+    "sonnet1m45MigrationComplete",
+    "lastReleaseNotesSeen",
+    "opus47LaunchSeenCount",
+}
+
+
+def seed_claude_json(src, dst):
+    """Write a minimal .claude.json (dst) from the allowlisted fields of
+    the host file (src). Returns False on any parse/write problem."""
+    try:
+        data = json.loads(Path(src).read_text())
+        subset = {k: data[k] for k in CLAUDE_JSON_ALLOW if k in data}
+        Path(dst).write_text(json.dumps(subset, indent=2))
+        Path(dst).chmod(0o600)
+        return True
+    except (OSError, ValueError):
+        return False

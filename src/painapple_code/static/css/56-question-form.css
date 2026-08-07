@@ -1,0 +1,602 @@
+/**
+ * AskUserQuestion Form Styling
+ * Interactive question forms for Claude's AskUserQuestion tool
+ * Compact design to minimize vertical space
+ */
+
+/* Question message container */
+.message.question {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--accent-yellow, #f0a020);
+    border-radius: var(--radius-md);
+    padding: var(--sp-10);
+    margin: var(--sp-6) 0;
+}
+
+.message.question.answered {
+    opacity: 0.85;
+    border-left-color: var(--accent-green, #22c55e);
+}
+
+.message.question .message-header {
+    margin-bottom: var(--sp-6);
+}
+
+.message.question .message-role.question {
+    color: var(--accent-yellow, #f0a020);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: var(--font-size-sm);
+}
+
+.message.question .message-role.question svg {
+    stroke: var(--accent-yellow, #f0a020);
+    width: 12px;
+    height: 12px;
+}
+
+/* Question form container */
+.question-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+}
+
+/* Individual question item */
+.question-item {
+    background: var(--bg-secondary, #1a1a1a);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-8) var(--sp-10);
+}
+
+.question-header {
+    margin-bottom: var(--sp-4);
+}
+
+.question-badge {
+    display: inline-block;
+    background: var(--accent-yellow, #f0a020);
+    color: var(--bg-primary, #0a0a0a);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-md);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.question-text {
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    margin-bottom: var(--sp-6);
+    line-height: 1.4;
+}
+
+/* Options container - vertical stack (rows) */
+.question-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+/* Option buttons - compact design */
+.question-option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--bg-primary, #0a0a0a);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+    min-height: 0;
+}
+
+.question-option:hover:not(:disabled) {
+    background: var(--bg-elevated);
+    border-color: var(--accent-yellow, #f0a020);
+}
+
+.question-option.selected {
+    background: rgba(240, 160, 32, 0.15);
+    border-color: var(--accent-yellow, #f0a020);
+}
+
+.question-option:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
+.question-option .option-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.question-option .option-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.question-option.selected .option-label {
+    color: var(--accent-yellow, #f0a020);
+}
+
+/* "Other" option styling */
+.question-option-other {
+    border-style: dashed;
+}
+
+.question-option-other .option-label::before {
+    content: "✎ ";
+}
+
+/* Custom text input for "Other" */
+.question-other-input {
+    width: 100%;
+    padding: var(--sp-6) var(--sp-8);
+    margin-top: var(--sp-4);
+    background: var(--bg-primary, #0a0a0a);
+    border: 1px solid var(--accent-yellow, #f0a020);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    outline: none;
+}
+
+.question-other-input:focus {
+    box-shadow: 0 0 0 2px rgba(240, 160, 32, 0.2);
+}
+
+.question-other-input:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+
+/* Free-text comment box (shared across the card, optional) */
+.question-comment-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-8);
+}
+
+.question-comment-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.question-comment {
+    width: 100%;
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--bg-primary, #0a0a0a);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    line-height: 1.4;
+    resize: vertical;
+    min-height: 2.4em;
+    outline: none;
+}
+
+.question-comment:focus {
+    border-color: var(--accent-yellow, #f0a020);
+    box-shadow: 0 0 0 2px rgba(240, 160, 32, 0.2);
+}
+
+.question-comment:disabled {
+    opacity: 0.7;
+    cursor: default;
+    resize: none;
+}
+
+/* Actions area */
+.question-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-6);
+    padding-top: var(--sp-6);
+    border-top: 1px solid var(--border-color);
+}
+
+/* Submit button */
+.question-submit {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-6) var(--sp-14);
+    background: var(--accent-yellow, #f0a020);
+    color: var(--bg-primary, #0a0a0a);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.question-submit:hover {
+    background: #d89010;
+    transform: translateY(-1px);
+}
+
+.question-submit:active {
+    transform: translateY(0);
+}
+
+/* Keyboard focus (e.g. after Tab/Enter lands here from the last question) —
+   make it obvious that one more Enter submits the form. */
+.question-submit:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-elevated), 0 0 0 4px var(--accent-yellow, #f0a020);
+}
+
+/* Focus ring for option buttons so keyboard navigation is visible. */
+.question-option:focus-visible {
+    outline: none;
+    border-color: var(--accent-yellow, #f0a020);
+    box-shadow: 0 0 0 2px rgba(240, 160, 32, 0.35);
+}
+
+.question-submit svg {
+    stroke: var(--bg-primary, #0a0a0a);
+    width: 12px;
+    height: 12px;
+}
+
+/* Ignore button — secondary, dismisses without sending */
+.question-ignore {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-6) var(--sp-12);
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.question-ignore:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+}
+
+.question-ignore:active {
+    transform: translateY(1px);
+}
+
+.question-ignore svg {
+    stroke: currentColor;
+    width: 12px;
+    height: 12px;
+}
+
+/* Answered status */
+.question-status.answered {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    color: var(--accent-green, #22c55e);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.question-status.answered svg {
+    stroke: var(--accent-green, #22c55e);
+    width: 14px;
+    height: 14px;
+}
+
+/* Edit-answer button — lets the user re-open an answered card to change and
+   resend their choice. Hidden until the card is hovered (trackpad :hover works
+   on iPadOS; @media (hover:hover) never matches there, so we gate the reveal on
+   :hover and only force-show on pure-touch devices). */
+.question-edit {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-6) var(--sp-12);
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.message.question.answered:hover .question-edit,
+.question-edit:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.question-edit:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+}
+
+.question-edit:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(240, 160, 32, 0.35);
+}
+
+.question-edit svg {
+    stroke: currentColor;
+    width: 12px;
+    height: 12px;
+}
+
+/* Pure-touch devices have no hover — keep the edit affordance visible. */
+@media (hover: none) and (pointer: coarse) {
+    .question-edit {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+/* Ignored status — dismissed without sending */
+.question-status.ignored {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    color: var(--text-tertiary, var(--text-secondary));
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    font-style: italic;
+}
+
+.question-status.ignored svg {
+    stroke: currentColor;
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
+}
+
+/* Skipped status — user replied with text instead of using the form */
+.question-status.skipped {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    color: var(--text-tertiary, var(--text-secondary));
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    font-style: italic;
+}
+
+.question-status.skipped svg {
+    stroke: currentColor;
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
+}
+
+/* Shake animation for validation error */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+    20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.question-form.shake {
+    animation: shake 0.5s ease-in-out;
+}
+
+/* Unanswered question - subtle highlight */
+.message.question:not(.answered) {
+    box-shadow: 0 0 0 1px var(--accent-yellow, #f0a020);
+}
+
+/* Mobile responsiveness - single column */
+@media (max-width: 600px) {
+    .message.question {
+        padding: var(--sp-8);
+    }
+
+    .question-item {
+        padding: var(--sp-6) var(--sp-8);
+    }
+
+    .question-options {
+        grid-template-columns: 1fr;
+    }
+
+    .question-option {
+        padding: var(--sp-8) var(--sp-10);
+    }
+
+    .question-submit {
+        flex: 1;
+        justify-content: center;
+        padding: var(--sp-8) var(--sp-14);
+    }
+
+    .question-ignore {
+        justify-content: center;
+        padding: var(--sp-8) var(--sp-14);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WIZARD MODE - Multiple grouped questions with tabs
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Wizard tabs row */
+.question-wizard-tabs {
+    display: flex;
+    gap: var(--sp-4);
+    margin-bottom: var(--sp-10);
+    padding-bottom: var(--sp-8);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Individual wizard tab */
+.wizard-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 var(--sp-10);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    gap: var(--sp-4);
+}
+
+.wizard-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.wizard-tab.active {
+    background: var(--accent-yellow, #f0a020);
+    color: var(--bg-primary, #0a0a0a);
+    border-color: var(--accent-yellow, #f0a020);
+}
+
+.wizard-tab.answered {
+    border-color: var(--accent-green, #22c55e);
+}
+
+.wizard-tab.answered:not(.active) {
+    color: var(--accent-green, #22c55e);
+}
+
+.wizard-tab-num {
+    font-weight: 600;
+}
+
+.wizard-tab-check {
+    display: flex;
+    align-items: center;
+}
+
+.wizard-tab-check svg {
+    stroke: currentColor;
+}
+
+/* Question entry containers */
+.question-entry {
+    display: none;
+}
+
+.question-entry.active {
+    display: block;
+}
+
+/* Wizard navigation */
+.question-wizard-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-8) 0;
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--sp-8);
+}
+
+.wizard-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-6) var(--sp-12);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.wizard-nav-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.wizard-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.wizard-nav-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.wizard-progress {
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+}
+
+/* Wizard mode form tweaks */
+.question-form.wizard-mode .question-actions {
+    border-top: none;
+    padding-top: 0;
+}
+
+/* ── Stopped-because-asked note + inline toggle ───────────────────────── */
+.question-stop-note {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin-top: var(--sp-8);
+    padding: var(--sp-8) var(--sp-10);
+    border-top: 1px solid var(--border-subtle, var(--border-color));
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.question-stop-icon {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.question-stop-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.question-stop-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    cursor: pointer;
+    user-select: none;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.question-stop-toggle input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+    accent-color: var(--accent);
+}

@@ -1,0 +1,94 @@
+name: Publish to PyPI
+
+# Builds the sdist + wheel and publishes them to PyPI, then creates a
+# GitHub Release for the tag.
+#
+# Versioning: same scheme as docker-publish.yml — the git tag (vX.Y.Z)
+# is the single source of truth; setuptools-scm derives the package
+# version from it at build time.
+#
+# Auth: PyPI Trusted Publishing (OIDC) — no API token secrets. One-time
+# setup on pypi.org: add a publisher for project `painapple-code` with
+#   owner: wrotek, repo: painapple-code,
+#   workflow: pypi-publish.yml, environment: pypi
+# Pre-release tags (v1.1.0-rc1) publish to PyPI as 1.1.0rc1 (pip only
+# installs those with --pre) and are marked pre-release on GitHub.
+
+on:
+    push:
+        tags:
+            - "v*.*.*"
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            # fetch-depth: 0 so setuptools-scm can `git describe` against
+            # all tags. Default shallow clone hides everything but HEAD.
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+
+            - name: Build sdist and wheel
+              run: |
+                  pip install --quiet build
+                  python -m build
+                  ls -l dist/
+
+            # Sanity check: the version baked into the wheel must match the
+            # tag that triggered us (v1.2.3 → 1.2.3, v1.2.3-rc1 → 1.2.3rc1).
+            - name: Verify version matches tag
+              run: |
+                  tag="${GITHUB_REF#refs/tags/v}"
+                  expected=$(python -c "from packaging.version import Version; import sys; print(Version(sys.argv[1]))" "$tag")
+                  built=$(ls dist/*.whl | sed -E 's|dist/painapple_code-([^-]+)-.*|\1|')
+                  echo "tag=$expected built=$built"
+                  test "$expected" = "$built"
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: dist
+                  path: dist/
+
+    publish-pypi:
+        needs: build
+        runs-on: ubuntu-latest
+        environment:
+            name: pypi
+            url: https://pypi.org/p/painapple-code
+        permissions:
+            id-token: write # OIDC token for Trusted Publishing
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  name: dist
+                  path: dist/
+
+            - name: Publish to PyPI
+              uses: pypa/gh-action-pypi-publish@release/v1
+
+    github-release:
+        needs: publish-pypi
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  name: dist
+                  path: dist/
+
+            - name: Create GitHub Release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  tag="${GITHUB_REF#refs/tags/}"
+                  args=(--generate-notes --title "$tag")
+                  [[ "$tag" == *-* ]] && args+=(--prerelease)
+                  gh release create "$tag" dist/* \
+                      --repo "${{ github.repository }}" "${args[@]}"

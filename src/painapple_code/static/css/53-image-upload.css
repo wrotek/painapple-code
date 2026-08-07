@@ -1,0 +1,456 @@
+/* ═══════════════════════════════════════════════════════════════════
+   IMAGE UPLOAD
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Upload button in input area */
+#upload-btn {
+    width: var(--layout-btn-lg);
+    height: var(--layout-btn-lg);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+
+#upload-btn:hover {
+    color: var(--accent);
+    background: var(--bg-hover);
+    border-color: var(--accent);
+}
+
+#upload-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Image previews container - takes full width to appear above input row */
+#image-previews {
+    display: none;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+    width: 100%;
+    padding-bottom: var(--sp-8);
+    order: -1;  /* Appear before other flex items */
+}
+
+#image-previews.visible {
+    display: flex;
+}
+
+/* Individual image preview */
+.image-preview {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 2px solid var(--border-primary);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+
+.image-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-preview:hover {
+    border-color: var(--accent);
+}
+
+/* Remove button on image preview */
+.image-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;  /* Always visible on touch devices */
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.image-preview:hover .image-remove {
+    opacity: 1;
+}
+
+.image-remove svg {
+    width: 12px;
+    height: 12px;
+}
+
+.image-remove:hover {
+    background: var(--error);
+}
+
+/* Annotate (pencil) button — mirrors .image-remove, sits to its left */
+.image-annotate {
+    position: absolute;
+    top: 2px;
+    right: 22px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;  /* Always visible on touch devices */
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.image-preview:hover .image-annotate {
+    opacity: 1;
+}
+
+.image-annotate svg {
+    width: 11px;
+    height: 11px;
+}
+
+.image-annotate:hover {
+    background: var(--accent);
+}
+
+/* Upload spinner overlay */
+.image-preview.uploading {
+    border-color: var(--accent);
+}
+
+.image-preview.uploading img {
+    opacity: 0.5;
+}
+
+.upload-spinner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.upload-spinner svg {
+    width: 24px;
+    height: 24px;
+    color: var(--accent);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Drag and drop overlay */
+#messages-container.drag-over {
+    position: relative;
+}
+
+#messages-container.drag-over::after {
+    content: 'Drop image here';
+    position: absolute;
+    inset: 0;
+    background: rgba(88, 166, 255, 0.1);
+    border: 2px dashed var(--accent);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--accent);
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* User message with image indicator */
+.message.user .has-images {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   IMAGE PREVIEW MODAL (uses widget system)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Override widget modal styling for image preview */
+#widget-image-preview.widget-modal-dialog {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
+#widget-image-preview .widget-content {
+    padding: 0;
+    background: transparent;
+}
+
+.image-preview-modal {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: 90vw;
+    height: 90vh;
+}
+
+.image-preview-modal .img-preview-canvas {
+    flex: 1;
+    min-height: 0;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+}
+
+.image-preview-modal .panzoom-toolbar {
+    background: rgba(0, 0, 0, 0.75);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    flex-shrink: 0;
+}
+
+.image-preview-modal .panzoom-ctrl-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.image-preview-modal .panzoom-ctrl-btn:hover,
+.image-preview-modal .panzoom-ctrl-btn:active {
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+}
+
+.image-preview-modal .panzoom-zoom-label {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Make image preview thumbnails clickable */
+.image-preview img {
+    cursor: zoom-in;
+}
+
+/* ── Image navigation buttons ── */
+
+.img-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: white;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, opacity 0.15s;
+    z-index: 1;
+    padding: 0;
+}
+
+.img-nav:hover { background: rgba(0, 0, 0, 0.8); }
+.img-nav:disabled { opacity: 0.15; cursor: default; pointer-events: none; }
+.img-nav svg { width: 20px; height: 20px; }
+
+.img-nav-prev { left: 12px; }
+.img-nav-next { right: 12px; }
+
+/* Counter pill — sits above the thumb strip */
+.img-nav-counter {
+    position: absolute;
+    bottom: 96px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: rgba(255, 255, 255, 0.85);
+    padding: var(--sp-4) var(--sp-14);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    z-index: 2;
+    white-space: nowrap;
+}
+
+/* Turn-level navigation (double chevrons) — sits above the thumb strip */
+.img-nav-turn {
+    position: absolute;
+    bottom: 96px;
+    right: 16px;
+    display: flex;
+    gap: var(--sp-4);
+    z-index: 2;
+}
+
+.img-nav-turn button {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.15s;
+}
+
+.img-nav-turn button:hover { background: rgba(0, 0, 0, 0.8); color: white; }
+.img-nav-turn button:disabled { opacity: 0.15; pointer-events: none; }
+.img-nav-turn button svg { width: 14px; height: 14px; }
+
+/* Directory gallery (file-explorer opens) has no turns to jump between */
+.image-preview-modal.dir-mode .img-nav-turn {
+    display: none;
+}
+
+/* Hide everything when single image */
+.image-preview-modal.single-image .img-nav,
+.image-preview-modal.single-image .img-nav-counter,
+.image-preview-modal.single-image .img-nav-turn,
+.image-preview-modal.single-image .img-thumb-strip {
+    display: none;
+}
+
+/* When the strip is hidden, drop counter and turn-jump back to the bottom */
+.image-preview-modal.single-image .img-nav-counter,
+.image-preview-modal.single-image .img-nav-turn {
+    bottom: 16px;
+}
+
+/* iPadOS: always show nav buttons (no hover state) */
+@media (hover: none) and (pointer: coarse) {
+    .img-nav { opacity: 0.85; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GALLERY THUMB STRIP
+   ═══════════════════════════════════════════════════════════════════ */
+
+.image-preview-modal .img-thumb-strip {
+    flex-shrink: 0;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-12);
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: rgba(0, 0, 0, 0.7);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+.image-preview-modal .img-thumb-strip::-webkit-scrollbar {
+    height: 6px;
+}
+.image-preview-modal .img-thumb-strip::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+}
+
+.img-thumb {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.15s, transform 0.15s, opacity 0.15s;
+    opacity: 0.65;
+}
+
+.img-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+}
+
+.img-thumb:hover {
+    opacity: 1;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.img-thumb.active {
+    opacity: 1;
+    border-color: var(--accent);
+    transform: scale(1.04);
+}
+
+/* Vertical bar between thumbs from different turns */
+.img-turn-sep {
+    flex-shrink: 0;
+    width: 2px;
+    height: 56px;
+    background: rgba(255, 255, 255, 0.35);
+    margin: 0 var(--sp-8);
+    border-radius: var(--radius-xs);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SENT MESSAGE IMAGE THUMBNAILS
+   ═══════════════════════════════════════════════════════════════════ */
+
+.message-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+    margin-top: var(--sp-8);
+}
+
+.message-image-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border-secondary);
+    cursor: zoom-in;
+    transition: border-color 0.15s, transform 0.15s;
+}
+
+.message-image-thumb:hover {
+    border-color: var(--accent);
+    transform: scale(1.05);
+}
+
+.message-image-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Image is transparent to hit-testing so hover/zoom-click resolve to the
+       .message-image-thumb wrapper (which owns :hover + the delegated click),
+       not the <img>. Avoids the WebKit/iPadOS <img>-vs-wrapper pointer quirk. */
+    pointer-events: none;
+}
+

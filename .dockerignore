@@ -1,0 +1,19 @@
+# Deny-by-default. Only the explicit allowlist below ships into the image.
+# Why deny-first: the repo has ~1.4GB of side projects (tauri-app/, tao/),
+# build-time deps (top-level tools/node_modules/), local-only docs, and
+# multiple worktrees that have no business in a runtime image.
+*
+
+# --- Runtime essentials ---
+!src/
+!requirements.txt
+!pyproject.toml
+!docker-entrypoint.sh
+!README.md
+!LICENSE
+
+# --- Re-exclusions inside the allowlist (cruft that sneaks in via src/) ---
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.DS_Store

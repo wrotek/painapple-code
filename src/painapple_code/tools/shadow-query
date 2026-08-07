@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+#
+# shadow-query — Query the painapple-code shadow DuckDB via the bridge SQL endpoint.
+#
+# The bridge server owns the DuckDB write lock, so all reads go through
+# POST /api/shadow-db/sql. This wrapper handles auth, formatting and stdin.
+#
+# Usage:
+#   shadow-query <SQL>         Execute SQL, print TSV (default)
+#   shadow-query --json <SQL>  Execute SQL, print JSON
+#   shadow-query -             Read SQL from stdin
+#   shadow-query --json -      Read SQL from stdin, print JSON
+#   shadow-query -h | --help   Show this help
+#
+# Examples:
+#   shadow-query 'SELECT count(*) FROM turns'
+#   shadow-query 'SELECT id, cost FROM turns ORDER BY cost DESC LIMIT 5'
+#   shadow-query --json 'SELECT * FROM turns LIMIT 1' | jq
+#   shadow-query - <<'EOF'
+#     SELECT date_trunc('day', started_at) AS day, count(*) AS n
+#     FROM turns GROUP BY day ORDER BY day DESC LIMIT 7
+#   EOF
+#
+# Environment:
+#   BRIDGE_URL       Bridge base URL (default http://localhost:8765)
+#                    Dev:  BRIDGE_URL=http://localhost:8880 shadow-query '...'
+#   BRIDGE_PASSWORD  Auth token override; otherwise read from config.yaml.
+#
+# Auth:
+#   Reads `password:` from ~/.config/painapple-code/config.yaml when
+#   BRIDGE_PASSWORD is unset.
+
+set -euo pipefail
+
+CONFIG_FILE="${HOME}/.config/painapple-code/config.yaml"
+BRIDGE_URL_DEFAULT="http://localhost:8765"
+
+show_help() {
+    awk 'NR == 1 { next }
+         /^#/   { sub(/^# ?/, ""); print; next }
+                { exit }' "$0"
+}
+
+format=tsv
+sql=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -h|--help)     show_help; exit 0 ;;
+        --json)        format=json ;;
+        --tsv)         format=tsv ;;
+        --format=json) format=json ;;
+        --format=tsv)  format=tsv ;;
+        --format=*)    echo "shadow-query: invalid --format ${1#--format=} (expected json or tsv)" >&2; exit 2 ;;
+        --format)
+            shift
+            case "${1:-}" in
+                json|tsv) format="$1" ;;
+                *)        echo "shadow-query: invalid --format ${1:-} (expected json or tsv)" >&2; exit 2 ;;
+            esac
+            ;;
+        -)
+            sql="$(cat)"
+            ;;
+        -*)
+            echo "shadow-query: unknown option: $1 (run --help)" >&2
+            exit 2
+            ;;
+        *)
+            if [ -z "$sql" ]; then
+                sql="$1"
+            else
+                echo "shadow-query: unexpected extra arg: $1" >&2
+                exit 2
+            fi
+            ;;
+    esac
+    shift
+done
+
+if [ -z "$sql" ]; then
+    echo "shadow-query: SQL required (run --help for usage)" >&2
+    exit 2
+fi
+
+bridge_url="${BRIDGE_URL:-$BRIDGE_URL_DEFAULT}"
+bridge_url="${bridge_url%/}"
+
+if [ -n "${BRIDGE_PASSWORD:-}" ]; then
+    password="$BRIDGE_PASSWORD"
+elif [ -r "$CONFIG_FILE" ]; then
+    password="$(awk '/^password:/ {print $2; exit}' "$CONFIG_FILE" 2>/dev/null || true)"
+    if [ -z "$password" ]; then
+        echo "shadow-query: could not extract password from $CONFIG_FILE" >&2
+        echo "shadow-query: file is missing a 'password:' line" >&2
+        exit 1
+    fi
+else
+    echo "shadow-query: no password available" >&2
+    echo "shadow-query: set BRIDGE_PASSWORD or ensure $CONFIG_FILE is readable" >&2
+    exit 1
+fi
+
+exec curl -sS --fail-with-body \
+    -X POST "${bridge_url}/api/shadow-db/sql?format=${format}" \
+    -H "Authorization: Bearer ${password}" \
+    -H "Content-Type: text/plain" \
+    --data-binary "$sql"

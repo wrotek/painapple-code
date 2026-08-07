@@ -1,0 +1,121 @@
+/* ═══════════════════════════════════════════════════════════════════
+   FILE AUTOCOMPLETE (@-mentions)
+   Triggered by @ character in message input
+   ═══════════════════════════════════════════════════════════════════ */
+
+.file-autocomplete {
+    position: absolute;
+    bottom: 100%;
+    min-width: 280px;
+    width: max-content;
+    max-width: min(720px, 85vw);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+    box-shadow: var(--shadow);
+    display: none;
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: var(--z-overlay-autocomplete);  /* Above keyboard bar */
+    scroll-padding-top: 24px;
+    scroll-padding-bottom: 6px;
+}
+
+.file-autocomplete.visible {
+    display: block;
+}
+
+/* Section header */
+.file-autocomplete-section {
+    padding: var(--sp-3) var(--sp-10);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* Individual file item */
+.file-autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-2) var(--sp-10);
+    min-height: 20px;
+    cursor: pointer;
+    transition: background 0.1s ease;
+    box-sizing: border-box;
+}
+
+.file-autocomplete-item:hover,
+.file-autocomplete-item.selected {
+    background: var(--bg-tertiary);
+}
+
+.file-autocomplete-item.selected {
+    background: var(--accent-muted);
+}
+
+/* File path */
+.file-path {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Highlighted match characters */
+.file-path mark {
+    background: transparent;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* File extension badge */
+.file-ext {
+    font-size: 10px;
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: lowercase;
+    flex-shrink: 0;
+}
+
+/* Recent file dot */
+.file-recent-badge {
+    font-size: var(--font-size-sm);
+    line-height: 1;
+    color: var(--success, #2ea043);
+    flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Responsive adjustments
+   ───────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .file-autocomplete {
+        min-width: 220px;
+        max-width: 90vw;
+        max-height: 220px;
+    }
+
+    .file-autocomplete-item {
+        padding: var(--sp-3) var(--sp-10);
+        min-height: 24px;
+    }
+
+    .file-path {
+        font-size: var(--font-size-base);
+    }
+}

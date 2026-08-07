@@ -1,0 +1,77 @@
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITY CLASSES
+   ═══════════════════════════════════════════════════════════════════ */
+.hidden {
+    display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .tab {
+        padding: var(--sp-6) var(--sp-10);
+        font-size: var(--font-size-sm);
+    }
+
+    /* Close button is now always visible (opacity: 0.4 base) */
+
+    #messages-container {
+        padding: var(--sp-12);
+    }
+
+    .message-content {
+        padding: var(--sp-10) var(--sp-12);
+    }
+
+    #input-hint {
+        display: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EXPAND MODE (for screenshots)
+   Use ?expand=true URL param to enable
+   ═══════════════════════════════════════════════════════════════════ */
+body.expand-mode {
+    height: auto;
+    min-height: 100vh;
+}
+
+body.expand-mode .app-container {
+    height: auto;
+    min-height: 100vh;
+}
+
+body.expand-mode #messages-container {
+    flex: none;
+    overflow-y: visible;
+    height: auto;
+}
+
+body.expand-mode #input-area {
+    position: relative;
+    margin-top: var(--sp-20);
+}
+

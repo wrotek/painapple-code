@@ -1,0 +1,346 @@
+/* Image Annotate Widget - paint-style editor for pasted screenshots */
+
+.image-annotate-modal {
+    display: flex;
+    flex-direction: column;
+    width: 92vw;
+    height: 88vh;
+    max-width: 1500px;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────── */
+
+.ia-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-6);
+    border-bottom: 1px solid var(--border-primary, #333);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.ia-tool-group {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.ia-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border-primary, #333);
+}
+
+.ia-spacer {
+    flex: 1;
+}
+
+.ia-hint {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Toolbar checkbox mirroring the annotate-on-paste setting */
+.ia-paste-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+}
+
+.ia-paste-toggle:hover {
+    color: var(--text-secondary);
+}
+
+.ia-paste-toggle input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.ia-tool-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.ia-tool-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ia-tool-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.ia-tool-btn.active {
+    background: var(--bg-tertiary);
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.ia-tool-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+    background: transparent;
+}
+
+/* Color swatches — true circles, allowed to stay round */
+.ia-color-btn {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--ia-swatch);
+    border: 2px solid transparent;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.ia-color-btn:hover {
+    transform: scale(1.15);
+}
+
+.ia-color-btn.active {
+    border-color: var(--text-primary);
+}
+
+/* Stroke size buttons — dot of increasing diameter */
+.ia-stroke-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.ia-stroke-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+.ia-stroke-btn.active {
+    border-color: var(--accent);
+    background: var(--bg-tertiary);
+}
+
+.ia-stroke-dot {
+    border-radius: 50%;
+    background: var(--text-secondary);
+}
+
+.ia-stroke-btn.active .ia-stroke-dot {
+    background: var(--text-primary);
+}
+
+.ia-stroke-s { width: 4px;  height: 4px; }
+.ia-stroke-m { width: 8px;  height: 8px; }
+.ia-stroke-l { width: 13px; height: 13px; }
+
+/* Action buttons */
+.ia-btn {
+    padding: var(--sp-3) var(--sp-8);
+    font-size: var(--font-size-sm);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary, #333);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.ia-btn:hover {
+    border-color: var(--text-muted);
+}
+
+/* Cancel button armed for discard-confirmation (press Esc / click again) */
+.ia-btn.ia-cancel.armed {
+    background: var(--error, #ff3b30);
+    border-color: var(--error, #ff3b30);
+    color: #fff;
+    font-weight: 600;
+}
+
+.ia-btn.ia-cancel.armed:hover {
+    filter: brightness(1.15);
+    border-color: var(--error, #ff3b30);
+}
+
+.ia-btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+.ia-btn-primary:hover {
+    filter: brightness(1.15);
+    border-color: var(--accent);
+}
+
+/* ── Canvas area ─────────────────────────────────────────────────────── */
+
+.ia-canvas-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-6);
+    background: var(--bg-primary);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    overflow: hidden;
+}
+
+.ia-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-xs);
+    box-shadow: 0 0 0 1px var(--border-primary, #333);
+    cursor: crosshair;
+    touch-action: none;   /* pointer drawing, not page scroll (iPad) */
+}
+
+/* Floating text-tool input, positioned over the canvas */
+.ia-text-input {
+    position: absolute;
+    min-width: 120px;
+    max-width: 60%;
+    padding: 0 var(--sp-1);
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px dashed var(--text-muted);
+    border-radius: var(--radius-xs);
+    outline: none;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    z-index: var(--z-internal);
+}
+
+.ia-text-input::placeholder {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+}
+
+/* Floating marker-comment box — stash purple: this text goes to the
+   Comments Stash (message context), not onto the picture */
+.ia-marker-box {
+    position: absolute;
+    display: flex;
+    align-items: flex-start;   /* delete btn tops-align as the textarea grows */
+    gap: var(--sp-1);
+    width: 240px;
+    max-width: 45%;
+    padding: var(--sp-1) var(--sp-2);
+    background: var(--bg-secondary);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(139, 92, 246, 0.2);
+    z-index: var(--z-internal);
+}
+
+/* Textarea: Enter commits, Shift+Enter newline; auto-grows via JS up to
+   max-height, then scrolls */
+.ia-marker-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--sp-1) 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    font: inherit;             /* textareas default to monospace */
+    font-size: var(--font-size-base);
+    line-height: 1.4;
+    color: var(--text-primary);
+    resize: none;
+    overflow-y: auto;
+    max-height: 132px;
+}
+
+.ia-marker-input::placeholder {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+.ia-marker-delete {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-xs);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.ia-marker-delete:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.ia-marker-delete svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Committed marker comment — persistent read-only bubble beside the badge.
+   DOM overlay only (never exported into the PNG); click re-opens the edit
+   box. Same stash-purple family as .ia-marker-box, but quieter. */
+.ia-marker-note {
+    position: absolute;
+    max-width: 240px;
+    padding: var(--sp-1) var(--sp-2);
+    background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    font-size: var(--font-size-sm);
+    line-height: 1.35;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    white-space: pre-wrap;     /* Shift+Enter newlines render as typed */
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    z-index: var(--z-internal);
+}
+
+/* Hover un-clamps so a long comment is readable without opening the editor */
+.ia-marker-note:hover {
+    -webkit-line-clamp: 100;
+    border-color: var(--accent);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.45), 0 0 0 2px rgba(139, 92, 246, 0.2);
+}

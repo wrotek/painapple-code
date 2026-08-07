@@ -1,0 +1,203 @@
+name: Publish Docker Image
+
+# Builds and publishes the painapple-code image to Docker Hub.
+#
+# Versioning scheme: SemVer — git tags shaped like vMAJOR.MINOR.PATCH
+# (e.g. v0.1.0, v1.2.3, v1.2.3-rc1). The git tag is the single source of
+# truth — both the Docker image tag and the pip package version
+# (via setuptools-scm) derive from it.
+#
+# Triggers:
+#   - push of a tag matching v*.*.*  → publishes :<tag> and :latest
+#                                       (pre-release tags like v0.1.0-rc1
+#                                       publish :<tag> and :rc, and move
+#                                       :latest only until the first stable
+#                                       release exists to hold it)
+#   - workflow_dispatch              → publishes :edge (does not move :latest)
+#
+# Required repository secrets:
+#   - DOCKERHUB_USERNAME   (wrotek)
+#   - DOCKERHUB_TOKEN      (Hub access token, NOT account password)
+#
+# Multi-arch: builds linux/amd64 + linux/arm64 via buildx + QEMU.
+
+on:
+    push:
+        tags:
+            - "v*.*.*"
+    workflow_dispatch:
+
+env:
+    IMAGE: docker.io/wrotek/painapple-code
+
+jobs:
+    build-and-push:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            # fetch-depth: 0 so setuptools-scm can `git describe` against
+            # all tags. Default shallow clone hides everything but HEAD.
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+
+            # Single source-of-truth version. Same value gets baked into
+            # the wheel (via SETUPTOOLS_SCM_PRETEND_VERSION_FOR_… inside
+            # the image) and surfaces as `painapple --version`.
+            - name: Resolve package version from git
+              id: scm
+              run: |
+                  pip install --quiet 'setuptools-scm>=8'
+                  version=$(python -m setuptools_scm)
+                  echo "version=$version" >> "$GITHUB_OUTPUT"
+                  echo "→ setuptools-scm resolved: $version"
+
+            # "Skip :latest for pre-releases" is only correct once a stable
+            # release exists to point it at. Before that it freezes :latest
+            # on whatever happened to publish it first — which is exactly
+            # what happened here: v1.0.0-rc1 shipped :latest under the old
+            # latest=auto flavor, the very next commit turned pre-release
+            # :latest off, and `painapple pull` served that one build for a
+            # month while rc2…rc16 came and went unseen.
+            - name: Has a stable release ever shipped?
+              id: rel
+              run: |
+                  if git tag -l 'v*' | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+                      echo "stable=true" >> "$GITHUB_OUTPUT"
+                      echo "→ stable release exists — pre-releases will NOT move :latest"
+                  else
+                      echo "stable=false" >> "$GITHUB_OUTPUT"
+                      echo "→ no stable release yet — pre-releases move :latest"
+                  fi
+
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
+
+            - name: Set up Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            # Tag policy:
+            #   tag push v0.1.0            → :v0.1.0, :latest
+            #   tag push v0.1.0-rc1        → :v0.1.0-rc1, :rc
+            #                                (+ :latest only while NO stable
+            #                                 release exists — see above)
+            #   workflow_dispatch          → :edge               (skip :latest)
+            #
+            # :rc is the moving pre-release pointer — it keeps working after
+            # v1.0.0 ships, when :latest correctly stops tracking rcs.
+            #
+            # type=ref,event=tag takes the tag name verbatim (keeps the
+            # leading `v`). We deliberately don't use type=semver — it
+            # would auto-emit :0.1 and :0 alias tags, which is library
+            # ergonomics we don't want for an end-user app.
+            #
+            # flavor latest=false is required: the default (latest=auto)
+            # makes type=ref,event=tag mark EVERY tag push as :latest —
+            # including pre-releases — with no semver awareness. Our
+            # enable-gated raw entry below is the only :latest source.
+            - name: Derive image tags
+              id: meta
+              uses: docker/metadata-action@v5
+              with:
+                  images: ${{ env.IMAGE }}
+                  flavor: |
+                      latest=false
+                  tags: |
+                      type=ref,event=tag
+                      type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && (!contains(github.ref, '-') || steps.rel.outputs.stable == 'false') }}
+                      type=raw,value=rc,enable=${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-') }}
+                      type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
+                  labels: |
+                      org.opencontainers.image.version=${{ steps.scm.outputs.version }}
+                      org.opencontainers.image.revision=${{ github.sha }}
+                      org.opencontainers.image.created=${{ github.event.repository.updated_at }}
+
+            - name: Build and push
+              id: build
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  platforms: linux/amd64,linux/arm64
+                  push: true
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  build-args: |
+                      SCM_VERSION=${{ steps.scm.outputs.version }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+
+    smoke-test:
+        # Pulls the freshly-pushed image on a clean runner and verifies the
+        # bridge boots: /health must return HTTP 200 within 30 s. Runs only
+        # for amd64 — buildx publishes the same code for both arches, so
+        # one platform is sufficient to catch packaging regressions.
+        needs: build-and-push
+        runs-on: ubuntu-latest
+        steps:
+            - name: Pick the tag we just published
+              id: tag
+              run: |
+                  if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+                      echo "ref=edge" >> "$GITHUB_OUTPUT"
+                  else
+                      # strip refs/tags/ prefix → vMAJOR.MINOR.PATCH[-prerelease]
+                      echo "ref=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Boot container and curl /health
+              run: |
+                  set -euo pipefail
+                  IMG="${{ env.IMAGE }}:${{ steps.tag.outputs.ref }}"
+                  echo "→ Pulling $IMG"
+                  docker pull "$IMG"
+
+                  # Workspace mount: the entrypoint refuses to start unless
+                  # /workspace is non-empty. Use a one-file dir as a stand-in.
+                  mkdir -p /tmp/ws && echo "smoke" > /tmp/ws/README
+
+                  echo "→ Starting smoke container"
+                  docker run -d --name papple-smoke \
+                      -p 127.0.0.1:8765:8765 \
+                      -v /tmp/ws:/workspace \
+                      "$IMG"
+
+                  # The container binds 0.0.0.0, so TLS auto-mode is ON with a
+                  # self-signed cert — https + -k. Keep a plain-http fallback in
+                  # case the default TLS behavior ever changes.
+                  echo "→ Waiting for /health"
+                  for i in $(seq 1 30); do
+                      if curl -fsSk https://127.0.0.1:8765/health > /dev/null 2>&1 \
+                          || curl -fsS http://127.0.0.1:8765/health > /dev/null 2>&1; then
+                          echo "✓ /health responded after ${i}s"
+                          # Also confirm the version we shipped is the one we baked in.
+                          docker exec papple-smoke python -c \
+                              "import painapple_code; print('version:', painapple_code.__version__)"
+                          exit 0
+                      fi
+                      sleep 1
+                  done
+
+                  echo "✗ /health never responded"
+                  docker logs papple-smoke || true
+                  exit 1
+
+            - name: Cleanup
+              if: always()
+              run: docker rm -f papple-smoke 2>/dev/null || true
+
+# The Docker Hub Overview tab is synced by dockerhub-readme.yml, which
+# tracks main rather than release tags. It lived here as a job gated on
+# stable tags — a gate that never once opened, since the first tag ever
+# pushed was a pre-release. See that workflow's header.

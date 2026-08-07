@@ -1,0 +1,627 @@
+/**
+ * Session Families - Fork tree grouping on welcome screen
+ *
+ * Shows sessions grouped by fork relationship:
+ * - Root session as the main card
+ * - Forks shown with depth indicators (│ └ tree characters)
+ * - Expand/collapse toggle for forks
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   SESSION FAMILY CONTAINER
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.welcome-families-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-12);
+}
+
+.session-family {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    /* Per-project accent stripe (deterministic — project-colors.js) */
+    border-left: 3px solid var(--project-color, var(--border-color));
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.session-family:hover {
+    border-color: var(--border-hover);
+    border-left-color: var(--project-color, var(--border-hover));
+}
+
+.session-family.is-expanded {
+    border-color: var(--accent);
+    border-left-color: var(--project-color, var(--accent));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Keyboard selection state */
+.session-family.selected {
+    border-color: var(--accent);
+    border-left-color: var(--project-color, var(--accent));
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.session-family.selected > .session-family-root {
+    background: var(--accent-muted, rgba(99, 102, 241, 0.08));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ROOT SESSION CARD
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.session-family-root {
+    padding: var(--sp-14) var(--sp-16);
+    cursor: pointer;
+    transition: background 0.15s;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.session-family-root:hover {
+    background: var(--bg-hover);
+}
+
+.family-root-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+}
+
+.family-root-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-height: 28px;
+}
+
+.family-expand-toggle {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    transition: all 0.15s;
+}
+
+.family-expand-toggle:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.family-chevron {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s;
+}
+
+.session-family.is-expanded .family-chevron {
+    transform: rotate(90deg);
+}
+
+.family-root-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: var(--font-size-content);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.family-root-header .favorite-star {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: all 0.15s;
+}
+
+.family-root-header .favorite-star:hover,
+.family-root-header .favorite-star.is-favorite {
+    opacity: 1;
+    color: #f59e0b;
+}
+
+.family-preview-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: all 0.15s;
+}
+
+.family-preview-btn:hover {
+    opacity: 1;
+    color: var(--accent);
+}
+
+.family-preview-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* New session on project button - hidden by default, shows on hover */
+.family-new-session-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    opacity: 0.5;
+    transition: all 0.15s;
+}
+
+.family-new-session-btn:hover {
+    opacity: 1;
+    color: var(--success-color, #10b981);
+}
+
+.family-new-session-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.family-root-cost {
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    color: var(--cost-color, #22c55e);
+}
+
+.family-root-time {
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.family-root-project {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-8);
+    margin-left: var(--sp-32); /* Align with name when toggle present */
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-block;
+    width: fit-content;
+    /* Prevent text selection on touch (iOS shows Copy/Look Up menu) */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.family-root-project:hover {
+    color: var(--accent);
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.session-family:not(.has-forks) .family-root-project {
+    margin-left: 0;
+}
+
+.family-root-summary {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    line-height: 1.4;
+    padding-left: var(--sp-32);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.session-family:not(.has-forks) .family-root-summary {
+    padding-left: 0;
+}
+
+.family-root-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    padding-left: var(--sp-32);
+    margin-top: var(--sp-4);
+}
+
+.session-family:not(.has-forks) .family-root-footer {
+    padding-left: 0;
+}
+
+.family-root-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+}
+
+.family-root-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    flex-shrink: 0;
+}
+
+.meta-turns {
+    font-size: var(--font-size-sm);
+    color: var(--text-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+}
+
+.meta-forks {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: var(--font-size-sm);
+    color: var(--accent);
+    cursor: pointer;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    transition: background 0.15s;
+}
+
+.meta-forks:hover {
+    background: rgba(var(--accent-rgb), 0.1);
+}
+
+.meta-forks svg {
+    flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FORKS SECTION
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.session-family-forks {
+    display: none;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    padding: var(--sp-8) 0;
+}
+
+.session-family.is-expanded .session-family-forks {
+    display: block;
+}
+
+.family-fork-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-8) var(--sp-16);
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.family-fork-row:hover {
+    background: var(--bg-hover);
+}
+
+/* Discussion thread styling */
+.family-fork-row.is-discussion {
+    opacity: 0.8;
+}
+
+.family-fork-row.is-discussion .fork-name {
+    font-style: italic;
+}
+
+/* Open/running fork row indicators */
+.family-fork-row.is-open {
+    border-left: 2px solid var(--accent);
+}
+
+.family-fork-row.is-running {
+    border-left: 2px solid #22c55e;
+}
+
+/* Show more forks */
+.family-forks-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-8) var(--sp-16);
+    cursor: pointer;
+    color: var(--accent);
+    font-size: var(--font-size-sm);
+    transition: background 0.15s;
+}
+
+.family-forks-more:hover {
+    background: var(--bg-hover);
+}
+
+.forks-more-text {
+    padding: var(--sp-4) var(--sp-12);
+    background: rgba(var(--accent-rgb), 0.1);
+    border-radius: var(--radius-lg);
+}
+
+/* Depth indicator - shows fork hierarchy with │ └ characters */
+.fork-depth-indicator {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-md);
+    color: var(--border-color);
+    user-select: none;
+    line-height: 1;
+}
+
+.fork-depth-line {
+    color: var(--text-muted);
+    opacity: 0.5;
+    padding-right: var(--sp-4);
+}
+
+.fork-depth-corner {
+    color: var(--text-muted);
+    opacity: 0.7;
+    padding-right: var(--sp-6);
+}
+
+.fork-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-width: 0;
+}
+
+.fork-name {
+    flex: 1;
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fork-time {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.fork-cost {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--cost-color, #22c55e);
+    font-family: var(--font-mono);
+}
+
+.fork-actions {
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.family-fork-row:hover .fork-actions {
+    opacity: 1;
+}
+
+.fork-action-btn {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fork-action-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--accent);
+}
+
+.fork-action-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   COMPACT FAMILY (in project groups)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.project-families {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.compact-family {
+    display: flex;
+    align-items: center;
+    padding: var(--sp-10) var(--sp-12);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: background 0.15s;
+}
+
+.compact-family:hover {
+    background: var(--bg-hover);
+}
+
+/* Open/running compact family indicators */
+.compact-family.is-open {
+    border-left: 2px solid var(--accent);
+}
+
+.compact-family.is-running {
+    border-left: 2px solid #22c55e;
+}
+
+.compact-family-main {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    flex: 1;
+    min-width: 0;
+}
+
+.compact-family-name {
+    flex: 1;
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compact-family-time {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.compact-family-forks {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-3);
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.1);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+}
+
+.compact-family-forks svg {
+    opacity: 0.8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+    .session-family-root {
+        padding: var(--sp-12) var(--sp-14);
+    }
+
+    .family-root-name {
+        font-size: var(--font-size-md);
+    }
+
+    .family-root-project,
+    .family-root-summary,
+    .family-root-footer {
+        padding-left: 28px; /* fixed: aligns under the 28px toggle column */
+    }
+
+    .session-family:not(.has-forks) .family-root-project,
+    .session-family:not(.has-forks) .family-root-summary,
+    .session-family:not(.has-forks) .family-root-footer {
+        padding-left: 0;
+    }
+
+    .family-fork-row {
+        padding: var(--sp-6) var(--sp-14);
+    }
+
+    .fork-depth-indicator {
+        font-size: var(--font-size-sm);
+    }
+
+    /* Always show actions on mobile */
+    .fork-actions {
+        opacity: 1;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FAMILIES IN PROJECT GROUPS - More compact
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.project-families .session-family {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    border-bottom: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.1));
+    margin: 0;
+}
+
+.project-families .session-family:last-child {
+    border-bottom: none;
+}
+
+.project-families .session-family-root {
+    padding: var(--sp-10) var(--sp-12);
+}
+
+.project-families .family-root-name {
+    font-size: var(--font-size-md);
+}
+
+.project-families .family-root-project,
+.project-families .family-root-summary {
+    display: none; /* Hide details in compact project view */
+}
+
+.project-families .family-root-footer {
+    margin-top: var(--sp-4);
+}
+
+.project-families .family-root-tags {
+    display: none; /* Hide tags in compact project view */
+}
+
+.project-families .session-family-forks {
+    padding-left: var(--sp-32);
+    padding-right: var(--sp-12);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+/* App is dark-only; these were behind prefers-color-scheme: dark, which
+   headless capture tools don't emulate by default — apply unconditionally. */
+.session-family {
+    background: var(--bg-secondary);
+}
+
+.session-family-forks {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.project-families .session-family-forks {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.fork-depth-line,
+.fork-depth-corner {
+    color: var(--text-muted);
+}

@@ -1,0 +1,276 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CSS VARIABLES
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+    /* Font scale factor (1.0 = 100%) - controlled by JS */
+    --font-scale: 1;
+
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --bg-hover: #30363d;
+    --bg-active: #388bfd22;
+
+    --border-primary: #30363d;
+    --border-secondary: #21262d;
+
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+
+    --accent: #58a6ff;
+    --accent-hover: #79b8ff;
+    --accent-muted: #388bfd44;
+    --accent-rgb: 88, 166, 255;  /* rgb triplet of --accent, for rgba() tints;
+                                    kept in sync by applyInstanceConfig() */
+
+    --success: #3fb950;
+    --warning: #d29922;
+    --error: #f85149;
+
+    /* Semantic color palette — data viz, file types, git statuses, tag chips.
+       These stay FIXED across instances. For interactive accents (focus,
+       selection, links, active states) use --accent — it follows the
+       per-instance color (green/red/orange/gray). */
+    --accent-blue: #58a6ff;
+    --accent-green: #22c55e;
+    --accent-yellow: #f0a020;
+    --accent-orange: #f59e0b;
+    --accent-red: #ef4444;
+    --accent-purple: #8b5cf6;
+
+    /* Stash comment-bubble glyphs. Used as mask-image so background-color
+       tints them — an emoji renders in its own fixed colours and can't be
+       recoloured, which is why the commented state used to need a translucent
+       disc behind it. Same rounded-bubble silhouette in both states so the
+       "has a comment" change reads purely as a colour change:
+         outline = no comment yet (grey), filled = has a comment (violet).
+       A *filled circle* bubble was rejected here: at the ~11px render size it
+       reads as an anonymous dot rather than a comment mark. */
+    --stash-bubble-glyph-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4.5V17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'/%3E%3C/svg%3E");
+    --stash-bubble-glyph-filled: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' fill-rule='evenodd' d='M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4.5V17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2.5 4.2h11v2.2h-11V7.2zm0 4.4h7v2.2h-7v-2.2z'/%3E%3C/svg%3E");
+
+    --user-bg: #1c3a5f;
+    --assistant-bg: #161b22;
+    --system-bg: transparent;
+    --tool-bg: #1c2128;
+    --tool-border: #f7830888;
+
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+
+    /* Font-size scale (everything × --font-scale so the font-size setting
+       reaches the whole UI). base = UI default; content = reading surfaces
+       (chat bubbles, thinking, zen) which sit one step larger. */
+    --font-size-xs: calc(11px * var(--font-scale));
+    --font-size-sm: calc(12px * var(--font-scale));
+    --font-size-base: calc(13px * var(--font-scale));
+    --font-size-md: calc(14px * var(--font-scale));
+    --font-size-content: calc(15px * var(--font-scale));
+    --font-size-lg: calc(16px * var(--font-scale));
+    --font-size-xl: calc(20px * var(--font-scale));
+
+    /* Corner radius scale. Deliberately squarish — this app avoids heavy
+       rounding. Always use these vars, never hardcoded px (circles/toggle
+       knobs keep 50%/999px). */
+    --radius-xs: 2px;
+    --radius-sm: 3px;
+    --radius-md: 5px;
+    --radius-lg: 8px;
+
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+    --input-height: 60px;
+
+    /* Dynamic: updated by JS when input area resizes */
+    --input-area-height: 80px;
+
+    /* Floating buttons (FAB, chat navigator) inactive opacity - controlled by JS */
+    --floating-opacity-inactive: 0.7;
+
+    /* ═══════════════════════════════════════════════════════════════════
+       Z-INDEX SCALE
+       See docs-ai/z-index-guide.md for full documentation
+       ═══════════════════════════════════════════════════════════════════ */
+
+    /* Internal element layering (within components) */
+    --z-internal: 1;
+    --z-internal-raised: 10;
+
+    /* Base UI elements */
+    --z-base-ui: 100;
+    --z-base-ui-raised: 150;
+
+    /* Legacy panels (terminal, git, changes, log-explorer) */
+    --z-panel-git: 840;
+    --z-panel-changes: 850;
+    --z-panel-terminal: 900;
+    --z-panel-log: 999;
+
+    /* Widget system (see 80-widget-system.css for widget-specific vars) */
+    --z-widget-base: 1100;
+    --z-widget-max: 1700;
+
+    /* Overlays (dropdowns, context menus, popovers) */
+    --z-overlay: 2000;
+    --z-overlay-submenu: 2100;
+    --z-overlay-autocomplete: 2500;
+
+    /* Mobile rail drawer (above content, below modals) */
+    --z-rail-scrim: 1990;
+    --z-rail-drawer: 2000;
+
+    /* Modals (dialogs requiring attention) */
+    --z-modal: 3000;
+    --z-modal-backdrop: 2900;
+
+    /* Always-on-top UI (must be visible above everything) */
+    --z-always-top: 4000;
+    --z-always-top-fab: 4500;
+    --z-always-top-keyboard: 4500;
+    /* Selection panel: above the FAB (it overlaps it bottom-right),
+       still below ephemeral feedback so its own tooltips stay visible */
+    --z-selection-panel: 4600;
+
+    /* Ephemeral feedback (toasts, tooltips) */
+    --z-toast: 5000;
+    --z-tooltip: 5000;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYOUT MODES: compact | normal | spacious
+   Set via <html data-layout="...">. Two var families respond:
+     --sp-N   numeric spacing scale — N is the pixel value in NORMAL mode.
+              Use for any whitespace that should breathe with density:
+              padding, gap, margin, row height. Do NOT use for alignment
+              geometry, popup positioning offsets, or icon dimensions.
+     --layout-*  semantic tokens for the core chat surfaces (header,
+              messages, input, tool blocks).
+   Full rules: docs-ai/layout-density-guide.md
+
+   @generated by tools/gen_density_css.py from tools/design-tokens.yaml — edit the YAML
+   and regenerate; do not hand-edit below this banner.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Default: normal layout */
+:root {
+    --sp-2: 2px;
+    --sp-3: 3px;
+    --sp-4: 4px;
+    --sp-5: 5px;
+    --sp-6: 6px;
+    --sp-8: 8px;
+    --sp-10: 10px;
+    --sp-12: 12px;
+    --sp-14: 14px;
+    --sp-16: 16px;
+    --sp-20: 20px;
+    --sp-24: 24px;
+    --sp-32: 32px;
+    --sp-48: 48px;
+
+    --layout-header-height: 44px;
+    --layout-widget-header-height: 40px;
+    --layout-content-padding: 14px;
+    --layout-gap-xs: 4px;
+    --layout-gap-sm: 6px;
+    --layout-gap-md: 10px;
+    --layout-gap-lg: 14px;
+    --layout-msg-padding-v: 8px;
+    --layout-msg-padding-h: 12px;
+    --layout-msg-radius: var(--radius-md);
+    --layout-line-height: 1.5;
+    --layout-line-height-tight: 1.4;
+    --layout-menu-line-height: 1.4;
+    --layout-btn-xs: 20px;
+    --layout-btn-sm: 28px;
+    --layout-btn-md: 32px;
+    --layout-btn-lg: 36px;
+    --layout-input-padding-v: 10px;
+    --layout-input-padding-h: 16px;
+    --layout-tool-padding: 8px 12px;
+    --layout-block-margin: 8px;
+    --layout-paragraph-margin: 6px;
+}
+
+/* Compact layout - minimal spacing */
+[data-layout="compact"] {
+    --sp-2: 1px;
+    --sp-3: 2px;
+    --sp-4: 2px;
+    --sp-5: 3px;
+    --sp-6: 4px;
+    --sp-8: 5px;
+    --sp-10: 6px;
+    --sp-12: 8px;
+    --sp-14: 8px;
+    --sp-16: 10px;
+    --sp-20: 13px;
+    --sp-24: 15px;
+    --sp-32: 20px;
+    --sp-48: 30px;
+
+    --layout-header-height: 36px;
+    --layout-widget-header-height: 34px;
+    --layout-content-padding: 8px;
+    --layout-gap-xs: 2px;
+    --layout-gap-sm: 4px;
+    --layout-gap-md: 6px;
+    --layout-gap-lg: 8px;
+    --layout-msg-padding-v: 5px;
+    --layout-msg-padding-h: 8px;
+    --layout-msg-radius: var(--radius-sm);
+    --layout-line-height: 1.35;
+    --layout-line-height-tight: 1.3;
+    --layout-menu-line-height: 1.2;
+    --layout-btn-xs: 18px;
+    --layout-btn-sm: 24px;
+    --layout-btn-md: 28px;
+    --layout-btn-lg: 32px;
+    --layout-input-padding-v: 6px;
+    --layout-input-padding-h: 12px;
+    --layout-tool-padding: 5px 8px;
+    --layout-block-margin: 4px;
+    --layout-paragraph-margin: 3px;
+}
+
+/* Spacious layout - comfortable spacing */
+[data-layout="spacious"] {
+    --sp-2: 3px;
+    --sp-3: 4px;
+    --sp-4: 6px;
+    --sp-5: 7px;
+    --sp-6: 9px;
+    --sp-8: 11px;
+    --sp-10: 14px;
+    --sp-12: 16px;
+    --sp-14: 19px;
+    --sp-16: 22px;
+    --sp-20: 27px;
+    --sp-24: 32px;
+    --sp-32: 42px;
+    --sp-48: 62px;
+
+    --layout-header-height: 52px;
+    --layout-widget-header-height: 46px;
+    --layout-content-padding: 20px;
+    --layout-gap-xs: 6px;
+    --layout-gap-sm: 10px;
+    --layout-gap-md: 14px;
+    --layout-gap-lg: 20px;
+    --layout-msg-padding-v: 12px;
+    --layout-msg-padding-h: 16px;
+    --layout-msg-radius: var(--radius-lg);
+    --layout-line-height: 1.6;
+    --layout-line-height-tight: 1.5;
+    --layout-menu-line-height: 1.5;
+    --layout-btn-xs: 24px;
+    --layout-btn-sm: 32px;
+    --layout-btn-md: 38px;
+    --layout-btn-lg: 44px;
+    --layout-input-padding-v: 14px;
+    --layout-input-padding-h: 20px;
+    --layout-tool-padding: 10px 14px;
+    --layout-block-margin: 12px;
+    --layout-paragraph-margin: 8px;
+}

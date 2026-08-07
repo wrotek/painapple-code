@@ -1,0 +1,1020 @@
+/**
+ * Quick Actions Radial Menu
+ *
+ * Floating action button that expands into a radial menu
+ * for quick access to common actions.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Overlay (click-outside-to-close)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-actions-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-always-top-fab) - 3);
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    pointer-events: none;
+}
+
+.quick-actions-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FAB (Floating Action Button)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-actions-fab {
+    position: fixed;
+    z-index: var(--z-always-top-fab);
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    cursor: pointer;
+    box-shadow:
+        0 4px 12px rgba(245, 158, 11, 0.4),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.15s ease,
+                opacity 0.15s ease;
+    touch-action: none;
+    opacity: var(--floating-opacity-inactive, 0.7);
+    /* Prevent iOS text selection and magnifier */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.quick-actions-fab:hover {
+    transform: scale(1.08);
+    opacity: 1;
+    box-shadow:
+        0 6px 20px rgba(245, 158, 11, 0.5),
+        0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.quick-actions-fab:active {
+    transform: scale(0.95);
+}
+
+/* Smooth position transition when keyboard shows/hides */
+.quick-actions-fab.keyboard-adjust {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.15s ease,
+                opacity 0.15s ease,
+                bottom 0.25s ease-out,
+                right 0.25s ease-out;
+}
+
+.quick-actions-fab.dragging {
+    opacity: 1;
+    transform: scale(1.15);
+    cursor: grabbing;
+    box-shadow:
+        0 8px 24px rgba(245, 158, 11, 0.5),
+        0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.quick-actions-fab.open {
+    transform: rotate(45deg);
+    opacity: 1;
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    box-shadow:
+        0 4px 12px rgba(107, 114, 128, 0.4),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.quick-actions-fab svg {
+    width: 26px;
+    height: 26px;
+    pointer-events: none;
+    transition: transform 0.2s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Menu Container
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-actions-menu {
+    position: fixed;
+    z-index: calc(var(--z-always-top-fab) - 2);
+    width: 52px;
+    height: 52px;
+    pointer-events: none;
+    /* Transform origin is the center (where FAB is) */
+}
+
+/* Smooth transition when shifting menu for edge-awareness */
+.quick-actions-menu.edge-shift {
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.quick-actions-menu.open {
+    /* Container stays pointer-events: none to allow FAB drag when menu is open */
+    /* Only menu items capture events (see below) */
+    z-index: var(--z-toast); /* Above FAB so tooltips don't appear under it */
+}
+
+.quick-actions-menu.open .quick-action-item {
+    pointer-events: auto;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Menu Items (Radial)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-action-item {
+    position: absolute;
+    /* Position using CSS custom properties from JS */
+    left: calc(26px + var(--item-x));
+    top: calc(26px + var(--item-y));
+    transform: translate(-50%, -50%) scale(0);
+
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color, #374151);
+    background: var(--bg-secondary, #1f2937);
+    color: var(--text-primary, #e5e7eb);
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    opacity: 0;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.2s ease,
+                background 0.15s ease,
+                border-color 0.15s ease;
+    transition-delay: var(--item-delay, 0ms);
+}
+
+.quick-actions-menu.open .quick-action-item {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Highlighted state (for drag-to-select on touch) */
+.quick-action-item.highlighted {
+    background: var(--accent-orange);
+    border-color: var(--accent-orange);
+    color: white;
+    transform: translate(-50%, -50%) scale(1.15);
+    z-index: 1;
+    transition-delay: 0ms !important;
+}
+
+/* Hover state — visible on desktop AND iPadOS with trackpad.
+   Hidden only on pure-touch devices (no fine pointer at all). */
+.quick-action-item:hover {
+    background: var(--accent-orange);
+    border-color: var(--accent-orange);
+    color: white;
+    transform: translate(-50%, -50%) scale(1.15);
+    z-index: 1;
+    transition-delay: 0ms !important;
+}
+
+@media (hover: none) and (pointer: coarse) and (any-pointer: coarse) {
+    .quick-action-item:hover {
+        background: var(--bg-secondary, #1f2937);
+        border-color: var(--border-color, #374151);
+        color: var(--text-primary, #e5e7eb);
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* Keyboard press highlight - brief flash */
+.quick-action-item.key-pressed {
+    background: var(--accent-orange);
+    border-color: var(--accent-orange);
+    color: white;
+    transform: translate(-50%, -50%) scale(1.2);
+    z-index: 1;
+    transition-delay: 0ms !important;
+}
+
+/* Disabled items don't highlight on keypress */
+.quick-action-item.disabled.key-pressed {
+    background: var(--bg-secondary, #1f2937);
+    border-color: #ef4444;
+    color: var(--text-primary, #e5e7eb);
+    transform: translate(-50%, -50%) scale(1);
+    animation: disabled-shake 0.3s ease;
+}
+
+@keyframes disabled-shake {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    25% { transform: translate(calc(-50% + 4px), -50%) scale(1); }
+    75% { transform: translate(calc(-50% - 4px), -50%) scale(1); }
+}
+
+.quick-action-item:active {
+    transform: translate(-50%, -50%) scale(1.05);
+}
+
+.quick-action-item.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.quick-action-item.disabled:hover {
+    background: var(--bg-secondary, #1f2937);
+    border-color: var(--border-color, #374151);
+    color: var(--text-primary, #e5e7eb);
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.quick-action-item svg {
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Badge (e.g., "!" for stop when generating)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-action-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 var(--sp-4);
+    border-radius: var(--radius-sm);
+    background: #ef4444;
+    color: white;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    /* Animation disabled */
+    /* animation: badge-pulse 1.5s infinite; */
+}
+
+@keyframes badge-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * FAB Error Badge (unseen JS errors indicator on the main FAB button)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-actions-fab-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 var(--sp-5);
+    border-radius: var(--radius-sm);
+    background: #ef4444;
+    color: white;
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    line-height: 1;
+    box-sizing: border-box;
+}
+
+.quick-actions-fab-badge.visible {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Hide badge when radial menu is open (FAB rotates 45deg) */
+.quick-actions-fab.open .quick-actions-fab-badge {
+    opacity: 0;
+    transform: scale(0);
+}
+
+/* Error state - red glow replaces orange */
+.quick-actions-fab.has-errors {
+    box-shadow:
+        0 4px 12px rgba(239, 68, 68, 0.4),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.quick-actions-fab.has-errors:hover {
+    box-shadow:
+        0 6px 20px rgba(239, 68, 68, 0.5),
+        0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Brief attention bounce on first error */
+.quick-actions-fab.error-attention {
+    animation: fab-error-attention 0.6s ease;
+}
+
+@keyframes fab-error-attention {
+    0% { transform: scale(1); }
+    20% { transform: scale(1.2); }
+    40% { transform: scale(0.95); }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Slot Number Indicator (keyboard shortcut hints: 1-4 + Q-W-E-R)
+ * Sequential left-to-right on keyboard rows, works for any number of slots
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-action-slot-number {
+    position: absolute;
+    bottom: -4px;
+    left: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 var(--sp-3);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary, #111827);
+    border: 1px solid var(--border-color, #374151);
+    color: var(--text-muted, #9ca3af);
+    font-size: 10px;
+    font-weight: 600;
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0.85;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+/* Highlight slot number when highlighted (touch drag-to-select) */
+.quick-action-item.highlighted .quick-action-slot-number {
+    background: var(--accent-orange);
+    border-color: var(--accent-orange);
+    color: white;
+    opacity: 1;
+}
+
+/* Highlight slot number on hover */
+.quick-action-item:hover .quick-action-slot-number {
+    background: var(--accent-orange);
+    border-color: var(--accent-orange);
+    color: white;
+    opacity: 1;
+}
+
+/* Mobile: smaller slot numbers (iPad with keyboard still benefits from these) */
+@media (max-width: 768px) {
+    .quick-action-slot-number {
+        min-width: 14px;
+        height: 14px;
+        font-size: 9px;
+        bottom: -2px;
+        left: -2px;
+    }
+}
+
+/* When keyboard shortcut is used, briefly highlight the slot numbers */
+.quick-actions-menu.keyboard-hint .quick-action-slot-number {
+    animation: slot-hint-pulse 0.5s ease-out;
+}
+
+@keyframes slot-hint-pulse {
+    0% { transform: scale(1.3); background: var(--accent-orange); color: white; }
+    100% { transform: scale(1); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Tooltips — overrides for quick-action styling.
+ * Base tooltip + position variants from 02-tooltips.css via [data-tooltip].
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* Quick-action tooltips handled by JS tooltip system (tooltips.js).
+   Keyboard-nav highlighted tooltip shown via QuickActionsMenu JS. */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Mobile Adjustments
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .quick-actions-fab {
+        width: 56px;
+        height: 56px;
+    }
+
+    .quick-actions-fab svg {
+        width: var(--layout-btn-sm);
+        height: var(--layout-btn-sm);
+    }
+
+    .quick-action-item {
+        width: 48px;
+        height: 48px;
+    }
+
+    .quick-action-item svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* Hide tooltips on mobile - use press-and-hold instead */
+    .quick-action-item::after {
+        display: none;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * iOS Safe Area
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .quick-actions-fab {
+        margin-bottom: env(safe-area-inset-bottom);
+    }
+
+    .quick-actions-menu {
+        margin-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Reduced Motion
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+    .quick-actions-fab,
+    .quick-action-item {
+        transition: opacity 0.1s ease;
+    }
+
+    .quick-action-item {
+        transition-delay: 0ms !important;
+    }
+
+    .quick-action-badge {
+        animation: none;
+    }
+
+    .quick-actions-fab.error-attention {
+        animation: none;
+    }
+
+    .quick-actions-fab-badge {
+        transition: none;
+    }
+
+    .quick-actions-menu.open .quick-action-item {
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * High Contrast Mode
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-contrast: high) {
+    .quick-actions-fab {
+        border: 2px solid white;
+    }
+
+    .quick-action-item {
+        border-width: 2px;
+    }
+
+    .quick-action-item.highlighted {
+        outline: 2px solid white;
+        outline-offset: 2px;
+    }
+}
+
+@media (prefers-contrast: high) {
+    .quick-action-item:hover {
+        outline: 2px solid white;
+        outline-offset: 2px;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Close Animation (reverse stagger)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.quick-actions-menu:not(.open) .quick-action-item {
+    transition-delay: calc(150ms - var(--item-delay, 0ms));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * CONTEXT MENU (right-click / long-press)
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+.quick-actions-context-menu {
+    position: fixed;
+    z-index: var(--z-toast);
+    width: 320px;
+    max-height: 420px;
+    background: var(--bg-secondary, #1f2937);
+    border: 1px solid var(--border-color, #374151);
+    border-radius: var(--radius-lg);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.95) translateY(8px);
+    transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+}
+
+.quick-actions-context-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: scale(1) translateY(0);
+}
+
+/* Menu above FAB - flip layout so search input is at bottom (closer to finger) */
+.quick-actions-context-menu.menu-above {
+    flex-direction: column-reverse;
+    transform-origin: bottom center;
+}
+
+.quick-actions-context-menu.menu-above:not(.open) {
+    transform: scale(0.95) translateY(-8px);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Search Bar
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.qa-context-search {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-12) var(--sp-14);
+    border-bottom: 1px solid var(--border-color, #374151);
+    background: var(--bg-tertiary, #111827);
+}
+
+/* When menu is above, search is at bottom - swap border */
+.menu-above .qa-context-search {
+    border-bottom: none;
+    border-top: 1px solid var(--border-color, #374151);
+}
+
+.qa-context-search svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted, #9ca3af);
+    flex-shrink: 0;
+}
+
+.qa-context-search input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--text-primary, #e5e7eb);
+    font-size: var(--font-size-md);
+    outline: none;
+}
+
+.qa-context-search input::placeholder {
+    color: var(--text-muted, #6b7280);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Search Results
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.qa-context-results {
+    display: none;
+    flex-direction: column;
+    overflow-y: auto;
+    /* No max-height - let flexbox and menu max-height control sizing */
+}
+
+.qa-context-results.has-results {
+    display: flex;
+    flex: 1; /* Grow to fill available space when searching */
+    min-height: 0; /* Allow shrinking in flex container */
+}
+
+/* One horizontal line: action button + trailing add/added button */
+.qa-context-result-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding-right: var(--sp-6);
+    transition: background 0.1s ease;
+}
+
+.qa-context-result-row:hover {
+    background: var(--bg-tertiary, #374151);
+}
+
+.qa-context-result-row:has(.qa-context-result.selected) {
+    background: rgba(245, 158, 11, 0.15);
+}
+
+.qa-context-result {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-10) var(--sp-8) var(--sp-10) var(--sp-14);
+    border: none;
+    background: transparent;
+    color: var(--text-primary, #e5e7eb);
+    cursor: pointer;
+    text-align: left;
+}
+
+.qa-result-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary, #111827);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.qa-result-icon svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-muted, #9ca3af);
+}
+
+.qa-context-result.selected .qa-result-icon {
+    background: rgba(245, 158, 11, 0.2);
+}
+
+.qa-context-result.selected .qa-result-icon svg {
+    color: var(--accent-orange);
+}
+
+.qa-result-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.qa-result-label {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.qa-result-label mark {
+    background: rgba(245, 158, 11, 0.3);
+    color: inherit;
+    border-radius: var(--radius-xs);
+    padding: 0 var(--sp-2);
+}
+
+.qa-result-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #6b7280);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: var(--sp-2);
+}
+
+.qa-result-shortcut {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #6b7280);
+    background: var(--bg-tertiary, #111827);
+    padding: var(--sp-3) var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-family: monospace;
+    flex-shrink: 0;
+}
+
+.qa-context-no-results {
+    padding: var(--sp-20) var(--sp-14);
+    text-align: center;
+    color: var(--text-muted, #6b7280);
+    font-size: var(--font-size-base);
+}
+
+/* Result wrapper for add/replace UI */
+.qa-context-result-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.qa-context-result-wrapper.expanded {
+    background: var(--bg-tertiary, #111827);
+}
+
+/* Add to menu button */
+.qa-result-add-btn {
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-muted, #6b7280);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.1s ease, color 0.1s ease, transform 0.1s ease;
+    margin-left: auto;
+}
+
+.qa-result-add-btn:hover {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--accent-orange);
+    transform: scale(1.1);
+}
+
+.qa-result-add-btn:active {
+    transform: scale(0.95);
+}
+
+.qa-result-add-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.qa-result-add-btn.in-menu {
+    color: var(--success-color, #10b981);
+    pointer-events: none;
+}
+
+.qa-result-add-btn.in-menu svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Slot picker (shown when menu is full) */
+.qa-slot-picker {
+    padding: var(--sp-10) var(--sp-14) var(--sp-12);
+    border-top: 1px solid var(--border-color, #374151);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.qa-slot-picker-title {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #6b7280);
+    margin-bottom: var(--sp-8);
+}
+
+.qa-slot-picker-slots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+}
+
+.qa-slot-picker-item {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--border-color, #374151);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary, #1f2937);
+    color: var(--text-muted, #9ca3af);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.qa-slot-picker-item:hover {
+    border-color: var(--accent-orange);
+    background: rgba(245, 158, 11, 0.1);
+    color: var(--accent-orange);
+    transform: scale(1.08);
+}
+
+.qa-slot-picker-item:active {
+    transform: scale(0.95);
+}
+
+.qa-slot-picker-item svg {
+    width: 18px;
+    height: 18px;
+}
+
+.qa-slot-picker-item.add-new {
+    border-style: dashed;
+    color: var(--success-color, #10b981);
+}
+
+.qa-slot-picker-item.add-new:hover {
+    border-color: var(--success-color, #10b981);
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color, #10b981);
+}
+
+/* Toast notification */
+.qa-toast {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: var(--bg-tertiary, #111827);
+    color: var(--text-primary, #e5e7eb);
+    padding: var(--sp-8) var(--sp-16);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.qa-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Presets Section
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.qa-context-presets {
+    padding: var(--sp-8) 0;
+    border-bottom: 1px solid var(--border-color, #374151);
+    overflow-y: auto;
+    max-height: 220px;
+}
+
+.qa-context-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #6b7280);
+    padding: var(--sp-6) var(--sp-14) var(--sp-8);
+}
+
+.qa-context-preset {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    width: 100%;
+    padding: var(--sp-10) var(--sp-14);
+    border: none;
+    background: transparent;
+    color: var(--text-primary, #e5e7eb);
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s ease;
+}
+
+.qa-context-preset:hover {
+    background: var(--bg-tertiary, #374151);
+}
+
+.qa-context-preset.active {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.qa-preset-radio {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--text-muted, #6b7280);
+    flex-shrink: 0;
+    position: relative;
+    transition: border-color 0.15s ease;
+}
+
+.qa-context-preset.active .qa-preset-radio {
+    border-color: var(--accent-orange);
+}
+
+.qa-context-preset.active .qa-preset-radio::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-orange);
+}
+
+.qa-preset-name {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    flex: 1;
+}
+
+.qa-preset-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #6b7280);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Footer (Customize / Reset)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+.qa-context-footer {
+    padding: var(--sp-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.qa-context-footer-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-10) var(--sp-10);
+    border: none;
+    background: transparent;
+    color: var(--text-muted, #9ca3af);
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    transition: background 0.1s ease, color 0.1s ease;
+}
+
+.qa-context-footer-item:hover {
+    background: var(--bg-tertiary, #374151);
+    color: var(--text-primary, #e5e7eb);
+}
+
+.qa-context-footer-item svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.qa-debug-logs-item {
+    color: #f87171;
+}
+
+.qa-debug-logs-item:hover {
+    background: rgba(248, 113, 113, 0.15);
+    color: #fca5a5;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Mobile Context Menu
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .quick-actions-context-menu {
+        width: calc(100% - 32px);
+        max-width: 320px;
+    }
+
+    .qa-context-result {
+        padding: var(--sp-12) var(--sp-14);
+    }
+
+    .qa-result-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .qa-context-preset {
+        padding: var(--sp-12) var(--sp-14);
+    }
+
+    /* Add button - larger touch target on mobile */
+    .qa-result-add-btn {
+        width: var(--layout-btn-lg);
+        height: var(--layout-btn-lg);
+    }
+
+    /* Slot picker - larger touch targets */
+    .qa-slot-picker-item {
+        width: 44px;
+        height: 44px;
+    }
+
+    .qa-slot-picker-item svg {
+        width: 22px;
+        height: 22px;
+    }
+}

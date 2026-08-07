@@ -1,0 +1,1233 @@
+/**
+ * Context Popover Styles
+ * Detailed context usage breakdown shown on token bar click
+ */
+
+.context-popover {
+    background: var(--bg-secondary, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    min-width: 260px;
+    max-width: 320px;
+    z-index: var(--z-overlay);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    font-size: var(--font-size-base);
+    overflow: hidden;
+}
+
+.context-popover.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Header */
+.popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--sp-10) var(--sp-12);
+    border-bottom: 1px solid var(--border-color, #333);
+    background: var(--bg-tertiary, #252525);
+}
+
+.popover-title {
+    font-weight: 600;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.popover-updated {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #888);
+}
+
+/* Progress bar */
+.popover-progress {
+    padding: var(--sp-12);
+}
+
+.progress-bar {
+    height: 8px;
+    background: var(--bg-tertiary, #252525);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: var(--sp-6);
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: var(--radius-sm);
+    transition: width 0.3s ease;
+}
+
+.progress-fill.warning {
+    background: var(--warning-color, #f0a030);
+}
+
+.progress-fill.danger {
+    background: var(--error-color, #e05050);
+}
+
+.progress-text {
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary, #aaa);
+}
+
+.progress-text.warning {
+    color: var(--warning-color, #f0a030);
+}
+
+.progress-text.danger {
+    color: var(--error-color, #e05050);
+}
+
+.popover-reserved {
+    font-size: 10px;
+    color: rgba(255, 120, 120, 0.9);
+    margin-left: var(--sp-6);
+}
+
+/* Breakdown section */
+.context-breakdown {
+    padding: var(--sp-8) var(--sp-12);
+    border-top: 1px solid var(--border-color, #333);
+}
+
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--sp-4) 0;
+    color: var(--text-secondary, #aaa);
+}
+
+.breakdown-row.muted {
+    color: var(--text-muted, #666);
+}
+
+.breakdown-label {
+    flex: 1;
+}
+
+.breakdown-tokens {
+    width: 50px;
+    text-align: right;
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm);
+}
+
+.breakdown-pct {
+    width: 45px;
+    text-align: right;
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted, #666);
+}
+
+.breakdown-divider {
+    height: 1px;
+    background: var(--border-color, #333);
+    margin: var(--sp-6) 0;
+}
+
+/* Memory files section */
+.context-memory {
+    padding: var(--sp-8) var(--sp-12);
+    border-top: 1px solid var(--border-color, #333);
+    background: var(--bg-tertiary, #252525);
+}
+
+.memory-title {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted, #666);
+    margin-bottom: var(--sp-6);
+}
+
+.memory-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--sp-3) 0;
+    font-size: var(--font-size-sm);
+}
+
+.memory-path {
+    color: var(--text-secondary, #aaa);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.memory-tokens {
+    font-family: var(--font-mono, monospace);
+    color: var(--text-muted, #888);
+}
+
+/* Footer */
+.popover-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--sp-8) var(--sp-12);
+    border-top: 1px solid var(--border-color, #333);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted, #888);
+    background: var(--bg-tertiary, #252525);
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+    .context-popover {
+        min-width: 240px;
+        max-width: 280px;
+        font-size: var(--font-size-sm);
+    }
+
+    .breakdown-tokens,
+    .breakdown-pct {
+        font-size: var(--font-size-xs);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INLINE CONTEXT INDICATOR
+   Compact inline bar with stats on sides
+   ═══════════════════════════════════════════════════════════════════ */
+
+.context-indicator-mini {
+    margin: var(--sp-6) var(--sp-16);
+    cursor: pointer;
+}
+
+/* Row layout: stats | bar | delta */
+.context-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+}
+
+/* Effective percentage - primary (what actually matters) */
+.context-pct-effective {
+    color: #fff;
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.context-tokens {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 10px;
+    margin-left: auto;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+}
+
+/* Progress bar with text inside - full width */
+.context-bar-mini {
+    flex: 1;
+    min-width: 0;
+    height: 24px;
+    background: var(--bg-tertiary, #1a1a1a);
+    border-radius: var(--radius-sm);
+    position: relative;
+    border: 1px solid var(--border-color, #333);
+    overflow: hidden;
+}
+
+.context-indicator-mini:hover .context-bar-mini {
+    border-color: var(--border-hover, #555);
+}
+
+/* Text overlay inside bar */
+.context-bar-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 var(--sp-8);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, monospace);
+    z-index: 2;
+    pointer-events: none;
+    gap: var(--sp-4);
+}
+
+/* Base fill (previous usage) */
+.context-fill-mini {
+    height: 100%;
+    background: #2a6a5a;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+/* Gain segment (new usage this turn) - brighter with visible edge */
+.context-gain-mini {
+    height: 100%;
+    background: linear-gradient(90deg, #3a9a8a, #5abfaf);
+    position: absolute;
+    top: 0;
+    box-shadow: 0 0 8px rgba(74, 170, 154, 0.6);
+    border-left: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Free space segment (remaining usable context) */
+.context-free-mini {
+    height: 100%;
+    background: rgba(80, 80, 80, 0.3);
+    position: absolute;
+    top: 0;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Right side delta (token gain/loss) */
+.context-delta {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, monospace);
+    white-space: nowrap;
+    min-width: 50px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.context-delta.up {
+    color: #5aaa8a;
+}
+
+.context-delta.down {
+    color: #aa8a5a;
+}
+
+/* Reserved label (shown outside bar) */
+.context-reserved-label {
+    font-size: 10px;
+    font-family: var(--font-mono, monospace);
+    color: rgba(255, 120, 120, 0.8);
+    padding: var(--sp-2) var(--sp-6);
+    background: rgba(180, 60, 60, 0.2);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 100, 100, 0.3);
+}
+
+/* Reserved buffer = danger zone (can't use this space) - UNUSED, kept for reference */
+.context-reserved-mini {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    /* Solid dark base + red diagonal stripes */
+    background:
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 3px,
+            rgba(200, 80, 80, 0.3) 3px,
+            rgba(200, 80, 80, 0.3) 6px
+        ),
+        rgba(60, 30, 30, 0.8);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    /* Threshold line on left edge */
+    border-left: 2px solid rgba(255, 100, 100, 0.5);
+    /* Center content */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Percentage label inside reserved section */
+.reserved-pct {
+    font-size: 10px;
+    font-family: var(--font-mono, monospace);
+    color: rgba(255, 150, 150, 0.7);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Pulse the threshold line when approaching danger */
+.context-indicator-mini.warning .context-reserved-mini,
+.context-indicator-mini.danger .context-reserved-mini {
+    border-left-color: rgba(255, 100, 100, 0.7);
+}
+
+.context-indicator-mini.critical .context-reserved-mini {
+    border-left-color: rgba(255, 80, 80, 0.9);
+    animation: pulse-threshold 1s ease-in-out infinite;
+}
+
+@keyframes pulse-threshold {
+    0%, 100% { border-left-color: rgba(255, 80, 80, 0.9); }
+    50% { border-left-color: rgba(255, 120, 120, 1); }
+}
+
+/* Warning state (70-85%) - amber/orange */
+.context-bar-mini.warning .context-fill-mini {
+    background: #8a6a30;
+}
+.context-bar-mini.warning .context-gain-mini {
+    background: linear-gradient(90deg, #bfa050, #dfb060);
+    box-shadow: 0 0 8px rgba(200, 160, 80, 0.6);
+    border-left: 2px solid rgba(255, 255, 255, 0.5);
+}
+.context-bar-mini.warning {
+    border-color: rgba(200, 160, 80, 0.4);
+}
+
+/* Danger state (85-95%) - red */
+.context-bar-mini.danger .context-fill-mini {
+    background: #a03030;
+}
+.context-bar-mini.danger .context-gain-mini {
+    background: linear-gradient(90deg, #e06060, #ff7070);
+    box-shadow: 0 0 8px rgba(255, 100, 100, 0.6);
+    border-left: 2px solid rgba(255, 255, 255, 0.5);
+}
+.context-bar-mini.danger {
+    border-color: rgba(224, 80, 80, 0.5);
+}
+
+/* Critical state (95%+) - pulsing red */
+.context-bar-mini.critical .context-fill-mini {
+    background: #a02020;
+}
+.context-bar-mini.critical .context-gain-mini {
+    background: linear-gradient(90deg, #ff6060, #ff8080);
+    box-shadow: 0 0 10px rgba(255, 100, 100, 0.8);
+    border-left: 2px solid rgba(255, 255, 255, 0.6);
+    animation: pulse-critical 1.5s ease-in-out infinite;
+}
+.context-bar-mini.critical {
+    border-color: #e05050;
+    box-shadow: 0 0 8px rgba(224, 80, 80, 0.3);
+}
+
+@keyframes pulse-critical {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Inline breakdown popover (from hovering indicator) */
+.context-breakdown-popover {
+    background: var(--bg-secondary, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: var(--radius-md);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    min-width: 240px;
+    max-width: 300px;
+    z-index: var(--z-overlay);
+    font-size: var(--font-size-sm);
+}
+
+.context-breakdown-popover .popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--border-color, #333);
+    background: var(--bg-tertiary, #252525);
+    font-weight: 500;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.context-breakdown-popover .popover-close {
+    background: none;
+    border: none;
+    color: var(--text-muted, #666);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 var(--sp-4);
+    line-height: 1;
+}
+
+.context-breakdown-popover .popover-close:hover {
+    color: var(--text-primary, #e0e0e0);
+}
+
+.context-breakdown-popover .context-breakdown {
+    border-top: none;
+}
+
+/* Mobile adjustments for indicator */
+@media (max-width: 600px) {
+    .context-indicator {
+        padding: 0 var(--sp-8);
+    }
+
+    .context-bar-wrapper {
+        max-width: 100%;
+    }
+
+    .context-info {
+        font-size: 10px;
+        gap: var(--sp-6);
+    }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   TURN SUMMARY BAR
+   Compact expandable bar showing turn stats, context usage, and file changes
+   ═══════════════════════════════════════════════════════════════════ */
+
+.turn-summary-bar {
+    /* Prevent flex shrink in .session-messages column layout.
+       overflow:hidden sets min-height to 0 in flex, allowing the bar
+       to collapse to just its border (2px) when many messages overflow. */
+    margin: var(--sp-8) 0;
+    background: var(--bg-tertiary, #1a1a1a);
+    border: 1px solid var(--border-color, #333);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+    /* Prevent iOS keyboard and selection behavior */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.turn-summary-bar:hover {
+    border-color: var(--border-hover, #555);
+}
+
+.turn-summary-bar.expanded {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Header row - metrics and expand toggle */
+.turn-header-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    min-height: 36px;
+    flex-wrap: nowrap;
+}
+
+/* Turn badge group - T16 + chevron together */
+.turn-badge-group {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+}
+
+/* Turn number badge */
+.turn-number {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    font-family: var(--font-mono, monospace);
+    color: var(--accent);
+    background: rgba(74, 158, 255, 0.15);
+    padding: var(--sp-3) var(--sp-8);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Duration */
+.turn-duration {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, monospace);
+    color: var(--text-secondary, #aaa);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Cost */
+.turn-cost {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, monospace);
+    color: #8a8;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Expand chevron */
+.turn-expand-chevron {
+    font-size: 10px;
+    color: var(--text-muted, #666);
+    transition: transform 0.2s ease;
+    padding: var(--sp-4) var(--sp-4);
+    cursor: pointer;
+}
+
+.turn-expand-chevron:hover {
+    color: var(--text-secondary, #aaa);
+}
+
+.turn-summary-bar.expanded .turn-expand-chevron {
+    transform: rotate(180deg);
+}
+
+/* Files row - tappable file pills with full names */
+.turn-files-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-12) var(--sp-8);
+    border-top: 1px solid var(--border-color, #2a2a2a);
+}
+
+.turn-file-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, monospace);
+    color: var(--text-primary, #e0e0e0);
+    background: rgba(74, 158, 255, 0.12);
+    border: 1px solid rgba(74, 158, 255, 0.25);
+    padding: var(--sp-4) var(--sp-10);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.turn-file-pill:hover {
+    background: rgba(74, 158, 255, 0.25);
+    border-color: rgba(74, 158, 255, 0.5);
+    color: #fff;
+}
+
+/* Turn file pill tooltips handled by JS tooltip system (tooltips.js) */
+
+.turn-file-pill:active {
+    transform: scale(0.97);
+}
+
+/* Filename - primary visual weight */
+.turn-file-pill .file-name {
+    color: inherit;
+}
+
+/* GitHub-style additions badge - green */
+.turn-file-pill .file-adds {
+    font-size: 10px;
+    color: #3fb950;
+    font-weight: 600;
+    margin-left: var(--sp-6);
+}
+
+/* GitHub-style deletions badge - red */
+.turn-file-pill .file-dels {
+    font-size: 10px;
+    color: #f85149;
+    font-weight: 600;
+    margin-left: var(--sp-2);
+}
+
+/* New file badge */
+.turn-file-pill .file-new {
+    font-size: 9px;
+    color: #3fb950;
+    background: rgba(63, 185, 80, 0.15);
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-sm);
+    margin-left: var(--sp-6);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Tools row - tools on left, duration on right */
+.turn-tools-row {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, monospace);
+    color: var(--text-muted, #888);
+    padding: var(--sp-4) var(--sp-12) var(--sp-8);
+    gap: var(--sp-12);
+}
+
+.turn-tools-list {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.turn-right-stats {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-left: auto;
+}
+
+.turn-duration-inline {
+    color: var(--text-secondary, #aaa);
+    flex-shrink: 0;
+}
+
+.turn-model-inline {
+    color: var(--text-muted, #666);
+    font-size: 10px;
+}
+
+/* Inline cost in tools row (always visible) */
+.turn-cost-inline {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, monospace);
+    color: #8a8;
+    flex-shrink: 0;
+}
+
+.turn-tools-row .turn-stats-sep {
+    color: var(--text-muted, #555);
+    font-size: 9px;
+}
+
+/* "click to expand" hint in tools row — centered on the row (out of flow, so
+   the tools list and right-hand stats keep the full width) and hidden when the
+   bar is expanded. */
+.turn-expand-hint {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-muted, #666);
+    font-size: 10px;
+    font-style: italic;
+    opacity: 0.55;
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+}
+.turn-summary-bar.expanded .turn-expand-hint {
+    display: none;
+}
+/* Narrow viewports: tools list + stats already fill the row — a centered
+   overlay would collide with them. */
+@media (max-width: 600px) {
+    .turn-expand-hint { display: none; }
+}
+
+/* Thin separator between turn pills and session-accumulated pills */
+.turn-files-sep {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.12);
+    align-self: center;
+    margin: 0 var(--sp-2);
+}
+
+/* Hide button on session-compact file pills */
+.session-file-hide {
+    display: none;
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    color: var(--text-muted, #666);
+    margin-left: var(--sp-4);
+    padding: 0 var(--sp-2);
+    cursor: pointer;
+    opacity: 0.6;
+}
+.session-compact-file:hover .session-file-hide {
+    display: inline;
+}
+.session-file-hide:hover {
+    opacity: 1;
+    color: #f85149;
+}
+@media (hover: none) and (pointer: coarse) {
+    .session-file-hide { display: inline; }
+}
+
+/* Image thumbs — Read-tool images (screenshots, test results) opened but not
+   modified. Neutral (no blue) mini previews; tap opens the image gallery. */
+.turn-file-pill.turn-read-file {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.10);
+    color: var(--text-muted, #888);
+}
+.turn-file-pill.turn-read-file:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-primary, #e0e0e0);
+}
+.turn-file-pill.turn-image-thumb {
+    padding: var(--sp-2);
+}
+.turn-file-pill.turn-image-thumb img {
+    display: block;
+    height: 20px;
+    width: auto;
+    min-width: 20px;
+    max-width: 56px;
+    object-fit: cover;
+    border-radius: var(--radius-xs);
+    /* Make the <img> transparent to hit-testing so the WHOLE miniature
+       resolves to the .turn-file-pill span — one uniform hover/tap target.
+       Without this the image center is a separate hit-target from the bare
+       span padding: on WebKit/iPadOS the <img> carries native drag/callout
+       behavior the span doesn't, so hover/tap landed only on the thin top &
+       bottom strips and "died" over the image center. The pill still owns
+       :hover, the JS tooltip (closest()), and the tap handler; the img's
+       load-error handler is unaffected (not a pointer event). */
+    pointer-events: none;
+}
+/* Images from earlier turns — dimmest tier of the row */
+.turn-file-pill.turn-read-file.session-read {
+    opacity: 0.6;
+}
+.turn-file-pill.turn-read-file.session-read:hover {
+    opacity: 1;
+}
+
+/* Loading shimmer for context bar while /context runs */
+.context-bar-loading {
+    background: linear-gradient(
+        90deg,
+        var(--bg-tertiary, #1a1a1a) 25%,
+        rgba(74, 158, 255, 0.08) 50%,
+        var(--bg-tertiary, #1a1a1a) 75%
+    );
+    background-size: 200% 100%;
+    animation: context-shimmer 1.5s ease-in-out infinite;
+    border-color: transparent !important;
+}
+
+.context-bar-loading .context-bar-text,
+.context-bar-loading .context-fill-mini,
+.context-bar-loading .context-gain-mini {
+    display: none;
+}
+
+@keyframes context-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Rate-limited turn: inline token profile switcher */
+.rate-limited-bar {
+    border-color: var(--warning-color, #e6a23c) !important;
+    background: var(--bg-tertiary, #1a1a1a);
+}
+
+.rate-limited-bar .context-bar-text {
+    pointer-events: auto;
+    justify-content: center;
+    gap: var(--sp-8);
+    align-items: center;
+}
+
+.rate-limited-bar .rate-limit-label {
+    font-size: 10px;
+    color: var(--text-muted, #666);
+    white-space: nowrap;
+}
+
+.rate-limited-bar .rate-limit-profiles {
+    display: flex;
+    gap: var(--sp-4);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.rate-limited-bar .rate-limit-profile-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    background: var(--bg-secondary, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, monospace);
+    padding: var(--sp-2) var(--sp-8);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.rate-limited-bar .rate-limit-profile-btn:hover {
+    background: var(--bg-hover, #2a2a2a);
+    border-color: var(--text-secondary);
+}
+
+.rate-limited-bar .rate-limit-profile-btn.applied {
+    border-color: var(--success-color, #67c23a);
+    color: var(--success-color, #67c23a);
+}
+
+.rate-limited-bar .rate-limit-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Expanded details section - stats + context breakdown */
+.turn-expanded-details {
+    display: none;
+    border-top: 1px solid var(--border-color, #333);
+    background: var(--bg-secondary, #1e1e1e);
+    padding: var(--sp-10) var(--sp-12);
+}
+
+.turn-summary-bar.expanded .turn-expanded-details {
+    display: block;
+}
+
+/* Turn stats row (duration, cost) */
+.turn-stats-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin-bottom: var(--sp-10);
+    padding-bottom: var(--sp-8);
+    border-bottom: 1px solid var(--border-color, #333);
+}
+
+.turn-stats-row .turn-duration,
+.turn-stats-row .turn-cost {
+    font-size: var(--font-size-sm);
+}
+
+.turn-stats-sep {
+    color: var(--text-muted, #666);
+}
+
+/* Simple context text when no breakdown available */
+.turn-context-simple {
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, monospace);
+    color: var(--text-secondary, #aaa);
+}
+
+/* Context breakdown table — flipped: labels as column headers, values below */
+table.turn-context-breakdown {
+    border-collapse: collapse;
+    font-size: var(--font-size-xs);
+    width: 100%;
+}
+
+table.turn-context-breakdown th {
+    text-align: left;
+    font-weight: 400;
+    color: var(--text-secondary, #aaa);
+    padding: 1px var(--sp-12) 1px 0;
+    white-space: nowrap;
+}
+
+table.turn-context-breakdown td {
+    padding: 1px var(--sp-12) 1px var(--sp-2);
+    white-space: nowrap;
+}
+
+table.turn-context-breakdown .breakdown-tokens {
+    font-family: var(--font-mono, monospace);
+    color: var(--text-primary, #e0e0e0);
+}
+
+table.turn-context-breakdown .breakdown-pct {
+    font-family: var(--font-mono, monospace);
+    color: var(--text-muted, #666);
+}
+
+table.turn-context-breakdown th.muted {
+    color: var(--text-muted, #666);
+}
+
+/* Warning/danger states for turn summary bar */
+.turn-summary-bar.warning {
+    border-color: rgba(240, 160, 48, 0.3);
+}
+
+.turn-summary-bar.warning .turn-number {
+    color: #f0a030;
+    background: rgba(240, 160, 48, 0.15);
+}
+
+.turn-summary-bar.danger {
+    border-color: rgba(224, 80, 80, 0.4);
+}
+
+.turn-summary-bar.danger .turn-number {
+    color: #e05050;
+    background: rgba(224, 80, 80, 0.15);
+}
+
+.turn-summary-bar.critical {
+    border-color: rgba(224, 80, 80, 0.5);
+    box-shadow: 0 0 8px rgba(224, 80, 80, 0.2);
+}
+
+.turn-summary-bar.critical .turn-number {
+    color: #ff6060;
+    background: rgba(255, 96, 96, 0.2);
+    animation: pulse-critical 1.5s ease-in-out infinite;
+}
+
+/* Mobile adjustments for turn summary bar */
+@media (max-width: 600px) {
+    .turn-summary-bar {
+        margin: var(--sp-6) 0;
+    }
+
+    .turn-compact-row {
+        padding: var(--sp-6) var(--sp-10);
+        gap: var(--sp-6);
+        flex-wrap: wrap;
+    }
+
+    .turn-number {
+        font-size: 10px;
+        padding: var(--sp-2) var(--sp-4);
+    }
+
+    .turn-duration,
+    .turn-cost,
+    .turn-cost-inline {
+        font-size: 10px;
+    }
+
+    .context-bar-mini {
+        /* Keep bar in natural order, just make it full width on mobile */
+        flex-basis: 0;
+        min-width: 80px;
+    }
+
+    .context-delta {
+        /* Delta after bar on mobile too */
+        min-width: 45px;
+        font-size: var(--font-size-xs);
+    }
+
+    /* File pills on mobile - slightly smaller text */
+    .turn-file-pill {
+        font-size: var(--font-size-xs);
+        padding: var(--sp-3) var(--sp-8);
+    }
+
+    .turn-file-pill .file-adds,
+    .turn-file-pill .file-dels {
+        font-size: 9px;
+    }
+
+    .turn-file-pill .file-new {
+        font-size: 8px;
+        padding: 1px var(--sp-4);
+    }
+
+    /* Context breakdown: allow horizontal scroll on mobile */
+    table.turn-context-breakdown {
+        font-size: 10px;
+    }
+
+    /* File lists: single column on mobile */
+    .session-files-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GIT STATUS INDICATORS ON TURN FILE PILLS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Status dot badge prepended to pill */
+.git-status-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    font-size: 9px;
+    font-weight: 700;
+    font-family: var(--font-mono, monospace);
+    border-radius: 50%;
+    margin-right: var(--sp-3);
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.git-dot-modified {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.18);
+}
+
+.git-dot-staged {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.18);
+}
+
+.git-dot-untracked {
+    color: #6e7681;
+    background: rgba(110, 118, 129, 0.15);
+}
+
+/* Pill border-left accent for uncommitted files only.
+   Committed files keep their default appearance (no decoration). */
+.turn-file-pill.git-modified {
+    border-left: 2px solid #f59e0b;
+}
+
+.turn-file-pill.git-staged {
+    border-left: 2px solid #22c55e;
+}
+
+.turn-file-pill.git-untracked {
+    border-left: 2px solid #6e7681;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GIT SUMMARY INDICATOR IN TOOLS ROW
+   ═══════════════════════════════════════════════════════════════════ */
+
+.turn-git-summary {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, monospace);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.turn-git-summary.git-all-clean {
+    color: var(--success, #3fb950);
+}
+
+.turn-git-summary.git-has-uncommitted {
+    color: #f59e0b;
+}
+
+.turn-git-project-count {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, monospace);
+    color: var(--text-muted, #6e7681);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SESSION FILES IN EXPANDED VIEW
+   ═══════════════════════════════════════════════════════════════════ */
+
+.turn-session-files {
+    margin-top: var(--sp-10);
+    border-top: 1px solid var(--border-color, #333);
+    padding-top: var(--sp-8);
+}
+
+.session-files-header {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-secondary, #8b949e);
+    margin-bottom: var(--sp-6);
+}
+
+.session-files-count {
+    font-weight: 400;
+    color: var(--text-muted, #6e7681);
+    margin-left: var(--sp-6);
+}
+
+.session-files-header.other-files-header {
+    margin-top: var(--sp-10);
+    padding-top: var(--sp-8);
+    border-top: 1px solid var(--border-color, #333);
+    color: var(--text-muted, #6e7681);
+    font-weight: 400;
+}
+
+.session-file-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-3) var(--sp-4);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, monospace);
+    border-radius: var(--radius-sm);
+}
+
+.session-file-row:hover {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+}
+
+.session-file-status {
+    width: 14px;
+    text-align: center;
+    font-weight: 700;
+    font-size: var(--font-size-xs);
+    flex-shrink: 0;
+}
+
+.session-file-row.git-committed .session-file-status {
+    color: var(--success, #3fb950);
+}
+
+.session-file-row.git-modified .session-file-status {
+    color: #f59e0b;
+}
+
+.session-file-row.git-staged .session-file-status {
+    color: #22c55e;
+}
+
+.session-file-row.git-untracked .session-file-status {
+    color: #6e7681;
+}
+
+.session-file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary, #e6edf3);
+}
+
+.session-file-row .sf-stats {
+    flex-shrink: 0;
+    font-size: 10px;
+}
+
+.session-file-row .file-adds {
+    color: #3fb950;
+    font-weight: 600;
+    margin-right: var(--sp-2);
+}
+
+.session-file-row .file-dels {
+    color: #f85149;
+    font-weight: 600;
+}
+
+.session-file-turns {
+    color: var(--text-muted, #6e7681);
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.session-files-more {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #6e7681);
+    padding: var(--sp-4);
+    font-style: italic;
+}
+
+/* 2-column grid for file lists */
+.session-files-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 var(--sp-12);
+}
+
+.session-files-grid .session-files-more {
+    grid-column: 1 / -1;
+}

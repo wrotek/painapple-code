@@ -1,0 +1,2126 @@
+# strings.yaml - All user-facing text for pAInapple Code
+# Edit this file to change UI text without touching code.
+# Served as ES module at /static/js/strings.js (YAML -> JS on-the-fly)
+
+# ============================================================
+# Prompts sent to Claude CLI
+# ============================================================
+prompts:
+  agents:
+    default_pattern: "Consult with agent {agent} "
+
+# ============================================================
+# Permission system
+# ============================================================
+permissions:
+  header: "Permission Level"
+  tooltip_template: "Permissions: {label} ({desc})"
+  deny_short: "Permission denied — {tool} blocked in {mode} mode."
+  deny_explainer: "Claude tried to use {tool}{details} but was blocked by {mode} permission mode. To allow it, change the permission level using the button next to the message input."
+  order: [plan, dontAsk, acceptEdits, auto, bypassPermissions]
+  levels:
+    bypassPermissions:
+      label: "YOLO"
+      popup_label: "YOLO"
+      tooltip: "Permissions: YOLO (all allowed)"
+      description: "Skip all permission checks"
+      color: "#4ade80"
+    acceptEdits:
+      label: "Accept Edits"
+      popup_label: "Accept Edits"
+      tooltip: "Permissions: Accept Edits (workspace edits only)"
+      description: "Auto-approve workspace edits; others prompt for approval"
+      color: "#fb923c"
+    auto:
+      label: "Auto"
+      popup_label: "Auto"
+      tooltip: "Permissions: Auto (AI classifier gates each action)"
+      description: "AI classifier reviews each tool call"
+      color: "#60a5fa"
+    dontAsk:
+      label: "Don't Ask"
+      popup_label: "Don't Ask"
+      tooltip: "Permissions: Don't Ask (deny unless pre-approved)"
+      description: "Auto-deny unless in allow rules"
+      color: "#facc15"
+    plan:
+      label: "Plan"
+      popup_label: "Plan"
+      tooltip: "Permissions: Plan (read-only)"
+      description: "Read-only, explore & design"
+      color: "#8b5cf6"
+
+# ============================================================
+# Status messages (shown in system log)
+# ============================================================
+status:
+  entering_plan_mode: "Entering plan mode..."
+  stopping: "Stopping Claude..."
+  ready: "Ready for new message"
+  cleared: "Session cleared. Fresh conversation started."
+  stopped: "Stopped by user"
+  compacting: "Compacting conversation..."
+  syncing: "Syncing messages..."
+  starting_fresh: "Starting fresh"
+  exited_plan_mode: "Exited plan mode"
+  reconnecting: "Connection closed. Reconnecting..."
+  connection_error: "Connection error"
+  synced: "Synced {count} message(s)"
+  up_to_date: "Already up to date"
+  sync_failed: "Sync failed for {count} session(s)"
+  reconnected_running: "Reconnected to running session ({cwd})"
+  reconnected: "Reconnected to session ({cwd})"
+  working_directory: "Working directory: {cwd}"
+  session_ended: "Session ended: {reason}"
+  permission_mode: "Permission mode: {mode}"
+  permission_mode_live: "Permission mode: {mode} — applied to the running engine"
+  permission_mode_next_turn: "Permission mode: {mode} — applies from the next message"
+  forked: "Forked session: {id}"
+  forked_compacting: "Forked session: {id} (compacting)"
+  cloned: "Cloned to new session with same project"
+  trimmed: "Trimmed {count} old messages. Scroll up to reload."
+
+# ============================================================
+# Error messages
+# ============================================================
+errors:
+  not_connected: "Not connected"
+  select_project: "Please select a project first"
+  select_project_send: "Select a project, then your message will be sent"
+  storage_full: "Storage full - tabs may not persist"
+  enter_directory: "Please enter a working directory"
+  no_project_clear: "No project to clear"
+  cannot_fork: "Cannot fork: no active session"
+  cannot_fork_compact: "Cannot fork-compact: no active session"
+  btw_needs_question: "Usage: /btw <your question>"
+  btw_no_session: "Cannot start side question: no active session"
+  cannot_clone: "Cannot clone: no project directory set"
+  no_messages_trim: "No messages to trim"
+  copy_failed: "Failed to copy"
+  update_favorite: "Failed to update favorite"
+  max_sessions: "Maximum {max} sessions allowed"
+  session_not_found: "Session not found: {id}"
+  failed_load_session: "Failed to load session: {error}"
+  fork_failed: "Fork failed: {error}"
+  fork_compact_failed: "Fork-compact failed: {error}"
+  failed_connect: "Failed to connect: {error}"
+
+# ============================================================
+# Preview (file preview widget)
+# ============================================================
+preview:
+  tab_edit: "Edit"
+  tab_history: "History"
+  editor_search: "Search (Ctrl+F)"
+  editor_replace: "Search & replace"
+  breadcrumb:
+    filter_placeholder: "Filter…"
+    parent_dir: "Parent directory"
+    empty: "No matching items"
+    load_failed: "Couldn't load folder"
+    more: "{n} more — type to filter"
+  inline_edit_enable: "Click to edit inline (E)"
+  inline_edit_disable: "Disable inline editing (Esc)"
+  inline_edit_not_found: "Could not locate text in source"
+  inline_edit_save_failed: "Save failed"
+  inline_edit_off: "Edit mode off — press E to re-enable"
+  inline_edit_delete_tooltip: "Delete this block"
+  inline_edit_deleted: "Block deleted"
+  inline_edit_delete_failed: "Delete failed"
+  inline_edit_restore_failed: "Restore failed"
+  inline_edit_restore: "Restore"
+  inline_edit_restored: "Block restored"
+  inline_edit_discard_confirm: "Discard unsaved changes?"
+  front_matter_title: "Front matter"
+  front_matter_toggle: "Toggle front matter"
+  json_tree_label: "Tree"
+  json_search_placeholder: "Search keys and values…"
+  json_expand_all: "Expand all"
+  json_collapse_all: "Collapse all"
+
+# ============================================================
+# Toast messages (brief notifications)
+# ============================================================
+toast:
+  copied: "Copied"
+  draft_saved: "Draft saved"
+  draft_save_failed: "Couldn't save draft"
+  session_id_copied: "Session ID copied"
+  cli_resume_copied: "Copied: {cmd}"
+  url_copied: "URL copied"
+  cwd_copied: "CWD copied"
+  session_cloned: "Session cloned"
+  renamed: "Renamed"
+  name_reset: "Name reset"
+  file_saved: "File saved"
+  reloaded: "Reloaded from disk"
+  error_copied: "Error copied!"
+  already_in_quick: "Already in quick actions"
+  added_to_quick: "Added to quick actions"
+  upload_failed: "Snapshot upload failed"
+  added_favorite: "Added to favorites"
+  removed_favorite: "Removed from favorites"
+  session_stopped: "Session stopped"
+  failed_stop: "Failed to stop session"
+  discussion_continued: "Discussion continued in new tab"
+  discussion_continued_with_draft: "Discussion continued in new tab — your reply moved to the chat input"
+  max_actions: "Maximum 8 actions allowed"
+  path_copied: "Path copied"
+  content_copied: "Content copied"
+  link_copied: "Link copied"
+  image_copied: "Image copied"
+  image_copy_failed: "Couldn't copy image"
+  image_copy_fell_back: "Image copy unsupported here — link copied"
+  # OSC 52 — a program inside the terminal wrote to the clipboard. Always
+  # shown, deliberately: a silent clipboard overwrite is an attack.
+  terminal_clipboard_written: "Terminal copied {n} chars to clipboard"
+  terminal_clipboard_failed: "Terminal tried to copy, but the browser refused"
+  terminal_clipboard_blocked: "Terminal tried to copy — blocked by settings"
+  terminal_clipboard_too_large: "Terminal clipboard write too large — ignored"
+  annotate_open_failed: "Couldn't open the annotation editor"
+  annotate_gif_unsupported: "GIFs can't be annotated"
+  reveal_failed: "Couldn't reveal: {error}"
+  error_copied_context: "Error copied with context!"
+  copied_logs: "Copied {count} logs!"
+  exported: "Exported!"
+  snapshot_saved: "Snapshot saved"
+  shortcuts_reset: "Shortcuts reset to defaults"
+  added_to_stash: "Added to stash"
+  added_to_stash_note: "Added to stash with note"
+  markers_stashed: "{count} marker comment(s) added to stash"
+  compare_failed: "Compare failed"
+  compare_no_turn_changes: "This turn made no file changes"
+  compare_file_not_in_turn: "File not present in this turn's commit"
+  compare_no_shadow_history: "No shadow history for this file"
+  compare_no_git_history: "No git history for this file"
+  replaced_in_quick: "Replaced in quick actions"
+  saved_to: "Saved to {path}"
+  save_failed: "Save failed: {error}"
+  background_task_done: "Background task done: {cmd}"
+  undo_successful: "Undo successful: {commit}"
+  restored: "Restored: {path}"
+  copied_text: "Copied: {text}"
+
+# ============================================================
+# UI elements
+# ============================================================
+ui:
+  app:
+    title: "Claude Code"
+    description: "A powerful AI assistant for software development. Connect to start a session."
+  # Static tooltips for the chrome rendered in web-client.html. Applied at
+  # init by applyStaticTooltips() via data-tooltip-key="ui.tooltips.<key>".
+  # Keys stay free of keyboard shortcuts: buttons with a registered binding
+  # get " (Key)" appended at runtime by refreshRailShortcutTooltips().
+  tooltips:
+    menu: "Menu"
+    all_sessions: "All sessions"
+    tabs_overflow: "More tabs (click to scroll)"
+    new_session: "New session"
+    rail_sessions: "Active Sessions"
+    rail_orphan_terminals: "Orphaned Terminals"
+    orphan_tab_all: "Open all in tabs"
+    orphan_kill_all: "Kill all terminals"
+    orphan_refresh: "Refresh"
+    rail_agents: "Running Agents"
+    rail_bg_tasks: "Background Tasks"
+    rail_files: "Files"
+    rail_preview: "Preview"
+    rail_logs: "Logs"
+    rail_terminal: "Terminal"
+    rail_git: "Git"
+    rail_browser: "Browser"
+    rail_search: "Search"
+    rail_history: "History"
+    rail_skills: "Skills"
+    rail_agent_defs: "Agents"
+    rail_snippets: "Snippets"
+    rail_discussion: "Discussion"
+    rail_costs: "Costs"
+    rail_layout: "Layout density"
+    rail_settings: "Settings"
+    rail_help: "Help"
+    chat_search_prev: "Previous (\u21e7Enter)"
+    chat_search_next: "Next (Enter)"
+    chat_search_close: "Close (Esc)"
+    input_resize: "Drag to resize"
+    stash_preview: "Click to edit"
+    stash_toggle: "Toggle attachment"
+    snippets_btn: "Snippets & Agents (#)"
+    slash_cmd_btn: "Slash commands (/)"
+    file_mention_btn: "Mention file (@)"
+    skills_btn: "Skills ($)"
+    stash_btn: "Comments Stash"
+    prompt_history_btn: "Prompt History"
+    uploads_btn: "Uploads"
+    permission_btn: "Permissions"
+    effort_btn: "Effort"
+    favorite_prompt_btn: "Mark prompt as favorite"
+    upload_btn: "Upload files or images"
+    followup_btn: "Send follow-up (queues after current turn)"
+    stop_btn: "Stop"
+    status_connection: "Disconnected"
+    status_branch: "Git branch"
+    selection_close: "Close (Esc)"
+    selection_quote_toggle: "Show full text"
+    selection_discuss: "Start discussion (Ctrl+Enter)"
+    selection_stash: "Add to stash"
+  input:
+    placeholder: "Message Claude...  ·  # agents/snippets  ·  / commands  ·  @ files  ·  $ skills"
+    cwd_placeholder: "Working directory (e.g., ~/dev/project)"
+    send_tooltip: "Send (Enter)"
+    send_tooltip_mod: "Send ({key})"
+    drafts_pill_one: "1 draft"
+    drafts_pill_many: "{count} drafts"
+    drafts_pill_tooltip: "Browse saved drafts"
+  directory_dialog:
+    title: "Directory not found"
+    message: "{path} does not exist. Would you like to create it?"
+    confirm: "Create Directory"
+    cancel: "Cancel"
+  stash:
+    title: "Comments Stash"
+    preview: "references will be attached"
+    preview_paused: "references (paused)"
+    move_to: "Move to"
+    move_to_tooltip: "Move stash items to another session"
+    moved_to_session: "Moved {count} items to {name}"
+    moving: "Moving…"
+    no_other_sessions: "No other sessions open"
+    bubble_tooltip: "Click to add comment"
+    bubble_tooltip_existing: "Click to edit comment"
+    open_in_preview: "Open in preview"
+    clear_all: "Clear All"
+    clear_confirm: "Sure?"
+    clear_all_confirm: "Remove all items from stash?"
+    empty: "No items in stash."
+    empty_hint: "Select text and tap \"Stash\" to add references."
+    add_note: "+ Add note"
+    edit_note_tooltip: "Edit note"
+    remove_tooltip: "Remove"
+    anchor_message: "Message"
+    anchor_message_indexed: "Message #{index}"
+    anchor_marker: "{file} · marker {n}"
+    toggle_tooltip: "Attach to next message"
+    history_header: "History"
+    clear_history: "Clear History"
+    go_to_message: "Go to message"
+    message_not_found: "Couldn't locate that message"
+  rename_dialog:
+    title: "Rename Session"
+  welcome:
+    shortcuts:
+      help: "Show commands"
+      bang: "Run shell command"
+      new_session: "New session"
+    projects_header: "Projects"
+    projects_nav_hint: "to browse"
+    projects_filter_hint: "to filter"
+    unvisited_separator: "Unvisited"
+    unvisited_show_more: "+{count} more"
+    unvisited_show_less: "Show less"
+    context:
+      rename_project: "Rename project"
+      set_color: "Set color"
+      color_auto: "Auto (default)"
+  search:
+    placeholder: "Search messages..."
+
+# ============================================================
+# Shortcut hints overlay (empty-input cheat sheet)
+# ============================================================
+shortcut_hints:
+  title: "Keyboard shortcuts"
+  config_title: "Input shortcut hints"
+  config_hint: "Pick which keyboard shortcuts appear as a cheat-sheet above the empty input."
+  customize: "Customize which shortcuts are shown"
+  reset: "Reset to defaults"
+
+# ============================================================
+# Quick actions menu
+# ============================================================
+quick_actions:
+  open_debug_logs: "Open Debug Logs"
+  items:
+    - { id: files, label: "Files", shortcut: "Alt+F" }
+    - { id: logs, label: "Logs", shortcut: "Alt+L" }
+    - { id: git, label: "Git", shortcut: "\u2318P" }
+    - { id: discussion, label: "Discussion", shortcut: "Alt+/" }
+    - { id: history, label: "Journal", shortcut: "Alt+H" }
+    - { id: costs, label: "Costs", shortcut: "Alt+4" }
+    - { id: sessions, label: "Sessions", shortcut: "Alt+S" }
+    - { id: manager, label: "Manager", shortcut: "Ctrl+Shift+K" }
+    - { id: debug, label: "Debug", shortcut: "Alt+D" }
+    - { id: settings, label: "Settings", shortcut: "Ctrl+," }
+
+# ============================================================
+# Context menus
+# ============================================================
+context_menus:
+  file:
+    copy_path: "Copy Path"
+    copy_full_path: "Copy Full Path"
+    copy_content: "Copy File Content"
+    preview: "Preview"
+    open_in_new_tab: "Open in New Tab"
+    open_in_background: "Open in Background"
+    open_editor: "Open in Editor"
+    open_explorer: "Open in File Explorer"
+    show_history: "Show History"
+    compare: "Compare"
+    compare_this_turn: "This turn's changes"
+    compare_last_change: "To last change"
+    compare_session_start: "To session start"
+    compare_git_head: "To git HEAD"
+    compare_previous_commit: "To previous commit"
+    compare_wizard: "Open wizard…"
+    select_compare: "Select for Compare"
+    compare_selected: "Compare with {file}"
+  link:
+    copy_url: "Copy URL"
+    open_new_tab: "Open in New Tab"
+  image:
+    preview: "Preview"
+    copy_image: "Copy Image"
+    copy_image_close: "Copy & Close"
+    copy_link: "Copy Link"
+    copy_path: "Copy Path"
+    annotate: "Open in Annotation Editor"
+    open_new_tab: "Open in New Tab"
+  tab:
+    move_left: "Move Left"
+    move_right: "Move Right"
+    pin: "Pin Tab"
+    unpin: "Unpin Tab"
+    unpin_hint: "Pinned — click to unpin"
+  session:
+    copy_id: "Copy Session ID"
+    copy_url: "Copy URL"
+    copy_cwd: "Copy CWD"
+    fork: "Fork Session"
+    clone: "Clone Session"
+    rename: "Rename"
+    edit_color: "Edit color"
+    favorite: "Favorite"
+    unfavorite: "Unfavorite"
+    add_favorite: "Add to Favorites"
+    remove_favorite: "Remove from Favorites"
+    close: "Close"
+    close_others: "Close Others"
+    close_all: "Close All"
+  terminal:
+    new_terminal: "New Terminal"
+    copy_path: "Copy Path"
+    copy_full_path: "Copy Full Path"
+    copy_content: "Copy File Content"
+    close: "Close"
+    close_all: "Close All Terminals"
+    copy: "Copy"
+    paste: "Paste"
+    show_history: "Show History"
+  project:
+    new_session: "New Session"
+    new_terminal: "New Terminal"
+    new_browser: "New Browser"
+    new_draft: "New Draft"
+    reopen: "Reopen Closed"
+
+# ============================================================
+# Widget titles and labels
+# ============================================================
+widgets:
+  titles:
+    active_sessions: "Active Sessions"
+    discussion: "Discussion"
+    debug: "Debug Logs"
+    settings: "Settings"
+    prompt_history: "Prompt History"
+    cost_analytics: "Cost Analytics"
+    uploads: "Uploads"
+    git: "Git"
+    history_explorer: "Journal"
+    agents: "Agents"
+    snippets: "Snippets"
+    sub_agents: "Sub-Agents"
+    background_tasks: "Background Tasks"
+    files: "Files"
+    logs: "Logs"
+    terminal: "Terminal"
+    image_preview: "Image Preview"
+    image_annotate: "Annotate Image"
+    skills: "Skills"
+    commands: "Commands"
+    plugins: "Plugins"
+    browser: "Browser"
+    search_files: "Search in Files"
+
+    diff_viewer: "Diff Viewer"
+
+  browser:
+    url_placeholder: "Enter URL or path: https://… , ~/foo.html , /tmp/report.html"
+    open_in_tab: "Open in new tab"
+    open_in_safari: "Open in system browser"
+    open_in_preview: "Open in Preview"
+    empty_title: "Browser"
+    empty_hint: "Type a URL or local file path above and press Enter."
+    empty_warning_title: "Browse only sites you trust"
+    empty_warning_lead: "This is a minimal iframe-based browser, not a hardened browser engine."
+    empty_warning_points:
+      - "Pages load in a sandboxed iframe: scripts run, but with no cookies, no popups, and no access to this app's origin."
+      - "The sandbox blocks the obvious attacks, but it is not a boundary to rely on — a page exploiting a browser or WebView bug could break out."
+      - "A page that breaks out gains this app's privileges: your session cookie, localStorage, and every auth-protected API."
+    proxy_on_notice: "Proxy ON. Pages are fetched server-side and reframed so they can embed; cookies aren't forwarded to the site. Click to switch to direct mode — some sites will refuse to load (X-Frame-Options)."
+    proxy_off_notice: "Proxy OFF. Pages load directly from the original origin with their own cookies. Many sites block embedding and won't render. Click to re-enable the proxy."
+
+  file_preview:
+    discard_confirm: "You have unsaved changes. Discard them?"
+    discard_scratch_confirm: "Discard scratch content?"
+    empty_title: "No file open"
+    empty_hint: "Pick a file to preview it here"
+    empty_open: "Open a file…"
+
+  search_files:
+    placeholder: "Search in files…"
+    idle_hint: "Find text across every file in the project"
+    min_chars: "Type at least {n} characters to search"
+    searching: "Searching…"
+    no_results: "No results for \"{query}\""
+    results_summary: "{matches} results in {files} files"
+    truncated_notice: "showing first {n}"
+    degraded_short: "basic engine"
+    degraded_notice: "ripgrep is not installed on the server — using a basic fallback that does not respect .gitignore"
+    error_title: "Search failed"
+    case_tooltip: "Match case"
+    word_tooltip: "Match whole word"
+    regex_tooltip: "Use regular expression"
+    filters_tooltip: "Search filters (include/exclude, ignored files)"
+    clear_tooltip: "Clear search"
+    include_placeholder: "files to include, e.g. *.js, src/**"
+    exclude_placeholder: "files to exclude, e.g. *.min.js, vendor/**"
+    ignored_toggle: "ignored files"
+    ignored_tooltip: "Also search .gitignored and hidden files"
+
+  image_preview:
+    prev: "Previous image"
+    next: "Next image"
+    prev_turn: "Previous turn's images"
+    next_turn: "Next turn's images"
+
+  image_annotate:
+    tool_marker: "Comment marker — numbers a spot, comment attaches to the message"
+    marker_placeholder: "Comment for marker {n} (attached as text, not drawn)"
+    marker_delete: "Delete this marker"
+    marker_note_edit: "Click to edit comment"
+    tool_pen: "Freehand draw"
+    tool_arrow: "Arrow"
+    tool_rect: "Rectangle"
+    tool_ellipse: "Ellipse"
+    tool_text: "Text"
+    color: "Color"
+    stroke_small: "Thin stroke"
+    stroke_medium: "Medium stroke"
+    stroke_large: "Thick stroke"
+    undo: "Undo (Ctrl+Z)"
+    redo: "Redo (Ctrl+Shift+Z)"
+    done: "Attach annotated"
+    skip: "Attach original"
+    cancel: "Cancel"
+    confirm_discard: "Discard changes?"
+    text_placeholder: "Type, then Enter"
+    hint_skip: "Shift+paste skips this editor"
+    hint_open: "Shift+paste opens this editor"
+    paste_toggle: "Auto-Open on paste"
+    paste_toggle_tip: "When on, pasting an image opens this editor automatically. Shift+paste always does the opposite. Same as Settings → Appearance → Input."
+
+  header_actions:
+    refresh: "Refresh"
+    open_auto_journal: "Auto-journal settings"
+    copy_path: "Copy path"
+    copy_content: "Copy content"
+    reveal_in_folder: "Reveal in folder"
+    sort_order: "Sort order"
+    open_viewer: "Open in viewer"
+    commit_history: "Commit History"
+    go_home: "Go Home"
+    search_files: "Search Files"
+    undo_last_turn: "Undo Last Turn"
+    new_terminal_tab: "New Terminal Tab"
+    kill_terminal: "Kill Terminal"
+    open_in_tab: "Open in Tab"
+    dock_to_side: "Dock to Side"
+    undock: "Undock"
+    visibility: "Visibility"
+
+  visibility_scope:
+    session: "This Tab"
+    session_desc: "Only visible on this tab"
+    project: "Project"
+    project_desc: "Visible on all tabs of this project"
+    all_sessions: "All Tabs"
+    all_sessions_desc: "All tabs, hidden in terminal fullscreen"
+    global: "Everywhere"
+    global_desc: "Always visible, even in terminal fullscreen"
+
+  active_sessions:
+    statuses:
+      thinking: "Thinking"
+      tasks: "Tasks"
+      tools: "Tools"
+      streaming: "Streaming"
+      compacting: "Compacting"
+      idle: "Idle"
+      disconnected: "Stored"
+      success: "Success"
+      timeout: "Timeout"
+      error: "Error"
+      killed: "Killed"
+
+  git:
+    statuses:
+      modified: "Modified"
+      added: "Added"
+      deleted: "Deleted"
+      renamed: "Renamed"
+      copied: "Copied"
+      untracked: "Untracked"
+      staged: "Staged"
+    sections:
+      staged: "Staged Changes"
+      untracked: "Untracked Files"
+
+  log_explorer:
+    message_types:
+      user: "User"
+      assistant: "Claude"
+      tool: "Tool"
+      thinking: "Thinking"
+      result: "Result"
+    tabs:
+      messages: "Messages"
+      raw: "Raw"
+      tools: "Tools"
+      system: "System"
+    no_logs_yet: "No logs yet — send a message to start"
+    copy_entry: "Copy entry"
+
+  file_explorer:
+    sort:
+      tooltip: "Sort"
+      name: "Name"
+      modified: "Modified"
+      size: "Size"
+      type: "Type"
+      asc: "Ascending"
+      desc: "Descending"
+    context_menu:
+      open: "Open"
+      enter: "Enter Folder"
+      copy_path: "Copy Path"
+      open_terminal: "Open in Terminal"
+      open_editor: "Open in Editor"
+      open_browser: "Open in Browser"
+      preview: "Preview"
+      insert_chat: "Insert to Chat"
+      copy_content: "Copy Content"
+      compare: "Compare..."
+      select_compare: "Select for Compare"
+      compare_selected: "Compare with {file}"
+
+  diff_viewer:
+    side_by_side: "Side-by-side"
+    toggle_view: "Toggle Split/Unified"
+    toggle_wrap: "Toggle line wrapping"
+    split_view: "Split"
+    unified_view: "Unified"
+    no_files: "No files to compare"
+    loading: "Loading diff..."
+    before: "Before"
+    after: "After"
+    unchanged_lines: "{count} unchanged lines"
+    prev_file: "Previous file"
+    next_file: "Next file"
+    comparing: "Comparing:"
+    select_second: "Now select a second file to compare"
+    history_bar:
+      step_prev: "Older snapshot"
+      step_next: "Newer snapshot"
+      picker_loading: "Loading history…"
+      picker_empty: "No shadow history"
+      picker_initial: "(initial)"
+      picker_no_match: "Working snapshot"
+      pivot_head: "vs HEAD"
+      pivot_head_tooltip: "Working tree vs git HEAD"
+      pivot_working: "vs Working"
+      pivot_working_tooltip: "Current snapshot vs working tree on disk"
+      pivot_pick: "Pick…"
+      pivot_pick_tooltip: "Open compare wizard"
+      from_prefix: "From:"
+      to_prefix: "To:"
+      from_tooltip: "Older side of the diff — pick a baseline"
+      to_tooltip: "Newer side of the diff — pick endpoint"
+      from_auto: "Auto (one before To)"
+      to_head: "Git HEAD"
+      to_working: "Working tree on disk"
+    wizard:
+      choose_source: "Compare with..."
+      source_shadow: "Shadow History"
+      source_shadow_desc: "Versions from Claude sessions"
+      source_git: "Git History"
+      source_git_desc: "Previous commits"
+      source_branch: "Git Branches"
+      source_branch_desc: "Same file on another branch"
+      source_working: "Working Changes"
+      source_working_desc: "HEAD vs working tree or staged"
+      source_file: "Another File"
+      source_file_desc: "Pick any project file"
+      picker_shadow: "Shadow history for {file}"
+      picker_git: "Git commits for {file}"
+      picker_branch: "Select a branch"
+      picker_file: "Choose a file to compare"
+      no_shadow_history: "No shadow history found for this file"
+      no_git_history: "No git history found for this file"
+      no_branches: "No branches found"
+      loading_commits: "Loading..."
+      loading_branches: "Loading branches..."
+      loading_files: "Loading file list..."
+      search_placeholder: "Search files..."
+      working_tree: "HEAD vs Working Tree"
+      staged_changes: "HEAD vs Staged"
+      no_changes: "No changes detected"
+      back: "Back"
+      current_branch: "(current)"
+
+  history_explorer:
+    tabs:
+      timeline: "Timeline"
+      files: "Files"
+      tags: "Tags"
+      decisions: "Decisions"
+      problems: "Problems"
+      learnings: "Learnings"
+    open_in_diff_tool: "Open in diff tool"
+    preview_file: "Preview file (HEAD)"
+    turn_actions:
+      go_to_session: "Go to session"
+      open_session_new_tab: "Open session in new tab"
+      view_session_log: "View session log"
+      copy_commit_hash: "Copy commit hash"
+      copy_session_id: "Copy session ID"
+      more_actions: "More actions"
+      no_session: "No session recorded"
+      session_not_found: "Session not found: {id}"
+
+  prompt_explorer:
+    current_project_only: "Current project only"
+    tabs:
+      history: "History"
+      drafts: "Drafts"
+    drafts:
+      empty: "No drafts yet — they're saved automatically while you type; {shortcut} banks one explicitly"
+      loading: "Loading drafts..."
+      error: "Failed to load drafts"
+      use: "Use"
+      copy: "Copy"
+      delete: "Delete"
+      delete_confirm: "Delete?"
+      clear_all: "Clear All"
+      clear_all_confirm: "Clear all drafts?"
+      cleared: "Cleared all drafts"
+      clear_failed: "Failed to clear drafts"
+    quick_filters:
+      favorites: "\u2764\uFE0F Favorites"
+      today: "Today"
+      this_week: "This Week"
+      long: "Long"
+      with_images: "With Images"
+      with_stash: "With Stash"
+    search_syntax:
+      long: "Long prompts (>500 chars)"
+      has_image: "Prompts with images"
+      today: "Today only"
+      week: "Last 7 days"
+
+  cost_analytics:
+    time_ranges:
+      - { value: 0, label: "All Time" }
+      - { value: 1, label: "Today" }
+      - { value: 7, label: "7 Days" }
+      - { value: 14, label: "14 Days" }
+      - { value: 30, label: "30 Days" }
+
+  discussion:
+    empty_title: "No Discussions Yet"
+    empty_desc: "Fork a side thread to ask a question without losing your place in the main chat."
+    steps:
+      - "Tap the bubble icon next to any message to open the comment editor"
+      - "Type your question and press Ctrl+Enter to fork the thread"
+      - "Or run /btw <question> from the input — no selection needed"
+    continued: "Continued in Tab"
+    reply_placeholder: "Reply..."
+    send: "Send"
+    resolve: "Resolve"
+    continue_tab: "Continue in Tab"
+
+  debug:
+    filters:
+      all: "All"
+      errors: "Errors"
+    empty:
+      default: "No logs yet"
+      filtered: "No {filter}"
+      search: "No matches"
+
+# ============================================================
+# Settings / Config panel
+# ============================================================
+settings:
+  layout_modes:
+    compact:
+      label: "Compact"
+      desc: "Minimal spacing, more content visible"
+    normal:
+      label: "Normal"
+      desc: "Balanced spacing and readability"
+    spacious:
+      label: "Spacious"
+      desc: "Maximum readability, generous spacing"
+  thinking_modes:
+    normal: "Normal"
+    thinking: "Thinking"
+    agent: "Agent"
+  # Tool categorization for the collapse-mode grid (config/state.js
+  # getToolCategory). Tools not listed here fall back to "execute".
+  tool_categories:
+    read: ["Read", "Glob", "Grep", "WebFetch", "WebSearch"]
+    write: ["Edit", "Write", "NotebookEdit"]
+  permissions:
+    default_label: "Default Permission Level"
+  system:
+    max_sessions:
+      label: "Maximum Sessions"
+      desc: "Number of concurrent tabs allowed (1-20)"
+    autocorrect:
+      label: "Disable autocorrect"
+      desc: "Turn off iOS autocorrect, autocapitalize, and spellcheck in chat input"
+  download_mode:
+    auto: "Auto"
+    auto_desc: "Copy link on iOS/iPadOS, download on desktop"
+    download: "Download"
+    download_desc: "Browser downloads the file directly"
+    copy: "Copy link"
+    copy_desc: "Copy download URL to clipboard (for PWA or sharing)"
+  shortcut_capture: "Press keys..."
+  shortcut_none: "None"
+  # Config panel tabs
+  tabs:
+    shortcuts: "Shortcuts"
+    commands: "Commands"
+    quick_actions: "Quick Actions"
+    appearance: "Appearance"
+    project: "Project"
+    system: "System"
+  # Section headings in config tabs
+  sections:
+    # Project tab
+    shadow_git: "Shadow Git"
+    extra_dirs_project: "Extra Directories (Project)"
+    # Agents tab
+    agent_pattern: "Agent Insertion Pattern"
+    # Snippets tab
+    snippets: "Snippets"
+    # Appearance tab
+    layout_density: "Layout Density"
+    font_size: "Font Size"
+    floating_buttons: "Floating Buttons"
+    tool_blocks: "Tool Blocks"
+    widget_sizes: "Widget Sizes"
+    widgets: "Widgets"
+    input: "Input"
+    # Engines tab (internally data-tab="models")
+    engines: "Engines"
+    engine_defaults: "New Session Defaults"
+    engine_settings: "Engine Settings"
+    engine_models: "Models"
+    models_background: "Auto-journal Model"
+    # System tab
+    sessions: "Sessions"
+    permissions: "Permissions"
+    file_downloads: "File Downloads"
+    shadow_git_defaults: "Shadow Git Defaults"
+    extra_dirs_global: "Extra Directories (Global)"
+  # Quick actions editor sub-sections
+  qa_editor:
+    preset: "Preset"
+    layout: "Layout"
+    actions: "Actions"
+    options: "Options"
+    select_action: "Select Action"
+    add_action: "Add Action"
+    replace_slot: "Replace Slot {key}"
+    search_placeholder: "Search actions..."
+    reset_fab: "Reset FAB Position"
+    preset_hint: "Choose a preset or customize your own."
+    layout_hint: "Click a slot to change its action."
+    context_aware: "Context-aware actions"
+    context_aware_hint: "Swap actions based on current state (e.g., show Stop when generating)"
+    show_tooltips: "Show tooltips"
+    show_tooltips_hint: "Display action names on hover"
+    drag_release: "Press-drag-release gesture"
+    drag_release_hint: "Long press FAB, drag to action, release to execute"
+    haptic: "Haptic feedback"
+    haptic_hint: "Vibrate on action selection (mobile)"
+    table_key: "Key"
+    table_action: "Action"
+    visibility: "FAB Visibility"
+    visibility_hint: "Where to show the floating action button"
+    visibility_always: "Always"
+    visibility_mobile: "Mobile"
+    visibility_disabled: "Disabled"
+    custom_title: "Custom Actions"
+    custom_hint: "Your own commands — run in a terminal, send as a prompt, or execute a slash command. Assign them to slots like any built-in action."
+    custom_add: "Add Custom Action"
+    custom_edit_title: "Edit Custom Action"
+    custom_new_title: "New Custom Action"
+    custom_label: "Label"
+    custom_label_placeholder: "e.g. Run tests"
+    custom_type: "Runs as"
+    custom_payload: "Command"
+    custom_payload_placeholder_terminal: "e.g. npm test (opens a terminal tab and runs it)"
+    custom_payload_placeholder_prompt: "Prompt text sent to Claude in the active session"
+    custom_payload_placeholder_slash: "e.g. /compact"
+    custom_icon: "Icon"
+    custom_save: "Save"
+    custom_cancel: "Cancel"
+    custom_delete: "Delete"
+    custom_delete_confirm: "Delete?"
+    custom_empty: "No custom actions yet"
+    custom_types:
+      terminal: "Terminal"
+      prompt: "Prompt"
+      slash: "Slash command"
+  # Commit section editor
+  section_editor:
+    add_title: "Add Custom Section"
+    edit_title: "Edit: {name}"
+    section_title_label: "Section Title"
+    prompt_label: "Prompt Instructions"
+    applies_to: "Applies To"
+    field_type: "Field Type"
+    section_id: "Section ID"
+    title_placeholder: "e.g., Security Notes"
+    prompt_placeholder: "Instructions for the auto-journal model on what to include..."
+    id_placeholder: "e.g., security_notes (lowercase, underscores)"
+    file_changes: "File Changes"
+    tool_only: "Tool Only (Investigation)"
+    list_type: "List (bullet points)"
+    single_type: "Single value (one line)"
+    field_type_hint: "How the response is structured for database storage"
+    id_hint: "Unique identifier, cannot be changed later"
+    add_btn: "Add Section"
+    save_btn: "Save Changes"
+    configure: "Configure Commit Sections"
+    enabled_count: "{count} enabled"
+  # Snippets editor
+  snippets_editor:
+    add_title: "Add Snippet"
+    edit_title: "Edit Snippet"
+    name_label: "Name (shown in autocomplete)"
+    text_label: "Expansion text"
+    name_placeholder: "e.g., Ultrathink"
+    text_placeholder: "e.g., Ultrathink and continue"
+    empty: "No snippets yet."
+    empty_hint: "Click \"Add\" to create a text snippet that can be quickly inserted with #."
+    delete_confirm: "Delete this snippet?"
+  # Toggle labels
+  toggles:
+    enable_shadow_git: "Enable Shadow Git"
+    rich_commits: "Rich Commits ({model})"
+    rich_commits_hint: "Generate intelligent commit summaries"
+    highlight_thinking: "Highlight thinking keywords"
+    highlight_thinking_hint: "Color-code ultrathink/megathink/think keywords (legacy feature, token budget is now specified manually)"
+    annotate_on_paste: "Annotate images on paste"
+    annotate_on_paste_hint: "Pasting a screenshot opens the drawing editor before upload. Shift+paste always does the opposite of this setting."
+    terminal_clipboard: "Terminal apps may write to clipboard"
+    terminal_clipboard_hint: "Lets programs in the terminal copy via OSC 52 — vim's y reaches your real clipboard over SSH and tmux. Every write is announced by a toast. Reading the clipboard is never allowed."
+    code_block_wrap: "Wrap long lines"
+    code_block_wrap_hint: "Wrap instead of scrolling sideways in code blocks, diffs and file previews. Each block's own wrap button flips this too."
+    selection_in_preview: "Enable selection in file preview"
+    selection_in_preview_hint: "Show bubble icons for tap-to-select in markdown file previews"
+    shadow_git_default: "Enable Shadow Git by default"
+    rich_commits_default: "Enable Rich Commits by default"
+    rich_commits_default_hint: "{model} generates intelligent commit summaries (~$0.01/turn)"
+    shortcut_hints: "Show shortcut hints in empty input"
+    shortcut_hints_hint: "Display a small cheat-sheet of keyboard shortcuts above the textarea when no message is typed"
+  # System setting names/descriptions
+  system_labels:
+    default_thinking: "Default Thinking Level"
+    default_thinking_desc: "Thinking budget for new sessions"
+    token_profile: "Default Token Profile"
+    token_profile_desc: "OAuth token for Claude CLI subprocess auth"
+    default_model: "Default Model"
+    default_model_desc: "Model for new sessions on the default engine"
+    session_list_limit: "Session List Limit"
+    session_list_limit_desc: "Max sessions to load in welcome/search (10-500)"
+    api_retry_max: "API Auto-Retry"
+    api_retry_max_desc: "Auto-retry on transient API errors like 500/529 (0 = disabled)"
+    sigint_on_ask: "Stop on questions"
+    sigint_on_ask_desc: "Interrupt Claude when it asks a multiple-choice question instead of letting it auto-answer and continue"
+    download_behavior: "Download behavior"
+    download_behavior_desc: "How the download button and \"Download\" context menu items work"
+    perm_normal_desc: "Permission mode for normal chat"
+  # Thinking levels
+  thinking_levels:
+    "off": "Off"
+    light: "Light (8k)"
+    normal: "Normal (32k)"
+    deep: "Deep (64k)"
+  # Collapse mode options
+  collapse_modes:
+    expanded: "Expanded"
+    compact: "Compact"
+    collapsed: "Collapsed"
+  # Confirm/alert dialogs
+  confirms:
+    reset_shortcuts: "Reset all keyboard shortcuts to defaults?"
+    delete_section: "Delete custom section \"{id}\"?"
+    reset_sections: "Reset all commit sections to defaults? This will remove custom sections."
+  alerts:
+    title_prompt_required: "Title and prompt are required"
+    applies_to_required: "Section must apply to at least one prompt type"
+    section_id_required: "Section ID is required"
+    section_id_exists: "Section ID already exists"
+  # Shortcuts tab
+  shortcuts_tab:
+    search_placeholder: "Search by name or shortcut key..."
+    hint: "Click on a shortcut to customize it. Press the new key combination to assign it."
+    reset_all: "Reset All"
+    reset_all_confirm: "Click again to confirm"
+  # Hints (explanatory text)
+  hints:
+    snippets_intro: "Type <code>#</code> in chat to insert snippets and agents. Add custom text snippets below."
+    pattern_hint: "Use <code>{agent}</code> as placeholder for agent name"
+    no_extra_dirs: "No extra directories configured"
+    no_global_extra_dirs: "No global extra directories"
+    extra_dirs_project_desc: "Additional directories for @ autocomplete in this project only."
+    extra_dirs_global_desc: "Directories indexed for @ autocomplete in all projects."
+    shadow_git_desc: "Track file changes for recovery and undo."
+    font_desc: "Adjust text size for chat and terminal."
+    tool_blocks_desc: "Default collapse state per context and tool type"
+    widget_sizes_desc: "Default size for floating widgets. Double-click title bar to restore."
+    floating_desc: "Opacity of FAB and chat navigator when inactive."
+    engines_hint: "Engines offered when starting a session. Disabling one hides it from the picker — sessions already running on it keep working."
+    engines_default_locked: "Default engine for new sessions — always available"
+    engines_make_default: "Make default"
+    engines_default_pinned: "The --default-provider server flag pins the default engine — changes apply after a restart without the flag."
+    engine_path_hint: "Command or absolute path for this engine's CLI. Leave empty to use \"{binary}\" from PATH."
+    engine_path_save: "Save"
+    engine_path_reset: "Reset"
+    engine_path_missing: "CLI not found"
+    engine_models_readonly: "Model definitions come from the engine's own CLI. Use the toggles to choose which are listed in pickers."
+    engine_models_empty: "No models reported yet — run this engine's CLI once to populate its catalog."
+    engine_model_toggle_title: "Show or hide this model in pickers"
+    engine_auth_checking: "Checking login…"
+    engine_auth_logged_in: "Logged in"
+    engine_auth_not_logged_in: "Not logged in"
+    engine_auth_unknown: "Login status unknown"
+    engine_auth_login_button: "Log in"
+    engine_auth_login_tab: "Login"
+    engine_default_model_label: "Default model"
+    engine_default_effort_label: "Default effort"
+    engine_default_profile_label: "Account"
+    engine_defaults_hint: "Used when a new session starts on this engine — every engine keeps its own defaults. Override per-session via the status-bar chips."
+    engine_journal_hint: "Model for this engine's auto-journal fork — runs after each turn to write shadow-git summaries, tags and decisions. Clear to use the engine's default."
+    thinking_hint: "Default thinking budget when creating new sessions. Can be changed per-session via the sparkle button."
+    token_hint: "Generate with <code>claude setup-token</code>, save to <code>~/.config/painapple-code/tokens/&lt;name&gt;</code> (filename becomes the profile name). Can be overridden per-session."
+    model_hint: "Preselects the model for new sessions on the default engine. Can be overridden per-session via the model chip in the status bar."
+    model_default_option: "Engine default"
+    models_list_hint: "Models offered in pickers (model chip, session setup, Default Model). Toggles hide a model without deleting it; edits save to models.yaml on the server."
+    models_summary_hint: "Powers the Auto-journal — runs after each turn to enrich shadow-git commits with summaries, tags, decisions, findings. Also used for context compaction forks. Not shown in the model selector."
+    models_summary_link: "Open Auto-journal panel →"
+    models_summary_label: "Model ID"
+    models_summary_desc: "Used for shadow-git enrichment forks and compaction"
+    models_add_placeholder_id: "claude-opus-5"
+    models_add_placeholder_label: "Opus 5"
+    models_add_placeholder_desc: "Brief description"
+    models_add_button: "Add model"
+    models_delete_title: "Remove"
+    models_delete_arm: "Click again to remove \"{id}\""
+    models_reset_button: "Restore defaults"
+    models_reset_arm: "Click again to restore defaults"
+    models_reset_done: "Models restored to defaults"
+    models_id_title: "Model ID — edit to rename (must be unique)"
+    models_id_dupe: "Model \"{id}\" already exists"
+    perm_hint: "Can be overridden per-session via the shield button in the input bar."
+    shadow_defaults_hint: "Default settings for new projects. Per-project settings can override these."
+
+# ============================================================
+# File explorer widget (search/filter bar tooltips)
+# ============================================================
+file_explorer:
+  search_subdirs_on: "Searching subfolders (click to limit to current folder)"
+  search_subdirs_off: "Limited to current folder (click to search subfolders)"
+  include_ignored_on: "Including .gitignore'd files (click to respect .gitignore)"
+  include_ignored_off: "Respecting .gitignore (click to include ignored files)"
+
+# ============================================================
+# Skills Manager widget (~/.claude/skills, .claude/skills)
+# ============================================================
+skills_widget:
+  search_placeholder: "Search skills…"
+  current_project_label: "this project"
+  current_project_tooltip: "Hide personal + plugin skills; show only this project's"
+  refresh_tooltip: "Refresh"
+  manage_plugins_tooltip: "Manage plugins"
+  view_grid: "Grid"
+  view_list: "List"
+  filters:
+    all: "All"
+    project: "Project"
+    personal: "Personal"
+    plugin: "Plugin"
+  groups:
+    project: "Project"
+    personal: "Personal (~/.claude)"
+    plugin: "Plugin"
+  # Section headers used in the chat-input `$` skills picker — explicit
+  # "Skills" suffix so users know what they're looking at as soon as it pops.
+  picker_groups:
+    project: "Project Skills"
+    personal: "Personal Skills"
+    plugin: "Plugin Skills"
+  invocation:
+    auto_and_manual: "auto + manual"
+    manual_only: "manual only"
+    auto_only: "auto only"
+    none: "disabled"
+  badges:
+    forks: "forks"
+    read_only: "read-only"
+  meta:
+    tools_count: "{n} tools"
+    files_count: "{n} files"
+    no_description: "No description"
+  actions:
+    edit: "Edit"
+    preview: "Preview"
+    save: "Save"
+    cancel: "Cancel"
+    open_full_editor: "Open in full editor"
+    copy_invocation: "Copy invocation"
+    copy_path: "Copy path"
+    open_directory: "Open directory"
+    show_supporting: "Show supporting files"
+    reveal_source: "View raw SKILL.md"
+    new: "New Skill"
+    new_tooltip: "Create a new skill"
+    duplicate: "Duplicate"
+    duplicate_to_project: "Duplicate to Project"
+    duplicate_to_personal: "Duplicate to Personal"
+    duplicate_here: "Duplicate in {scope}"
+    delete: "Delete"
+  create:
+    title: "New skill"
+    scope_label: "Scope"
+    name_label: "Name"
+    name_placeholder: "my-skill"
+    name_hint: "Lowercase letters, numbers, hyphens. Becomes the /slash-command."
+    description_label: "Description"
+    description_placeholder: "What this skill does and when to use it"
+    description_hint: "Claude uses this to decide when to auto-invoke. Recommended."
+    template_label: "Template"
+    templates:
+      blank: "Blank"
+      blank_desc: "Empty SKILL.md — start from scratch"
+      task: "Task workflow"
+      task_desc: "Manual-invocation workflow with numbered steps"
+      reference: "Reference content"
+      reference_desc: "Standing conventions/guides Claude auto-applies"
+      fork: "Subagent fork"
+      fork_desc: "Runs in an isolated Explore subagent"
+      visual: "Visual output"
+      visual_desc: "Bundles a script that generates visual output"
+    submit: "Create"
+    created: "Created /{name}"
+    create_failed: "Create failed: {error}"
+  confirm:
+    delete: "Delete /{name}? This removes the directory from disk and cannot be undone."
+  toast:
+    saved: "Saved {name}"
+    copied_invocation: "Copied /{name}"
+    copied_path: "Copied path"
+    deleted: "Deleted {name}"
+    duplicated: "Duplicated to /{name}"
+    duplicate_failed: "Duplicate failed: {error}"
+    delete_failed: "Delete failed: {error}"
+  editor:
+    title: "{name}"
+    path_label: "Source:"
+    dirty_indicator: "unsaved changes"
+    conflict: "File changed on disk. Reload and try again."
+    save_failed: "Save failed: {error}"
+    discard_confirm: "Discard unsaved changes?"
+  empty:
+    no_skills: "No skills yet. Create one under ~/.claude/skills/ or this project's .claude/skills/."
+    no_match: "No skills match your search."
+    no_project: "No project skills. Turn off \"this project\" to see your personal + plugin skills."
+  load_failed: "Failed to load skills: {error}"
+
+# ============================================================
+# Agents Manager Widget — manages agent definition .md files
+# (distinct from sub-agents widget, which monitors running tasks)
+# ============================================================
+agents_widget:
+  search_placeholder: "Search agents…"
+  current_project_label: "this project"
+  current_project_tooltip: "Hide personal agents; show only this project's"
+  refresh_tooltip: "Refresh"
+  view_grid: "Grid"
+  view_list: "List"
+  filters:
+    all: "All"
+    project: "Project"
+    personal: "Personal"
+  groups:
+    project: "Project"
+    personal: "Personal (~/.claude)"
+  meta:
+    tools_count: "{n} tools"
+    no_description: "No description"
+  actions:
+    save: "Save"
+    cancel: "Cancel"
+    open_full_editor: "Open in full editor"
+    copy_name: "Copy agent name"
+    copy_path: "Copy path"
+    new: "New Agent"
+    new_tooltip: "Create a new agent"
+    duplicate_to_project: "Duplicate to Project"
+    duplicate_to_personal: "Duplicate to Personal"
+    hide_from_suggest: "Hide from # suggestions"
+    show_in_suggest: "Show in # suggestions"
+    delete: "Delete"
+  suggest_toggle:
+    hide_tooltip: "Shown in # — click to hide"
+    show_tooltip: "Hidden from # — click to show"
+    hide_label: "Hide from # suggestions"
+    show_label: "Show in # suggestions"
+  create:
+    title: "New agent"
+    scope_label: "Scope"
+    name_label: "Name"
+    name_placeholder: "my-agent"
+    name_hint: "Lowercase letters, numbers, hyphens. Becomes the agent's identifier."
+    description_label: "Description"
+    description_placeholder: "What this agent does and when to use it"
+    description_hint: "Claude reads this when deciding which agent to delegate to."
+    template_label: "Template"
+    templates:
+      blank: "Blank"
+      blank_desc: "Empty agent — start from scratch"
+      researcher: "Researcher"
+      researcher_desc: "Read-only research with file/code references"
+      reviewer: "Reviewer"
+      reviewer_desc: "Code review with severity-grouped findings"
+      implementer: "Implementer"
+      implementer_desc: "Makes a change and verifies it"
+    submit: "Create"
+    created: "Created {name}"
+    create_failed: "Create failed: {error}"
+  confirm:
+    delete: "Delete agent {name}? This removes the file from disk and cannot be undone."
+  toast:
+    saved: "Saved {name}"
+    copied_name: "Copied {name}"
+    copied_path: "Copied path"
+    deleted: "Deleted {name}"
+    duplicated: "Duplicated to {name}"
+    duplicate_failed: "Duplicate failed: {error}"
+    delete_failed: "Delete failed: {error}"
+    hidden_from_suggest: "{name} hidden from # suggestions"
+    shown_in_suggest: "{name} shown in # suggestions"
+  editor:
+    dirty_indicator: "unsaved changes"
+    save_failed: "Save failed: {error}"
+    discard_confirm: "Discard unsaved changes?"
+  empty:
+    no_agents: "No agents yet. Create one under ~/.claude/agents/ or this project's .claude/agents/."
+    no_match: "No agents match your search."
+    no_project: "No project agents. Turn off \"this project\" to see your personal agents."
+  load_failed: "Failed to load agents: {error}"
+
+# ============================================================
+# Commands Manager Widget
+# ============================================================
+commands_widget:
+  search_placeholder: "Search commands…"
+  current_project_label: "this project"
+  current_project_tooltip: "Hide built-in + personal + plugin commands; show only this project's"
+  refresh_tooltip: "Refresh"
+  view_grid: "Grid"
+  view_list: "List"
+  filters:
+    all: "All"
+    builtin: "Built-in"
+    project: "Project"
+    personal: "Personal"
+    plugin: "Plugin"
+    custom: "Custom"
+  groups:
+    builtin: "Built-in (Claude CLI)"
+    project: "Project"
+    personal: "Personal (~/.claude)"
+    plugin: "Plugin"
+    custom: "Custom (saved on this device)"
+  badges:
+    builtin: "built-in"
+    custom: "custom"
+    read_only: "read-only"
+  meta:
+    no_description: "No description"
+  actions:
+    save: "Save"
+    cancel: "Cancel"
+    open_full_editor: "Open in full editor"
+    copy_invocation: "Copy invocation"
+    copy_path: "Copy path"
+    upgrade_to_skill: "Upgrade to skill folder"
+    delete: "Delete"
+  confirm:
+    delete: "Delete /{name}? This removes the file from disk and cannot be undone."
+  toast:
+    saved: "Saved {name}"
+    copied_invocation: "Copied /{name}"
+    copied_path: "Copied path"
+    deleted: "Deleted {name}"
+    delete_failed: "Delete failed: {error}"
+    upgraded: "/{name} upgraded to skill folder"
+    upgrade_failed: "Upgrade failed: {error}"
+  editor:
+    dirty_indicator: "unsaved changes"
+    save_failed: "Save failed: {error}"
+    discard_confirm: "Discard unsaved changes?"
+    builtin_readonly: "Built-in command — read-only"
+    custom_readonly: "Custom commands are managed in localStorage. Edit support coming soon."
+  empty:
+    no_commands: "No commands yet."
+    no_match: "No commands match your search."
+    no_project: "No project commands. Turn off \"this project\" to see all."
+  load_failed: "Failed to load commands: {error}"
+
+# ============================================================
+# Editor / code view
+# ============================================================
+editor:
+  loading: "Loading editor..."
+  load_failed: "Failed to load editor: {error}"
+  search:
+    find_placeholder: "Find..."
+    replace_placeholder: "Replace..."
+    no_results: "No results"
+    found: "{count} found"
+    of: "{current} of {count}"
+    replace_btn: "Replace"
+    replace_all_btn: "All"
+    toggle_replace: "Toggle replace"
+    match_case: "Match case"
+    regexp: "Regular expression"
+    prev_tooltip: "Previous (Shift+Enter)"
+    next_tooltip: "Next (Enter)"
+    close_tooltip: "Close (Escape)"
+
+# ============================================================
+# Orphan terminals
+# ============================================================
+orphan_terminals:
+  failed_load: "Failed to load"
+  empty: "No orphaned terminals"
+  kill_failed: "Failed to kill terminal: {error}"
+  kill_all_confirm: "Kill all {count} orphaned terminal(s)?"
+  kill_all_done: "Killed {count} orphaned terminal(s)"
+  kill_all_partial: "Killed {ok} of {count} terminal(s) — {failed} failed"
+
+# ============================================================
+# Keyboard bar (mobile/tablet)
+# ============================================================
+keyboard_bar:
+  buttons:
+    - { label: "Esc", key: "Escape" }
+    - { label: "Tab", key: "Tab" }
+    - { label: "Ctrl", modifier: "ctrl" }
+    - { label: "Alt", modifier: "alt" }
+    - { label: "\u2191", key: "ArrowUp" }
+    - { label: "\u2193", key: "ArrowDown" }
+    - { label: "\u2190", key: "ArrowLeft" }
+    - { label: "\u2192", key: "ArrowRight" }
+    - { label: "|", char: "|" }
+    - { label: "~", char: "~" }
+    - { label: "/", char: "/" }
+    - { label: "-", char: "-" }
+    - { label: "\u232B", key: "Backspace" }
+    - { label: "\U0001F4CB", action: "paste", title: "Paste" }
+  ctrl_options:
+    - { label: "C", key: "c", desc: "Interrupt" }
+    - { label: "D", key: "d", desc: "EOF" }
+    - { label: "Z", key: "z", desc: "Suspend" }
+    - { label: "L", key: "l", desc: "Clear" }
+    - { label: "A", key: "a", desc: "Home" }
+    - { label: "E", key: "e", desc: "End" }
+  alt_options:
+    - { label: "D", key: "d", desc: "Del word" }
+    - { label: "B", key: "b", desc: "Back word" }
+    - { label: "F", key: "f", desc: "Fwd word" }
+
+# ============================================================
+# Keyboard shortcuts (descriptions only - keys are in shortcuts.js)
+# ============================================================
+shortcuts:
+  new_session: "New session"
+  browse_sessions: "Browse Claude sessions"
+  command_palette: "Command palette"
+  grid_switcher: "All sessions grid"
+  grid_switcher_reverse: "All sessions grid — cycle backward"
+  close_tab: "Close active tab"
+  reopen_tab: "Reopen closed tab"
+  clone_session: "Clone session (same project, fresh chat)"
+  new_scratch: "New scratch editor"
+  prev_tab: "Previous tab"
+  next_tab: "Next tab"
+  toggle_terminal: "Toggle terminal panel"
+  new_terminal: "New terminal tab"
+  toggle_rail: "Toggle menu rail"
+  toggle_files: "Toggle file explorer"
+  toggle_preview: "Toggle file preview (last file)"
+  toggle_logs: "Toggle log explorer"
+  toggle_git: "Toggle git panel"
+  toggle_sessions: "Toggle active sessions"
+  toggle_costs: "Toggle cost analytics"
+  toggle_discussion: "Toggle discussion sidebar"
+  toggle_tasks: "Toggle background tasks"
+  toggle_browser: "Toggle browser"
+  toggle_debug: "Toggle debug logs"
+  toggle_history: "Toggle Journal"
+  toggle_eruda: "Toggle DOM inspector (Eruda)"
+  toggle_zen: "Zen Mode"
+  quick_actions: "Quick actions menu"
+  toggle_prompts: "Toggle prompt history"
+  save_prompt_draft: "Save input as draft"
+  reload_page: "Reload page"
+  toggle_skills: "Toggle skills manager"
+  toggle_commands: "Toggle commands manager"
+  toggle_thinking: "Toggle thinking settings"
+  cycle_effort_oneshot: "Cycle one-shot effort (next send only)"
+  search: "Search"
+  search_files: "Search in files (project-wide)"
+  find_next: "Find next"
+  find_prev: "Find previous"
+  prev_message: "Previous user message"
+  next_message: "Next user message"
+  toggle_focus: "Focus chat input"
+  focus_project: "Focus project input"
+  send: "Connect / Send"
+  help: "Show help"
+  settings: "Open settings"
+  close_cancel: "Close / Cancel / Stop"
+  permission_allow: "Allow pending permission"
+  back_sessions: "Back to sessions"
+  switch_tab: "Switch to tab {n}"
+  toggle_inline_edit: "Toggle inline edit (preview)"
+
+# ============================================================
+# Help dialog (Keyboard Shortcuts & Commands modal) — the static
+# sections; keyboard shortcuts render from the registry labels above
+# ============================================================
+help:
+  slash_title: "Slash Commands"
+  shell_title: "Shell Commands"
+  triggers_title: "Type-ahead Triggers"
+  triggers_hint: >-
+    Just type the character in the message input and a picker pops up
+    (slash only at the start of a message). Tab cycles through the
+    pickers empty, so you can browse what each one offers.
+  slash_commands:
+    - ["/help", "Show this help dialog"]
+    - ["/clear", "Archive session, start fresh in same project"]
+    - ["/compact", "Ask Claude to summarize the conversation"]
+    - ["/fork-compact", "Fork session, then compact (branch + summarize)"]
+    - ["/new", "Create a new session"]
+    - ["/fork", "Fork session (branch conversation)"]
+    - ["/clone", "Clone session (same project, fresh chat)"]
+    - ["/btw <question>", "Side question — fork a quick discussion thread"]
+  shell_commands:
+    - ["!command", "Run locally, output sent to Claude"]
+  about_title: "About"
+  about_server: "Server version"
+  about_frontend: "Frontend build"
+  about_stale: >-
+    The server has newer frontend assets ({build}) — reload the page to
+    pick them up.
+  about_restart: >-
+    The checkout has moved on ({disk}) — the server is still running the
+    code it booted with. Restart it to pick up the change.
+  triggers:
+    - ["#", "Snippets & agents — insert a saved snippet or trigger an agent"]
+    - ["/", "Slash commands — built-in, custom, and Claude's own"]
+    - ["@", "Mention a file — fuzzy-search project paths"]
+    - ["$", "Skills — browse and insert a skill invocation"]
+    - ["!", "Shell mode — run the line locally instead of sending it"]
+
+# ============================================================
+# Time period labels (used in multiple places)
+# ============================================================
+time_periods:
+  today: "Today"
+  yesterday: "Yesterday"
+  this_week: "This Week"
+  this_month: "This Month"
+  older: "Older"
+  all_time: "All Time"
+
+# ============================================================
+# Activity strip labels (tool progress indicators)
+# ============================================================
+activity:
+  tools:
+    read: "Reading"
+    edit: "Editing"
+    write: "Writing"
+    bash: "Running"
+    grep: "Searching"
+    glob: "Finding"
+    task: "Task"
+    task_default: "sub-agent"
+    web_fetch: "Fetching web content"
+    web_search: "Searching the web"
+    todo_write: "Updating task list"
+    notebook_edit: "Editing notebook"
+    default: "Using {name}"
+  states:
+    thinking: "Thinking..."
+    writing: "Writing..."
+    working: "Working..."
+    compacting: "Compacting..."
+    starting: "Starting..."
+  agents:
+    one: "{desc} · ×{tools} tools"
+    many: "{count} agents · ×{tools} tools"
+
+# ============================================================
+# Agent progress (background task_progress events)
+# ============================================================
+agent_progress:
+  tools_badge: "×{count} tools"
+  stalled: "No progress for {duration}"
+  completed_single: "Agent completed: {desc}"
+  completed_batch: "Agent completed ({done}/{total}): {desc}"
+  all_completed: "All {total} agents completed"
+  widget:
+    running: "running"
+    completed: "completed"
+    no_agents: "No agents"
+    no_agents_hint: "Agents appear when Claude spawns sub-agents via the Agent tool"
+    tools: "{count} tools"
+    tools_label: "tools"
+    tokens: "{count} tokens"
+    last_tool: "Last: {name}"
+    no_tools_yet: "Waiting for tool calls..."
+
+# ============================================================
+# API error auto-retry
+# ============================================================
+retry:
+  waiting: "API error — retrying in {delay}s ({retry_num}/{max_retries})..."
+  retrying: "Retrying ({retry_num}/{max_retries})..."
+  exhausted: "API error persists after retries. Please try again."
+  activity_waiting: "Retry in {delay}s..."
+  activity_retrying: "Retrying ({retry_num}/{max_retries})..."
+
+# ============================================================
+# Authentication errors (401 / expired token re-login affordance)
+# ============================================================
+auth:
+  error_role: "auth required"
+  error_generic: "Failed to authenticate. Your {engine} login has expired or is invalid."
+  login_button: "Log in to {engine}"
+
+# ============================================================
+# Tool renderer (code block UI)
+# ============================================================
+code_block:
+  copy_code: "Copy code"
+  toggle_wrap: "Toggle line wrap"
+
+# Floating selection panel (select text → Discuss / Stash)
+selection:
+  show_more: "Show full text"
+  show_less: "Collapse"
+  action_stash: "Stash"
+  action_update: "Update"
+  tooltip_stash: "Add to stash"
+  tooltip_update: "Update stash note"
+
+table:
+  # Segmented layout switch on wide tables — one label per segment, plus the
+  # group label for screen readers.
+  layout_switch_label: "Table layout"
+  layout_table: "Table view"
+  layout_stacked: "Stacked view"
+  layout_text: "Text view"
+
+tool_renderer:
+  badges:
+    done: "Done"
+    failed: "Failed"
+  buttons:
+    copy: "Copy"
+    copy_output: "Copy output"
+    copied: "Copied!"
+    view_full: "View Full Output"
+    collapse: "Collapse"
+    more_lines: "{count} more lines"
+  status:
+    running: "running..."
+    skipped: "Skipped"
+    searching: "Searching..."
+  empty:
+    no_matches: "No matches found"
+    no_files: "No files found"
+    no_output: "No output"
+    no_response: "No response text"
+  errors:
+    decode_chart: "Failed to decode chart data"
+    decode_diagram: "Failed to decode diagram data"
+    chart_disabled: "Chart rendering is disabled on this server"
+    diagram_disabled: "Diagram rendering is disabled on this server"
+
+# ============================================================
+# Quick actions registry (command palette entries)
+# ============================================================
+quick_actions_registry:
+  categories:
+    sessions: "Sessions & Tabs"
+    panels: "Panels & Widgets"
+    chat: "Chat Actions"
+    input: "Input Actions"
+    navigation: "Navigation"
+    utilities: "Utilities"
+    custom: "Custom"
+  actions:
+    new_session: { label: "New Session", desc: "Create new Claude session tab" }
+    close_tab: { label: "Close / Dismiss", desc: "Close topmost widget, or current tab if none open" }
+    prev_tab: { label: "Previous Tab", desc: "Switch to previous tab" }
+    next_tab: { label: "Next Tab", desc: "Switch to next tab" }
+    fork_session: { label: "Fork Session", desc: "Branch conversation from current point" }
+    clone_session: { label: "Clone Session", desc: "New session with same project (fresh chat)" }
+    new_draft: { label: "New Draft", desc: "Open a scratch editor for quick notes or pasting" }
+    toggle_favorite: { label: "Favorite", desc: "Toggle favorite status for current session" }
+    terminal: { label: "Terminal", desc: "Toggle terminal panel" }
+    new_terminal: { label: "New Terminal", desc: "Open new terminal tab" }
+    file_explorer: { label: "Files", desc: "Toggle file explorer" }
+    file_preview: { label: "Preview", desc: "Toggle file preview (reopens last file)" }
+    search_files: { label: "Search Files", desc: "Find text across project files" }
+    log_explorer: { label: "Logs", desc: "Toggle log explorer" }
+    git_panel: { label: "Git", desc: "Toggle git panel" }
+    cost_analytics: { label: "Costs", desc: "View cost analytics" }
+    active_sessions: { label: "Active", desc: "View running sessions" }
+    discussion: { label: "Discussion", desc: "Toggle discussion sidebar" }
+    debug_console: { label: "Debug", desc: "Toggle debug logs" }
+    prompt_history: { label: "Prompts", desc: "Browse and search prompt history" }
+    skills: { label: "Skills", desc: "Manage project, personal, and plugin skills" }
+    commands: { label: "Commands", desc: "Browse built-in CLI, project, personal, and plugin commands" }
+    agents: { label: "Agents", desc: "Manage project and personal sub-agent definitions" }
+    plugins: { label: "Plugins", desc: "Browse the marketplace, install/uninstall/enable plugins" }
+    browser: { label: "Browser", desc: "Open external URLs or render local HTML files" }
+    snippets: { label: "Snippets", desc: "Manage reusable text snippets inserted via #" }
+    uploads_browser: { label: "Uploads", desc: "Browse images and files uploaded to this session" }
+    background_tasks: { label: "Tasks", desc: "View background task outputs" }
+    history_explorer: { label: "Journal", desc: "Browse the auto-journal of your work" }
+    thinking_settings: { label: "Thinking", desc: "Toggle thinking/budget settings" }
+    reopen_tab: { label: "Reopen Tab", desc: "Reopen last closed tab" }
+    settings: { label: "Settings", desc: "Open settings panel" }
+    help: { label: "Help", desc: "Show keyboard shortcuts" }
+    send_message: { label: "Send", desc: "Send message to Claude" }
+    stop: { label: "Stop", desc: "Stop Claude's response" }
+    scroll_bottom: { label: "Scroll Down", desc: "Jump to latest message" }
+    scroll_top: { label: "Scroll Top", desc: "Jump to first message" }
+    focus_input: { label: "Focus Input", desc: "Focus chat input field" }
+    search_chat: { label: "Search", desc: "Search in conversation" }
+    trim_messages: { label: "Trim Messages", desc: "Remove old messages for better scroll performance (keeps last turn intact)" }
+    upload: { label: "Upload", desc: "Upload files or images to attach to message" }
+    paste: { label: "Paste", desc: "Paste text or image from clipboard (iOS friendly)" }
+    change_cwd: { label: "Change Dir", desc: "Change working directory" }
+    storage_info: { label: "Storage", desc: "Show local storage usage" }
+    storage_cleanup: { label: "Storage Cleanup", desc: "Free storage by trimming message history" }
+    fullscreen: { label: "Fullscreen", desc: "Toggle fullscreen mode" }
+    eruda: { label: "Eruda", desc: "In-browser DevTools (console, DOM, network, storage)" }
+    reload: { label: "Reload", desc: "Reload the app (like Cmd+R)" }
+    hard_reset: { label: "Hard Reset", desc: "Clear all local data (tabs, messages, caches) and reload fresh" }
+    capture_snapshot: { label: "Snapshot", desc: "Capture browser state for perf benchmarks" }
+    continue_in_cli: { label: "Continue in CLI", desc: "Copy the CLI command to resume this session in your terminal" }
+    zen_mode: { label: "Zen Mode", desc: "OLED focus view — chat, mind map, review, decide" }
+  presets:
+    balanced: { name: "Balanced", desc: "Default configuration for most users" }
+  paste_hint: "Tap and hold in input to paste"
+  hard_reset_confirm: "Hard Reset: This will clear all tabs, messages, caches, and local settings. Continue?"
+
+# ============================================================
+# Common UI patterns (shared across files)
+# ============================================================
+common:
+  loading: "Loading..."
+  searching: "Searching..."
+  no_results: "No results"
+  stop: "Stop"
+  cancel: "Cancel"
+  save: "Save"
+  delete: "Delete"
+  open: "Open"
+  import_label: "Import"
+
+# ============================================================
+# Connection state (status-bar pill)
+# ============================================================
+connection:
+  connected: "Connected"
+  connecting: "Connecting…"
+  disconnected: "Disconnected"
+  open_folder: "Open a folder…"
+  # Actionable tooltips shown on the status-bar dot when it is clickable
+  disconnected_click: "Disconnected — tap to reconnect"
+  connecting_click: "Connecting… tap to retry"
+
+# ============================================================
+# Engine (AI provider) picker — status-bar chip + popup.
+# Engine names/descriptions come from the server registry
+# (GET /api/providers); only the framing strings live here.
+# ============================================================
+engine:
+  # Message author for assistant bubbles when no engine is known at all
+  # (registry unreachable AND the session carries no provider id).
+  assistant_fallback: "assistant"
+  chip_tooltip: "AI engine for this session"
+  chip_tooltip_pending: "AI engine for this tab — choose before starting"
+  # Row descriptions (engine self-description is used when none applies)
+  this_session: "this session"
+  default_badge: "default for new sessions"
+  opens_new_tab: "opens a new tab"
+  # Popup header notes per state
+  fixed_note: "Engine locked after the first turn — picking another opens a new tab"
+  switchable_note: "Engine can still change — locks on the first message"
+  set_default: "Set as default"
+  pinned_by_flag: "Pinned by the --default-provider server flag"
+  unavailable_toast: "{engine} unavailable: {reason}"
+  pending_toast: "This tab will start on {engine}"
+  switch_toast: "Session engine: {engine}"
+  new_tab_toast: "New tab on {engine}"
+  fork_unsupported: "{engine} can't fork sessions"
+  # Session setup panel — friendly selectors shown in the empty chat area
+  # of a fresh session (nothing sent yet). Rows self-populate from the
+  # engine registry / managers; only the chrome strings live here.
+  setup:
+    title: "New session"
+    subtitle: "Pick how this session runs — everything here is one tap, and available later from the status bar."
+    engine_label: "Engine"
+    model_label: "Model"
+    permissions_label: "Permissions"
+    effort_label: "Effort"
+    account_label: "Account"
+    no_token: "No token"
+    lock_hint: "Engine locks on the first message — everything else can change anytime."
+    effort_labels:
+      minimal: "Minimal"
+      low: "Low"
+      medium: "Medium"
+      high: "High"
+      xhigh: "Extra High"
+      max: "Max"
+      ultra: "Ultra"
+
+# ============================================================
+# Effort chip + popup. Metadata for every level any engine can speak
+# — each engine's popup lists only its own vocabulary (per-engine
+# registry efforts, narrowed to the picked model's range when the
+# model self-describes one). A level missing here still renders,
+# falling back to its raw name.
+# ============================================================
+effort:
+  button_title: "Effort: {label}"
+  tooltip_pending: "{title} (next send only) · Shift+click cycles, plain disarms"
+  tooltip_base: "{title} · +Shift for next-send only"
+  levels:
+    minimal:
+      label: "Minimal"
+      short: "Min"
+      icon: "○"
+      desc: "Fastest — barely reasons"
+    low:
+      label: "Low"
+      short: "Lo"
+      icon: "◔"
+      desc: "Fast & cheap"
+    medium:
+      label: "Medium"
+      short: "Med"
+      icon: "◑"
+      desc: "Balanced"
+    high:
+      label: "High"
+      short: "Hi"
+      icon: "◕"
+      desc: "Thorough"
+    xhigh:
+      label: "Extra High"
+      short: "XHi"
+      icon: "◉"
+      desc: "Deeper"
+    max:
+      label: "Max"
+      short: "Max"
+      icon: "●"
+      desc: "Deepest"
+    ultra:
+      label: "Ultra"
+      short: "Ult"
+      icon: "✦"
+      desc: "Beyond max — longest thinking"
+
+# ============================================================
+# Model chip / popup / setup-panel model row. The model LISTS come
+# from each engine's registry entry (Claude: models.yaml, Codex: the
+# CLI's own cache); only the framing strings live here.
+# ============================================================
+models:
+  # Shown when the engine runs its own configured model (no pick made
+  # and the app can't name the engine's default)
+  engine_default_label: "Default"
+  engine_default_desc: "Whatever this engine is configured to use"
+  global_default_badge: "global default"
+  set_default_button: "Set as default"
+
+# ============================================================
+# Helpers install (shadow-git CLI + agent template)
+# Pill is always visible — clicking opens a modal that explains the
+# auto-journal feature and offers install / update / reinstall.
+# ============================================================
+helpers:
+  pill:
+    current: "Auto-journal"
+    not_installed: "Helpers not installed"
+    outdated: "Helpers outdated"
+  modal:
+    title_current: "Auto-journal is active"
+    title_missing: "Set up auto-journal"
+    title_outdated: "Update auto-journal helpers"
+    body_intro_lead: "Two layers run together to keep a record of your work:"
+    body_intro_shadow: "Shadow git silently versions every file Claude touches into a separate git history — so you can undo, diff, or browse what changed turn-by-turn without polluting your real repo."
+    body_intro_rich: "Rich commits is a {model} fork that runs after each turn and adds metadata to those commits — a summary, tags, decisions, findings, files touched. Lets you search by intent, not just diff."
+    body_intro_outro: "Browse it from the Journal panel, query it from the terminal, or have a subagent dig through it."
+    body_current: |
+      Both helpers are installed and up to date. Re-run install to
+      overwrite any local edits with the bundled versions.
+    body_missing: |
+      The helpers above are not installed yet. Installing copies the
+      files into your home directory — no sudo, no PATH changes. The
+      install runs on the bridge server's filesystem, not your
+      iPad/laptop.
+    body_outdated: |
+      Your installed helpers are out of date with the bundled versions.
+      Update to keep the installed copies in sync.
+    install_btn: "Install"
+    update_btn: "Update"
+    reinstall_btn: "Reinstall"
+    uninstall_btn: "Uninstall"
+    uninstall_confirm_btn: "Click again to confirm"
+    open_journal_btn: "Open Journal"
+    cancel_btn: "Not now"
+    close_btn: "Close"
+    dont_show: "Don't show again (until next update)"
+    installing: "Installing…"
+    uninstalling: "Removing helpers…"
+    success: "Installed successfully."
+    uninstalled: "Helpers removed."
+    failure: "Install failed — see log below."
+    uninstall_failure: "Uninstall failed — see log below."
+    section_project: "This project"
+    section_helpers: "Optional helpers"
+    section_helpers_hint: "Auto-journal records regardless. These helpers add ways to query it."
+    helpers_usage_example: "Type <code>#</code> in chat → pick <code>shadow-git-helper</code> to summon a subagent that searches your journal. Or run <code>~/.local/bin/shadow-git log</code> in the terminal."
+    helpers_status_missing: "Not installed"
+    helpers_status_outdated: "Update available"
+    helpers_status_current: "Up to date"
+    toggle_shadow_git_hint: "Auto-commit each turn's file changes to a parallel git history."
+    toggle_rich_commits_hint: "Run a {model} fork after each turn to enrich commits with summary, tags, decisions, findings."
+    sections_label: "Sections"
+    sections_count: "{enabled} of {total} enabled"
+    sections_customize: "Customize sections →"
+    sections_required_marker: "required"
+    settings_link: "Configure defaults for new projects"
+    no_active_project: "Open a project to configure shadow git for it."
+    status_recording_full: "Recording with enrichment"
+    status_recording_basic: "Recording (basic — no {model} enrichment)"
+    status_project_disabled: "Disabled for this project"
+    status_helpers_missing: "Helpers not installed"
+    status_helpers_outdated: "Helpers update available"
+    agent_model_label: "Subagent model"
+    agent_model_hint: "Which model the shadow-git-helper subagent runs on when you summon it — same picks as the model selector, plus Inherit (use your main thread's model). Separate from the {model} enrichment fork above."
+    agent_model_opt_inherit: "Inherit"
+
+# ============================================================
+# Upload Manager (input-area pending uploads)
+# ============================================================
+upload_manager:
+  annotate_image: "Annotate image"
+  remove_image: "Remove image"
+  remove_file: "Remove file"
+
+# ============================================================
+# Uploads Widget
+# ============================================================
+uploads:
+  only_this_session: "Only this session"
+  empty_title: "No uploads yet"
+  empty_session: "Paste or drag images into the chat input"
+  empty_project: "No uploads in any session of this project"
+  attach: "Attach to Chat"
+  attach_tooltip: "Attach to the message input"
+  attached: "Attached {name}"
+  attach_failed: "Couldn't attach {name}"
+  attach_no_path: "This upload has no path on disk — reload the widget"
+  attach_no_session: "Open a session first to attach uploads"
+
+# ============================================================
+# Zen Mode (OLED focus view)
+# ============================================================
+zen_mode:
+  empty: "No session data"
+  empty_chat: "No messages yet"
+  empty_map: "No turns yet. Start a conversation to see the map."
+  stats_heading: "Session"
+  turns_heading: "Conversation Flow"
+  files_edited_heading: "Files Changed"
+  files_read_heading: "Files Read"
+  stat_turns: "Turns"
+  stat_files: "Files Edited"
+  stat_tools: "Tool Calls"
+  stat_cost: "Cost"
+  decide_prompt: "What would you like to do next?"
+  action_continue: "Continue"
+  action_continue_hint: "Keep working in this session"
+  action_diff: "View Diff"
+  action_diff_hint: "See all changes made"
+  action_commit: "Commit"
+  action_commit_hint: "Ask Claude to commit changes"
+  action_new: "New Session"
+  action_new_hint: "Start fresh"
+
+# ============================================================
+# Turn Summary Bar
+# ============================================================
+turn_bar:
+  read_tooltip: "{path} — read this turn"
+  read_session_tooltip: "{path} — read earlier this session"
+  expand_hint: "click to expand"
+
+# ============================================================
+# Grid Switcher (iPad-style session card grid)
+# ============================================================
+grid_switcher:
+  title: "All Sessions"
+  count: "{n} open"
+  empty: "No sessions open. Press Ctrl+T to start one."
+  close_tooltip: "Close switcher (Esc)"
+  close_session_tooltip: "Close session"
+  no_messages: "No messages yet"
+  user_prefix: "You:"
+  no_cwd: "(no working directory)"
+  worktree_label: "Worktree"
+  pending_question: "Pending question"
+  plan_ready: "Plan ready for review"
+  untitled: "Untitled session"
+  turn: "turn"
+  turns: "turns"
+  now: "just now"
+
+# ============================================================
+# AskUserQuestion form (interactive question card + stop note)
+# ============================================================
+question_form:
+  status_answered: "Answered"
+  status_ignored: "Ignored"
+  status_skipped: "Skipped"
+  comment_label: "Add a comment (optional)"
+  comment_placeholder: "Anything else you want to tell Claude, regardless of the options above…"
+  edit_answer: "Edit"
+  edit_hint: "Change your answer and resend it to Claude"
+  cancel_edit: "Cancel"
+  cancel_edit_hint: "Discard changes and keep your previous answer"
+  resend_answers: "Resend Answer"
+  ignore_hint: "Dismiss without sending an answer"
+  stop_on_text: "Claude was stopped here so you can answer."
+  auto_deny_text: "Claude wasn't stopped — the question was auto-denied and it kept going. Enable to be asked."
+  stop_toggle_label: "Stop on questions"
+  stop_toggle_hint: "When on, Claude is stopped on these questions so you can answer. When off, the question is auto-denied and Claude keeps going. Applies to all sessions."
+  stop_toggle_on: "Claude will now stop on questions"
+  stop_toggle_off: "Claude will no longer stop on questions"
+
+# ============================================================
+# Permission card (interactive can_use_tool approve/deny — claude-sdk provider)
+# ============================================================
+permission_card:
+  title: "Permission needed"
+  wants_to_use: "Claude wants to use {tool}"
+  allow: "Allow"
+  deny: "Deny"
+  feedback_placeholder: "Optional: tell Claude what to do instead (sent on Deny)"
+  status_allowed: "Allowed"
+  status_denied: "Denied"
+  status_expired: "Expired — the process is no longer waiting on this"
+  waiting: "Claude is paused until you decide"
+  # Frozen wait-duration shown on a resolved/expired card ({elapsed} = e.g. "12s")
+  waited: "waited {elapsed}"
+  # Deny guidance echoed on the answered card ({feedback} = what the user typed)
+  deny_feedback_quote: "“{feedback}”"
+  # "Always allow" options — one row per engine suggestion on the ask.
+  # {detail} is the rule/directory/mode; {scope} one of the scope_* strings.
+  suggestion_add_rules: "Always allow {detail} {scope}"
+  suggestion_add_directories: "Allow access to {detail} {scope}"
+  suggestion_set_mode: "Switch to {detail} mode {scope}"
+  scope_session: "(this session)"
+  scope_local_settings: "(this project, settings.local.json)"
+  scope_project_settings: "(this project, shared settings)"
+  scope_user_settings: "(all projects)"
+  status_allowed_always: "Allowed + rule saved"
+  toast_pending: "{name}: Claude needs permission"
+  activity_paused: "Waiting for permission…"
+  # Tool-input preview tags (Write/Edit target headers)
+  lines_count: "{n} lines"
+  edits_count: "{n} edits"
+
+# Tab-strip attention badges (question wizard / plan approval / permission ask)
+tab_badges:
+  question: "Pending question"
+  plan: "Plan ready for review"
+  permission: "Permission needed"
+
+# ============================================================
+# Quick Switcher (fuzzy picker for files, commands, panels, projects, sessions, skills)
+# ============================================================
+quick_switcher:
+  placeholders:
+    default: "Search files, @ open path, > commands, # panels, ~ projects, $ skills…"
+    files: "Search files…"
+    read_files: "Search files Claude read this session…"
+    commands: "Run command…"
+    panels: "Open panel…"
+    projects: "Open project in new tab…"
+    project_sessions: "Sessions in {project}…"
+    skills: "Search skills…"
+  sections:
+    files: "Files"
+    read_files: "Read this session"
+    commands: "Commands"
+    panels: "Panels"
+    projects: "Projects"
+    recent: "Recent"
+    sessions: "Sessions"
+    skills: "Skills"
+  panel_groups:
+    work: "Work"
+    analytics: "Analytics"
+    workflow: "Workflow"
+    system: "System"
+    other: "Other"
+  empty:
+    no_results: "No results"
+    no_sessions: "No sessions in this project yet"
+    no_cwd: "No working directory — open a project first"
+  hints:
+    keys:
+      nav: "↑↓"
+      open: "↵"
+      menu: "alt ↵"
+      close: "esc"
+      drill_in: "→"
+      drill_out: "←"
+    labels:
+      navigate: "navigate"
+      open: "open"
+      menu: "menu"
+      close: "close"
+      sessions: "sessions"
+      back: "back"
+    prefixes:
+      - { glyph: "@", label: "open path" }
+      - { glyph: "!", label: "read files" }
+      - { glyph: ">", label: "commands" }
+      - { glyph: "#", label: "panels" }
+      - { glyph: "~", label: "projects" }
+      - { glyph: "$", label: "skills" }
+  action:
+    label: "Quick Switcher"
+    desc: "Fuzzy-find files, commands, panels, projects, sessions, and skills"
+  skills:
+    open_manager: "Open Skills Manager"
+    open_manager_desc: "Browse, edit, and create skills"
+  project:
+    session_count_one: "{n} session"
+    session_count_many: "{n} sessions"
+  session:
+    message_count_one: "{n} msg"
+    message_count_many: "{n} msgs"
+    just_now: "just now"
+    minutes_ago: "{n}m ago"
+    hours_ago: "{n}h ago"
+    days_ago: "{n}d ago"
+    untitled: "Untitled session"
+  context_menu:
+    file:
+      copy_filename: "Copy Filename"
+    panel:
+      open: "Open"
+      close: "Close"
+      open_tab: "Open as Tab"
+      open_background: "Open as Background Tab"
+    project:
+      open: "Open in New Tab"
+      copy_path: "Copy Path"
+      browse_sessions: "Browse Sessions →"
+    session:
+      open: "Open in New Tab"
+      open_background: "Open in Background Tab"
+      copy_id: "Copy Session ID"
+    skill:
+      open_in_manager: "Open in Skills Manager"
+      insert_in_chat: "Insert into chat"
+      copy_invocation: "Copy invocation"
+
+open_dialog:
+  aria_label: "Open file or folder"
+  placeholder: "Open file or folder…  (try src/, ~/, /etc, ../)"
+  empty:
+    no_results: "No matches"
+  hints:
+    nav: "↑↓ navigate"
+    complete: "tab complete"
+    preview: "↵ preview"
+    open_session: "↵ new session here"
+    enter_folder: "↵ enter folder"
+    create_folder: "↵ create folder"
+    parent: "← up"
+    switcher: "⌫ switcher"
+    close: "esc close"
+  section:
+    project: "Project"
+    folder: "{dir}"
+  open_here:
+    label: "Open this folder"
+    desc: "Start a new session at the current location"
+  create_here:
+    label: "Create this folder"
+    desc: "Create {dir} and enter it"
+  create_failed: "Couldn't create folder: {error}"
+  menu:
+    open_session: "Start session here"
+    drill_in: "Browse folder"
+  action:
+    label: "Open File or Folder"
+    desc: "Open a file (preview) or folder (new session)"

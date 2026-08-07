@@ -1,0 +1,1732 @@
+/**
+ * FilePreviewWidget Styles
+ * Lightweight file preview with syntax highlighting
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CONTAINER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.file-preview-widget {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    background: var(--surface-bg, #1a1a1a);
+    color: var(--text-primary, #e0e0e0);
+    font-family: var(--font-mono, 'SF Mono', Menlo, monospace);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WIDGET HEADER OVERRIDES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* File preview uses path as title - needs monospace and truncation */
+#widget-file-preview .widget-header {
+    height: 36px;
+    padding: 0 var(--sp-8);
+    gap: var(--sp-6);
+}
+
+#widget-file-preview .widget-header-spacer {
+    flex: 0; /* Title already has flex:1, spacer would steal half the space */
+}
+
+#widget-file-preview .widget-title {
+    font-family: var(--font-mono, 'SF Mono', Menlo, monospace);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--text-secondary, #aaa);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+    /* Show end of path (filename) when truncating */
+    direction: rtl;
+    text-align: left;
+}
+
+#widget-file-preview .widget-title::before {
+    content: '\200E'; /* LTR mark to fix display */
+}
+
+/* Separator between copy-path and other actions */
+#widget-file-preview .header-separator {
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    background: var(--border-color, #333);
+    margin: 0 var(--sp-2);
+}
+
+/* Make header button container for separator not clickable */
+#widget-file-preview .widget-header-btn:has(.header-separator) {
+    pointer-events: none;
+    width: auto;
+    padding: 0 var(--sp-2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HEADER BREADCRUMB (clickable path → quick file switch)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* When the title holds a breadcrumb it becomes an LTR flex container.
+   Override the rtl/ellipsis path-truncation rules above (needs the ID scope
+   to beat their specificity). */
+#widget-file-preview .widget-title.has-breadcrumb {
+    direction: ltr;
+    display: flex;
+    align-items: center;
+    text-overflow: clip;
+}
+#widget-file-preview .widget-title.has-breadcrumb::before {
+    content: none;
+}
+
+.preview-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.preview-breadcrumb::-webkit-scrollbar {
+    display: none;
+}
+
+.pb-segment {
+    flex: 0 0 auto;
+    padding: var(--sp-2) var(--sp-4);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+.pb-segment:hover {
+    color: var(--text-primary, #e0e0e0);
+    background: var(--bg-hover, #30363d);
+}
+.pb-segment.is-file {
+    color: var(--text-primary, #e0e0e0);
+    font-weight: 500;
+}
+.pb-root {
+    display: inline-flex;
+    align-items: center;
+    color: var(--accent);
+}
+.pb-root svg {
+    width: 13px;
+    height: 13px;
+    display: block;
+}
+.pb-sep {
+    flex: 0 0 auto;
+    color: var(--text-tertiary, #666);
+    font-size: var(--font-size-xs);
+    user-select: none;
+}
+
+/* ── Breadcrumb dropdown (appended to <body>, positioned fixed) ───────────── */
+
+.preview-breadcrumb-menu {
+    position: fixed;
+    z-index: var(--z-overlay, 2000);
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+    max-width: min(380px, calc(100vw - 16px));
+    max-height: min(60vh, 440px);
+    background: var(--bg-secondary, #161b22);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+    font-family: var(--font-mono, 'SF Mono', Menlo, monospace);
+}
+
+.pbm-header {
+    padding: var(--sp-4);
+    border-bottom: 1px solid var(--border-color, #30363d);
+}
+.pbm-filter {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--bg-primary, #0d1117);
+    border: 1px solid var(--border-color, #30363d);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary, #e0e0e0);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    padding: var(--sp-3) var(--sp-6);
+    outline: none;
+}
+.pbm-filter:focus {
+    border-color: var(--accent);
+}
+
+.pbm-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-2);
+}
+
+.pbm-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    width: 100%;
+    text-align: left;
+    padding: var(--sp-3) var(--sp-6);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary, #aaa);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.pbm-item .pbm-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    color: var(--text-tertiary, #666);
+}
+.pbm-item .pbm-icon svg {
+    width: 14px;
+    height: 14px;
+}
+.pbm-item .pbm-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pbm-item.is-dir {
+    color: var(--text-primary, #e0e0e0);
+}
+.pbm-item.is-dir .pbm-icon {
+    color: var(--accent);
+}
+.pbm-item:hover,
+.pbm-item.active {
+    background: var(--bg-hover, #30363d);
+    color: var(--text-primary, #e0e0e0);
+}
+.pbm-item.current {
+    color: var(--accent);
+}
+.pbm-item.current::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    margin-left: auto;
+    border-radius: 50%;
+    background: var(--accent);
+}
+.pbm-up .pbm-name {
+    color: var(--text-tertiary, #666);
+}
+
+.pbm-loading,
+.pbm-empty,
+.pbm-error,
+.pbm-more {
+    padding: var(--sp-8);
+    color: var(--text-tertiary, #666);
+    font-size: var(--font-size-sm);
+    text-align: center;
+}
+.pbm-more {
+    padding: var(--sp-4) var(--sp-8);
+    border-top: 1px solid var(--border-color, #30363d);
+}
+
+/* Icon sizes in header */
+#widget-file-preview .widget-header-btn svg {
+    width: 15px;
+    height: 15px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BODY
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;           /* iOS: allow both scroll directions */
+    overscroll-behavior: contain;        /* Prevent scroll chain to parent */
+}
+
+/* Loading state */
+.preview-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--sp-12);
+    color: var(--text-secondary, #888);
+}
+
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border, #333);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.preview-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--sp-12);
+    color: var(--text-muted, #666);
+}
+
+.preview-empty svg {
+    width: 48px;
+    height: 48px;
+    opacity: 0.5;
+}
+
+.preview-empty-hint {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted, #666);
+    margin-top: calc(var(--sp-12) * -1);
+}
+
+/* "Open a file…" — the empty state's way in, same picker as Cmd+O */
+.preview-empty-open {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.preview-empty-open:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Override the 48px icon sizing the empty-state illustration sets */
+.preview-empty-open svg {
+    width: 15px;
+    height: 15px;
+    opacity: 1;
+}
+
+.preview-empty-open kbd {
+    padding: 1px var(--sp-4);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xs);
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+}
+
+/* Error state */
+.preview-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: var(--sp-12);
+    color: var(--error, #ff6b6b);
+    padding: var(--sp-20);
+    text-align: center;
+}
+
+.preview-error svg {
+    width: 32px;
+    height: 32px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOOLBAR (toggle + line badge)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--surface-bg, #1a1a1a);
+    border-bottom: 1px solid var(--border-color, #333);
+    flex-shrink: 0; /* Don't shrink, stay fixed height */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VIEW MODE TOGGLE (for markdown files)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-view-toggle {
+    display: flex;
+    gap: var(--sp-4);
+}
+
+.preview-view-toggle .toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-12);
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary, #888);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-sans, system-ui, sans-serif);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preview-view-toggle .toggle-btn:hover {
+    background: var(--surface-hover, #2a2a2a);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-view-toggle .toggle-btn.active {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.preview-view-toggle .toggle-btn svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LINE BADGE (shows line number or range)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-line-badge {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-10);
+    background: rgba(255, 213, 79, 0.12);
+    border: 1px solid rgba(255, 213, 79, 0.3);
+    border-radius: var(--radius-md);
+    color: #ffd54f;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, 'SF Mono', Menlo, monospace);
+    margin-left: auto; /* Push to right side of toolbar */
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preview-line-badge:hover {
+    background: rgba(255, 213, 79, 0.2);
+    border-color: rgba(255, 213, 79, 0.5);
+}
+
+.preview-line-badge svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.preview-line-badge .line-count {
+    color: var(--text-secondary, #888);
+    font-size: var(--font-size-xs);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOOLBAR SPACER (pushes elements to right)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.toolbar-spacer {
+    flex: 1;
+    min-width: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LANGUAGE SELECTOR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-language-selector {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+
+.preview-language-selector .language-select {
+    appearance: none;
+    padding: var(--sp-5) var(--sp-24) var(--sp-5) var(--sp-10);
+    background: var(--surface-bg, #1a1a1a);
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary, #888);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-sans, system-ui, sans-serif);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    /* Custom dropdown arrow */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+}
+
+.preview-language-selector .language-select:hover {
+    border-color: var(--border-hover, #555);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-language-selector .language-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(111, 158, 255, 0.2);
+}
+
+/* Override state - show accent border when language is manually set */
+.preview-language-selector.overridden .language-select {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Reset button - only visible when overridden */
+.preview-language-selector .reset-language-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary, #888);
+    font-size: var(--font-size-md);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.preview-language-selector .reset-language-btn:hover {
+    background: var(--surface-hover, #2a2a2a);
+    border-color: var(--border-hover, #555);
+    color: var(--text-primary, #e0e0e0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEARCH BUTTON
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-search-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary, #888);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.preview-search-btn:hover {
+    background: var(--surface-hover, #2a2a2a);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-search-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOWNLOAD LINK BUTTON
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-download-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary, #888);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.preview-download-btn:hover {
+    background: var(--surface-hover, #2a2a2a);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-download-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEARCH BAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-search-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    flex: 1;
+    min-width: 0;
+}
+
+.preview-search-input {
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-6) var(--sp-12);
+    background: var(--surface-bg-elevated, #252525);
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-md);
+    color: var(--text-primary, #e0e0e0);
+    font-size: var(--font-size-base);
+    font-family: var(--font-sans, system-ui, sans-serif);
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.preview-search-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(111, 158, 255, 0.2);
+}
+
+.preview-search-input::placeholder {
+    color: var(--text-muted, #666);
+}
+
+.preview-search-count {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary, #888);
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: center;
+}
+
+.preview-search-count.no-results {
+    color: var(--error, #ff6b6b);
+}
+
+.preview-search-nav,
+.preview-search-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary, #888);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.preview-search-nav:hover:not(:disabled),
+.preview-search-close:hover {
+    background: var(--surface-hover, #2a2a2a);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-search-nav:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.preview-search-nav svg,
+.preview-search-close svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEARCH MATCH HIGHLIGHTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.search-match {
+    background: rgba(255, 213, 79, 0.3);
+    border-radius: var(--radius-xs);
+    padding: 0 1px;
+}
+
+.search-match.current {
+    background: rgba(255, 213, 79, 0.6);
+    outline: 2px solid rgba(255, 213, 79, 0.8);
+    outline-offset: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WRAP TOGGLE BUTTON
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-wrap-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary, #888);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0; /* Don't shrink */
+}
+
+.preview-wrap-toggle:hover {
+    background: var(--surface-hover, #2a2a2a);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-wrap-toggle.active {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.preview-wrap-toggle svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Adjust line badge margin when wrap toggle is present */
+.preview-toolbar .preview-line-badge {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RENDERED MARKDOWN VIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-rendered-wrapper {
+    padding: var(--sp-16) var(--sp-20);
+    min-height: 100%;
+}
+
+.preview-rendered {
+    font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+    font-size: var(--font-size-md);
+    line-height: 1.6;
+    color: var(--text-primary, #e0e0e0);
+}
+
+/* Use existing markdown-content styles from 30-markdown.css */
+
+/* ─── YAML front matter panel ─── */
+
+.preview-frontmatter {
+    margin-bottom: var(--sp-16, 16px);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-md, 6px);
+    background: var(--bg-secondary, rgba(255, 255, 255, 0.03));
+    overflow: hidden;
+}
+
+.preview-fm-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6, 6px);
+    width: 100%;
+    padding: var(--sp-6, 6px) var(--sp-10, 10px);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #9ca3af);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    text-align: left;
+}
+
+.preview-fm-header:hover {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-fm-chevron {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}
+
+.preview-frontmatter.collapsed .preview-fm-chevron {
+    transform: rotate(-90deg);
+}
+
+.preview-fm-count {
+    margin-left: auto;
+    padding: 0 var(--sp-6, 6px);
+    border-radius: var(--radius-xs, 2px);
+    background: var(--bg-tertiary, rgba(255, 255, 255, 0.06));
+    font-weight: 500;
+}
+
+.preview-fm-fields {
+    display: grid;
+    grid-template-columns: minmax(80px, max-content) 1fr;
+    padding: var(--sp-4, 4px) var(--sp-10, 10px) var(--sp-10, 10px);
+    column-gap: var(--sp-16, 16px);
+    row-gap: var(--sp-4, 4px);
+}
+
+.preview-frontmatter.collapsed .preview-fm-fields {
+    display: none;
+}
+
+.preview-fm-row {
+    display: contents;
+}
+
+.preview-fm-key {
+    color: var(--text-secondary, #9ca3af);
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.preview-fm-val {
+    min-width: 0;
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-fm-value {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.preview-fm-chip {
+    display: inline-block;
+    margin: 0 var(--sp-4, 4px) var(--sp-2, 2px) 0;
+    padding: 0 var(--sp-6, 6px);
+    border-radius: var(--radius-xs, 2px);
+    background: var(--bg-tertiary, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.08));
+    font-size: var(--font-size-sm);
+    line-height: 1.7;
+}
+
+.preview-fm-block {
+    margin: 0;
+    padding: var(--sp-6, 6px) var(--sp-8, 8px);
+    border-radius: var(--radius-sm, 3px);
+    background: var(--bg-primary, rgba(0, 0, 0, 0.25));
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CODE PREVIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-code-wrapper {
+    min-height: 100%;
+}
+
+.preview-code {
+    margin: 0;
+    padding: var(--sp-8) 0;
+    background: transparent;
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    tab-size: 4;
+}
+
+.preview-code code {
+    display: block;
+}
+
+.preview-line {
+    display: flex;
+    padding: 0 var(--sp-12) 0 0;
+    /* Same row height as a .cm-line (sm × 1.5) at every font scale — a fixed
+       18px clamp made rows drift vertically vs the editor when scaled. */
+    min-height: calc(var(--font-size-sm) * 1.5);
+}
+
+.preview-line:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.preview-line.highlighted {
+    background: rgba(255, 213, 79, 0.15);
+}
+
+/* Range boundary markers - visual bracket effect */
+.preview-line.highlighted.range-start {
+    border-top: 2px solid rgba(255, 213, 79, 0.5);
+    padding-top: 0; /* Adjust for border */
+}
+
+.preview-line.highlighted.range-end {
+    border-bottom: 2px solid rgba(255, 213, 79, 0.5);
+}
+
+.preview-line.flash,
+.preview-rendered .flash {
+    animation: line-flash 1.5s ease-out;
+}
+
+@keyframes line-flash {
+    0% { background: rgba(255, 213, 79, 0.4); }
+    100% { background: rgba(255, 213, 79, 0.15); }
+}
+
+.line-number {
+    flex-shrink: 0;
+    width: 48px;
+    padding-right: var(--sp-12);
+    text-align: right;
+    color: var(--text-muted, #555);
+    user-select: none;
+    -webkit-user-select: none;
+    font-size: var(--font-size-xs);
+}
+
+/* Fold cell — mirrors the editor's foldGutter (same ⌄/› glyphs, same 14px
+   column) so Code ⇄ Edit don't shift horizontally. Present (empty) on every
+   line; lines starting a foldable range get the arrow + click handling. */
+.preview-fold {
+    flex-shrink: 0;
+    width: 14px;
+    text-align: center;
+    color: var(--text-muted);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.preview-fold[data-fold-end] {
+    cursor: pointer;
+}
+
+.preview-fold[data-fold-end]::after {
+    content: '\2304';  /* ⌄ — matches CM foldGutter openText */
+}
+
+.preview-line.fold-collapsed .preview-fold[data-fold-end]::after {
+    content: '\203A';  /* › — matches CM foldGutter closedText */
+}
+
+.preview-fold[data-fold-end]:hover {
+    color: var(--text-primary);
+}
+
+.preview-line.fold-hidden {
+    display: none;
+}
+
+.line-content {
+    flex: 1;
+    min-width: 0;
+    white-space: pre;
+    /* CM's base theme gives .cm-line `padding: 0 2px 0 6px` — mirror the 6px
+       so text sits at the same x in Code and Edit (no few-px shift). */
+    padding-left: 6px;
+}
+
+/* Wrap mode - long lines wrap instead of horizontal scroll */
+.preview-code-wrapper.wrap-lines .line-content {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.preview-code-wrapper.wrap-lines .preview-line {
+    align-items: flex-start; /* Align line number to top when wrapping */
+}
+
+.preview-code-wrapper.wrap-lines .line-number {
+    padding-top: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHARED PAN/ZOOM (used by image preview + excalidraw)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.panzoom-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-12);
+    background: var(--surface-bg, #1a1a1a);
+    border-bottom: 1px solid var(--border-color, #333);
+    flex-shrink: 0;
+}
+
+.panzoom-ctrl-btn {
+    height: var(--layout-btn-sm);
+    background: var(--surface-bg-elevated, #21262d);
+    border: 1px solid var(--border-color, #30363d);
+    color: var(--text-secondary, #8b949e);
+    padding: var(--sp-4) var(--sp-10);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    transition: all 0.15s;
+}
+
+.panzoom-ctrl-btn:hover, .panzoom-ctrl-btn:active {
+    background: var(--surface-hover, #30363d);
+    color: var(--text-primary, #e6edf3);
+}
+
+.panzoom-ctrl-btn.active {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.panzoom-zoom-label {
+    color: var(--text-secondary, #8b949e);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-mono, 'SF Mono', Menlo, monospace);
+    min-width: 40px;
+    text-align: center;
+    user-select: none;
+}
+
+.panzoom-canvas {
+    position: relative;
+    cursor: grab;
+    touch-action: none;
+    overflow: hidden;
+}
+
+.panzoom-canvas:active {
+    cursor: grabbing;
+}
+
+.panzoom-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IMAGE PREVIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-image-body {
+    background: repeating-conic-gradient(#222 0% 25%, #1a1a1a 0% 50%)
+                50% / 16px 16px;
+}
+
+.preview-image {
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HTML PREVIEW (rendered mode — iframe via /api/browser/render)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Wrap is the scroll surface, iframe is sized to its content height by JS
+   (see html-plugin.js — server posts scrollHeight, client sets iframe
+   height to match). With iframe height === content height, the iframe has
+   no internal overflow, so wheel/touch events fall through to this wrap.
+   No `display: flex` here — that would collapse the iframe back to wrap
+   height regardless of any height we set on it. No `position: absolute`
+   either — that triggers a separate iOS bug where the iframe loses its
+   internal scroll port (still relevant during the brief window before
+   postMessage arrives). */
+.preview-html-body {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    min-height: 0;
+    padding: 0;
+    background: var(--bg-primary, #0b1220);
+}
+
+.preview-html-frame {
+    display: block;
+    width: 100%;
+    height: 100%;   /* initial fill before the autoresize postMessage lands */
+    border: none;
+    background: var(--bg-primary, #0b1220);
+    touch-action: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXCALIDRAW PREVIEW
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-excalidraw-body {
+    padding: 0;
+}
+
+.excalidraw-canvas[data-bg="light"] {
+    background: #f8f9fa;
+}
+
+.excalidraw-canvas[data-bg="dark"] {
+    background: var(--bg-primary, #0d1117);
+}
+
+.excalidraw-preview-img {
+    border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: var(--sp-8) var(--sp-16);
+    background: var(--surface-elevated, #333);
+    color: var(--text-primary, #e0e0e0);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: var(--z-toast);
+    animation: toast-in 0.2s ease-out;
+    /* Failure toasts carry the server's reason (e.g. the writable-root list),
+       so they can be a sentence — wrap instead of stretching off-screen. */
+    max-width: min(560px, calc(100vw - var(--sp-32)));
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WIDGET TYPE ADJUSTMENTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Bottom sheet mode */
+.widget-bottom-sheet .file-preview-widget {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.widget-bottom-sheet .preview-header {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+/* Floating mode */
+.widget-floating .file-preview-widget {
+    border-radius: var(--radius-md);
+}
+
+.widget-floating .preview-header {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+/* Sidebar mode */
+.widget-sidebar-right .file-preview-widget {
+    border-radius: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SYNTAX HIGHLIGHTING (hljs theme - One Dark inspired)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Keywords, built-ins */
+.preview-code .hljs-keyword,
+.preview-code .hljs-selector-tag,
+.preview-code .hljs-built_in,
+.preview-code .hljs-meta {
+    color: #c678dd;
+}
+
+/* Strings, attributes */
+.preview-code .hljs-string,
+.preview-code .hljs-attr,
+.preview-code .hljs-template-variable,
+.preview-code .hljs-addition {
+    color: #98c379;
+}
+
+/* Numbers, literals, booleans */
+.preview-code .hljs-number,
+.preview-code .hljs-literal,
+.preview-code .hljs-symbol,
+.preview-code .hljs-bullet {
+    color: #d19a66;
+}
+
+/* Comments */
+.preview-code .hljs-comment,
+.preview-code .hljs-quote,
+.preview-code .hljs-deletion {
+    color: #5c6370;
+    font-style: italic;
+}
+
+/* Functions, titles */
+.preview-code .hljs-function,
+.preview-code .hljs-title,
+.preview-code .hljs-section {
+    color: #61afef;
+}
+
+/* Variables, parameters, tags */
+.preview-code .hljs-variable,
+.preview-code .hljs-params,
+.preview-code .hljs-tag,
+.preview-code .hljs-name {
+    color: #e06c75;
+}
+
+/* Types, classes */
+.preview-code .hljs-type,
+.preview-code .hljs-class,
+.preview-code .hljs-title\.class_ {
+    color: #e5c07b;
+}
+
+/* Template strings/subst */
+.preview-code .hljs-subst {
+    color: #abb2bf;
+}
+
+/* Punctuation, operators */
+.preview-code .hljs-punctuation {
+    color: #abb2bf;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+    .preview-header {
+        padding: var(--sp-6) var(--sp-10);
+    }
+
+    .preview-filename {
+        font-size: var(--font-size-sm);
+    }
+
+    .preview-code {
+        font-size: var(--font-size-xs);
+    }
+
+    .line-number {
+        width: 36px;
+        font-size: 10px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* EDIT MODE                                                                  */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-10);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.preview-edit-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.preview-edit-btn.save-btn {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.preview-edit-btn.save-btn:hover {
+    opacity: 0.9;
+}
+
+.preview-edit-btn.save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.preview-edit-btn.save-as-btn {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.preview-edit-btn.save-as-btn:hover {
+    opacity: 0.9;
+}
+
+/* Modified indicator dot (inline in toolbar) */
+.preview-modified-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--warning, #f5a623);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.preview-modified-dot.visible {
+    opacity: 1;
+}
+
+/* Edit tab modified indicator (orange dot after label) */
+.toggle-btn[data-mode="edit"].modified {
+    position: relative;
+}
+
+.toggle-btn[data-mode="edit"].modified::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--warning, #f5a623);
+    margin-left: var(--sp-4);
+    flex-shrink: 0;
+}
+
+/* CodeMirror container */
+.preview-edit-body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.preview-cm-container {
+    height: 100%;
+    overflow: hidden;
+}
+
+.preview-cm-container .cm-editor {
+    height: 100%;
+}
+
+/* Match code-preview font metrics (.preview-code) so Code ⇄ Edit doesn't
+   shift size — CM otherwise inherits the widget's base font size. Family is
+   left alone: CM's default scroller stack is the same generic monospace the
+   preview <pre> uses. */
+.preview-cm-container .cm-scroller {
+    overflow: auto;
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+}
+
+/* Override One Dark theme background to match app */
+.preview-cm-container .cm-editor,
+.preview-cm-container .cm-gutters {
+    background-color: var(--bg-primary);
+}
+
+/* One Dark's base foreground is #abb2bf — reads as white→grey next to the
+   preview's --text-primary. Override the base; token colors still win via
+   their own span rules (inheritance, not specificity). */
+.preview-cm-container .cm-content {
+    color: var(--text-primary);
+    /* Mirror .preview-code's `padding: var(--sp-8) 0` — CM's base theme uses
+       a fixed 4px, which made the text sit a few px higher in Edit mode. */
+    padding: var(--sp-8) 0;
+}
+
+/* Line-number gutter mirrors the preview's .line-number column:
+   48px right-aligned, --sp-12 gap to the code, xs font in --text-muted.
+   Line-height is pinned to the code row height (sm × 1.5) so the smaller
+   numbers stay vertically centered against their lines. */
+.preview-cm-container .cm-lineNumbers .cm-gutterElement {
+    min-width: 48px;
+    padding: 0 var(--sp-12) 0 0;
+    font-size: var(--font-size-xs);
+    line-height: calc(var(--font-size-sm) * 1.5);
+}
+
+/* Fold gutter pinned to the same 14px column as the preview's .preview-fold
+   cell, so toggling Code ⇄ Edit doesn't shift the code horizontally. */
+.preview-cm-container .cm-foldGutter .cm-gutterElement {
+    width: 14px;
+    text-align: center;
+}
+
+.preview-cm-container .cm-activeLine,
+.preview-cm-container .cm-activeLineGutter {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.preview-cm-container .cm-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+}
+
+/* History view (shadow-git diff browser) */
+.preview-history-body {
+    padding: 0;
+}
+
+.preview-history-content {
+    padding: 0 0 var(--sp-12);
+}
+
+.preview-history-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-12);
+    padding: var(--sp-48) var(--sp-16);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+}
+
+/* Mode-toggle button in the history bar — slimmer than other dv-pivots */
+.dv-pivot.ph-mode-toggle {
+    font-family: var(--font-mono);
+    min-width: 60px;
+    text-align: center;
+}
+
+/* Textarea fallback when CodeMirror fails to load */
+.preview-edit-fallback {
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary, #1e1e1e);
+    color: var(--text-primary, #d4d4d4);
+    border: none;
+    outline: none;
+    resize: none;
+    padding: var(--sp-8) var(--sp-12);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+}
+
+/* Save button in toolbar (edit mode) */
+.preview-toolbar .save-btn {
+    margin-left: var(--sp-4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FILE CHANGED NOTIFICATION BAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.preview-changed-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-12);
+    background: rgba(180, 140, 50, 0.15);
+    border-bottom: 1px solid rgba(180, 140, 50, 0.3);
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+}
+
+.preview-changed-text {
+    color: #d4a94c;
+    flex: 1;
+}
+
+.preview-changed-btn {
+    padding: var(--sp-2) var(--sp-10);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary, #aaa);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+}
+
+.preview-changed-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--text-primary, #e0e0e0);
+}
+
+.preview-changed-btn.reload {
+    border-color: rgba(180, 140, 50, 0.4);
+    color: #d4a94c;
+}
+
+.preview-changed-btn.reload:hover {
+    background: rgba(180, 140, 50, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INLINE EDIT MODE (rendered markdown)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Toggle button — floats in top-right of rendered wrapper */
+.inline-edit-toggle {
+    position: sticky;
+    top: 0;
+    float: right;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: var(--bg-tertiary, #2d2d44);
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-md);
+    color: var(--text-secondary, #a0a0b0);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: var(--sp-8);
+    margin-bottom: var(--sp-4);
+}
+
+.inline-edit-toggle svg {
+    width: 16px;
+    height: 16px;
+}
+
+.inline-edit-toggle:hover {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+    color: var(--text-primary, #e0e0e0);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.inline-edit-toggle.active {
+    background: rgba(var(--accent-rgb), 0.25);
+    border-color: rgba(var(--accent-rgb), 0.6);
+    color: var(--accent);
+    box-shadow: 0 0 6px rgba(var(--accent-rgb), 0.3);
+}
+
+.inline-edit-toggle.active:hover {
+    background: rgba(var(--accent-rgb), 0.35);
+}
+
+/* Inline edit mode: selectable elements become clickable */
+.preview-rendered.inline-edit-mode [data-selectable] {
+    cursor: text;
+    border-radius: var(--radius-sm);
+}
+
+.preview-rendered.inline-edit-mode [data-selectable]:hover {
+    background: rgba(var(--accent-rgb), 0.08);
+    outline: 1px dashed rgba(var(--accent-rgb), 0.25);
+}
+
+/* Nested selectables (e.g. sentence span inside a marked paragraph) are inert.
+ * Outer block owns the edit; no hover outline, no trash. */
+.preview-rendered.inline-edit-mode [data-selectable].inline-edit-nested:hover {
+    background: transparent;
+    outline: none;
+}
+
+/* Hide stash icons and suppress stash hover in inline edit mode */
+.preview-rendered.inline-edit-mode [data-selectable] .stash-bubble {
+    display: none !important;
+}
+
+/* Selectable blocks in edit mode need positioning context for the trash button */
+.preview-rendered.inline-edit-mode [data-selectable] {
+    position: relative;
+}
+
+/* Element being edited */
+.preview-rendered [data-selectable].inline-editing {
+    background: rgba(var(--accent-rgb), 0.06);
+    outline: 1px solid rgba(var(--accent-rgb), 0.35);
+    border-radius: var(--radius-sm);
+    padding: 0;
+}
+
+/* Trash button — persistent on each selectable, hidden until hover (in edit mode).
+ * z-index must beat the sticky .inline-edit-toggle (z:10) so the first heading's
+ * trash isn't occluded by it. */
+.inline-edit-trash-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 20;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--bg-tertiary, rgba(30, 30, 40, 0.92));
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-sm);
+    color: var(--text-muted, #888);
+    cursor: pointer;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.12s, background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.inline-edit-trash-btn svg {
+    display: block;
+    pointer-events: none;
+}
+
+.preview-rendered.inline-edit-mode [data-selectable]:hover > .inline-edit-trash-btn,
+.preview-rendered.inline-edit-mode [data-selectable].inline-editing > .inline-edit-trash-btn {
+    display: flex;
+    opacity: 1;
+}
+
+.inline-edit-trash-btn:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.55);
+    color: #ef4444;
+}
+
+/* In-place placeholder shown where a deleted block used to be */
+.inline-edit-placeholder {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-6) var(--sp-10);
+    margin: var(--sp-4) 0;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px dashed rgba(239, 68, 68, 0.35);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted, #888);
+    font-weight: normal;
+}
+
+.inline-edit-placeholder-label {
+    font-style: italic;
+}
+
+.inline-edit-restore-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+    transition: background 0.12s;
+}
+
+.inline-edit-restore-btn:hover {
+    background: rgba(var(--accent-rgb), 0.15);
+    text-decoration: underline;
+}
+
+.inline-edit-restore-btn svg {
+    pointer-events: none;
+}
+
+/* Inline edit textarea — blends with rendered view */
+.inline-edit-textarea {
+    display: block;
+    width: 100%;
+    min-height: 1.6em;
+    padding: var(--sp-6) 34px var(--sp-6) var(--sp-8);
+    margin: 0;
+    background: rgba(var(--accent-rgb), 0.04);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-primary, #e0e0e0);
+    font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+    font-size: var(--font-size-base);
+    line-height: 1.6;
+    resize: none;
+    overflow: hidden;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.inline-edit-textarea:focus {
+    background: rgba(var(--accent-rgb), 0.08);
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.3);
+}
+
+/* Hint text beneath textarea — Enter to save, Esc to cancel */
+.preview-rendered [data-selectable].inline-editing::before {
+    content: 'Enter \2192 save \00b7 Esc \2192 cancel \00b7 Shift+Enter \2192 newline';
+    display: block;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #666);
+    margin-top: var(--sp-2);
+    padding: var(--sp-2) var(--sp-8);
+    opacity: 0.7;
+    order: 2;
+}
+
+.preview-rendered [data-selectable].inline-editing {
+    display: flex;
+    flex-direction: column;
+}

@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- viewport-fit=contain, not cover: this loader navigates in-place to the chat UI in the same
+       WKWebView, which leaks cover-mode into that page and brings back the empty bottom bar on
+       iPad/iPhone. Keep all app surfaces non-cover (see static/web-client.html). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=contain">
+  <meta name="color-scheme" content="dark light">
+  <title>pAInapple Code</title>
+  <link rel="icon" type="image/png" href="./icon.png">
+  <style>
+    :root {
+      --bg: #1a1612;
+      --fg: #f3eee5;
+      --muted: #8a8278;
+      --accent: #f0a050;
+      --field: #2a241d;
+      --border: #3a3328;
+      --hover: #2f2820;
+      --error: #e06b5b;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #faf6ee;
+        --fg: #1a1612;
+        --muted: #6a6358;
+        --accent: #c87830;
+        --field: #fff;
+        --border: #d8d0c0;
+        --hover: #f0ebe0;
+        --error: #b04030;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    main {
+      width: 100%;
+      max-width: 420px;
+      padding: 32px 24px;
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0 0 4px;
+      letter-spacing: -0.02em;
+    }
+    .tag { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+    form { display: flex; flex-direction: column; gap: 12px; }
+    label { font-size: 13px; color: var(--muted); margin-bottom: -6px; }
+    input[type="url"], input[type="password"], input[type="text"] {
+      font: inherit;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--field);
+      color: var(--fg);
+      width: 100%;
+    }
+    input:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .remember input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+    button.connect {
+      font: inherit;
+      font-weight: 600;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 0;
+      background: var(--accent);
+      color: #1a1612;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button.connect:hover { filter: brightness(1.1); }
+    button.connect:active { transform: translateY(1px); }
+    .error {
+      color: var(--error);
+      font-size: 13px;
+      min-height: 1em;
+      margin-top: -4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .err-msg strong { font-weight: 600; }
+    .err-actions { display: flex; gap: 6px; }
+    .err-recheck, .err-anyway {
+      font: inherit;
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--field);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .err-recheck:hover, .err-anyway:hover { background: var(--hover); }
+    .recent {
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .recent h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0 0 8px;
+    }
+    .recent ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .recent li {
+      display: flex;
+      align-items: stretch;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .recent li:hover { background: var(--hover); }
+    .recent-pick {
+      flex: 1;
+      text-align: left;
+      font: inherit;
+      font-size: 13px;
+      padding: 8px 10px;
+      border: 0;
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      overflow: hidden;
+      min-width: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+    }
+    .recent-pick .recent-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .recent-pick .name {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .recent-pick .url {
+      font-size: 12px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--muted);
+      transition: background-color 200ms ease;
+    }
+    .status-dot[data-status="checking"] {
+      animation: status-pulse 1.2s ease-in-out infinite;
+    }
+    .status-dot[data-status="reachable"] { background: #5cb85c; }
+    .status-dot[data-status="reachable-odd"] { background: var(--accent); }
+    .status-dot[data-status="unreachable"] { background: var(--error); }
+    @keyframes status-pulse {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 1; }
+    }
+    .recent-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin: 0 0 8px;
+    }
+    .recent-head h2 { margin: 0; }
+    .recent-recheck {
+      font: inherit;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      padding: 2px 4px;
+      cursor: pointer;
+    }
+    .recent-recheck:hover { color: var(--fg); }
+    .recent-recheck:disabled { opacity: 0.5; cursor: default; }
+    .recent-edit {
+      font: inherit;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 8px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .recent-edit:hover { color: var(--accent); }
+    .recent-forget {
+      font: inherit;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 12px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .recent-forget:hover { color: var(--error); }
+    .recent-forget[data-confirm] {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--error);
+    }
+    /* display:flex would override the hidden attribute's display:none — keep
+       [hidden] winning or the empty note renders as a blank strip above the form. */
+    .edit-note[hidden] { display: none; }
+    .edit-note {
+      font-size: 13px;
+      color: var(--muted);
+      background: var(--field);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .edit-note strong { color: var(--fg); }
+    .edit-cancel {
+      font: inherit;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .edit-cancel:hover { background: var(--hover); }
+    #reconnect-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      gap: 12px;
+      z-index: 100;
+    }
+    #reconnect-overlay h1 { margin: 0; }
+    #reconnect-overlay .tag { margin: 0; text-align: center; }
+    .reconnect-cancel {
+      font: inherit;
+      font-size: 13px;
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--field);
+      color: var(--fg);
+      cursor: pointer;
+      margin-top: 16px;
+    }
+    .reconnect-cancel:hover { background: var(--hover); }
+    .resume-x {
+      position: fixed;
+      top: calc(env(safe-area-inset-top) + 12px);
+      right: calc(env(safe-area-inset-right) + 12px);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--field);
+      color: var(--fg);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    .resume-x:hover { background: var(--hover); }
+    /* --- Local server card (desktop only; unhidden by launcher.js when the
+           local_* commands exist — see initLocal) ------------------------- */
+    .local {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      background: var(--field);
+    }
+    .local-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .local-head h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin: 0;
+      flex: 1;
+    }
+    .local-badge { font-size: 12px; color: var(--muted); }
+    .local-badge[data-state="on"] { color: #5cb85c; }
+    .local-badge[data-state="busy"] { color: var(--accent); }
+    .local-badge[data-state="checking"] { animation: status-pulse 1.2s ease-in-out infinite; }
+    .local-log-toggle {
+      font: inherit;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      padding: 2px 4px;
+      cursor: pointer;
+    }
+    .local-log-toggle:hover { color: var(--fg); }
+    .local-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .local-btn {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .local-btn:hover { background: var(--hover); }
+    .local-btn:disabled { opacity: 0.5; cursor: default; }
+    .local-btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1612; }
+    .local-btn.primary:hover { filter: brightness(1.1); }
+    .local-note {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .local-note[hidden] { display: none; }
+    .local-note .warn { color: var(--error); }
+    .local-engine {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1px 6px;
+      white-space: nowrap;
+    }
+    /* Instance rows — one per local server (This Mac + Docker sandboxes) */
+    .li-row {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 9px 11px;
+      margin-bottom: 8px;
+      background: var(--bg);
+    }
+    .li-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .li-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .li-name {
+      font-size: 13px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .li-badge { margin-left: auto; flex-shrink: 0; white-space: nowrap; }
+    .li-bottom { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .li-sub {
+      font-size: 12px;
+      color: var(--muted);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .li-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .local-btn.sm { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 6px; }
+    .local-btn.sm.primary { font-weight: 600; }
+    .local-btn.danger.armed { color: #fff; background: var(--error); border-color: var(--error); }
+    .local-empty { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+    .accent-dots { display: flex; gap: 8px; padding: 6px 0 2px; }
+    .accent-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      padding: 0;
+    }
+    .accent-dot.selected { border-color: var(--fg); }
+    #local-log, #wiz-log {
+      margin: 10px 0 0;
+      padding: 8px 10px;
+      max-height: 180px;
+      overflow: auto;
+      background: #12100c;
+      color: #cfc6b8;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    /* --- Setup wizard overlay (local-setup.js) ------------------------- */
+    #wizard {
+      position: fixed;
+      inset: 0;
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 300;
+    }
+    #wizard[hidden] { display: none; }
+    .wiz-card {
+      width: 100%;
+      max-width: 460px;
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      background: var(--field);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .wiz-head { display: flex; align-items: baseline; gap: 10px; }
+    .wiz-head h2 { font-size: 16px; margin: 0; flex: 1; letter-spacing: -0.01em; }
+    .wiz-steps { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+    .wiz-x {
+      font: inherit;
+      font-size: 18px;
+      line-height: 1;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .wiz-x:hover { color: var(--fg); }
+    .wiz-body { display: flex; flex-direction: column; gap: 10px; }
+    .wiz-q { font-size: 13px; color: var(--muted); margin: 0; }
+    .wiz-opt {
+      font: inherit;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .wiz-opt:hover { background: var(--hover); }
+    .wiz-opt.selected { border-color: var(--accent); outline: 1px solid var(--accent); }
+    .wiz-opt.disabled { opacity: 0.55; cursor: default; }
+    .wiz-opt-title { font-size: 14px; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
+    .wiz-opt-title .hint { font-size: 11px; font-weight: 400; color: var(--accent); }
+    .wiz-opt-desc { font-size: 12px; color: var(--muted); }
+    .wiz-seg { display: flex; gap: 6px; flex-wrap: wrap; }
+    .wiz-seg button {
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .wiz-seg button:hover { background: var(--hover); }
+    .wiz-seg button.on { border-color: var(--accent); color: var(--fg); }
+    .wiz-label { font-size: 12px; color: var(--muted); margin: 4px 0 -4px; }
+    .wiz-row { display: flex; gap: 8px; align-items: center; }
+    .wiz-row input[type="text"] {
+      flex: 1;
+      font: inherit;
+      font-size: 13px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      min-width: 0;
+    }
+    .wiz-row input:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .wiz-browse {
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .wiz-browse:hover { background: var(--hover); }
+    .wiz-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--fg);
+      cursor: pointer;
+      user-select: none;
+    }
+    .wiz-check input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+    .wiz-warn { font-size: 12px; color: var(--error); }
+    .wiz-note { font-size: 12px; color: var(--muted); }
+    .wiz-review { display: flex; flex-direction: column; gap: 2px; }
+    .wiz-review .rev-row {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 13px;
+      padding: 6px 8px;
+      border-radius: 6px;
+    }
+    .wiz-review .rev-row:hover { background: var(--hover); }
+    .rev-key { color: var(--muted); font-size: 12px; width: 92px; flex-shrink: 0; }
+    .rev-val { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rev-edit {
+      font: inherit;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      padding: 0 2px;
+    }
+    .rev-edit:hover { color: var(--accent); }
+    .wiz-err { color: var(--error); font-size: 12px; min-height: 0; }
+    .wiz-err:empty { display: none; }
+    .wiz-foot { display: flex; gap: 8px; align-items: center; }
+    .wiz-foot .spacer { flex: 1; }
+    .wiz-btn {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 9px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .wiz-btn:hover { background: var(--hover); }
+    .wiz-btn:disabled { opacity: 0.5; cursor: default; }
+    .wiz-btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1612; }
+    .wiz-btn.primary:hover { filter: brightness(1.1); }
+    .wiz-progress { font-size: 13px; color: var(--fg); display: flex; align-items: center; gap: 8px; }
+    .wiz-progress .spin {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      animation: wiz-spin 0.9s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes wiz-spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>pAInapple Code</h1>
+    <p class="tag">Connect to your pAInapple server.</p>
+    <section class="local" id="local" hidden>
+      <div class="local-head">
+        <h2>Local servers</h2>
+        <button type="button" class="local-log-toggle" id="local-log-toggle" title="Show/hide log">log</button>
+      </div>
+      <div id="local-instances"></div>
+      <div class="local-actions" id="local-actions"></div>
+      <div class="local-note" id="local-note" hidden></div>
+      <pre id="local-log" hidden></pre>
+    </section>
+    <form id="connect" autocomplete="off">
+      <!-- autocomplete="username" gives iOS/WKWebView keychain an explicit
+           account field to fill. Without it, WebKit heuristically dumps the
+           saved credential's account string into the nearest preceding text
+           field — which was the Server URL — clobbering the typed URL. The
+           Name field is the natural account label, so autofill now writes the
+           username here (and URL is tagged "url" so it's never a candidate). -->
+      <label for="name">Name <span style="opacity:.7">(optional)</span></label>
+      <input id="name" type="text" placeholder="e.g. Home, Work, VPS" maxlength="80" spellcheck="false" autocapitalize="words" autocomplete="username">
+      <label for="url">Server URL</label>
+      <input id="url" type="url" placeholder="https://your-server.example" required spellcheck="false" autocapitalize="off" autocomplete="url">
+      <label for="token">Password</label>
+      <input id="token" type="password" placeholder="Server password" required spellcheck="false" autocapitalize="off" autocomplete="current-password" autocorrect="off">
+      <label class="remember">
+        <input id="remember" type="checkbox" checked>
+        Remember this server
+      </label>
+      <div class="error" id="err"></div>
+      <button type="submit" class="connect">Connect</button>
+    </form>
+    <section class="recent" id="recent" hidden></section>
+  </main>
+  <!-- Local-setup wizard overlay (desktop only; driven by local-setup.js) -->
+  <div id="wizard" hidden>
+    <div class="wiz-card">
+      <div class="wiz-head">
+        <h2 id="wiz-title">Set up local server</h2>
+        <span class="wiz-steps" id="wiz-steps"></span>
+        <button type="button" class="wiz-x" id="wiz-close" aria-label="Close" title="Close (Esc)">×</button>
+      </div>
+      <div class="wiz-body" id="wiz-body"></div>
+      <div class="wiz-err" id="wiz-err"></div>
+      <div class="wiz-foot" id="wiz-foot">
+        <button type="button" class="wiz-btn" id="wiz-back">Back</button>
+        <span class="spacer"></span>
+        <button type="button" class="wiz-btn primary" id="wiz-next">Next</button>
+      </div>
+      <pre id="wiz-log" hidden></pre>
+    </div>
+  </div>
+  <script src="./launcher.js"></script>
+  <script src="./local-setup.js"></script>
+</body>
+</html>

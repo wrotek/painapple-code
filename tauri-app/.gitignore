@@ -1,0 +1,9 @@
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+# uv sidecar binaries — fetched by scripts/fetch-uv.sh (pinned + sha256-verified)
+src-tauri/binaries/
+
+# Generated icons are committed; only ignore obvious build noise
+*.log
+.DS_Store

@@ -1,0 +1,359 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Background Tasks - Inline card + widget styles
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Inline Background Task Card (within tool blocks) ─────────────── */
+
+.bg-task-card {
+    border-left: 3px solid var(--warning) !important;
+}
+
+.bg-task-header {
+    gap: var(--sp-6);
+}
+
+.bg-task-icon {
+    display: flex;
+    align-items: center;
+    color: var(--warning);
+    flex-shrink: 0;
+}
+
+.bg-task-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: 10px;
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    flex-shrink: 0;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+
+.bg-task-badge-running {
+    background: rgba(210, 153, 34, 0.15);
+    color: var(--warning);
+}
+
+.bg-task-badge-done {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--success);
+}
+
+.bg-task-badge-done svg {
+    stroke: var(--success);
+}
+
+.bg-task-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--warning);
+    animation: bg-task-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes bg-task-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Output preview area */
+.bg-task-output {
+    padding: var(--sp-6) var(--sp-10);
+    background: var(--bg-primary);
+    max-height: 140px;
+    overflow-y: auto;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    border-top: 1px solid var(--border-secondary);
+}
+
+.bg-task-pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-secondary);
+}
+
+.bg-task-loading {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    padding: var(--sp-4) 0;
+}
+
+/* Footer with task ID and action button */
+.bg-task-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-4) var(--sp-10);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-secondary);
+}
+
+.bg-task-id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.bg-task-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--layout-btn-xs);
+    font-size: var(--font-size-xs);
+    padding: 0 var(--sp-12);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+
+.bg-task-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+
+/* ── Background Tasks Widget ──────────────────────────────────────── */
+
+.bt-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    font-size: var(--font-size-base);
+}
+
+/* Summary bar at top */
+.bt-summary {
+    display: flex;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.bt-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+}
+
+.bt-summary-running {
+    background: rgba(210, 153, 34, 0.12);
+    color: var(--warning);
+}
+
+.bt-summary-done {
+    background: rgba(63, 185, 80, 0.10);
+    color: var(--success);
+}
+
+/* Task list */
+.bt-list {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+.bt-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-32) var(--sp-20);
+    color: var(--text-muted);
+    text-align: center;
+    gap: var(--sp-8);
+}
+
+.bt-empty svg {
+    opacity: 0.3;
+}
+
+.bt-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-10);
+    padding: var(--sp-10) var(--sp-12);
+    border-bottom: 1px solid var(--border-secondary);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.bt-item:hover {
+    background: var(--bg-hover);
+}
+
+.bt-item-status {
+    flex-shrink: 0;
+    margin-top: var(--sp-2);
+}
+
+.bt-item-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.bt-item-status-dot.running {
+    background: var(--warning);
+    animation: bg-task-pulse 1.5s ease-in-out infinite;
+}
+
+.bt-item-status-dot.done {
+    background: var(--success);
+}
+
+.bt-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.bt-item-cmd {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bt-item-meta {
+    display: flex;
+    gap: var(--sp-8);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: var(--sp-3);
+}
+
+.bt-item-preview {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--sp-4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
+}
+
+/* Detail view (when a task is selected) */
+.bt-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.bt-detail-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    border-bottom: 1px solid var(--border-secondary);
+    flex-shrink: 0;
+}
+
+.bt-back-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    padding: var(--sp-4);
+    font-size: var(--font-size-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+
+.bt-back-btn:hover {
+    text-decoration: underline;
+}
+
+.bt-detail-title {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.bt-detail-badge {
+    flex-shrink: 0;
+}
+
+.bt-detail-output {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    background: var(--bg-primary);
+    padding: var(--sp-8) var(--sp-12);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+}
+
+.bt-detail-output pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-secondary);
+}
+
+.bt-detail-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-6) var(--sp-12);
+    border-top: 1px solid var(--border-secondary);
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.bt-detail-footer button {
+    font-size: var(--font-size-xs);
+    padding: var(--sp-3) var(--sp-10);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.bt-detail-footer button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* ANSI color classes (reuse from tool blocks if available) */
+.bt-detail-output .ansi-red { color: #f85149; }
+.bt-detail-output .ansi-green { color: #3fb950; }
+.bt-detail-output .ansi-yellow { color: #d29922; }
+.bt-detail-output .ansi-blue { color: #3b82f6; }
+.bt-detail-output .ansi-magenta { color: #bc8cff; }
+.bt-detail-output .ansi-cyan { color: #39c5cf; }
+.bt-detail-output .ansi-white { color: #c9d1d9; }
+.bt-detail-output .ansi-bold { font-weight: bold; }

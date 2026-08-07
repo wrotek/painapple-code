@@ -1,0 +1,119 @@
+/* ═══════════════════════════════════════════════════════════
+   TERMINAL KEYBOARD BAR
+   Embedded in terminal widget body, touch devices only
+   ═══════════════════════════════════════════════════════════ */
+
+.keyboard-bar {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    flex-shrink: 0;
+    background: #12121f;
+    border-bottom: 1px solid #2a2a3e;
+    padding: 0 4px;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.keyboard-bar-keys {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 2px 0;
+    flex: 1;
+}
+
+.keyboard-bar-keys::-webkit-scrollbar {
+    display: none;
+}
+
+.keyboard-bar-sep {
+    width: 1px;
+    height: 20px;
+    background: #2a2a3e;
+    flex-shrink: 0;
+    margin: 0 2px;
+}
+
+.keyboard-bar-key {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid #2a2a3e;
+    border-radius: var(--radius-sm);
+    background: #1e1e32;
+    color: #c0c0d0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.08s, border-color 0.08s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* Arrow keys: narrower */
+.keyboard-bar-key.arrow {
+    min-width: 30px;
+    padding: 0 4px;
+    font-size: 14px;
+}
+
+/* Wide keys (Backspace) */
+.keyboard-bar-key.wide {
+    min-width: 44px;
+}
+
+/* Modifier keys (Ctrl, Alt) */
+.keyboard-bar-key.modifier {
+    color: #8888aa;
+    font-size: 11px;
+}
+
+/* Active modifier - oneshot (single tap) */
+.keyboard-bar-key.modifier.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+/* Locked modifier - caps-lock style (double tap) */
+.keyboard-bar-key.modifier.locked {
+    background: var(--accent);
+    border-color: #fff;
+    color: #fff;
+    box-shadow: 0 0 0 1px #fff inset;
+}
+
+/* Press feedback */
+.keyboard-bar-key.pressed {
+    background: #2a2a44;
+    border-color: #3a3a5e;
+}
+
+/* Hide connection bar when terminal is open on mobile */
+#connection-bar.hidden-by-terminal {
+    display: none !important;
+}
+
+/* Phone: slightly smaller */
+@media (max-width: 767px) {
+    .keyboard-bar {
+        height: 34px;
+    }
+    .keyboard-bar-key {
+        min-width: 32px;
+        height: 26px;
+        font-size: 11px;
+    }
+}

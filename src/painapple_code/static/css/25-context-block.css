@@ -1,0 +1,252 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CONTEXT BLOCK - Collapsible /context command output
+
+   Shows compact summary by default:
+   - Token usage (76.5k / 200.0k)
+   - Percentage used
+   - Model name
+
+   Expands to show full context details with tables
+   ═══════════════════════════════════════════════════════════════════ */
+
+.message.context {
+    padding: 0;
+    background: transparent;
+}
+
+.context-block {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   HEADER - Always visible, clickable to toggle
+   ───────────────────────────────────────────────────────────────────── */
+
+.context-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-size-sm);
+    transition: background 0.15s ease;
+}
+
+.context-header:hover {
+    background: var(--bg-hover);
+}
+
+.context-icon {
+    display: flex;
+    align-items: center;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.context-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.context-label {
+    color: var(--accent);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.context-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    margin-left: var(--sp-4);
+}
+
+.context-tokens {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-lg);
+}
+
+.context-percent {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-lg);
+    background: rgba(var(--accent-rgb), 0.15);
+    color: var(--accent);
+}
+
+/* Color-code percentage based on usage */
+.context-percent[data-percent-high] {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.context-percent[data-percent-med] {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.context-model {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+}
+
+.context-time {
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.context-expand {
+    color: var(--text-muted);
+    font-size: 10px;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    opacity: 0.5;
+}
+
+.context-header:hover .context-expand {
+    opacity: 1;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   CONTENT - Hidden when collapsed
+   ───────────────────────────────────────────────────────────────────── */
+
+.context-content {
+    border-top: 1px solid var(--border-secondary);
+    padding: var(--sp-12);
+    background: var(--bg-primary);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+/* Collapsed state */
+.context-block.collapsed .context-content {
+    display: none;
+}
+
+.context-block.collapsed .context-expand {
+    transform: rotate(0deg);
+}
+
+/* Expanded state */
+.context-block:not(.collapsed) .context-expand {
+    transform: rotate(90deg);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   MARKDOWN STYLING - Tables and content inside context
+   ───────────────────────────────────────────────────────────────────── */
+
+.context-content .markdown-content h2 {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: var(--sp-16) 0 var(--sp-8) 0;
+    padding-bottom: var(--sp-4);
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.context-content .markdown-content h2:first-child {
+    margin-top: 0;
+}
+
+/* Hide the redundant "Context Usage" title since header shows it */
+.context-content .markdown-content h2:first-child {
+    display: none;
+}
+
+/* Also hide the Model/Tokens line since it's in header */
+.context-content .markdown-content > p:first-of-type {
+    display: none;
+}
+
+.context-content .markdown-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--sp-8) 0;
+    font-size: var(--font-size-sm);
+}
+
+.context-content .markdown-content th,
+.context-content .markdown-content td {
+    border: 1px solid var(--border-primary);
+    padding: var(--sp-6) var(--sp-10);
+    text-align: left;
+}
+
+.context-content .markdown-content th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.context-content .markdown-content td {
+    color: var(--text-secondary);
+}
+
+/* Highlight token counts */
+.context-content .markdown-content td:nth-child(2),
+.context-content .markdown-content td:nth-child(3) {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+}
+
+/* Percentage column styling */
+.context-content .markdown-content td:last-child {
+    text-align: right;
+    color: var(--text-muted);
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   RESPONSIVE - Mobile adjustments
+   ───────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .context-header {
+        flex-wrap: wrap;
+        gap: var(--sp-6);
+    }
+
+    .context-model {
+        max-width: 120px;
+        order: 10;
+        margin-left: 0;
+        flex-basis: 100%;
+        margin-top: var(--sp-4);
+    }
+
+    .context-time {
+        margin-left: auto;
+    }
+
+    .context-content .markdown-content table {
+        font-size: var(--font-size-xs);
+    }
+
+    .context-content .markdown-content th,
+    .context-content .markdown-content td {
+        padding: var(--sp-4) var(--sp-6);
+    }
+}

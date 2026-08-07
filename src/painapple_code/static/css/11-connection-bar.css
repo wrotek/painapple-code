@@ -1,0 +1,120 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CONNECTION BAR
+   ═══════════════════════════════════════════════════════════════════ */
+#connection-bar {
+    display: none;
+    padding: var(--sp-8) var(--sp-16);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    gap: var(--sp-8);
+    align-items: center;
+}
+
+#connection-bar.visible {
+    display: flex;
+}
+
+/* Single full-width button — opens the Open dialog (file/folder picker).
+   Styled as a clickable field rather than a loud accent button, since it's
+   the resting state of the welcome/disconnected screen. */
+#open-folder-btn {
+    flex: 1;
+    text-align: left;
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+#open-folder-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+#open-folder-btn:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Confirmation Dialog */
+#confirm-dialog {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+}
+
+#confirm-dialog.visible {
+    display: flex;
+}
+
+.confirm-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-20);
+    max-width: 400px;
+    width: 90%;
+    box-shadow: var(--shadow);
+}
+
+.confirm-box h4 {
+    margin-bottom: var(--sp-12);
+    font-size: var(--font-size-content);
+}
+
+.confirm-box p {
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    margin-bottom: var(--sp-16);
+}
+
+.confirm-box code {
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: var(--sp-8);
+    justify-content: flex-end;
+}
+
+.confirm-buttons button {
+    padding: var(--sp-8) var(--sp-16);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.confirm-buttons .cancel-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+}
+
+.confirm-buttons .cancel-btn:hover {
+    background: var(--bg-hover);
+}
+
+.confirm-buttons .confirm-btn {
+    background: var(--accent);
+    border: none;
+    color: white;
+}
+
+.confirm-buttons .confirm-btn:hover {
+    background: var(--accent-hover);
+}
+

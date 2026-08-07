@@ -1,0 +1,53 @@
+{
+    "id": "painapple-code",
+    "version": "1.0.7",
+    "name": "pAInapple Code",
+    "description": "Installs the pAInapple Code WebSocket bridge for Claude Code. Exposes a password-gated web/PWA UI (default port 8765) that any browser — including iPad — can use to drive `claude` inside the container.",
+    "documentationURL": "https://github.com/wrotek/painapple-code",
+    "licenseURL": "https://github.com/wrotek/painapple-code/blob/main/LICENSE",
+    "options": {
+        "version": {
+            "type": "string",
+            "default": "main",
+            "description": "Git ref to install: branch, tag, or commit SHA (e.g. 'main', 'v1.0.0')."
+        },
+        "repo": {
+            "type": "string",
+            "default": "https://github.com/wrotek/painapple-code.git",
+            "description": "Painapple Code repository URL. Override to install from a fork or mirror."
+        },
+        "port": {
+            "type": "string",
+            "default": "8765",
+            "description": "Port the bridge listens on (HTTP + WebSocket). Forward this port in devcontainer.json to expose the UI."
+        },
+        "instanceName": {
+            "type": "string",
+            "default": "CODESPACE",
+            "description": "Label shown in the PWA header (e.g. 'DEV', 'STABLE'). Useful when running against multiple codespaces."
+        },
+        "accent": {
+            "type": "string",
+            "default": "blue",
+            "enum": ["blue", "green", "red", "orange", "purple", "cyan"],
+            "description": "Accent color preset for the UI."
+        },
+        "autostart": {
+            "type": "boolean",
+            "default": true,
+            "description": "Start the bridge automatically on container start (via a systemd-less background launcher invoked from /etc/profile.d). Disable to start it manually with `painapple-code-start`."
+        },
+        "installHelpers": {
+            "type": "boolean",
+            "default": true,
+            "description": "Install the `shadow-git`, `shadow-query`, and `shadow-git-helper` agent into the container user's home."
+        }
+    },
+    "mounts": [],
+    "installsAfter": [
+        "ghcr.io/devcontainers/features/common-utils",
+        "ghcr.io/devcontainers/features/git",
+        "ghcr.io/devcontainers/features/node",
+        "ghcr.io/devcontainers/features/python"
+    ]
+}

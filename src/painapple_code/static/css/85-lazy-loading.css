@@ -1,0 +1,102 @@
+/* Lazy Loading - Infinite scroll for message history */
+
+/* Loading indicator at top of messages */
+#load-more-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-10);
+    padding: var(--sp-16);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#load-more-indicator.visible {
+    opacity: 1;
+}
+
+/* Spinner animation */
+.load-more-spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-subtle);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Message count indicator when there are more messages */
+.message-history-notice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-8);
+    padding: var(--sp-12) var(--sp-16);
+    margin-bottom: var(--sp-16);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.message-history-notice:hover {
+    background: var(--bg-hover);
+}
+
+.message-history-notice svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+}
+
+/* "Scroll to load more" hint shown briefly */
+.scroll-hint {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-16);
+    background: linear-gradient(to bottom, var(--bg-primary) 0%, var(--bg-primary) 50%, transparent 100%);
+    color: var(--text-tertiary);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.scroll-hint.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.scroll-hint svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    animation: bounce-up 1s infinite;
+}
+
+@keyframes bounce-up {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
+}

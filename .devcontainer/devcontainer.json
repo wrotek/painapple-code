@@ -1,0 +1,44 @@
+{
+    "name": "pAInapple Code",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+
+    // pAInapple Code itself isn't auto-installed — open a terminal and run
+    //   curl -fsSL https://raw.githubusercontent.com/wrotek/painapple-code/main/features/src/painapple-code/install.sh | sudo bash
+    // (see features/src/painapple-code/README.md). The forwarded port and
+    // the VS Code settings below are everything Codespaces needs prepared
+    // up front; the rest is on-demand.
+    //
+    // Python + Node come from the official Features so npm / node-gyp /
+    // native-module builds work out of the box. (The base:ubuntu image is
+    // bare — common-utils only.)
+    "features": {
+        "ghcr.io/devcontainers/features/python:1": {},
+        "ghcr.io/devcontainers/features/node:1": {}
+    },
+
+    "forwardPorts": [8765],
+    "portsAttributes": {
+        "8765": {
+            "label": "pAInapple Code",
+            "onAutoForward": "notify",
+            "visibility": "private"
+        }
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "redhat.vscode-yaml"
+            ],
+            // Default-hide the secondary side bar (Copilot Chat lives there).
+            // Users who want it can toggle with Ctrl+Alt+B at any time — this
+            // just keeps it out of the way on first open so the terminal has
+            // room to show the painapple-code login URL without wrapping.
+            // Setting added in VS Code 1.94 (Sept 2024).
+            "settings": {
+                "workbench.secondarySideBar.defaultVisibility": "hidden"
+            }
+        }
+    }
+}

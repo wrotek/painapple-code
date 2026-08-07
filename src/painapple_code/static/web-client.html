@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- viewport-fit=contain, explicit on purpose: app surfaces (native loader, login, this page)
+         navigate in-place in one WKWebView, which leaks viewport-fit state across navigations. If
+         any surface uses cover, this page inherits cover mode and wakes the dormant
+         env(safe-area-inset-bottom) rules → empty bottom bar on iPad/iPhone. Keep every surface on
+         contain; don't introduce cover anywhere. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=contain">
+    <title>Claude Code</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Remote Claude Code client - AI-powered coding assistant">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Claude Code">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Claude Code">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    <meta name="msapplication-config" content="none">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicons & Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+    <link rel="icon" type="image/x-icon" href="/static/icons/favicon.ico">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/icon-180.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="/static/icons/icon-152.png">
+
+    <!-- External Libraries (vendored via tools/package.json build pipeline) -->
+    <!-- Pin marked to v4 for stable API (v5+ has breaking changes) -->
+    <script src="/static/vendor/marked.min.js"></script>
+    <!-- DOMPurify sanitizes all marked output before it reaches innerHTML (XSS gate) -->
+    <script src="/static/vendor/purify.min.js"></script>
+    <script src="/static/vendor/highlight.min.js"></script>
+    <script src="/static/vendor/highlight-lang-dockerfile.min.js"></script>
+    <script src="/static/vendor/highlight-lang-scala.min.js"></script>
+    <script src="/static/vendor/highlight-lang-nginx.min.js"></script>
+    <script src="/static/vendor/highlight-lang-properties.min.js"></script>
+    <link rel="stylesheet" href="/static/vendor/highlight-github-dark.min.css">
+
+    <!-- Layout density before first paint — the config module that owns
+         applyLayout() loads much later, which flashes normal-density UI
+         for compact/spacious users. Normal is the :root default. -->
+    <script>
+        try {
+            var cfg = JSON.parse(localStorage.getItem('claude-code-user-config') || '{}');
+            if (cfg.layout === 'compact' || cfg.layout === 'spacious') {
+                document.documentElement.dataset.layout = cfg.layout;
+            }
+        } catch (e) { /* corrupt config — keep normal */ }
+    </script>
+
+    <!-- App Styles -->
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header with tabs -->
+        <header>
+            <button id="rail-toggle-btn" class="rail-toggle-btn" data-tooltip-key="ui.tooltips.menu" data-shortcut-action="toggleRailMenu" aria-label="Open menu" aria-expanded="false">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/>
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+                <span class="rail-toggle-badge" id="rail-toggle-badge"></span>
+            </button>
+
+            <button class="tabs-overview-btn header-overview-btn" data-tooltip-key="ui.tooltips.all_sessions" data-shortcut-action="gridSwitcher">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                </svg>
+            </button>
+
+            <div class="tabs-viewport">
+                <div id="tabs"></div>
+                <span class="tabs-overflow-indicator tabs-overflow-left" data-tooltip-key="ui.tooltips.tabs_overflow" style="display:none"></span>
+                <span class="tabs-overflow-indicator tabs-overflow-right" data-tooltip-key="ui.tooltips.tabs_overflow" style="display:none"></span>
+            </div>
+
+            <button id="new-tab-btn" data-tooltip-key="ui.tooltips.new_session" data-shortcut-action="newSession">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+            </button>
+
+        </header>
+
+        <!-- App body: left rail + main content -->
+        <div id="app-body">
+            <!-- Scrim shown behind the rail drawer on mobile -->
+            <div id="rail-scrim" aria-hidden="true"></div>
+
+            <!-- Left rail with navigation icons -->
+            <nav id="left-rail">
+                <!-- Drawer header (mobile only) — instance label + tabs-overview button.
+                     The instance badge is relocated here from <header> by app.js on mobile. -->
+                <div class="rail-drawer-header">
+                    <button class="tabs-overview-btn rail-drawer-grid" data-tooltip-key="ui.tooltips.all_sessions" data-shortcut-action="gridSwitcher">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Activity / running things (badge-driven) -->
+                <button class="rail-btn has-badges" id="rail-sessions-btn" data-tooltip-key="ui.tooltips.rail_sessions" data-tooltip-position="right" data-shortcut-action="toggleActiveSessions">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                    <span class="rail-badge sessions-badge" id="sessions-badge"></span>
+                    <span class="rail-badge summary-badge" id="summary-badge"></span>
+                </button>
+                <div class="orphan-terminals-btn rail-btn-wrap" id="orphan-terminals-btn">
+                    <button class="rail-btn has-badges" id="rail-orphan-terminals-btn" data-tooltip-key="ui.tooltips.rail_orphan_terminals" data-tooltip-position="right">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 17 10 11 4 5"/>
+                            <line x1="12" y1="19" x2="20" y2="19"/>
+                            <circle cx="19" cy="6" r="2.2" fill="currentColor" stroke="none"/>
+                        </svg>
+                        <span class="rail-badge orphan-badge" id="orphan-badge"></span>
+                    </button>
+                    <div class="orphan-terminals-dropdown" id="orphan-dropdown">
+                        <div class="orphan-dropdown-header">
+                            <span>Orphaned Terminals</span>
+                            <div class="orphan-bulk-actions" id="orphan-bulk-actions">
+                                <button class="bulk-btn" id="orphan-tab-all-btn" data-tooltip-key="ui.tooltips.orphan_tab_all">Tab All</button>
+                                <button class="bulk-btn danger" id="orphan-kill-all-btn" data-tooltip-key="ui.tooltips.orphan_kill_all">Kill All</button>
+                            </div>
+                            <button class="refresh-btn" id="orphan-refresh-btn" data-tooltip-key="ui.tooltips.orphan_refresh">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M23 4v6h-6M1 20v-6h6"/>
+                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="orphan-dropdown-list" id="orphan-list"></div>
+                    </div>
+                </div>
+                <button class="rail-btn has-badges" id="rail-agents-btn" data-tooltip-key="ui.tooltips.rail_agents" data-tooltip-position="right">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                    <span class="rail-badge agents-badge" id="agents-badge"></span>
+                </button>
+                <button class="rail-btn has-badges" id="rail-bg-tasks-btn" data-tooltip-key="ui.tooltips.rail_bg_tasks" data-tooltip-position="right">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="2" x2="12" y2="6"/>
+                        <line x1="12" y1="18" x2="12" y2="22"/>
+                        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+                        <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+                        <line x1="2" y1="12" x2="6" y2="12"/>
+                        <line x1="18" y1="12" x2="22" y2="12"/>
+                        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+                        <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                    </svg>
+                    <span class="rail-badge tasks-badge" id="tasks-badge"></span>
+                </button>
+
+                <div class="rail-separator"></div>
+
+                <!-- Files / Code -->
+                <button class="rail-btn" id="rail-files-btn" data-tooltip-key="ui.tooltips.rail_files" data-tooltip-position="right" data-shortcut-action="toggleFiles">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-preview-btn" data-tooltip-key="ui.tooltips.rail_preview" data-tooltip-position="right" data-shortcut-action="togglePreview">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-logs-btn" data-tooltip-key="ui.tooltips.rail_logs" data-tooltip-position="right" data-shortcut-action="toggleLogs">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-terminal-btn" data-tooltip-key="ui.tooltips.rail_terminal" data-tooltip-position="right" data-shortcut-action="toggleTerminal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 17 10 11 4 5"/>
+                        <line x1="12" y1="19" x2="20" y2="19"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-git-btn" data-tooltip-key="ui.tooltips.rail_git" data-tooltip-position="right" data-shortcut-action="toggleGit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="18" cy="18" r="3"/>
+                        <circle cx="6" cy="6" r="3"/>
+                        <path d="M6 21V9a9 9 0 0 0 9 9"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-browser-btn" data-tooltip-key="ui.tooltips.rail_browser" data-tooltip-position="right" data-shortcut-action="toggleBrowser">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                </button>
+
+                <div class="rail-separator"></div>
+
+                <!-- Find -->
+                <button class="rail-btn" id="rail-search-btn" data-tooltip-key="ui.tooltips.rail_search" data-tooltip-position="right" data-shortcut-action="search">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-history-btn" data-tooltip-key="ui.tooltips.rail_history" data-tooltip-position="right" data-shortcut-action="toggleHistoryExplorer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                </button>
+
+                <div class="rail-separator"></div>
+
+                <!-- Library (skills / agents / snippets — manageable assets) -->
+                <button class="rail-btn" id="rail-skills-btn" data-tooltip-key="ui.tooltips.rail_skills" data-tooltip-position="right" data-shortcut-action="toggleSkills">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="2" x2="12" y2="22"/>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-agent-defs-btn" data-tooltip-key="ui.tooltips.rail_agent_defs" data-tooltip-position="right">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-1.54"/>
+                        <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-1.54"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-snippets-btn" data-tooltip-key="ui.tooltips.rail_snippets" data-tooltip-position="right">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="16 18 22 12 16 6"/>
+                        <polyline points="8 6 2 12 8 18"/>
+                    </svg>
+                </button>
+
+                <div class="rail-separator"></div>
+
+                <button class="rail-btn" id="rail-discussion-btn" data-tooltip-key="ui.tooltips.rail_discussion" data-tooltip-position="right" data-shortcut-action="toggleDiscussion">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <span class="rail-badge" id="rail-discussion-badge"></span>
+                </button>
+
+                <div class="rail-spacer"></div>
+
+                <button class="rail-btn" id="rail-cost-btn" data-tooltip-key="ui.tooltips.rail_costs" data-tooltip-position="right" data-shortcut-action="toggleCostAnalytics">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="8" cy="8" r="6"/>
+                        <path d="M18.09 10.37A6 6 0 1 1 10.34 18"/>
+                        <path d="M7 6h1v4"/>
+                        <path d="m16.71 13.88.7.71-2.82 2.82"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-layout-btn" data-tooltip-key="ui.tooltips.rail_layout" data-tooltip-position="right">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line x1="4" y1="5" x2="20" y2="5"/>
+                        <line x1="4" y1="12" x2="20" y2="12"/>
+                        <line x1="4" y1="19" x2="20" y2="19"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-settings-btn" data-tooltip-key="ui.tooltips.rail_settings" data-tooltip-position="right" data-shortcut-action="settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+                <button class="rail-btn" id="rail-help-btn" data-tooltip-key="ui.tooltips.rail_help" data-tooltip-position="right" data-shortcut-action="help">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>
+                    </svg>
+                </button>
+            </nav>
+
+            <!-- Main content area -->
+            <div id="main-content">
+                <!-- Connection bar (shown when disconnected) — single button
+                     that opens the Open dialog; label set from strings.js -->
+                <div id="connection-bar">
+            <button id="open-folder-btn"></button>
+        </div>
+
+        <!-- Confirm dialog for creating directories -->
+        <div id="confirm-dialog">
+            <div class="confirm-box">
+                <h4>Directory not found</h4>
+                <p>The directory <code id="confirm-path"></code> does not exist. Would you like to create it?</p>
+                <div class="confirm-buttons">
+                    <button class="cancel-btn" id="confirm-cancel">Cancel</button>
+                    <button class="confirm-btn" id="confirm-create">Create Directory</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Session View (conversation) - active by default -->
+        <div id="session-view" class="view active">
+            <!-- Chat Search Bar -->
+            <div id="chat-search-bar" class="chat-search-bar">
+                <div class="chat-search-input-wrap">
+                    <svg class="chat-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="chat-search-input" placeholder="Search messages..." autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" />
+                    <span id="chat-search-count" class="chat-search-count"></span>
+                </div>
+                <div class="chat-search-nav">
+                    <button id="chat-search-prev" class="chat-search-nav-btn" data-tooltip-key="ui.tooltips.chat_search_prev">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="18 15 12 9 6 15"/>
+                        </svg>
+                    </button>
+                    <button id="chat-search-next" class="chat-search-nav-btn" data-tooltip-key="ui.tooltips.chat_search_next">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                    </button>
+                    <button id="chat-search-close" class="chat-search-close-btn" data-tooltip-key="ui.tooltips.chat_search_close">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="messages-container">
+                <div id="messages"></div>
+
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div id="input-area">
+            <!-- Activity strip — between messages and input, peripheral to cursor -->
+            <div class="activity-strip" id="activity-strip">
+                <span class="activity-strip-icon"></span>
+                <span class="activity-strip-timer"></span>
+                <span class="activity-strip-text"></span>
+            </div>
+            <div id="input-wrapper">
+                <div id="autocomplete"></div>
+
+                <!-- Stash picker dropdown -->
+                <div class="stash-picker" id="stash-picker">
+                    <div class="stash-picker-header">
+                        <span class="stash-picker-title">Comments Stash</span>
+                        <div class="stash-picker-actions">
+                            <button class="stash-move-btn" id="stash-move-btn" hidden>
+                                <!-- Content injected by stash-ui initStashUI (strings.yaml) -->
+                            </button>
+                            <button class="stash-picker-clear" id="stash-clear-btn">Clear All</button>
+                            <button class="stash-picker-close" id="stash-picker-close">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="stash-picker-list" id="stash-picker-list">
+                        <!-- Items rendered dynamically -->
+                    </div>
+                </div>
+
+                <div id="input-container">
+                    <div id="input-resize-handle" data-tooltip-key="ui.tooltips.input_resize"></div>
+
+                    <!-- Stash preview (shown when items in stash) -->
+                    <div class="stash-preview" id="stash-preview">
+                        <span class="stash-preview-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                <polyline points="17 21 17 13 7 13 7 21"/>
+                                <polyline points="7 3 7 8 15 8"/>
+                            </svg>
+                        </span>
+                        <span class="stash-preview-text" id="stash-preview-text" data-tooltip-key="ui.tooltips.stash_preview">
+                            <span class="stash-preview-count" id="stash-preview-count">0</span>
+                            <span class="stash-preview-label" id="stash-preview-label">references will be attached</span>
+                        </span>
+                        <label class="stash-toggle" data-tooltip-key="ui.tooltips.stash_toggle">
+                            <input type="checkbox" id="stash-preview-checkbox" checked>
+                            <span class="stash-toggle-track">
+                                <span class="stash-toggle-thumb"></span>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Textarea with highlight overlay for thinking keywords -->
+                    <div class="input-textarea-wrapper">
+                        <div id="input-highlight-backdrop" aria-hidden="true"></div>
+                        <span class="shell-prompt-prefix" id="shell-prompt-prefix">$</span>
+                        <textarea id="message-input" placeholder="Message Claude...  ·  @ files  ·  # snippets/agents  ·  $ skills  ·  / commands" rows="1" autocomplete="off" enterkeyhint="send"></textarea>
+                        <!-- Shortcut hints shown inside empty textarea (absolute-positioned, pointer-events none) -->
+                        <div id="shortcut-hints-overlay" class="shortcut-hints-overlay" aria-hidden="true"></div>
+                    </div>
+                    <div id="input-toolbar">
+                        <div class="toolbar-left">
+                            <!-- Primary actions (always visible) -->
+                            <button id="snippets-btn" class="toolbar-btn toolbar-primary" data-tooltip-key="ui.tooltips.snippets_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/>
+                                </svg>
+                            </button>
+                            <button id="slash-cmd-btn" class="toolbar-btn toolbar-primary" data-tooltip-key="ui.tooltips.slash_cmd_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="7" y1="20" x2="17" y2="4"/>
+                                </svg>
+                            </button>
+                            <button id="file-mention-btn" class="toolbar-btn toolbar-primary" data-tooltip-key="ui.tooltips.file_mention_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="4"/>
+                                    <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/>
+                                </svg>
+                            </button>
+                            <button id="skills-btn" class="toolbar-btn toolbar-primary" data-tooltip-key="ui.tooltips.skills_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="2" x2="12" y2="22"/>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                                </svg>
+                            </button>
+                            <div class="toolbar-separator" aria-hidden="true"></div>
+                            <button id="stash-btn" class="toolbar-btn toolbar-primary" data-tooltip-key="ui.tooltips.stash_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                    <polyline points="17 21 17 13 7 13 7 21"/>
+                                    <polyline points="7 3 7 8 15 8"/>
+                                </svg>
+                                <span class="stash-badge" id="stash-badge"></span>
+                            </button>
+
+                            <!-- Secondary actions (hidden on mobile) -->
+                            <button id="prompt-history-btn" class="toolbar-btn toolbar-secondary" data-tooltip-key="ui.tooltips.prompt_history_btn" data-shortcut-action="togglePromptExplorer">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                    <path d="M8 12H2"/>
+                                    <path d="M4 8l-2 4 2 4"/>
+                                </svg>
+                            </button>
+                            <button id="uploads-btn" class="toolbar-btn toolbar-secondary" data-tooltip-key="ui.tooltips.uploads_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                                    <polyline points="21 15 16 10 5 21"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="toolbar-right">
+                            <!-- Drafts pill: entry point to Prompt Explorer → Drafts, shown only on empty input (label/tooltip set from strings.js) -->
+                            <button id="drafts-pill" class="drafts-pill" type="button"></button>
+                            <button id="permission-btn" class="toolbar-btn permission-btn" data-tooltip-key="ui.tooltips.permission_btn" data-level="bypassPermissions">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="7.5" cy="15.5" r="5.5"/>
+                                    <path d="m21 2-9.6 9.6"/>
+                                    <path d="m15.5 7.5 3 3L22 7l-3-3"/>
+                                </svg>
+                                <span class="permission-label">YOLO</span>
+                            </button>
+                            <div id="permission-popup" class="permission-popup">
+                                <!-- Populated by permission-settings.js from strings.yaml -->
+                            </div>
+                            <button id="effort-btn" class="toolbar-btn effort-btn" data-tooltip-key="ui.tooltips.effort_btn" data-level="high" data-shortcut-action="toggleThinkingSettings">
+                                <span class="effort-fill" aria-hidden="true"></span>
+                                <span class="effort-value">Hi</span>
+                                <span class="effort-oneshot-badge" aria-hidden="true">1</span>
+                            </button>
+                            <div id="effort-popup" class="effort-popup">
+                                <div class="effort-popup-header">Effort Level</div>
+                                <!-- Presets rendered by effort-settings.js from the
+                                     active engine/model's own effort vocabulary -->
+                                <div class="effort-presets"></div>
+                                <div class="effort-popup-footer">
+                                    <button class="effort-set-default">Set as default</button>
+                                </div>
+                            </div>
+                            <button id="favorite-prompt-btn" class="toolbar-btn favorite-prompt-btn" data-tooltip-key="ui.tooltips.favorite_prompt_btn">
+                                <svg class="heart-outline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                </svg>
+                                <svg class="heart-filled" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                </svg>
+                            </button>
+                            <button id="upload-btn" class="toolbar-btn" data-tooltip-key="ui.tooltips.upload_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </button>
+                            <button id="send-btn" disabled data-tooltip-key="ui.input.send_tooltip">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                                </svg>
+                            </button>
+                            <button id="followup-btn" disabled data-tooltip-key="ui.tooltips.followup_btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M16 4 8 12"/>
+                                    <path d="M16 4l-5 14-2.5-6.5L2 9z"/>
+                                    <line x1="19" y1="16" x2="19" y2="22"/>
+                                    <line x1="16" y1="19" x2="22" y2="19"/>
+                                </svg>
+                            </button>
+                            <button id="stop-btn" data-tooltip-key="ui.tooltips.stop_btn" data-shortcut-action="escape">
+                                <svg viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="6" y="6" width="12" height="12" rx="2"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+                <div id="input-hint"></div>
+                <div id="status-bar">
+                    <div class="status-left">
+                        <span class="status-item" id="status-connection" data-tooltip-key="ui.tooltips.status_connection">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+                        </span>
+                        <span class="status-item" id="status-helpers" hidden></span>
+                        <span class="status-item" id="status-engine"></span>
+                        <span class="status-item" id="status-model"></span>
+                        <span class="status-item" id="status-token-profile"></span>
+                        <span class="status-item" id="status-project"></span>
+                        <span class="status-item" id="status-branch" data-tooltip-key="ui.tooltips.status_branch"></span>
+                    </div>
+                    <div class="status-right">
+                        <span class="status-item token-meter" id="status-tokens">
+                            <span class="token-bar"><span class="token-fill"></span></span>
+                            <span class="token-text"></span>
+                        </span>
+                        <span class="cost" id="status-cost"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Welcome View (sibling of session/widget views) -->
+        <div id="welcome-view" class="view"></div>
+            </div> <!-- /#main-content -->
+        </div> <!-- /#app-body -->
+    </div> <!-- /#app -->
+
+    <!-- Selection Action Bar (floating panel, outside #app to avoid stacking context issues) -->
+    <div class="selection-bar" id="selection-bar">
+        <div class="selection-bar-drag" id="selection-bar-drag"></div>
+        <div class="selection-bar-resize" id="selection-bar-resize"></div>
+        <button class="selection-close selection-close-corner" id="selection-close" data-tooltip-key="ui.tooltips.selection_close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+        </button>
+        <div class="selection-quote-wrap" id="selection-quote-wrap">
+            <div class="selection-quote" id="selection-quote"></div>
+            <button class="selection-quote-toggle" id="selection-quote-toggle" type="button" data-tooltip-key="ui.tooltips.selection_quote_toggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
+        </div>
+        <textarea class="selection-input" id="selection-input" placeholder="Add a note or question (optional)…" rows="2" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true"></textarea>
+        <div class="selection-actions">
+            <button class="selection-action-btn selection-discuss-btn" id="selection-discuss-btn" data-tooltip-key="ui.tooltips.selection_discuss">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span class="selection-action-label">Discuss</span>
+                <span class="selection-action-kbd">⌃⏎</span>
+            </button>
+            <button class="selection-action-btn selection-stash-btn" id="selection-stash-btn" data-tooltip-key="ui.tooltips.selection_stash">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline points="17 21 17 13 7 13 7 21"/>
+                    <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span class="selection-action-label">Stash</span>
+                <span class="selection-action-kbd">⏎</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- File Explorer: Now managed by Widget System (see widgets/file-explorer-widget.js) -->
+
+    <!-- Log Explorer is now a widget (created dynamically by log-explorer-widget.js) -->
+
+    <!-- Help Modal -->
+    <div id="modal-overlay">
+        <div class="modal" id="help-modal">
+            <div class="modal-header">
+                <h3>Keyboard Shortcuts & Commands</h3>
+                <button class="modal-close" id="modal-close">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Content populated dynamically by ShortcutManager -->
+            </div>
+        </div>
+    </div>
+
+    <!-- App JavaScript (ES Modules) -->
+    <script type="module" src="/static/js/app.js"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then((registration) => {
+                        console.log('SW registered:', registration.scope);
+
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New version available - auto-apply it
+                                    console.log('New version available - activating...');
+                                    newWorker.postMessage('skipWaiting');
+                                }
+                            });
+                        });
+
+                        // Reload when new SW takes control (ensures fresh code)
+                        let refreshing = false;
+                        navigator.serviceWorker.addEventListener('controllerchange', () => {
+                            if (refreshing) return;
+                            refreshing = true;
+                            console.log('New SW controlling page - reloading...');
+                            window.location.reload();
+                        });
+                    })
+                    .catch((err) => {
+                        console.error('SW registration failed:', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

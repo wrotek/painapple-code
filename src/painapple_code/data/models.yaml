@@ -1,0 +1,18 @@
+# models.yaml - Available Claude models (single source of truth)
+# Server serves this via GET /api/bridge/models
+# Edit via Settings → Engines (Claude tab), or by hand (both work).
+
+selectable:
+- id: claude-sonnet-5
+  label: Sonnet 5
+  desc: Balanced speed and capability
+- id: claude-opus-5[1m]
+  label: Opus 5 (1M)
+  desc: Complex agentic coding and enterprise work
+- id: claude-opus-4-8[1m]
+  label: Opus 4.8 (1M)
+  desc: Previous Opus tier (1M context)
+- id: claude-fable-5
+  label: Fable 5
+  desc: Most capable, premium cost
+summary_model: claude-haiku-4-5

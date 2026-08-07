@@ -1,0 +1,218 @@
+/**
+ * Chat Navigator - Navigate between user messages
+ * Floating UI with prev/next buttons and position indicator
+ */
+
+/* Floating navigation container */
+.chat-nav {
+    position: fixed;
+    right: 16px;
+    bottom: max(calc(var(--input-area-height, 80px) + 20px), 168px); /* Above FAB: max(input+gap, fab_bottom+fab_h+16) */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-4);
+    z-index: var(--z-base-ui-raised);
+    opacity: var(--floating-opacity-inactive, 0.7);
+    transition: opacity 0.2s ease, bottom 0.1s ease;
+    /* Capture pointer events in gaps between buttons */
+    padding: var(--sp-6);
+    margin: -6px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: var(--radius-lg);
+}
+
+.chat-nav:hover {
+    opacity: 1;
+}
+
+.chat-nav.hidden {
+    display: none;
+}
+
+/* Navigation buttons */
+.chat-nav-btn {
+    width: var(--layout-btn-lg);
+    height: var(--layout-btn-lg);
+    border-radius: 50%;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    background: var(--bg-tertiary, #2d2d44);
+    color: var(--text-secondary, #a0a0b0);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.chat-nav-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.chat-nav-btn:hover:not(:disabled) {
+    background: var(--bg-hover, #3d3d5c);
+    color: var(--text-primary, #fff);
+    border-color: var(--accent);
+}
+
+.chat-nav-btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+.chat-nav-btn:disabled,
+.chat-nav-btn.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Loading state (when fetching more history) */
+.chat-nav-btn.loading {
+    animation: nav-btn-pulse 1s ease-in-out infinite;
+}
+
+@keyframes nav-btn-pulse {
+    0%, 100% {
+        opacity: 0.5;
+    }
+    50% {
+        opacity: 1;
+        border-color: var(--accent);
+    }
+}
+
+/* Position indicator (also serves as drag handle) */
+.chat-nav-pos {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-secondary, #a0a0b0);
+    background: var(--bg-tertiary, #2d2d44);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    border-radius: var(--radius-lg);
+    padding: var(--sp-4) var(--sp-8);
+    min-width: 40px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: grab;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.chat-nav-pos:active {
+    cursor: grabbing;
+}
+
+/* Dragging state */
+.chat-nav.dragging {
+    opacity: 1 !important;
+    transition: none;
+}
+
+.chat-nav.dragging .chat-nav-pos {
+    cursor: grabbing;
+    background: var(--bg-hover, #3d3d5c);
+    border-color: var(--accent);
+}
+
+.chat-nav-current {
+    color: var(--text-primary, #fff);
+}
+
+.chat-nav-sep {
+    color: var(--text-muted, #666);
+    margin: 0 var(--sp-2);
+}
+
+.chat-nav-more {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* "At bottom" indicator - line inside down button when at end */
+.chat-nav-next {
+    position: relative;
+}
+
+.chat-nav-next.at-bottom::after {
+    content: '';
+    position: absolute;
+    bottom: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 2px;
+    background: var(--text-muted, #666);
+    border-radius: var(--radius-xs);
+    opacity: 0.5;
+}
+
+/* Highlight animation when jumping to a message */
+@keyframes nav-highlight-pulse {
+    0% {
+        box-shadow: inset 0 0 0 2px var(--accent);
+    }
+    50% {
+        box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.5);
+    }
+    100% {
+        box-shadow: inset 0 0 0 0 transparent;
+    }
+}
+
+.message.nav-highlight {
+    animation: nav-highlight-pulse 1s ease-out;
+}
+
+/* Wide screen: position outside the 900px content area */
+@media (min-width: 1100px) {
+    .chat-nav {
+        right: auto;
+        left: calc(var(--left-rail-width) + var(--layout-content-padding) + 900px + 56px);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chat-nav {
+        right: 12px;
+        bottom: max(calc(var(--input-area-height, 100px) + 20px), 172px); /* Above FAB: max(input+gap, fab_bottom+fab_h+16) */
+    }
+
+    .chat-nav-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .chat-nav-btn svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .chat-nav-next.at-bottom::after {
+        width: 16px;
+        bottom: 7px;
+    }
+}
+
+/* When keyboard is visible (e.g., on iPad) */
+@media (max-height: 500px) {
+    .chat-nav {
+        bottom: calc(var(--input-area-height, 60px) + 10px);
+    }
+}
+
+/* Tablet-specific: slightly larger touch targets */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .chat-nav-btn {
+        width: 44px;
+        height: 44px;
+    }
+
+    .chat-nav-next.at-bottom::after {
+        width: 18px;
+        bottom: 8px;
+    }
+}

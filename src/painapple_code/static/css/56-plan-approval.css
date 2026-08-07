@@ -1,0 +1,204 @@
+/**
+ * ExitPlanMode Plan Approval Styling
+ * Interactive approval card for Claude's ExitPlanMode tool
+ */
+
+/* Plan approval container - mirrors question form style */
+.message.plan-approval {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-md);
+    padding: var(--sp-10);
+    margin: var(--sp-6) 0;
+}
+
+.message.plan-approval:not(.answered) {
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.message.plan-approval.answered {
+    opacity: 0.85;
+}
+
+.message.plan-approval .message-header {
+    margin-bottom: var(--sp-6);
+}
+
+.message.plan-approval .message-role.plan-approval {
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    font-size: var(--font-size-sm);
+}
+
+.message.plan-approval .message-role.plan-approval svg {
+    stroke: var(--accent);
+    width: 12px;
+    height: 12px;
+}
+
+/* Body */
+.plan-approval-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+}
+
+.plan-approval-desc {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Action buttons row */
+.plan-approval-actions {
+    display: flex;
+    gap: var(--sp-8);
+    padding-top: var(--sp-4);
+}
+
+/* Approve button */
+.plan-approve-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+    padding: 7px var(--sp-16);
+    background: var(--accent-green, #22c55e);
+    color: var(--bg-primary, #0a0a0a);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.plan-approve-btn:hover {
+    filter: brightness(0.9);
+    transform: translateY(-1px);
+}
+
+.plan-approve-btn:active {
+    transform: translateY(0);
+}
+
+.plan-approve-btn svg {
+    stroke: var(--bg-primary, #0a0a0a);
+    width: 13px;
+    height: 13px;
+}
+
+/* Reject/revise button */
+.plan-reject-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+    padding: 7px var(--sp-16);
+    background: var(--bg-secondary, #1a1a1a);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.plan-reject-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+}
+
+.plan-reject-btn:active {
+    transform: translateY(0);
+}
+
+.plan-reject-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+/* Status after decision */
+.plan-approval-status {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-5);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    padding: var(--sp-4) 0;
+}
+
+.plan-approval-status.approved {
+    color: var(--accent-green, #22c55e);
+}
+
+.plan-approval-status.approved svg {
+    stroke: var(--accent-green, #22c55e);
+}
+
+.plan-approval-status.rejected {
+    color: var(--text-secondary);
+}
+
+.plan-approval-status.rejected svg {
+    stroke: var(--text-secondary);
+}
+
+/* Preview plan button — subtle link style */
+.plan-preview-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: 7px var(--sp-12);
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-left: auto;
+}
+
+.plan-preview-btn:hover {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+    background: var(--bg-secondary, #1a1a1a);
+}
+
+.plan-preview-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+.plan-preview-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .message.plan-approval {
+        padding: var(--sp-8);
+    }
+
+    .plan-approval-actions {
+        flex-direction: column;
+    }
+
+    .plan-approve-btn,
+    .plan-reject-btn,
+    .plan-preview-btn {
+        justify-content: center;
+        padding: 9px var(--sp-16);
+    }
+
+    .plan-preview-btn {
+        margin-left: 0;
+    }
+}

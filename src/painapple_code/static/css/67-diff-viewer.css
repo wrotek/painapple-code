@@ -1,0 +1,576 @@
+/* ============================================================
+   Diff Viewer Widget - Side-by-side comparison
+   ============================================================ */
+
+/* ── History bar (stepper + picker + pivots) ── */
+
+.dv-history-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-10);
+    background: var(--surface-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    font-size: var(--font-size-xs);
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.dv-history-bar::-webkit-scrollbar { display: none; }
+
+.dv-stepper {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.dv-step-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--widget-transition-fast, 150ms ease), color var(--widget-transition-fast, 150ms ease);
+    flex-shrink: 0;
+}
+
+.dv-step-btn svg { width: 14px; height: 14px; }
+
+.dv-step-btn:hover:not(.dv-disabled) {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.dv-step-btn.dv-disabled,
+.dv-step-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.dv-picker {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-8);
+    border: 1px solid var(--border-primary);
+    background: var(--surface-tertiary);
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    cursor: pointer;
+    min-width: 0;
+    max-width: 360px;
+    transition: background var(--widget-transition-fast, 150ms ease), border-color var(--widget-transition-fast, 150ms ease);
+}
+
+.dv-picker:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-secondary);
+}
+
+.dv-picker-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.dv-picker-sub {
+    color: var(--text-tertiary);
+    font-size: 10px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.dv-picker-caret {
+    display: inline-flex;
+    color: var(--text-muted);
+    margin-left: auto;
+    flex-shrink: 0;
+}
+.dv-picker-caret svg { width: 12px; height: 12px; }
+
+.dv-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--border-secondary);
+    flex-shrink: 0;
+}
+
+.dv-pivots {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+    flex-shrink: 0;
+}
+
+.dv-pivot {
+    padding: var(--sp-4) var(--sp-10);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--widget-transition-fast, 150ms ease), color var(--widget-transition-fast, 150ms ease), border-color var(--widget-transition-fast, 150ms ease);
+}
+
+.dv-pivot:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+    border-color: var(--border-secondary);
+}
+
+/* From/To picker pair (preview history bar) */
+.dv-picker-from,
+.dv-picker-to {
+    max-width: 220px;
+    min-width: 90px;
+    flex: 1 1 auto;
+}
+
+.dv-picker-prefix {
+    color: var(--text-tertiary);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+
+.dv-picker.dv-picker-auto .dv-picker-label {
+    font-style: italic;
+    color: var(--text-secondary);
+}
+
+.dv-arrow {
+    color: var(--text-tertiary);
+    font-size: var(--font-size-sm);
+    flex-shrink: 0;
+    padding: 0 var(--sp-2);
+}
+
+/* Hide pivot text on very narrow viewports — keep tooltip via data-tooltip */
+@media (max-width: 520px) {
+    .dv-picker { max-width: 200px; }
+    .dv-picker-sub { display: none; }
+    .dv-picker-prefix { display: none; }
+    .dv-picker-from, .dv-picker-to { max-width: 130px; min-width: 70px; }
+    .dv-pivot { padding: var(--sp-4) var(--sp-8); font-size: 10px; }
+}
+
+/* Make the diff viewer's widget body a flex column so the history bar pins
+   above and the layout fills remaining space without outer scrolling. */
+[data-widget-id="diff-viewer"] .widget-content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Main layout: optional file list sidebar + diff content */
+.diff-viewer-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ── File list sidebar (multi-file mode) ── */
+
+.diff-viewer-file-list {
+    width: 200px;
+    min-width: 150px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border-primary);
+    overflow-y: auto;
+    background: var(--surface-secondary);
+    -webkit-overflow-scrolling: touch;
+}
+
+.diff-viewer-file-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-10);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    transition: background var(--widget-transition-fast, 150ms ease);
+}
+
+.diff-viewer-file-item:hover {
+    background: var(--surface-hover);
+}
+
+.diff-viewer-file-item.active {
+    background: var(--surface-active);
+    border-left: 2px solid var(--accent);
+    color: var(--text-primary);
+}
+
+.diff-viewer-file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+}
+
+.diff-viewer-file-stats {
+    margin-left: auto;
+    display: flex;
+    gap: var(--sp-4);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+.diff-viewer-file-stats .added { color: var(--color-green, #4ade80); }
+.diff-viewer-file-stats .removed { color: var(--color-red, #f87171); }
+
+/* ── File tab bar (narrow screens, replaces sidebar) ── */
+
+.diff-viewer-file-tabs {
+    display: none;
+    overflow-x: auto;
+    background: var(--surface-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.diff-viewer-file-tabs::-webkit-scrollbar { display: none; }
+
+.diff-viewer-file-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-6) var(--sp-12);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color var(--widget-transition-fast, 150ms ease);
+}
+
+.diff-viewer-file-tab:hover { color: var(--text-primary); }
+
+.diff-viewer-file-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+/* ── Main content area ── */
+
+.diff-viewer-content {
+    flex: 1;
+    overflow: auto;
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* ── Column header labels (Before / After) ── */
+
+.sbs-header {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 4px 40px minmax(0, 1fr);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.sbs-header-label {
+    padding: var(--sp-4) var(--sp-8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sbs-header-label.left { grid-column: 1 / 3; }
+.sbs-header-label.right { grid-column: 4 / 6; }
+.sbs-header-gutter { grid-column: 3; background: var(--border-secondary); }
+
+/* ── Side-by-side diff grid ──
+   Each hunk is its own grid wrapped in a `.sbs-hunk` scroll container, so
+   the rows in a hunk share one horizontal scrollbar. Linenum columns are
+   fixed-width so they line up across hunks; text columns size to content
+   (`min-content` lower bound) so the grid grows beyond the viewport when
+   lines are long, and the hunk wrapper scrolls. */
+
+.sbs-diff-stack {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+}
+
+.sbs-hunk {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.sbs-hunk::-webkit-scrollbar { height: 6px; }
+.sbs-hunk::-webkit-scrollbar-thumb {
+    background: var(--border-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.sbs-diff-grid {
+    display: grid;
+    grid-template-columns: 40px minmax(min-content, 1fr) 4px 40px minmax(min-content, 1fr);
+    min-width: 100%;
+}
+
+/* Line number columns */
+.sbs-linenum {
+    text-align: right;
+    padding: 0 var(--sp-6);
+    color: var(--text-tertiary);
+    font-size: var(--font-size-xs);
+    user-select: none;
+    -webkit-user-select: none;
+    opacity: 0.6;
+    white-space: nowrap;
+    min-height: 18px;
+}
+
+/* Content columns */
+.sbs-text {
+    white-space: pre;
+    padding: 0 var(--sp-8);
+    min-height: 18px;
+}
+
+/* Center gutter divider */
+.sbs-gutter {
+    background: var(--border-secondary);
+    min-height: 18px;
+}
+
+/* ── Diff type colors ── */
+
+/* Context (unchanged) */
+.sbs-context {
+    opacity: 0.5;
+}
+
+/* Removed (left side only) */
+.sbs-linenum.sbs-removed,
+.sbs-text.sbs-removed {
+    background: rgba(248, 113, 113, 0.12);
+}
+
+.sbs-text.sbs-removed {
+    color: var(--text-primary);
+}
+
+/* Added (right side only) */
+.sbs-linenum.sbs-added,
+.sbs-text.sbs-added {
+    background: rgba(74, 222, 128, 0.12);
+}
+
+.sbs-text.sbs-added {
+    color: var(--text-primary);
+}
+
+/* Modified old (left) */
+.sbs-linenum.sbs-modified-old,
+.sbs-text.sbs-modified-old {
+    background: rgba(248, 113, 113, 0.10);
+}
+
+/* Modified new (right) */
+.sbs-linenum.sbs-modified-new,
+.sbs-text.sbs-modified-new {
+    background: rgba(74, 222, 128, 0.10);
+}
+
+/* Empty placeholder (no line on this side) */
+.sbs-linenum.sbs-empty,
+.sbs-text.sbs-empty {
+    background: rgba(128, 128, 128, 0.04);
+    background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 4px,
+        rgba(128, 128, 128, 0.03) 4px,
+        rgba(128, 128, 128, 0.03) 8px
+    );
+}
+
+/* Collapse row (spans entire grid) */
+.sbs-collapse {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--sp-4) var(--sp-8);
+    background: var(--surface-secondary);
+    border-top: 1px dashed var(--border-secondary);
+    border-bottom: 1px dashed var(--border-secondary);
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    font-style: italic;
+    font-family: var(--font-mono);
+    transition: background var(--widget-transition-fast, 150ms ease);
+}
+
+.sbs-collapse:hover {
+    background: var(--surface-hover);
+    color: var(--text-secondary);
+}
+
+/* ── Hunk navigation highlight ── */
+
+.sbs-hunk-start {
+    /* Marker class for keyboard nav targets */
+}
+
+.sbs-hunk-active .sbs-linenum,
+.sbs-hunk-active .sbs-text {
+    outline: 1px solid var(--accent);
+    outline-offset: -1px;
+}
+
+/* ── Wrap mode: lines wrap inside each hunk, no horizontal scroll ── */
+.diff-viewer-content.wrap-lines .sbs-hunk { overflow-x: hidden; }
+.diff-viewer-content.wrap-lines .sbs-diff-grid {
+    grid-template-columns: 40px minmax(0, 1fr) 4px 40px minmax(0, 1fr);
+}
+.diff-viewer-content.wrap-lines .sbs-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* ── View mode toggle in header ── */
+
+.diff-viewer-mode-toggle {
+    display: flex;
+    gap: 1px;
+    background: var(--surface-tertiary);
+    border-radius: var(--radius-sm);
+    padding: 1px;
+    margin-right: var(--sp-4);
+}
+
+.diff-viewer-mode-btn {
+    padding: var(--sp-2) var(--sp-8);
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: all var(--widget-transition-fast, 150ms ease);
+}
+
+.diff-viewer-mode-btn:hover {
+    color: var(--text-secondary);
+}
+
+.diff-viewer-mode-btn.active {
+    background: var(--accent-muted, rgba(var(--accent-rgb), 0.2));
+    color: var(--accent);
+}
+
+/* ── Compare selection indicator ── */
+
+.diff-compare-indicator {
+    position: fixed;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-14);
+    background: var(--surface-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: var(--z-toast, 5000);
+    animation: sbs-indicator-in 200ms ease;
+}
+
+.diff-compare-indicator .filename {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.diff-compare-indicator .dismiss {
+    cursor: pointer;
+    opacity: 0.5;
+    padding: var(--sp-2);
+    margin-left: var(--sp-4);
+}
+
+.diff-compare-indicator .dismiss:hover {
+    opacity: 1;
+}
+
+@keyframes sbs-indicator-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── Empty / loading states ── */
+
+.diff-viewer-empty,
+.diff-viewer-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+    padding: var(--sp-20);
+    text-align: center;
+}
+
+/* ── Responsive: narrow screens ── */
+
+@media (max-width: 1023px) {
+    .diff-viewer-file-list {
+        display: none;
+    }
+    .diff-viewer-file-tabs {
+        display: flex;
+    }
+}
+
+/* ── Responsive: very narrow (phone / small widget) ── */
+
+@media (max-width: 767px) {
+    .sbs-header { display: none; }
+    .diff-viewer-file-tabs { display: none; }
+}

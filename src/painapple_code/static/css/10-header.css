@@ -1,0 +1,777 @@
+/* ═══════════════════════════════════════════════════════════════════
+   HEADER & TABS
+   ═══════════════════════════════════════════════════════════════════ */
+header {
+    height: calc(var(--layout-header-height) + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    align-items: center;
+    padding-left: var(--layout-input-padding-h);
+    padding-right: var(--layout-input-padding-h);
+    gap: var(--layout-gap-md);
+    flex-shrink: 0;
+    -webkit-app-region: drag;
+}
+
+/* Instance identity badge - colored pill showing instance name (DEV, STABLE, etc.) */
+.instance-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #000;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+    line-height: 1.4;
+    -webkit-app-region: no-drag;
+}
+
+/* Viewport wraps the scrollable strip and hosts the overflow overlays.
+   It does NOT scroll — so the absolutely-positioned overflow indicators stay
+   pinned to the visible left/right edges and toggling them never changes the
+   strip's scrollWidth (which is what made tabs jump left/right when full). */
+.tabs-viewport {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 0 1 auto;
+    min-width: 0;
+    -webkit-app-region: no-drag;
+}
+
+#tabs {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-app-region: no-drag;
+}
+
+#tabs::-webkit-scrollbar {
+    display: none;
+}
+
+/* Tabs Overview Button (Safari-style) */
+.tabs-overview-btn {
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    min-width: 28px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    margin-right: var(--sp-4);
+    flex-shrink: 0;
+}
+
+.tabs-overview-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.tabs-overview-btn:active {
+    background: var(--bg-hover);
+}
+
+.tabs-overview-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Tabs Overview Dropdown */
+.tabs-overview-dropdown {
+    position: fixed;
+    z-index: 1000;
+    min-width: 200px;
+    max-width: 320px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    padding: var(--sp-6);
+}
+
+.tabs-overview-empty {
+    padding: var(--sp-16);
+    color: var(--text-muted);
+    text-align: center;
+    font-size: var(--font-size-base);
+}
+
+.tabs-overview-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-10) var(--sp-12);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.1s ease;
+}
+
+.tabs-overview-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.tabs-overview-item.active {
+    background: var(--accent-muted);
+}
+
+.tabs-overview-dot {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 50%;
+    background: transparent;
+    /* Hidden by default - only show when process is running */
+}
+
+/* Main Claude process running (orange - active/working) */
+.tabs-overview-dot.running-claude {
+    background: #f59e0b;
+    animation: pulse 1s infinite;
+    will-change: opacity;
+}
+
+/* Shadow git / Summary fork running (purple) */
+.tabs-overview-dot.running-shadowgit {
+    background: #a855f7;
+    animation: pulse 1.2s infinite;
+    will-change: opacity;
+}
+
+/* Ready - Claude finished, user can continue (green, no animation) */
+.tabs-overview-dot.ready {
+    background: var(--success, #22c55e);
+}
+
+/* Legacy: connection-based status (deprecated) */
+.tabs-overview-dot.connected {
+    background: transparent;
+}
+
+.tabs-overview-dot.connecting {
+    background: var(--warning);
+    animation: pulse 1s infinite;
+    will-change: opacity;
+}
+
+.tabs-overview-name {
+    flex: 1;
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tabs-overview-unread {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+}
+
+.tabs-overview-close {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    opacity: 0.5;
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    margin-left: auto;
+}
+
+/* Hide close button until hover (desktop + iPadOS trackpad) */
+.tabs-overview-close {
+    opacity: 0;
+}
+
+.tabs-overview-item:hover .tabs-overview-close {
+    opacity: 0.6;
+}
+
+/* On pure-touch: always show close button (no hover available) */
+@media (hover: none) and (pointer: coarse) and (any-pointer: coarse) {
+    .tabs-overview-close {
+        opacity: 0.6;
+    }
+}
+
+.tabs-overview-close:hover {
+    opacity: 1 !important;
+    background: var(--bg-hover);
+    color: var(--error);
+}
+
+.tabs-overview-close svg {
+    width: 12px;
+    height: 12px;
+}
+
+.tab {
+    display: flex;
+    align-items: center;
+    gap: var(--layout-gap-xs);
+    padding: var(--layout-gap-xs) var(--layout-gap-md);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    position: relative;
+    flex-shrink: 0;
+    /* Disable iOS callout menu to allow custom long-press context menu */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.tab:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.tab.active {
+    background: var(--bg-tertiary);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+}
+
+/* Drag-to-reorder: picked-up tab (mouse drag past threshold, or touch
+   long-press). Transition excludes transform so the lift is instant. */
+.tab.dragging {
+    background: var(--bg-tertiary);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+    opacity: 0.9;
+    transform: scale(1.05);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45),
+                inset 0 -2px 0 0 var(--project-color, transparent);
+    z-index: var(--z-internal-raised);
+    cursor: grabbing;
+}
+
+/* Keep stray text selection from happening mid-drag */
+.tabs-drag-active,
+.tabs-drag-active * {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Per-project accent underline (deterministic from cwd — project-colors.js).
+   The inline style sets --project-color; tabs without one stay unmarked.
+   Inactive tabs get a thin, dimmed stripe; the active tab gets a full-color,
+   thicker one so it reads as clearly selected. */
+.tab-session {
+    box-shadow: inset 0 -2px 0 0
+        color-mix(in srgb, var(--project-color, transparent) 40%, transparent);
+    transition: box-shadow 0.15s ease;
+}
+
+.tab-session.active {
+    box-shadow: inset 0 -3px 0 0 var(--project-color, transparent);
+}
+
+.tab.is-favorite {
+    background: rgba(251, 191, 36, 0.08);
+    border-color: rgba(251, 191, 36, 0.25);
+}
+
+.tab.is-favorite.active {
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.4);
+}
+
+/* Pinned tabs sort to the front of the strip and survive Close All/Others.
+   A left edge-marker reads as "anchored" without competing with the
+   project-color underline or the amber favorite tint. */
+.tab.is-pinned {
+    box-shadow: inset 2px 0 0 0 var(--accent-blue);
+}
+
+.tab-session.is-pinned {
+    box-shadow:
+        inset 2px 0 0 0 var(--accent-blue),
+        inset 0 -2px 0 0 color-mix(in srgb, var(--project-color, transparent) 40%, transparent);
+}
+
+.tab-session.is-pinned.active {
+    box-shadow:
+        inset 2px 0 0 0 var(--accent-blue),
+        inset 0 -3px 0 0 var(--project-color, transparent);
+}
+
+/* Clickable pin glyph — sits where the close button sits, same affordance
+   grammar, but stays visible at rest so pinned state is always legible. */
+.tab .tab-pin-btn {
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.55;
+    transition: background 0.15s, opacity 0.15s;
+    margin-left: var(--sp-2);
+    margin-right: -2px;
+    flex-shrink: 0;
+    color: var(--accent-blue);
+}
+
+.tab:hover .tab-pin-btn,
+.tab.active .tab-pin-btn {
+    opacity: 0.85;
+}
+
+.tab .tab-pin-btn:hover {
+    opacity: 1;
+    background: var(--bg-hover);
+}
+
+.tab .tab-pin-btn svg {
+    width: 11px;
+    height: 11px;
+}
+
+.tab .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: transparent;
+    /* Hidden by default - only show when process is running */
+}
+
+/* Main Claude process running (orange - active/working) */
+.tab .status-dot.running-claude {
+    background: #f59e0b;
+    animation: pulse 1s infinite;
+    will-change: opacity;
+}
+
+/* Shadow git / Summary fork running (purple) */
+.tab .status-dot.running-shadowgit {
+    background: #a855f7;
+    animation: pulse 1.2s infinite;
+    will-change: opacity;
+}
+
+/* Ready - Claude finished, user can continue (green, no animation) */
+.tab .status-dot.ready {
+    background: var(--success, #22c55e);
+}
+
+/* Legacy: connection-based status (deprecated, kept for compatibility) */
+.tab .status-dot.connected {
+    background: transparent;  /* No longer shown */
+}
+
+.tab .status-dot.connecting {
+    background: var(--warning);
+    animation: pulse 1s infinite;
+    will-change: opacity;
+}
+
+.tab .unread-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: none;
+}
+
+.tab.unread .unread-dot {
+    display: block;
+}
+
+/* Pending question badge */
+.tab .question-badge {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--bg-primary);
+    background: var(--warning, #f59e0b);
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    animation: question-pulse 2s ease-in-out infinite;
+    will-change: transform, opacity;
+}
+
+.tab .question-badge.plan-badge {
+    background: var(--accent);
+}
+
+/* Interactive permission ask (claude-sdk) — teal, matches the Ask mode color */
+.tab .question-badge.permission-badge {
+    background: #2dd4bf;
+}
+
+.tab.has-question {
+    /* Subtle highlight for tabs with pending questions */
+}
+
+@keyframes question-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+}
+
+.tab .close-btn {
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.4;
+    transition: background 0.15s;
+    margin-left: var(--sp-2);
+    margin-right: -4px;
+}
+
+.tab:hover .close-btn,
+.tab.active .close-btn {
+    opacity: 0.7;
+}
+
+.tab .close-btn:hover {
+    opacity: 1;
+    background: var(--bg-hover);
+}
+
+.tab .close-btn svg {
+    width: 12px;
+    height: 12px;
+}
+
+#new-tab-btn {
+    position: relative;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border-primary);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    flex-shrink: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+#new-tab-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-muted);
+}
+
+#new-tab-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin-left: auto;
+    -webkit-app-region: no-drag;
+}
+
+.header-btn {
+    position: relative;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.header-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.header-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* ── Unified Header Badge System ── */
+.header-btn.has-badges {
+    position: relative;
+}
+
+.header-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font-size: 9px;
+    font-weight: 700;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 var(--sp-4);
+    border-radius: var(--radius-md);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    box-sizing: border-box;
+    pointer-events: none;
+    border: 1.5px solid var(--bg-primary);
+    z-index: 1;
+}
+
+/* Show badge only when it has content */
+.header-badge:not(:empty) {
+    display: flex;
+}
+
+/* Orange — running sessions + orphaned terminals */
+.header-badge.sessions-badge,
+.header-badge.orphan-badge {
+    background: #f59e0b;
+    color: #000;
+}
+
+/* Purple — Summary forks (bottom-right so both can show on same button) */
+.header-badge.summary-badge {
+    top: auto;
+    bottom: -4px;
+    background: #a855f7;
+    color: #fff;
+}
+
+/* Green — running agents */
+.header-badge.agents-badge {
+    background: #4ade80;
+    color: #000;
+}
+
+/* Cyan — background tasks */
+.header-badge.tasks-badge {
+    background: #22d3ee;
+    color: #000;
+}
+
+/* Pulse animation for ALL active badges */
+.header-badge:not(:empty) {
+    animation: badge-pulse 2s ease-in-out infinite;
+    will-change: opacity;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* Tabs Overflow Indicator - shows count of hidden tabs on each side.
+   Absolutely positioned OVERLAYS inside .tabs-viewport (not flex children of
+   the scroll strip), so toggling display never reflows or shifts the tabs. */
+.tabs-overflow-indicator {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 28px;
+    height: 22px;
+    padding: 0 var(--sp-6);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    z-index: 2;
+}
+
+.tabs-overflow-left {
+    left: 0;
+    /* Gradient fade effect to the right */
+    box-shadow: 12px 0 8px -4px var(--bg-secondary);
+}
+
+.tabs-overflow-right {
+    right: 0;
+    /* Gradient fade effect to the left */
+    box-shadow: -12px 0 8px -4px var(--bg-secondary);
+}
+
+.tabs-overflow-indicator:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   FILE TABS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* File tab styling */
+.tab-file {
+    background: transparent;
+}
+
+.tab-file .file-icon {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-sm);
+    margin-right: var(--sp-2);
+}
+
+.tab-file.active .file-icon {
+    background: var(--accent-muted);
+    color: var(--accent);
+}
+
+/* Modified indicator for file tabs */
+.tab-file.modified .tab-name::after {
+    content: ' •';
+    color: var(--warning);
+}
+
+/* Session tab specific - ensure status dot is hidden for file tabs */
+.tab-file .status-dot {
+    display: none;
+}
+
+.tab-file .unread-dot {
+    display: none;
+}
+
+/* Scratch tab styling */
+.tab-scratch {
+    background: transparent;
+}
+
+.tab-scratch .tab-name {
+    font-style: italic;
+}
+
+.tab-scratch .file-icon {
+    font-size: var(--font-size-sm);
+    color: var(--accent);
+    margin-right: var(--sp-4);
+}
+
+.tab-scratch.active .file-icon {
+    color: var(--accent);
+}
+
+.tab-scratch .status-dot,
+.tab-scratch .unread-dot {
+    display: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MOBILE HEADER - Simplified for touch devices
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    header {
+        padding-left: var(--sp-8);
+        padding-right: var(--sp-8);
+        gap: var(--sp-4);
+    }
+
+    /* Hide header-right buttons on mobile (available in overflow menu) */
+    .header-right {
+        display: none;
+    }
+
+    /* Simplify tabs on mobile */
+    #tabs {
+        gap: 0;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tab {
+        padding: var(--sp-6) var(--sp-10);
+        font-size: var(--font-size-sm);
+        max-width: 160px;
+        overflow: hidden;
+    }
+
+    .tab .tab-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Hide close button on mobile tabs */
+    .tab .close-btn {
+        display: none;
+    }
+
+    /* Smaller new tab button */
+    #new-tab-btn {
+        width: var(--layout-btn-sm);
+        height: var(--layout-btn-sm);
+    }
+
+    #new-tab-btn svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* Make tabs overview button more prominent on mobile */
+    .tabs-overview-btn {
+        width: var(--layout-btn-md);
+        height: var(--layout-btn-md);
+    }
+}
+

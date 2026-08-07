@@ -1,0 +1,678 @@
+/**
+ * Discussion Widget / Sidebar Styles
+ * Forked thread discussions for selected text
+ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIDEBAR VARIABLES
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+    --discussion-sidebar-width: 420px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WIDGET CONTAINER
+   ═══════════════════════════════════════════════════════════════════ */
+.discussion-widget-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    font-size: var(--font-size-base);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EMPTY STATE
+   ═══════════════════════════════════════════════════════════════════ */
+.discussion-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-32) var(--sp-24);
+    text-align: center;
+    color: var(--text-secondary);
+    height: 100%;
+}
+
+.discussion-empty-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: var(--sp-16);
+    opacity: 0.5;
+}
+
+.discussion-empty-icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: var(--text-muted);
+}
+
+.discussion-empty h3 {
+    margin: 0 0 var(--sp-8);
+    font-size: var(--font-size-content);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.discussion-empty p {
+    margin: 0 0 var(--sp-20);
+    line-height: 1.5;
+}
+
+/* Instructions */
+.discussion-instructions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-12);
+    text-align: left;
+    width: 100%;
+    max-width: 260px;
+}
+
+.discussion-instructions .instruction {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-12);
+}
+
+.discussion-instructions .step {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    background: var(--accent-muted, rgba(var(--accent-rgb), 0.15));
+    color: var(--accent);
+    border-radius: 50%;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.discussion-instructions kbd {
+    display: inline-block;
+    padding: var(--sp-2) var(--sp-6);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono, monospace);
+    font-size: var(--font-size-xs);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN CONTENT (has threads/queue)
+   ═══════════════════════════════════════════════════════════════════ */
+.discussion-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp-6);
+    gap: var(--sp-12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   QUEUE SECTION
+   ═══════════════════════════════════════════════════════════════════ */
+.discussion-queue {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-primary);
+}
+
+.queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-10) var(--sp-12);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.queue-items {
+    display: flex;
+    flex-direction: column;
+}
+
+.queue-item {
+    padding: var(--sp-10) var(--sp-12);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.queue-item:last-child {
+    border-bottom: none;
+}
+
+.queue-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--sp-6);
+}
+
+.queue-anchor {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.queue-item-remove {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-md);
+    line-height: 1;
+}
+
+.queue-item-remove:hover {
+    background: var(--bg-tertiary);
+    color: var(--error, #ef4444);
+}
+
+.queue-item-question {
+    font-size: var(--font-size-base);
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THREAD CARDS
+   ═══════════════════════════════════════════════════════════════════ */
+.discussion-threads {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-10);
+}
+
+.thread-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.thread-card.resolved {
+    opacity: 0.6;
+    border-color: var(--success, #22c55e);
+}
+
+.thread-card.resolved .thread-header {
+    background: rgba(34, 197, 94, 0.1);
+}
+
+/* Thread Header - compact */
+.thread-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-4) var(--sp-8);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.thread-anchor {
+    font-size: 10px;
+    color: var(--accent);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+}
+
+.thread-anchor:hover {
+    text-decoration: underline;
+}
+
+.thread-actions {
+    display: flex;
+    gap: var(--sp-2);
+    align-items: center;
+}
+
+.thread-collapse,
+.thread-close {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+}
+
+.thread-collapse:hover,
+.thread-close:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* Quote Block - very compact, max 2 lines */
+.thread-quote {
+    padding: var(--sp-4) var(--sp-8);
+    border-bottom: 1px solid var(--border-primary);
+    background: rgba(139, 92, 246, 0.05);
+}
+
+.thread-quote-text {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-style: italic;
+    line-height: 1.2;
+    max-height: 28px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    padding-left: var(--sp-6);
+    border-left: 2px solid var(--accent);
+}
+
+/* Thread Messages - compact */
+.thread-messages {
+    padding: var(--sp-6) var(--sp-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    max-height: 400px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    flex: 1;
+}
+
+.thread-message {
+    display: flex;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+}
+
+.thread-message.user {
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.thread-message.assistant {
+    background: transparent;
+    padding: var(--sp-4) 0;
+}
+
+.thread-message-role {
+    font-size: var(--font-size-md);
+    flex-shrink: 0;
+    line-height: 1.3;
+}
+
+.thread-message-content {
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+    color: var(--text-primary);
+    word-break: break-word;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Markdown content in thread messages - compact */
+.thread-message-content.markdown-body {
+    white-space: normal;
+}
+
+.thread-message-content.markdown-body h1,
+.thread-message-content.markdown-body h2,
+.thread-message-content.markdown-body h3 {
+    margin: var(--sp-6) 0 var(--sp-4);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.thread-message-content.markdown-body h1:first-child,
+.thread-message-content.markdown-body h2:first-child,
+.thread-message-content.markdown-body h3:first-child {
+    margin-top: 0;
+}
+
+.thread-message-content.markdown-body p {
+    margin: 0 0 var(--sp-6);
+}
+
+.thread-message-content.markdown-body p:last-child {
+    margin-bottom: 0;
+}
+
+.thread-message-content.markdown-body ul,
+.thread-message-content.markdown-body ol {
+    margin: var(--sp-4) 0;
+    padding-left: 18px; /* fixed: markdown list indent (typography) */
+}
+
+.thread-message-content.markdown-body li {
+    margin: var(--sp-2) 0;
+}
+
+.thread-message-content.markdown-body code {
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    background: var(--bg-tertiary);
+    padding: 1px var(--sp-3);
+    border-radius: var(--radius-xs);
+}
+
+/* Discussion threads use .markdown-body (the vendor github-markdown sheet's
+   class) but that sheet is only loaded by the standalone viewer page, so the
+   image rule it implies isn't present here — restate it. */
+.thread-message-content.markdown-body img {
+    max-width: 100%;
+    height: auto;
+}
+
+.thread-message-content.markdown-body pre {
+    margin: var(--sp-4) 0;
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: 10px;
+    line-height: 1.3;
+}
+
+.thread-message-content.markdown-body pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.thread-message-content.markdown-body blockquote {
+    margin: var(--sp-4) 0;
+    padding: var(--sp-4) var(--sp-8);
+    border-left: 2px solid var(--accent);
+    background: rgba(var(--accent-rgb), 0.05);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+}
+
+.thread-message-content.markdown-body strong {
+    font-weight: 600;
+}
+
+.thread-message-content.markdown-body a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.thread-message-content.markdown-body a:hover {
+    text-decoration: underline;
+}
+
+/* Reply Input - compact */
+.thread-reply {
+    display: flex;
+    gap: var(--sp-4);
+    padding: var(--sp-4) var(--sp-8);
+    border-top: 1px solid var(--border-primary);
+}
+
+.thread-reply-input {
+    flex: 1;
+    padding: var(--sp-4) var(--sp-8);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: var(--font-size-xs);
+    outline: none;
+}
+
+.thread-reply-input:focus {
+    border-color: var(--accent);
+}
+
+.thread-reply-input::placeholder {
+    color: var(--text-muted);
+}
+
+.thread-send {
+    padding: var(--sp-4) var(--sp-10);
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.thread-send:hover {
+    background: var(--accent-hover);
+}
+
+/* Thread Footer - compact */
+.thread-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: var(--sp-3) var(--sp-8);
+    border-top: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+}
+
+.thread-resolve {
+    padding: var(--sp-3) var(--sp-8);
+    background: transparent;
+    border: 1px solid var(--success, #22c55e);
+    color: var(--success, #22c55e);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.thread-resolve:hover {
+    background: var(--success, #22c55e);
+    color: white;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MESSAGE HIGHLIGHT PULSE (when jumping to anchor)
+   ═══════════════════════════════════════════════════════════════════ */
+@keyframes highlight-pulse {
+    0%, 100% { background-color: transparent; }
+    50% { background-color: rgba(139, 92, 246, 0.2); }
+}
+
+.highlight-pulse {
+    animation: highlight-pulse 0.5s ease-in-out 2;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THREAD STATUS INDICATORS
+   ═══════════════════════════════════════════════════════════════════ */
+.thread-status {
+    display: block;
+    padding: var(--sp-4) var(--sp-8);
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.thread-status.connecting {
+    background: rgba(251, 191, 36, 0.1);
+    color: var(--warning, #fbbf24);
+}
+
+.thread-status.thinking {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--purple, #8b5cf6);
+    animation: pulse-status 1.5s ease-in-out infinite;
+}
+
+.thread-status.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error, #ef4444);
+}
+
+.thread-status.resolved {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--success, #22c55e);
+}
+
+@keyframes pulse-status {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Thread card states */
+.thread-card.connecting {
+    border-color: var(--warning, #fbbf24);
+}
+
+.thread-card.thinking {
+    border-color: var(--purple, #8b5cf6);
+}
+
+.thread-card.error {
+    border-color: var(--error, #ef4444);
+}
+
+/* Streaming message cursor */
+.streaming-cursor {
+    animation: blink-cursor 0.8s step-end infinite;
+    color: var(--accent);
+}
+
+@keyframes blink-cursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+.thread-message.streaming {
+    opacity: 0.9;
+}
+
+/* Cost display */
+.thread-cost {
+    font-size: 9px;
+    color: var(--text-muted);
+    padding: 1px var(--sp-4);
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+    margin-right: var(--sp-4);
+}
+
+/* Disabled state for inputs */
+.thread-reply-input:disabled,
+.thread-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONTINUE IN TAB BUTTON
+   ═══════════════════════════════════════════════════════════════════ */
+.thread-footer {
+    gap: var(--sp-8);
+}
+
+.thread-continue {
+    padding: var(--sp-3) var(--sp-10);
+    background: var(--accent);
+    border: none;
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: auto;
+}
+
+.thread-continue:hover {
+    background: var(--accent-hover);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONTINUED/GRADUATED THREAD STATE
+   ═══════════════════════════════════════════════════════════════════ */
+.thread-card.continued {
+    border-color: var(--success, #22c55e);
+    background: linear-gradient(135deg,
+        rgba(34, 197, 94, 0.05) 0%,
+        var(--bg-secondary) 100%
+    );
+}
+
+.thread-card.continued .thread-header {
+    border-bottom: none;
+    padding-bottom: var(--sp-6);
+}
+
+.thread-continued-badge {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--success, #22c55e);
+    background: rgba(34, 197, 94, 0.15);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.thread-continued-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-8) var(--sp-10);
+    gap: var(--sp-8);
+}
+
+.thread-message-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+}
+
+.thread-open-tab {
+    padding: var(--sp-6) var(--sp-12);
+    background: var(--accent);
+    border: none;
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.thread-open-tab:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESPONSIVE ADJUSTMENTS
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    /* In bottom-sheet mode, adjust padding */
+    .discussion-widget-content {
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .discussion-empty {
+        padding: var(--sp-24) var(--sp-16);
+    }
+}

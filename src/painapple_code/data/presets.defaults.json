@@ -1,0 +1,32 @@
+{
+  "balanced": {
+    "name": "Balanced",
+    "description": "Default configuration for most users",
+    "slots": ["git-panel", "file-explorer", "new-session", "close-tab", "stop", "terminal"]
+  },
+  "power-user": {
+    "name": "Power User",
+    "description": "Extended options for advanced workflows",
+    "slots": ["fork-session", "terminal", "file-explorer", "changes-panel", "git-panel", "worktrees", "new-session", "stop"]
+  },
+  "minimalist": {
+    "name": "Minimalist",
+    "description": "Just the essentials",
+    "slots": ["new-session", "terminal", "file-explorer", "stop"]
+  },
+  "ipad-user": {
+    "name": "iPad User",
+    "description": "Optimized for touch on iPad",
+    "slots": ["new-session", "terminal", "file-explorer", "paste", "hard-reset", "stop"]
+  },
+  "panels": {
+    "name": "Panel Focus",
+    "description": "Quick access to all panels",
+    "slots": ["file-explorer", "terminal", "git-panel", "changes-panel", "log-explorer", "cost-analytics"]
+  },
+  "debug": {
+    "name": "Debug",
+    "description": "Debugging tools: devtools, logs, snapshots, storage",
+    "slots": ["eruda", "debug-logs", "reload", "log-explorer", "capture-snapshot", "storage-info", "active-sessions", "hard-reset"]
+  }
+}

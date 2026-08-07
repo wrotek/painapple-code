@@ -1,0 +1,111 @@
+/**
+ * Chart (Vega-Lite) inline rendering styles
+ * For charts rendered in chat messages via ```vega-lite code blocks
+ */
+
+/* Container for chart in chat */
+.chart-inline {
+    margin: var(--sp-8) 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-primary, #30363d);
+    background: var(--bg-primary, #0d1117);
+}
+
+/* Loading state */
+.chart-inline-loading {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-16) var(--sp-20);
+    color: var(--text-secondary, #8b949e);
+    font-size: var(--font-size-base);
+}
+
+.chart-inline-loading svg {
+    animation: chart-pulse 1.5s ease-in-out infinite;
+    color: var(--accent);
+}
+
+@keyframes chart-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Rendered SVG container */
+.chart-inline-rendered {
+    position: relative;
+}
+
+.chart-inline-svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-12);
+    background: #fff;
+    min-height: 100px;
+    max-height: 500px;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.chart-inline-svg svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Action buttons overlay */
+.chart-inline-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: var(--sp-4);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.chart-inline:hover .chart-inline-actions {
+    opacity: 1;
+}
+
+.chart-copy-btn {
+    background: rgba(13, 17, 23, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--sp-6);
+    cursor: pointer;
+    color: #fff;
+    display: flex;
+    align-items: center;
+}
+
+.chart-copy-btn:hover {
+    background: rgba(13, 17, 23, 0.9);
+}
+
+/* Error state */
+.chart-inline-error {
+    padding: var(--sp-12) var(--sp-16);
+    color: var(--text-error, #f85149);
+    font-size: var(--font-size-base);
+    background: rgba(248, 81, 73, 0.1);
+}
+
+/* Write tool block chart rendering */
+.write-chart .write-chart-json {
+    display: none;
+}
+.write-chart.show-json .write-chart-json {
+    display: block;
+}
+.write-chart.show-json .write-content:not(.write-chart-json) {
+    display: none;
+}
+.write-chart .chart-inline-svg {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+.write-chart-toggle-json svg {
+    width: 14px;
+    height: 14px;
+}

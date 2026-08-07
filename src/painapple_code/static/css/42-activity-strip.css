@@ -1,0 +1,97 @@
+/* ═══════════════════════════════════════════════════════════════════
+   ACTIVITY STRIP — replaces typing dots
+   Lives at the top of #input-area, replacing the border-top.
+   Sits between messages and input — peripheral, not competing with cursor.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Strip layout ─────────────────────────────────────────────────── */
+.activity-strip {
+    /* Isolate paint — every tool change swaps icon innerHTML and rewrites
+       the text node; without containment those paints propagate to
+       #input-area, which sits directly above the textarea and invalidates
+       its caret/selection paint on iPadOS WebKit. */
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: 0;
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
+    user-select: none;
+    /* Cancel out #input-area padding so strip sits flush at the top edge */
+    margin: calc(-1 * var(--layout-input-padding-v, 10px)) calc(-1 * var(--layout-input-padding-h, 12px)) 0;
+    padding-left: var(--layout-input-padding-h, 12px);
+    padding-right: var(--layout-input-padding-h, 12px);
+    contain: layout paint;
+}
+
+.activity-strip.visible {
+    max-height: 40px;
+    opacity: 1;
+    padding-top: var(--sp-6);
+    padding-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+/* Paused on a permission ask — timer frozen, amber tint to say "your move" */
+.activity-strip.paused {
+    color: var(--warning, #f59e0b);
+}
+.activity-strip.paused .activity-strip-timer {
+    color: var(--warning, #f59e0b);
+    opacity: 0.75;
+}
+
+/* Icon (inline SVG container) */
+.activity-strip-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.activity-strip-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Activity text (label + detail) */
+.activity-strip-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    transition: opacity 0.15s ease;
+}
+
+/* Detail part — command, filename, pattern — monospace, brighter */
+.activity-detail {
+    color: var(--text-primary);
+    font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+}
+
+/* Elapsed timer (sits between icon and text) */
+.activity-strip-timer {
+    /* Isolate paint — timer text ticks every second; without containment its
+       repaint propagates up and can invalidate sibling layers (incl. selection). */
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    min-width: 2.5em;
+    contain: layout paint;
+}
+
+/* ── Accent border on #input-area when working ───────────────────── */
+
+#input-area.working {
+    border-top-color: var(--accent);
+}

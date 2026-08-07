@@ -1,0 +1,448 @@
+/* ═══════════════════════════════════════════════════════════════════
+   LEFT RAIL - Vertical icon bar for navigation
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+    --left-rail-width: 48px;
+    --left-rail-icon-size: 32px;
+    --left-rail-width-expanded: 176px;
+}
+
+/* Expanded rail (icons + text labels). Toggled by the header hamburger on
+   iPad/desktop (persisted in user config), always on inside the mobile
+   drawer. body.rail-labels overrides the width var at body level so every
+   downstream consumer (chat-navigator left calc, FAB placement) tracks the
+   real rail width without knowing about the mode. */
+body.rail-labels {
+    --left-rail-width: var(--left-rail-width-expanded);
+}
+
+/* App body: horizontal flex container for rail + content */
+#app-body {
+    display: flex;
+    flex: 1;
+    min-height: 0; /* Allow flex children to shrink */
+    overflow: hidden;
+}
+
+/* Left rail container */
+#left-rail {
+    width: var(--left-rail-width);
+    min-width: var(--left-rail-width);
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--sp-8) 0;
+    gap: var(--sp-4);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+/* Main content area - takes remaining space */
+#main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Allow content to shrink */
+    overflow: hidden;
+}
+
+/* Rail icon button */
+.rail-btn {
+    width: var(--left-rail-icon-size);
+    height: var(--left-rail-icon-size);
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    position: relative;
+}
+
+.rail-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.rail-btn:active {
+    background: var(--bg-hover);
+}
+
+/* The button's widget is currently on screen. Applied by
+   syncRailActiveState() in app/init-ui.js on every widget open/close. */
+.rail-btn.active {
+    background: var(--accent-muted);
+    color: var(--accent);
+}
+
+/* Keep hover feedback on an already-active button — without this the
+   .active rule (declared later, equal specificity) swallows :hover and the
+   button feels dead under the cursor. */
+.rail-btn.active:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.rail-btn svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* Text label next to the icon — injected by app.js from each button's
+   tooltip text; only rendered in labels mode */
+.rail-label {
+    display: none;
+    flex: 1;
+    min-width: 0;
+    font-size: var(--font-size-sm);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.rail-labels #left-rail {
+    align-items: stretch;
+    padding-left: var(--sp-6);
+    padding-right: var(--sp-6);
+}
+
+body.rail-labels #left-rail .rail-btn {
+    width: 100%;
+    justify-content: flex-start;
+    gap: var(--sp-8);
+    padding: 0 var(--sp-6);
+}
+
+body.rail-labels #left-rail .rail-label {
+    display: block;
+}
+
+/* Badges leave their icon-corner overlay and flow inline at the row's
+   right edge (the flexible label pushes them there) */
+body.rail-labels #left-rail .rail-btn .rail-badge {
+    position: static;
+    flex-shrink: 0;
+}
+
+/* Rail button with badge */
+.rail-btn .rail-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 9px;
+    font-weight: 600;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 var(--sp-4);
+    border-radius: var(--radius-sm);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    background: var(--accent);
+    color: white;
+}
+
+.rail-btn .rail-badge:not(:empty) {
+    display: flex;
+}
+
+/* Orange — running sessions + orphaned terminals */
+.rail-btn .rail-badge.sessions-badge,
+.rail-btn .rail-badge.orphan-badge {
+    background: #f59e0b;
+    color: #000;
+}
+
+/* Purple — Summary forks (bottom-right so both can show on same button) */
+.rail-btn .rail-badge.summary-badge {
+    background: #a855f7;
+    color: #fff;
+    top: auto;
+    bottom: 2px;
+}
+
+/* Green — running agents */
+.rail-btn .rail-badge.agents-badge {
+    background: #4ade80;
+    color: #000;
+}
+
+/* Cyan — background tasks */
+.rail-btn .rail-badge.tasks-badge {
+    background: #22d3ee;
+    color: #000;
+}
+
+/* Pulse animation for any active badge (matches header behavior) */
+.rail-btn .rail-badge:not(:empty) {
+    animation: badge-pulse 2s ease-in-out infinite;
+    will-change: opacity;
+}
+
+/* Wrapper around a rail-btn that needs a positioned popover (e.g. orphan-terminals).
+   Strips wrapper styling so the inner .rail-btn keeps its hit area. */
+#left-rail .rail-btn-wrap {
+    position: relative;
+    width: var(--left-rail-icon-size);
+    height: var(--left-rail-icon-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.rail-labels #left-rail .rail-btn-wrap {
+    width: auto;
+    align-self: stretch;
+}
+
+/* Orphan terminals dropdown when anchored to the rail — open to the right */
+#left-rail .orphan-terminals-dropdown {
+    top: 0;
+    left: calc(100% + 8px);
+    right: auto;
+    margin-top: 0;
+}
+
+/* Rail section separator */
+.rail-separator {
+    width: 24px;
+    height: 1px;
+    background: var(--border-primary);
+    margin: var(--sp-4) 0;
+}
+
+body.rail-labels #left-rail .rail-separator {
+    width: auto;
+    align-self: stretch;
+    margin: var(--sp-4) var(--sp-6);
+}
+
+/* Spacer to push items to bottom */
+.rail-spacer {
+    flex: 1;
+}
+
+/* Rail tooltips handled by JS tooltip system (tooltips.js) */
+
+/* ═══════════════════════════════════════════════════════════════════
+   DRAWER HEADER — visible on mobile only. Hosts the instance label
+   (relocated from <header> by app.js) and the tabs-overview button.
+   ═══════════════════════════════════════════════════════════════════ */
+.rail-drawer-header {
+    display: none;
+    flex-direction: column;
+    align-self: stretch;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-4) var(--sp-8);
+    border-bottom: 1px solid var(--border-primary);
+    margin-bottom: var(--sp-4);
+}
+
+.rail-drawer-grid {
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.rail-drawer-grid:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.rail-drawer-grid svg { width: 18px; height: 18px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   HAMBURGER (rail toggle) — all sizes. Mobile: slides the drawer in/out.
+   iPad/desktop: expands/collapses the rail's text labels.
+   ═══════════════════════════════════════════════════════════════════ */
+.rail-toggle-btn {
+    display: inline-flex;
+    position: relative;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.rail-toggle-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.rail-toggle-btn:active { background: var(--bg-hover); }
+.rail-toggle-btn svg { width: 18px; height: 18px; }
+
+.rail-toggle-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 var(--sp-4);
+    border-radius: var(--radius-sm);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    background: var(--accent);
+    color: white;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.rail-toggle-badge:not(:empty) {
+    display: flex;
+    animation: badge-pulse 2s ease-in-out infinite;
+    will-change: opacity;
+}
+
+/* The composite badge only matters while the rail is hidden behind the
+   drawer — on wider screens the rail (and its real badges) is always
+   visible, so keep the hamburger clean */
+@media (min-width: 601px) {
+    .rail-toggle-badge:not(:empty) { display: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SCRIM — only rendered/visible while the drawer is open on mobile
+   ═══════════════════════════════════════════════════════════════════ */
+#rail-scrim {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: var(--z-rail-scrim);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MOBILE: rail becomes a slide-in drawer triggered by the hamburger.
+   Hide the inline rail, show hamburger, fixed-position the rail and
+   slide it in via .rail-open on <body>.
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+    :root {
+        /* Pre-JS fallback only: app.js puts .rail-labels on <body> at init
+           for mobile, so the open drawer always renders at the expanded
+           width with text labels. */
+        --left-rail-width: 64px;
+    }
+
+    .rail-drawer-header { display: flex; }
+
+    /* The originals in <header> are gone on mobile — they live in the drawer instead. */
+    header > .instance-badge,
+    header > .tabs-overview-btn { display: none; }
+
+    #left-rail {
+        position: fixed;
+        top: calc(var(--layout-header-height) + env(safe-area-inset-top, 0px));
+        left: 0;
+        bottom: 0;
+        width: var(--left-rail-width);
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        z-index: var(--z-rail-drawer);
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.4);
+    }
+
+    body.rail-open #left-rail { transform: translateX(0); }
+
+    body.rail-open #rail-scrim {
+        display: block;
+        opacity: 1;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DISCUSSION SIDEBAR MARGIN
+   When discussion sidebar is open, add margin to main content
+   ═══════════════════════════════════════════════════════════════════ */
+body.discussion-sidebar-open #main-content {
+    margin-right: var(--discussion-sidebar-width, 320px);
+    transition: margin-right 0.25s ease;
+}
+
+/* Smooth transition when closing */
+#main-content {
+    transition: margin-right 0.25s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYOUT DENSITY POPUP
+   Opened from the rail density button (js/layout-switcher.js).
+   Fixed-position, anchored to the right of the rail; stays open while
+   the user flips modes so the reflow is visible live.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.density-popup {
+    position: fixed;
+    z-index: var(--z-always-top);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--sp-4);
+    /* Same footprint as .model-popup / .token-profile-popup — the
+       selector popups read as one family */
+    min-width: 180px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.12s, transform 0.12s;
+    pointer-events: none;
+}
+
+.density-popup.open {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+}
+
+.density-option {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-10);
+    line-height: var(--layout-menu-line-height);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.density-option:hover {
+    background: var(--bg-tertiary);
+}
+
+.density-option.selected {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.density-option-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: inherit;
+}
+
+.density-option-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+}

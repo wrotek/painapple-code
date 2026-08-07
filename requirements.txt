@@ -1,0 +1,19 @@
+# Security floors raised 2026-08-07 (pre-publish hardening). Rationale:
+#   fastapi>=0.115  -> pulls starlette>=0.40 (CVE-2024-47874, multipart DoS)
+#   python-multipart>=0.0.31 -> CVE-2024-53981 (multipart boundary DoS, fixed 0.0.18)
+#   Pillow>=12.3.0  -> clears the 10.x/11.x image-parsing CVE run (e.g. CVE-2023-50447,
+#                      CVE-2024-28219, CVE-2025-48379)
+#   cryptography>=43.0.1 -> CVE-2024-26130 / GHSA-h4gh (NULL-deref + Bleichenbacher fixes)
+fastapi>=0.115.0
+uvicorn[standard]>=0.24.0
+websockets>=12.0
+duckdb>=1.0.0
+pytz
+pyyaml>=6.0
+Pillow>=12.3.0
+python-multipart>=0.0.31
+cryptography>=43.0.1
+httpx>=0.28.0
+httpcore>=1.0  # imported directly for the browser-proxy SSRF-guard transport
+questionary>=2.1
+claude-agent-sdk>=0.2.111,<0.3  # claude-sdk provider driver (providers/claude_sdk/); upper-pinned because the driver's tee subclasses the SDK's _internal SubprocessCLITransport — raise the ceiling deliberately (test-cli skill) when bumping the minor

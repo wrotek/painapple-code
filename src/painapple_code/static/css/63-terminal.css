@@ -1,0 +1,516 @@
+/* ═══════════════════════════════════════════════════════════════════
+   TERMINAL PANEL
+   ═══════════════════════════════════════════════════════════════════ */
+
+#terminal-panel {
+    position: fixed;
+    bottom: env(safe-area-inset-bottom, 0px);
+    left: 0;
+    right: 0;
+    z-index: 900;
+    pointer-events: none;
+}
+
+#terminal-panel > * {
+    pointer-events: auto;
+}
+
+/* Panel content */
+.terminal-panel-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.3s ease, height 0.3s ease;
+    max-height: 90vh;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* States */
+#terminal-panel.terminal-half .terminal-panel-content,
+#terminal-panel.terminal-full .terminal-panel-content {
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+}
+
+#terminal-panel.terminal-half .terminal-panel-content {
+    transform: translateY(0);
+    height: 30vh;
+}
+
+#terminal-panel.terminal-full .terminal-panel-content {
+    transform: translateY(0);
+    height: 50vh;
+}
+
+/* Drag handle */
+.terminal-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-4) var(--sp-12);
+    min-height: 32px;
+    cursor: grab;
+    touch-action: none;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.terminal-drag-handle:active {
+    cursor: grabbing;
+}
+
+.terminal-drag-indicator {
+    width: 36px;
+    height: 4px;
+    background: var(--text-muted);
+    border-radius: var(--radius-xs);
+    opacity: 0.5;
+}
+
+/* Inline controls in drag handle */
+.terminal-handle-actions {
+    position: absolute;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.terminal-status {
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+}
+
+.terminal-status:empty {
+    display: none;
+}
+
+.terminal-status.status-connecting {
+    color: var(--warning);
+}
+
+.terminal-status.status-connected {
+    display: none;
+}
+
+.terminal-status.status-disconnected {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.terminal-status.status-error {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.terminal-status.status-exited {
+    color: var(--text-muted);
+}
+
+.terminal-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.terminal-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.terminal-btn:active {
+    background: var(--bg-tertiary);
+}
+
+.terminal-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.terminal-open-tab:hover {
+    color: var(--accent);
+}
+
+.terminal-kill:hover {
+    color: var(--error);
+}
+
+/* Body */
+.terminal-body {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #1a1a2e;
+    min-height: 0; /* Critical: allows flex child to shrink below content size */
+}
+
+.terminal-container {
+    position: absolute;
+    inset: 0;
+    padding: var(--sp-8);
+    padding-bottom: var(--sp-24); /* Extra slack for xterm row rounding errors — fixed, fit-measured */
+    overflow: hidden;
+    touch-action: none; /* Prevent browser scroll — xterm.js handles touch internally */
+}
+
+/* Override xterm defaults and force bounds */
+.terminal-container .xterm {
+    padding: 0;
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+.terminal-container .xterm-viewport {
+    background: #1a1a2e !important;
+    max-height: 100% !important;
+}
+
+.terminal-container .xterm-screen {
+    max-height: 100% !important;
+}
+
+/* Hide native OS caret on iPad/iOS - xterm.js has its own cursor */
+.terminal-container .xterm-helper-textarea,
+.terminal-widget-xterm .xterm-helper-textarea {
+    caret-color: transparent !important;
+    opacity: 0 !important;
+    -webkit-touch-callout: none !important;
+}
+
+/* Note: native iOS context menu (Copy/Paste) is intentionally allowed on xterm-screen.
+   Our contextmenu JS handler only suppresses it when a file/URL link is detected. */
+
+.terminal-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-md);
+}
+
+.terminal-loading[hidden] {
+    display: none;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .terminal-panel-content {
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+
+    #terminal-panel.terminal-full .terminal-panel-content {
+        height: 90vh;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ORPHANED TERMINALS DROPDOWN
+   ═══════════════════════════════════════════════════════════════════ */
+
+.orphan-terminals-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+/* Orphan badge now uses unified .header-badge system in 10-header.css */
+
+.orphan-terminals-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    min-width: 280px;
+    max-width: 360px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: none;
+}
+
+.orphan-terminals-dropdown.visible {
+    display: block;
+}
+
+.orphan-dropdown-header {
+    padding: var(--sp-10) var(--sp-12);
+    border-bottom: 1px solid var(--border-primary);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.orphan-dropdown-header .refresh-btn {
+    padding: var(--sp-4);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.orphan-dropdown-header .refresh-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.orphan-dropdown-header .refresh-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.orphan-bulk-actions {
+    display: flex;
+    gap: var(--sp-6);
+    margin-left: auto;
+    margin-right: var(--sp-8);
+}
+
+.orphan-bulk-actions .bulk-btn {
+    padding: var(--sp-3) var(--sp-8);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    transition: background 0.15s, color 0.15s;
+}
+
+.orphan-bulk-actions .bulk-btn:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.orphan-bulk-actions .bulk-btn.danger:hover {
+    background: var(--error);
+    color: white;
+}
+
+.orphan-dropdown-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.orphan-dropdown-empty {
+    padding: var(--sp-24) var(--sp-16);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+}
+
+.orphan-terminal-item {
+    padding: var(--sp-10) var(--sp-12);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+}
+
+.orphan-terminal-item:last-child {
+    border-bottom: none;
+}
+
+.orphan-terminal-info {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+}
+
+.orphan-terminal-pid {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-2) var(--sp-6);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+}
+
+.orphan-terminal-status {
+    font-size: var(--font-size-xs);
+    color: var(--success);
+}
+
+.orphan-terminal-status.dead {
+    color: var(--error);
+}
+
+.orphan-terminal-cwd {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.orphan-terminal-actions {
+    display: flex;
+    gap: var(--sp-8);
+    margin-top: var(--sp-4);
+}
+
+.orphan-terminal-actions button {
+    flex: 1;
+    padding: var(--sp-6) var(--sp-10);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.orphan-terminal-actions .attach-btn {
+    background: var(--accent);
+    color: white;
+}
+
+.orphan-terminal-actions .attach-btn:hover {
+    background: var(--accent-hover);
+}
+
+.orphan-terminal-actions .float-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+.orphan-terminal-actions .float-btn:hover {
+    background: var(--accent-muted);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.orphan-terminal-actions .kill-btn {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.orphan-terminal-actions .kill-btn:hover {
+    background: var(--error);
+    color: white;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TERMINAL JOYSTICK (touch d-pad overlay)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.terminal-joystick {
+    position: fixed;
+    transform: translate(-50%, -50%);
+    z-index: var(--z-always-top);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-8);
+    background: rgba(30, 32, 48, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    opacity: 0;
+    scale: 0.85;
+    transition: opacity 0.12s ease, scale 0.12s ease;
+    pointer-events: none;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.terminal-joystick.visible {
+    opacity: 1;
+    scale: 1;
+}
+
+.tj-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+}
+
+.tj-arrow {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: rgba(200, 205, 220, 0.5);
+    border-radius: var(--radius-lg);
+    transition: color 0.08s, background 0.08s;
+}
+
+.tj-arrow.active {
+    color: var(--accent);
+    background: rgba(88, 166, 255, 0.15);
+}
+
+.tj-center {
+    width: 36px;
+    height: 36px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TERMINAL LINKS (xterm.js link decorations)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/*
+ * Link detection uses custom ILinkProviders (UrlLinkProvider +
+ * FilePathLinkProvider in widgets/terminal/link-providers.js).
+ * WebLinksAddon was removed 2026-02 — it broke on wrapped URLs.
+ * Links are rendered with underline on hover by default.
+ * These styles customize the appearance for better visibility.
+ */
+
+/* Link hover styling - xterm adds .xterm-link-decoration class */
+.terminal-container .xterm-link-decoration,
+.terminal-widget-xterm .xterm-link-decoration {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+/* Link hover tooltip styling (if using link tooltips) */
+.terminal-container .xterm-link-tooltip,
+.terminal-widget-xterm .xterm-link-tooltip {
+    position: absolute;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-4) var(--sp-8);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    pointer-events: none;
+    max-width: 300px;
+    word-break: break-all;
+}

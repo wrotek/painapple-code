@@ -1,0 +1,146 @@
+/* ═══════════════════════════════════════════════════════════════════
+   OPEN DIALOG (fish-style path picker)
+
+   Layered on top of `80-quick-switcher.css` — reuses .qs-* base styles
+   for the modal frame, list, and footer. Only overrides specific to
+   the inline ghost-suggestion and the file/dir state-driven footer
+   live here.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.od-input-wrap {
+    position: relative;
+}
+
+/* Ghost-suggestion overlay sits behind the transparent input. The
+   typed-shadow span takes width but is invisible, so the .od-ghost-rest
+   span lands exactly where the input cursor is.
+*/
+.od-ghost {
+    position: absolute;
+    top: 10px;
+    bottom: 10px;
+    left: 14px;
+    right: 14px;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-lg);
+    padding: var(--sp-4) 0;
+    white-space: pre;
+    overflow: hidden;
+    line-height: 1.2;
+}
+
+.od-ghost-typed {
+    color: transparent;
+}
+
+.od-ghost-rest {
+    color: var(--text-muted);
+    opacity: 0.55;
+    font-style: italic;
+}
+
+/* Keep input transparent so the ghost reads through. The input itself
+   is already transparent-background via .qs-input, but on some themes
+   the placeholder color overlap is loud — soften it.
+*/
+.od-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+/* Footer hints toggle based on what's selected so the user only sees
+   the one action that's relevant. .od-state-* classes are applied by
+   _updateFooterForSelection().
+*/
+.od-footer .od-hint-file,
+.od-footer .od-hint-dir-nav,
+.od-footer .od-hint-dir-create,
+.od-footer .od-hint-dir-open {
+    display: none;
+}
+.od-footer.od-state-file .od-hint-file {
+    display: inline;
+}
+.od-footer.od-state-dir-nav .od-hint-dir-nav,
+.od-footer.od-state-dir-create .od-hint-dir-create,
+.od-footer.od-state-dir-open .od-hint-dir-open {
+    display: inline;
+}
+.od-footer .od-hint-tab {
+    opacity: 0.5;
+    transition: opacity 0.12s ease;
+}
+.od-footer.od-state-ghost .od-hint-tab {
+    opacity: 1;
+}
+
+/* Directory rows get a subtle accent so they're easy to pick out at a glance. */
+.od-list .qs-item-dir .qs-item-icon {
+    color: var(--accent);
+}
+.od-list .qs-item-dir .qs-item-label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* "Open this folder" action row — accent-tinted so it reads as the primary
+   action of the current listing rather than another folder. */
+.od-list .qs-item-open-here .qs-item-icon {
+    color: var(--accent);
+}
+.od-list .qs-item-open-here .qs-item-label {
+    color: var(--accent);
+    font-weight: 600;
+}
+.od-list .qs-item-open-here .qs-item-desc {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* "You are here" strip between the input and the list, so the user always
+   knows which directory the listing belongs to. Flex layout keeps the
+   label fixed on the left; the path text gets `direction: rtl` so long
+   paths ellipsize from the START (you see `.../current/folder/` — the
+   deepest dir, which is what tells you where you are).
+*/
+.od-path {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-14);
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: var(--font-size-sm);
+    line-height: 1.3;
+    color: var(--text-muted);
+    background: var(--bg-tertiary, rgba(255, 255, 255, 0.02));
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+    overflow: hidden;
+}
+.od-path:empty {
+    display: none;
+}
+.od-path-text {
+    flex: 1;
+    min-width: 0;
+    direction: rtl;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    unicode-bidi: plaintext;
+}
+.od-path-label {
+    flex-shrink: 0;
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--accent);
+    font-size: 10px;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}

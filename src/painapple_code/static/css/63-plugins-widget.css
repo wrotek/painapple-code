@@ -1,0 +1,174 @@
+/* ============================================================
+   Plugins Manager Widget
+   Reuses .skills-widget toolbar/search/pill styles; adds card,
+   badge, and action-button styles for the marketplace list.
+   ============================================================ */
+
+.plugins-widget .pl-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--sp-8) var(--sp-12) var(--sp-12);
+}
+
+.plugins-widget .pl-empty {
+    padding: var(--sp-32) var(--sp-16);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+}
+.plugins-widget .pl-error {
+    color: var(--error);
+}
+
+.plugins-widget .pl-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+}
+
+.plugins-widget .pl-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-10) var(--sp-12);
+    background: var(--bg-secondary, #0f172a);
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease;
+}
+.plugins-widget .pl-card:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover, #1e293b);
+}
+
+.plugins-widget .pl-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8);
+}
+
+.plugins-widget .pl-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-8);
+    min-width: 0;
+}
+.plugins-widget .pl-name {
+    font-weight: 600;
+    font-size: var(--font-size-md);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.plugins-widget .pl-badge {
+    display: inline-block;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+}
+.plugins-widget .pl-badge-installed {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.4);
+}
+.plugins-widget .pl-badge-disabled {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+.plugins-widget .pl-badge-available {
+    background: rgba(96, 165, 250, 0.12);
+    color: var(--accent-blue);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.plugins-widget .pl-card-actions {
+    display: inline-flex;
+    gap: var(--sp-6);
+    flex-shrink: 0;
+}
+
+.plugins-widget .pl-btn {
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary, #1e293b);
+    color: var(--text-primary);
+    padding: var(--sp-5) var(--sp-10);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+.plugins-widget .pl-btn:hover {
+    background: var(--bg-hover, #334155);
+    border-color: var(--accent);
+}
+.plugins-widget .pl-btn[disabled] {
+    opacity: 0.6;
+    cursor: wait;
+}
+.plugins-widget .pl-btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+.plugins-widget .pl-btn-primary:hover {
+    filter: brightness(1.1);
+}
+.plugins-widget .pl-btn-danger {
+    color: var(--error);
+    border-color: rgba(248, 113, 113, 0.4);
+}
+.plugins-widget .pl-btn-danger:hover {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: var(--error);
+}
+
+.plugins-widget .pl-card-desc {
+    margin-top: var(--sp-6);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+.plugins-widget .pl-card-desc.clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.plugins-widget .pl-card-meta {
+    margin-top: var(--sp-8);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6) var(--sp-12);
+    align-items: center;
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+.plugins-widget .pl-marketplace {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+    background: var(--bg-tertiary, #1e293b);
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+}
+.plugins-widget .pl-meta-stat {
+    white-space: nowrap;
+}
+.plugins-widget .pl-components {
+    margin-left: auto;
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+}
+.plugins-widget .pl-comp {
+    background: var(--bg-tertiary, #1e293b);
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    color: var(--text-secondary);
+}

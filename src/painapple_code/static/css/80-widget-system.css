@@ -1,0 +1,1724 @@
+/**
+ * Widget System - Base styles for all widget types
+ *
+ * Numbering: 80-xx for widget system
+ * - 80: Base widget styles
+ * - 81: Bottom sheet specific
+ * - 82: Sidebar specific
+ * - 83: Floating specific
+ * - 84: Tab specific
+ * - 85: Modal specific
+ */
+
+/* ============================================
+   CSS Variables for Widget System
+   ============================================ */
+
+:root {
+    /* Widget dimensions */
+    --widget-bottom-sheet-half: 45vh;
+    --widget-bottom-sheet-full: 85vh;
+    --widget-sidebar-width: 280px;
+    --widget-floating-min-width: 200px;
+    --widget-floating-min-height: 150px;
+
+    /* Widget z-index layers (above old panels: terminal 900, log-explorer 999, modals 1000) */
+    --z-widget-base: 1100;
+    --z-widget-sidebar: 1200;
+    --z-widget-bottom-sheet: 1300;
+    --z-widget-top-sheet: 1350;
+    --z-widget-floating: 1500;
+    --z-widget-modal-backdrop: 1600;
+    --z-widget-modal: 1650;
+
+    /* Widget transitions */
+    --widget-transition-fast: 150ms ease;
+    --widget-transition-normal: 250ms ease;
+    --widget-transition-slow: 350ms ease;
+
+    /* Widget header */
+    --widget-header-height: var(--layout-widget-header-height);
+    --widget-header-bg: var(--surface-secondary, #1a1a1a);
+    --widget-header-border: var(--border-color, #333);
+
+    /* Widget content */
+    --widget-bg: var(--surface-primary, #0d0d0d);
+    --widget-border-radius: var(--radius-lg);
+    --widget-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================
+   Base Widget Container
+   ============================================ */
+
+.widget {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    background: var(--widget-bg);
+    overflow: hidden;
+    transition:
+        transform var(--widget-transition-normal),
+        height var(--widget-transition-normal),
+        width var(--widget-transition-normal),
+        opacity var(--widget-transition-fast);
+}
+
+.widget-dragging,
+.widget-resizing {
+    transition: none !important;
+    user-select: none;
+}
+
+.widget-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.widget-error {
+    border-color: var(--accent-red, #ef4444) !important;
+}
+
+/* ============================================
+   Widget Header
+   ============================================ */
+
+.widget-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    height: var(--widget-header-height);
+    padding: 0 var(--sp-12);
+    background: var(--widget-header-bg);
+    border-bottom: 1px solid var(--widget-header-border);
+    flex-shrink: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.widget-drag-handle {
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    background: var(--text-muted, #666);
+    border-radius: var(--radius-xs);
+    opacity: 0.5;
+    transition: opacity var(--widget-transition-fast), transform var(--widget-transition-fast);
+}
+
+.widget-header:hover .widget-drag-handle {
+    opacity: 0.8;
+}
+
+/* Touch-friendly drag handle - larger touch target and more visible */
+@media (hover: none) and (pointer: coarse) {
+    .widget-drag-handle {
+        width: 48px;
+        height: 5px;
+        opacity: 0.7;
+        /* Larger touch target with padding */
+        padding: var(--sp-12) var(--sp-24);
+        margin: -12px -24px;
+        background-clip: content-box;
+    }
+
+    /* Visual feedback when dragging */
+    .widget-dragging .widget-drag-handle {
+        opacity: 1;
+        transform: translateX(-50%) scaleX(1.2);
+    }
+}
+
+.widget-title-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: var(--accent);
+}
+
+.widget-title-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.widget-title {
+    font-weight: 500;
+    font-size: var(--font-size-base);
+    color: var(--text-primary, #fff);
+}
+
+.widget-summary {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #888);
+    margin-left: 4px;
+}
+
+.widget-header-spacer {
+    flex: 1;
+}
+
+.widget-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+
+.widget-header-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-secondary, #aaa);
+    cursor: pointer;
+    transition: all var(--widget-transition-fast);
+}
+
+.widget-header-btn:hover {
+    background: var(--surface-hover, #333);
+    color: var(--text-primary, #fff);
+}
+
+.widget-header-btn.is-active {
+    background: var(--accent-muted, rgba(var(--accent-rgb), 0.2));
+    color: var(--accent);
+}
+
+.widget-header-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.widget-close:hover {
+    background: var(--accent-red, #ef4444);
+    color: white;
+}
+
+.widget-transform-btn {
+    opacity: 0.6;
+}
+
+.widget-transform-btn:hover {
+    opacity: 1;
+}
+
+/* ============================================
+   Widget Content
+   ============================================ */
+
+.widget-content-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    /* iPadOS: overflow:hidden creates an invisible scroll port that captures touch events.
+       Let both directions pass through to child scroll containers. */
+    touch-action: pan-x pan-y;
+}
+
+.widget-content {
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* ============================================
+   Bottom Sheet Widget
+   ============================================ */
+
+/* Backdrop for bottom sheet - tappable to dismiss */
+.widget-bottom-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--widget-transition-normal);
+    z-index: calc(var(--z-widget-bottom-sheet) - 1);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.widget-bottom-sheet-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Tap feedback */
+.widget-bottom-sheet-backdrop:active {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.widget-bottom-sheet {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--widget-height, 0);
+    border-radius: var(--widget-border-radius) var(--widget-border-radius) 0 0;
+    box-shadow: var(--widget-shadow);
+    transform: translateY(100%);
+    z-index: var(--z-widget-bottom-sheet);
+}
+
+.widget-bottom-sheet.widget-collapsed {
+    transform: translateY(100%);
+    pointer-events: none;
+}
+
+.widget-bottom-sheet.widget-half,
+.widget-bottom-sheet.widget-full {
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* ============================================
+   Top Sheet Widget
+   ============================================ */
+
+.widget-top-sheet {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--widget-height, 0);
+    border-radius: 0 0 var(--widget-border-radius) var(--widget-border-radius);
+    box-shadow: var(--widget-shadow);
+    transform: translateY(-100%);
+    z-index: var(--z-widget-top-sheet);
+}
+
+.widget-top-sheet.widget-collapsed {
+    transform: translateY(-100%);
+    pointer-events: none;
+}
+
+.widget-top-sheet.widget-half,
+.widget-top-sheet.widget-full {
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Top sheet drag handle at bottom (moved from header to widget container in JS) */
+.widget-top-sheet > .widget-drag-handle {
+    position: static;
+    transform: none;
+    width: 100%;
+    height: auto;
+    padding: var(--sp-8) 0;
+    margin: 0;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    background: transparent;
+    border-top: 1px solid var(--border-primary);
+    border-bottom: none;
+    border-radius: 0;
+    cursor: ns-resize;
+    opacity: 0.7;
+}
+
+.widget-top-sheet > .widget-drag-handle::after {
+    content: '';
+    width: 48px;
+    height: 5px;
+    background: var(--text-muted, #666);
+    border-radius: var(--radius-sm);
+}
+
+/* Top sheet header adjustments */
+.widget-top-sheet .widget-header {
+    border-bottom: 1px solid var(--border-primary);
+}
+
+/* ============================================
+   Sidebar Widget
+   ============================================ */
+
+.widget-sidebar-left,
+.widget-sidebar-right {
+    top: var(--header-height, 48px);
+    bottom: 0;
+    width: var(--widget-width, var(--widget-sidebar-width));
+    border-radius: 0;
+    z-index: var(--z-widget-sidebar);
+}
+
+.widget-sidebar-left {
+    left: 0;
+    transform: translateX(-100%);
+    border-right: 1px solid var(--widget-header-border);
+}
+
+.widget-sidebar-right {
+    right: 0;
+    transform: translateX(100%);
+    border-left: 1px solid var(--widget-header-border);
+}
+
+.widget-sidebar-left.widget-open,
+.widget-sidebar-left.widget-visible,
+.widget-sidebar-right.widget-open,
+.widget-sidebar-right.widget-visible {
+    transform: translateX(0);
+}
+
+.widget-sidebar-left.widget-collapsed,
+.widget-sidebar-right.widget-collapsed {
+    pointer-events: none;
+}
+
+/* Sidebar resize handle */
+.widget-sidebar-left .widget-resize-handle.widget-resize-right,
+.widget-sidebar-right .widget-resize-handle.widget-resize-left {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    background: transparent;
+    transition: background var(--widget-transition-fast);
+}
+
+.widget-sidebar-left .widget-resize-handle.widget-resize-right {
+    right: 0;
+}
+
+.widget-sidebar-right .widget-resize-handle.widget-resize-left {
+    left: 0;
+}
+
+.widget-resize-handle:hover {
+    background: var(--accent);
+    opacity: 0.3;
+}
+
+/* ============================================
+   Floating Widget
+   ============================================ */
+
+.widget-floating,
+.widget-floating-window {
+    /* Belt-and-braces fallback: JS sets --widget-x/--widget-y on init, where
+       the real default spawn is computed (top of the screen, just right of the
+       chat column). Here we can only approximate it with the right edge. */
+    left: var(--widget-x, calc(100vw - var(--widget-width, 700px) - 20px));
+    top: var(--widget-y, 60px);
+    width: var(--widget-width, 700px);
+    height: var(--widget-height, 500px);
+    min-width: var(--widget-floating-min-width);
+    min-height: var(--widget-floating-min-height);
+    border-radius: var(--widget-border-radius);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--widget-header-border);
+    outline: none;
+    z-index: var(--z-widget-floating);
+    /* Override base overflow:hidden to allow resize handles to extend outside */
+    overflow: visible;
+}
+
+.widget-floating.widget-hidden,
+.widget-floating.widget-collapsed {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.95);
+    /* visibility:hidden is the real fix for the "scroll dies in the area
+       a floating widget used to occupy" bug. CSS `pointer-events:none`
+       on a parent does NOT cascade through iframes in WebKit/iPadOS — a
+       collapsed widget with an iframe (browser, HTML preview) silently
+       captures wheel/touch events at the chat behind, even after we set
+       opacity:0. `visibility:hidden` IS inherited, applies to iframes,
+       and removes them from hit-testing in every engine.
+
+       The transition-delay on `visibility` matches the opacity fade so
+       the close animation plays first, THEN visibility snaps to hidden.
+       Without the delay it would disappear instantly. */
+    visibility: hidden;
+    transition: opacity var(--widget-transition-fast),
+                transform var(--widget-transition-fast),
+                visibility 0s var(--widget-transition-fast);
+}
+
+/* Defense-in-depth cascade for engines that DO honour pointer-events
+   on iframes — costs nothing if visibility:hidden already did the job. */
+.widget-floating.widget-hidden *,
+.widget-floating.widget-collapsed * {
+    pointer-events: none;
+}
+
+.widget-floating.widget-visible {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
+    /* No delay on the show side — visibility flips to visible immediately
+       so the opacity 0→1 fade is actually painted. */
+    transition: opacity var(--widget-transition-fast),
+                transform var(--widget-transition-fast),
+                visibility 0s 0s;
+}
+
+.widget-floating.widget-maximized {
+    left: 0 !important;
+    top: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    border-radius: 0;
+}
+
+/* Floating header is draggable */
+.widget-floating .widget-header {
+    cursor: move;
+}
+
+.widget-floating .widget-drag-handle {
+    display: none; /* No handle bar for floating */
+}
+
+/* Floating resize handles */
+.widget-floating .widget-resize-handle,
+.widget-floating-window .widget-resize-handle {
+    position: absolute;
+    background: transparent;
+    z-index: 10;
+    transition: background 0.15s ease;
+}
+
+/* Show visual feedback on hover - subtle highlight */
+.widget-floating .widget-resize-handle:hover,
+.widget-floating-window .widget-resize-handle:hover {
+    background: rgba(99, 102, 241, 0.3);
+}
+
+.widget-floating .widget-resize-handle:active,
+.widget-floating-window .widget-resize-handle:active {
+    background: rgba(99, 102, 241, 0.5);
+}
+
+.widget-floating .widget-resize-n,
+.widget-floating .widget-resize-s,
+.widget-floating-window .widget-resize-n,
+.widget-floating-window .widget-resize-s {
+    left: 10px;
+    right: 10px;
+    height: 8px;
+    cursor: ns-resize;
+}
+
+.widget-floating .widget-resize-n,
+.widget-floating-window .widget-resize-n { top: -2px; }
+.widget-floating .widget-resize-s,
+.widget-floating-window .widget-resize-s { bottom: -2px; }
+
+.widget-floating .widget-resize-e,
+.widget-floating .widget-resize-w,
+.widget-floating-window .widget-resize-e,
+.widget-floating-window .widget-resize-w {
+    top: 10px;
+    bottom: 10px;
+    width: 8px;
+    cursor: ew-resize;
+}
+
+.widget-floating .widget-resize-e,
+.widget-floating-window .widget-resize-e { right: -2px; }
+.widget-floating .widget-resize-w,
+.widget-floating-window .widget-resize-w { left: -2px; }
+
+.widget-floating .widget-resize-ne,
+.widget-floating .widget-resize-nw,
+.widget-floating .widget-resize-se,
+.widget-floating .widget-resize-sw,
+.widget-floating-window .widget-resize-ne,
+.widget-floating-window .widget-resize-nw,
+.widget-floating-window .widget-resize-se,
+.widget-floating-window .widget-resize-sw {
+    width: 16px;
+    height: 16px;
+}
+
+.widget-floating .widget-resize-ne,
+.widget-floating-window .widget-resize-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.widget-floating .widget-resize-nw,
+.widget-floating-window .widget-resize-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.widget-floating .widget-resize-se,
+.widget-floating-window .widget-resize-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.widget-floating .widget-resize-sw,
+.widget-floating-window .widget-resize-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+
+/* Visual corner indicators (resize grip) */
+.widget-floating .widget-resize-se::after,
+.widget-floating .widget-resize-sw::after,
+.widget-floating-window .widget-resize-se::after,
+.widget-floating-window .widget-resize-sw::after {
+    content: '';
+    position: absolute;
+    bottom: 6px;
+    width: 8px;
+    height: 2px;
+    background: var(--text-muted, #666);
+    border-radius: 1px; /* fixed: half-height of the 2px dash */
+    opacity: 0.4;
+    transition: opacity 0.15s;
+}
+
+.widget-floating .widget-resize-se::after,
+.widget-floating-window .widget-resize-se::after { right: 6px; }
+.widget-floating .widget-resize-sw::after,
+.widget-floating-window .widget-resize-sw::after { left: 6px; }
+
+.widget-floating .widget-resize-se:hover::after,
+.widget-floating .widget-resize-sw:hover::after,
+.widget-floating-window .widget-resize-se:hover::after,
+.widget-floating-window .widget-resize-sw:hover::after {
+    opacity: 0.8;
+}
+
+/* Stacked lines for corner grip effect */
+.widget-floating .widget-resize-se::before,
+.widget-floating .widget-resize-sw::before,
+.widget-floating-window .widget-resize-se::before,
+.widget-floating-window .widget-resize-sw::before {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    width: 5px;
+    height: 2px;
+    background: var(--text-muted, #666);
+    border-radius: 1px; /* fixed: half-height of the 2px dash */
+    opacity: 0.3;
+    transition: opacity 0.15s;
+}
+
+.widget-floating .widget-resize-se::before,
+.widget-floating-window .widget-resize-se::before { right: 6px; }
+.widget-floating .widget-resize-sw::before,
+.widget-floating-window .widget-resize-sw::before { left: 6px; }
+
+.widget-floating .widget-resize-se:hover::before,
+.widget-floating .widget-resize-sw:hover::before,
+.widget-floating-window .widget-resize-se:hover::before,
+.widget-floating-window .widget-resize-sw:hover::before {
+    opacity: 0.6;
+}
+
+/* Snap preview overlays */
+.widget-snap-preview-left::before,
+.widget-snap-preview-right::before,
+.widget-snap-preview-top::before,
+.widget-snap-preview-bottom::before {
+    content: '';
+    position: fixed;
+    background: var(--accent);
+    opacity: 0.15;
+    z-index: calc(var(--z-widget-floating) - 1);
+    pointer-events: none;
+    transition: all var(--widget-transition-fast);
+}
+
+.widget-snap-preview-left::before {
+    left: 0;
+    top: 0;
+    width: 50%;
+    height: 100%;
+}
+
+.widget-snap-preview-right::before {
+    right: 0;
+    top: 0;
+    width: 50%;
+    height: 100%;
+}
+
+.widget-snap-preview-top::before {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.widget-snap-preview-bottom::before {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 50%;
+}
+
+/* ============================================
+   Tab Widget (fullscreen view)
+   ============================================ */
+
+/* Container for tab view - fullscreen overlay */
+.widget.widget-tab-view {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    border-radius: 0;
+    z-index: var(--z-widget-modal);
+    display: none;
+    flex-direction: column;
+    background: var(--widget-bg);
+}
+
+.widget.widget-tab-view.widget-active,
+.widget.widget-tab-view.widget-tab-visible {
+    display: flex;
+}
+
+/* Show header for standalone tab views (with back button) */
+.widget.widget-tab-view .widget-header {
+    display: flex;
+    background: var(--widget-header-bg);
+    border-bottom: 1px solid var(--widget-header-border);
+}
+
+/* Tab bar button element (NOT the container) */
+.widget-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-12);
+    background: transparent;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    cursor: pointer;
+    user-select: none;
+    transition: all var(--widget-transition-fast);
+    max-width: 180px;
+}
+
+.widget-tab-btn:hover {
+    background: var(--surface-hover, #333);
+}
+
+.widget-tab-btn.widget-tab-active {
+    background: var(--surface-primary, #0d0d0d);
+}
+
+.widget-tab-btn .widget-tab-icon {
+    display: flex;
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted, #888);
+}
+
+.widget-tab-btn .widget-tab-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.widget-tab-btn .widget-tab-title {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary, #aaa);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.widget-tab-btn.widget-tab-active .widget-tab-title {
+    color: var(--text-primary, #fff);
+}
+
+.widget-tab-btn .widget-tab-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted, #888);
+    font-size: var(--font-size-md);
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: all var(--widget-transition-fast);
+}
+
+.widget-tab-btn:hover .widget-tab-close {
+    opacity: 1;
+}
+
+.widget-tab-btn .widget-tab-close:hover {
+    background: var(--accent-red, #ef4444);
+    color: white;
+}
+
+.widget-tab-btn.widget-tab-dirty .widget-tab-title::after {
+    content: ' •';
+    color: var(--accent-orange, #f59e0b);
+}
+
+/* ============================================
+   Modal Widget
+   ============================================ */
+
+.widget-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--widget-transition-normal);
+    z-index: var(--z-widget-modal-backdrop);
+}
+
+.widget-modal-backdrop-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.widget-modal-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.95);
+    width: var(--widget-width, auto);
+    max-width: var(--widget-max-width, 90vw);
+    max-height: var(--widget-max-height, 90vh);
+    border-radius: var(--widget-border-radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: all var(--widget-transition-normal);
+    z-index: var(--z-widget-modal);
+}
+
+.widget-modal-dialog.widget-visible {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.widget-modal-dialog .widget-drag-handle {
+    display: none;
+}
+
+/* Prevent body scroll when modal is open */
+body.widget-modal-open {
+    overflow: hidden;
+}
+
+/* ============================================
+   Responsive Adjustments
+   ============================================ */
+
+@media (max-width: 768px) {
+    :root {
+        --widget-sidebar-width: 100vw;
+        --widget-bottom-sheet-half: 50vh;
+        --widget-bottom-sheet-full: 90vh;
+    }
+
+    .widget-floating {
+        /* On mobile, floating widgets become bottom sheets */
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        max-height: 80vh;
+        border-radius: var(--widget-border-radius) var(--widget-border-radius) 0 0;
+    }
+
+    .widget-floating .widget-resize-handle {
+        display: none;
+    }
+}
+
+/* ============================================
+   Widget Content Helpers
+   ============================================ */
+
+/* Loading indicator */
+.widget-loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-48) var(--sp-16);
+    color: var(--text-muted, #888);
+    font-size: var(--font-size-md);
+}
+
+/* Empty state */
+.widget-empty-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-48) var(--sp-16);
+    color: var(--text-muted, #888);
+    text-align: center;
+    font-size: var(--font-size-md);
+}
+
+/* Error message */
+.widget-error-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-48) var(--sp-16);
+    color: var(--accent-red, #ef4444);
+    text-align: center;
+    font-size: var(--font-size-md);
+}
+
+/* ============================================
+   Changes Widget Content Styling
+   ============================================ */
+
+/* Override widget content padding for changes list
+   NOTE: Use [data-widget-id] attr selector — widget DOM IDs are session-scoped
+   (e.g. widget-changes-sess_xxx), so #widget-changes never matches. */
+[data-widget-id="changes"] .widget-content {
+    padding: 0;
+}
+
+[data-widget-id="changes"] .changes-list {
+    padding: var(--sp-12);
+}
+
+/* ============================================
+   Widget Tab View (in app's main content area)
+   ============================================ */
+
+/* Widget views - uses .view class pattern like session/editor/terminal views */
+#widget-views.view {
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Individual widget tab content */
+.widget-tab-content {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    padding: 0;
+}
+
+.widget-tab-content.active {
+    display: flex;
+}
+
+/* Terminal in tab needs bottom padding for iPad rounded corners / safe area */
+.widget-tab-content[data-widget-id="terminal"] {
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+    background: #1a1a2e;
+}
+
+/* Widget icon in tab bar */
+.tab-widget .widget-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+}
+
+.tab-widget .widget-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Widget tab styling (matches file/terminal tabs) */
+.tab-widget {
+    background: var(--tab-bg, transparent);
+}
+
+.tab-widget.active {
+    background: var(--tab-active-bg, #1a1a1a);
+}
+
+/* ============================================
+   Git Widget - Specific Styles
+   ============================================ */
+
+/* Git widget header summary - branch and badges */
+[data-widget-id="git"] .widget-summary {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+.git-summary-branch {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.15);
+    padding: 2px var(--sp-8);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.git-summary-sync {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    padding: 2px var(--sp-4);
+    border-radius: var(--radius-sm);
+}
+
+.git-summary-sync.ahead {
+    color: var(--accent-green, #22c55e);
+}
+
+.git-summary-sync.behind {
+    color: var(--accent-red, #ef4444);
+}
+
+.git-summary-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 var(--sp-5);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: default;
+}
+
+.git-summary-badge.staged {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--accent-green, #22c55e);
+}
+
+.git-summary-badge.modified {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--accent-orange, #f59e0b);
+}
+
+.git-summary-badge.untracked {
+    background: rgba(156, 163, 175, 0.2);
+    color: var(--text-muted, #888);
+}
+
+.git-summary-badge.clean {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--accent-green, #22c55e);
+}
+
+/* Git widget content area */
+[data-widget-id="git"] .widget-content {
+    padding: 0;
+}
+
+[data-widget-id="git"] .git-content {
+    padding: var(--sp-12);
+}
+
+/* File item - two-line layout for better readability */
+[data-widget-id="git"] .git-file-item {
+    display: flex;
+    align-items: center;
+    padding: var(--sp-10) var(--sp-12);
+    gap: var(--sp-10);
+    background: var(--bg-secondary, #1a1a1a);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--sp-4);
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+[data-widget-id="git"] .git-file-item:hover {
+    background: var(--bg-tertiary, #262626);
+}
+
+[data-widget-id="git"] .git-file-item[data-no-diff="true"] {
+    cursor: default;
+    opacity: 0.7;
+}
+
+/* Status badge */
+[data-widget-id="git"] .git-file-status {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 700;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* File path - show full path with ellipsis in middle */
+[data-widget-id="git"] .git-file-path {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary, #aaa);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Show end of path (filename) when truncating */
+    direction: rtl;
+    text-align: left;
+}
+
+[data-widget-id="git"] .git-file-path::before {
+    content: '\200E'; /* LTR mark to fix display */
+}
+
+/* Chevron */
+[data-widget-id="git"] .git-file-chevron {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted, #666);
+    opacity: 0.5;
+    transition: opacity 0.15s;
+}
+
+[data-widget-id="git"] .git-file-chevron svg {
+    width: 100%;
+    height: 100%;
+}
+
+[data-widget-id="git"] .git-file-item:hover .git-file-chevron {
+    opacity: 1;
+}
+
+/* Section headers */
+[data-widget-id="git"] .git-section {
+    margin-bottom: var(--sp-16);
+}
+
+[data-widget-id="git"] .git-section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-4);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--text-muted, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+[data-widget-id="git"] .git-section-staged .git-section-header {
+    color: var(--accent-green, #22c55e);
+}
+
+[data-widget-id="git"] .git-section-modified .git-section-header {
+    color: var(--accent-orange, #f59e0b);
+}
+
+[data-widget-id="git"] .git-section-untracked .git-section-header {
+    color: var(--text-muted, #888);
+}
+
+[data-widget-id="git"] .git-section-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 var(--sp-6);
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-secondary, #aaa);
+}
+
+/* Empty and loading states */
+[data-widget-id="git"] .git-loading,
+[data-widget-id="git"] .git-empty,
+[data-widget-id="git"] .git-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-48) var(--sp-16);
+    color: var(--text-muted, #888);
+    text-align: center;
+    font-size: var(--font-size-base);
+}
+
+[data-widget-id="git"] .git-error {
+    color: var(--accent-red, #ef4444);
+}
+
+/* Diff view styles */
+[data-widget-id="git"] .git-diff-view,
+[data-widget-id="git"] .git-history-view,
+[data-widget-id="git"] .git-commit-detail {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+[data-widget-id="git"] .git-diff-header,
+[data-widget-id="git"] .git-history-header,
+[data-widget-id="git"] .git-commit-detail-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary, #1a1a1a);
+    border-bottom: 1px solid var(--border-primary, #333);
+    flex-shrink: 0;
+}
+
+[data-widget-id="git"] .git-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-secondary, #aaa);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+[data-widget-id="git"] .git-back-btn:hover {
+    background: var(--bg-hover, #333);
+    color: var(--text-primary, #fff);
+}
+
+[data-widget-id="git"] .git-back-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+[data-widget-id="git"] .git-diff-title,
+[data-widget-id="git"] .git-history-title {
+    font-weight: 500;
+    font-size: var(--font-size-base);
+    color: var(--text-primary, #fff);
+    font-family: var(--font-mono);
+}
+
+[data-widget-id="git"] .git-diff-staged {
+    font-size: 10px;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--accent-green, #22c55e);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+[data-widget-id="git"] .git-diff-stats {
+    margin-left: auto;
+    font-size: var(--font-size-sm);
+    display: flex;
+    gap: var(--sp-8);
+}
+
+[data-widget-id="git"] .git-diff-stats .added { color: var(--accent-green, #22c55e); }
+[data-widget-id="git"] .git-diff-stats .removed { color: var(--accent-red, #ef4444); }
+
+[data-widget-id="git"] .git-diff-container {
+    flex: 1;
+    overflow: auto;
+    padding: var(--sp-8);
+}
+
+[data-widget-id="git"] .git-no-diff {
+    padding: var(--sp-24);
+    text-align: center;
+    color: var(--text-muted, #888);
+    font-size: var(--font-size-base);
+}
+
+/* Diff hunks */
+[data-widget-id="git"] .git-hunk {
+    margin-bottom: var(--sp-12);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: var(--bg-secondary, #1a1a1a);
+    border: 1px solid var(--border-primary, #333);
+}
+
+[data-widget-id="git"] .git-hunk-header {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--accent);
+    background: rgba(var(--accent-rgb), 0.1);
+    padding: var(--sp-6) var(--sp-12);
+    border-bottom: 1px solid var(--border-primary, #333);
+}
+
+[data-widget-id="git"] .git-hunk-lines {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+}
+
+[data-widget-id="git"] .git-diff-line {
+    padding: 2px var(--sp-12);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+[data-widget-id="git"] .git-diff-line.added {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--accent-green, #22c55e);
+}
+
+[data-widget-id="git"] .git-diff-line.removed {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--accent-red, #ef4444);
+}
+
+[data-widget-id="git"] .git-diff-line.context {
+    color: var(--text-muted, #888);
+}
+
+/* History view - commit list */
+[data-widget-id="git"] .git-commit-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-8);
+}
+
+[data-widget-id="git"] .git-commit-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-12);
+    padding: var(--sp-12);
+    background: var(--bg-secondary, #1a1a1a);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--sp-4);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+[data-widget-id="git"] .git-commit-item:hover {
+    background: var(--bg-tertiary, #262626);
+}
+
+[data-widget-id="git"] .git-commit-hash {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--accent-orange, #f59e0b);
+    background: rgba(245, 158, 11, 0.1);
+    padding: var(--sp-3) var(--sp-8);
+    border-radius: var(--radius-sm);
+}
+
+[data-widget-id="git"] .git-commit-info {
+    flex: 1;
+    min-width: 0;
+}
+
+[data-widget-id="git"] .git-commit-subject {
+    font-size: var(--font-size-base);
+    color: var(--text-primary, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+[data-widget-id="git"] .git-commit-meta {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted, #888);
+    display: flex;
+    gap: var(--sp-12);
+}
+
+[data-widget-id="git"] .git-commit-chevron {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted, #666);
+    opacity: 0.5;
+}
+
+[data-widget-id="git"] .git-commit-chevron svg {
+    width: 100%;
+    height: 100%;
+}
+
+[data-widget-id="git"] .git-commit-item:hover .git-commit-chevron {
+    opacity: 1;
+}
+
+[data-widget-id="git"] .git-load-more {
+    width: 100%;
+    padding: var(--sp-12);
+    margin-top: var(--sp-8);
+    border: 1px dashed var(--border-primary, #333);
+    background: transparent;
+    color: var(--text-secondary, #aaa);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    transition: all 0.15s;
+}
+
+[data-widget-id="git"] .git-load-more:hover {
+    background: var(--bg-secondary, #1a1a1a);
+    border-style: solid;
+}
+
+/* Commit detail view */
+[data-widget-id="git"] .git-commit-detail-hash {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--accent-orange, #f59e0b);
+}
+
+[data-widget-id="git"] .git-commit-detail-info {
+    padding: var(--sp-16);
+    border-bottom: 1px solid var(--border-primary, #333);
+}
+
+[data-widget-id="git"] .git-commit-detail-subject {
+    font-size: var(--font-size-content);
+    font-weight: 500;
+    color: var(--text-primary, #fff);
+    margin-bottom: 4px;
+}
+
+[data-widget-id="git"] .git-commit-detail-body {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary, #aaa);
+    margin: var(--sp-8) 0;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+[data-widget-id="git"] .git-commit-detail-meta {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted, #888);
+    display: flex;
+    gap: var(--sp-16);
+}
+
+[data-widget-id="git"] .git-commit-files-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-10) var(--sp-16);
+    background: var(--bg-tertiary, #262626);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary, #aaa);
+}
+
+[data-widget-id="git"] .git-commit-stats {
+    display: flex;
+    gap: var(--sp-8);
+}
+
+[data-widget-id="git"] .git-commit-stats .added { color: var(--accent-green, #22c55e); }
+[data-widget-id="git"] .git-commit-stats .removed { color: var(--accent-red, #ef4444); }
+
+[data-widget-id="git"] .git-commit-files {
+    padding: var(--sp-8) var(--sp-16);
+    border-bottom: 1px solid var(--border-primary, #333);
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+[data-widget-id="git"] .git-commit-file {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-6) 0;
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+[data-widget-id="git"] .git-commit-file:hover {
+    color: var(--accent);
+}
+
+[data-widget-id="git"] .git-commit-file-path {
+    font-family: var(--font-mono);
+    color: var(--text-secondary, #aaa);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+[data-widget-id="git"] .git-commit-file:hover .git-commit-file-path {
+    color: var(--accent);
+}
+
+[data-widget-id="git"] .git-commit-file-stats {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    flex-shrink: 0;
+    margin-left: var(--sp-12);
+}
+
+[data-widget-id="git"] .git-commit-file-stats .added { color: var(--accent-green, #22c55e); }
+[data-widget-id="git"] .git-commit-file-stats .removed { color: var(--accent-red, #ef4444); }
+
+[data-widget-id="git"] .git-commit-diffs {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--sp-8);
+}
+
+[data-widget-id="git"] .git-commit-diff-file {
+    margin-bottom: var(--sp-16);
+}
+
+[data-widget-id="git"] .git-commit-diff-file-header {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary, #fff);
+    background: var(--bg-tertiary, #262626);
+    padding: var(--sp-8) var(--sp-12);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border: 1px solid var(--border-primary, #333);
+    border-bottom: none;
+}
+
+/* ============================================
+   Terminal Widget Styles
+   ============================================ */
+
+[data-widget-id="terminal"] {
+    /* Match terminal bg so no dark strip bleeds between content border-radius and widget border */
+    background: #1a1a2e;
+}
+
+[data-widget-id="terminal"] .widget-content {
+    background: #1a1a2e;
+    padding: 0;
+    overflow: hidden; /* xterm.js handles its own scrolling — auto lets fitAddon overshoot by half a row */
+}
+
+.terminal-widget-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #1a1a2e;
+    position: relative;
+}
+
+.terminal-widget-xterm {
+    flex: 1;
+    padding: var(--sp-8);
+    box-sizing: content-box; /* fitAddon.fit() reads getComputedStyle().height — must exclude padding */
+    overflow: hidden;
+    min-height: 0;
+    touch-action: none; /* Prevent browser scroll — xterm.js handles touch internally */
+    -webkit-touch-callout: none; /* Prevent native iOS long-press callout on links */
+}
+
+/* Override xterm defaults */
+.terminal-widget-xterm .xterm {
+    padding: 0;
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+.terminal-widget-xterm .xterm-viewport {
+    background: #1a1a2e !important;
+    max-height: 100% !important;
+}
+
+.terminal-widget-xterm .xterm-screen {
+    max-height: 100% !important;
+}
+
+/* Hide native OS caret on iPad/iOS - xterm.js has its own cursor */
+.terminal-widget-xterm .xterm-helper-textarea {
+    caret-color: transparent !important;
+    opacity: 0 !important;
+}
+
+.terminal-widget-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted, #888);
+    font-size: var(--font-size-md);
+    background: #1a1a2e;
+    z-index: 10;
+}
+
+.terminal-widget-loading[hidden] {
+    display: none;
+}
+
+/* Terminal status in header */
+.terminal-widget-status {
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    padding: 2px var(--sp-6);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary, #262626);
+}
+
+.terminal-widget-status:empty {
+    display: none;
+}
+
+.terminal-widget-status.status-connecting {
+    color: var(--accent-orange, #f59e0b);
+}
+
+.terminal-widget-status.status-connected {
+    display: none;
+}
+
+.terminal-widget-status.status-disconnected {
+    color: var(--accent-red, #ef4444);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.terminal-widget-status.status-error {
+    color: var(--accent-red, #ef4444);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.terminal-widget-status.status-exited {
+    color: var(--text-muted, #888);
+}
+
+/* Terminal widget specific header actions */
+[data-widget-id="terminal"] .widget-action[title="Kill Terminal"]:hover {
+    color: var(--accent-red, #ef4444);
+}
+
+[data-widget-id="terminal"] .widget-action[title="Open in Tab"]:hover {
+    color: var(--accent);
+}
+
+/* Floating terminal specific styles - larger default size */
+[data-widget-id="terminal"].widget-floating {
+    /* Use CSS variables for width/height so resize handles work */
+    /* Default values are set here, FloatingWidget updates --widget-width/height on resize */
+    --widget-width: 900px;
+    --widget-height: 500px;
+    min-width: 400px;
+    min-height: 250px;
+}
+
+[data-widget-id="terminal"].widget-floating .widget-content {
+    border-radius: 0 0 var(--widget-border-radius) var(--widget-border-radius);
+}
+
+/* Bottom sheet terminal - compact header */
+[data-widget-id="terminal"].widget-bottom-sheet .widget-header,
+[data-widget-id="terminal"].widget-top-sheet .widget-header {
+    padding: 0 var(--sp-8);
+    height: 36px;
+}
+
+/* ============================================
+   Visibility Scope Selector
+   ============================================ */
+
+/* Scope button - eye icon with colored dot indicator */
+.widget-scope-btn {
+    position: relative;
+}
+
+.widget-scope-dot {
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1.5px solid var(--widget-bg, #1a1a1a);
+    pointer-events: none;
+}
+
+/* Scope dropdown popup */
+.widget-scope-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    min-width: 200px;
+    background: var(--surface-raised, #2a2a2a);
+    border: 1px solid var(--border-subtle, #444);
+    border-radius: var(--radius-md);
+    padding: var(--sp-4);
+    z-index: var(--z-always-top, 4000);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Individual scope option */
+.widget-scope-option {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-5) var(--sp-8);
+    line-height: var(--layout-menu-line-height);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.widget-scope-option:hover {
+    background: var(--surface-hover, #333);
+}
+
+.widget-scope-option.active {
+    background: var(--surface-hover, #333);
+}
+
+.widget-scope-option.active .widget-scope-option-label {
+    color: var(--text-primary, #fff);
+}
+
+/* Colored dot in option row */
+.widget-scope-option-dot {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+/* Text column */
+.widget-scope-option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.widget-scope-option-label {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-secondary, #aaa);
+    white-space: nowrap;
+}
+
+.widget-scope-option-desc {
+    font-size: var(--font-size-xs);
+    color: var(--text-tertiary, #666);
+    white-space: nowrap;
+}

@@ -1,0 +1,116 @@
+/* ═══════════════════════════════════════════════════════════
+   KEYBOARD BAR LONG-PRESS POPUP
+   iOS accent-picker style shortcut menu
+   ═══════════════════════════════════════════════════════════ */
+
+.kb-longpress-popup {
+    position: fixed;
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    padding: 4px;
+    background: #1e1e32;
+    border: 1px solid #3a3a5e;
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6),
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    z-index: var(--z-overlay);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    pointer-events: none; /* initially pass-through; switched to auto in tap mode */
+    animation: kbLpIn 0.12s ease-out;
+}
+
+@keyframes kbLpIn {
+    from { opacity: 0; transform: translateY(4px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Notch pointing down to the source button */
+.kb-longpress-popup::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: var(--notch-left, 50%);
+    transform: translateX(-50%);
+    width: 12px;
+    height: 6px;
+    background: #1e1e32;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.kb-lp-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    padding: 6px 8px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    transition: background 0.08s;
+}
+
+.kb-lp-option.highlighted,
+.kb-lp-option:active {
+    background: var(--accent);
+}
+
+.kb-lp-label {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0f0;
+    line-height: 1.2;
+}
+
+.kb-lp-option.highlighted .kb-lp-label {
+    color: #fff;
+}
+
+.kb-lp-desc {
+    font-family: var(--font-sans, system-ui, sans-serif);
+    font-size: 9px;
+    color: #8888aa;
+    white-space: nowrap;
+    line-height: 1.2;
+    margin-top: 1px;
+}
+
+.kb-lp-option.highlighted .kb-lp-desc {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Visual hint dot on keys with long-press options */
+.keyboard-bar-key.has-longpress::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #555570;
+}
+
+.keyboard-bar-key.has-longpress {
+    position: relative;
+}
+
+/* Glow on button when long-press popup is active */
+.keyboard-bar-key.longpress-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+/* Phone: smaller popup options */
+@media (max-width: 767px) {
+    .kb-lp-option {
+        min-width: 38px;
+        padding: 4px 6px;
+    }
+    .kb-lp-label { font-size: 14px; }
+    .kb-lp-desc  { font-size: 8px; }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "server-pages",
+  "description": "Server-page scope — granted on proxy loopback origins (http://127.0.0.1:*) and directly-reached HTTPS servers. Limited to the cross-page shortcuts (back_to_launcher / new_window / open_launcher_popup) so a compromised server can't probe the network via check_server_health or spawn proxies.",
+  "windows": ["main*", "launcher-popup-*"],
+  "remote": {
+    "urls": [
+      "http://127.0.0.1:*/*",
+      "https://*/*"
+    ]
+  },
+  "permissions": [
+    "allow-cross-page-shortcuts"
+  ]
+}

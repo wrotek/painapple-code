@@ -1,0 +1,100 @@
+[package]
+name = "painapple-code-app"
+version = "0.0.0"
+description = "Native shell for pAInapple Code"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "painapple_code_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+# Hand off external URLs to the system browser. iOS wry 0.55 doesn't implement
+# WKUIDelegate.createWebViewWithConfiguration, so <a target="_blank"> and
+# window.open() both silently no-op on iOS. on_navigation intercepts the
+# request and routes through opener — UIApplication.open on iOS, NSWorkspace
+# on macOS, xdg-open / equivalent elsewhere.
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Pure-Rust TLS (no OpenSSL on Linux dev builds, no SecureTransport on iOS),
+# ring-backed to match the provider installed in run(). webpki-roots =
+# Mozilla's CA bundle compiled in: the /health and /api/login probes must
+# STRICTLY validate certs for directly-reached https domains (those bypass
+# the proxy — see needs_proxy in lib.rs — and WKWebView will validate them
+# at nav time, so a lax probe would green-light a navigation that then
+# fails). Proxied and loopback probes still set
+# danger_accept_invalid_certs(true), which bypasses the bundle entirely.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots"] }
+# tokio: time (nav watchdog), net+io-util (proxy listener + bidirectional copy),
+# rt-multi-thread+macros (proxy tasks), sync (shutdown channel per proxy).
+tokio = { version = "1", features = ["time", "net", "io-util", "rt-multi-thread", "macros", "sync"] }
+# Hyper-based reverse proxy. Webview connects to a loopback HTTP listener;
+# we forward to the remote pAInapple server over TLS with cert verification
+# disabled entirely (any cert accepted — MITM accepted by design, TLS is
+# wire encryption against passive snooping only). No OS-level cert install,
+# no pinning, no bootstrap fingerprint.
+hyper = { version = "1", features = ["server", "client", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+url = "2"
+
+# Local-mode process plumbing (desktop only): spawns the bundled `uv` sidecar
+# to provision the Python bridge, and the bridge server itself, with per-line
+# stdout/stderr streaming (src/local.rs). Target-gated out of mobile builds —
+# iOS can't spawn subprocesses and the sidecar isn't bundled there
+# (externalBin lives in tauri.macos.conf.json / tauri.linux.conf.json).
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-shell = "2"
+# Native folder picker for the local-setup wizard (workspace / data dir).
+# Invoked directly via invoke('plugin:dialog|open') — no npm-side package.
+tauri-plugin-dialog = "2"
+
+# Dock right-click menu (macOS). The menu is built with muda (the same lib
+# Tauri wraps for menus — versions pinned to match Tauri's transitive pick
+# so cargo resolves one copy) and surfaced by injecting
+# NSApplicationDelegate.applicationDockMenu: onto tao's live delegate class
+# via objc2's runtime class_addMethod. NSDockTile has no setMenu: — the
+# delegate method is the only public path. Items reuse the menu-bar
+# `recent-{idx}` / `back-to-launcher` IDs, so clicks route through the
+# existing on_menu_event handler in lib.rs.
+[target.'cfg(target_os = "macos")'.dependencies]
+# default-features off: muda's default set pulls libxdo + gtk on Linux/BSD,
+# which would force the whole workspace to fail `cargo check` on those hosts
+# even though the crate is target-gated to macOS. (Cargo unifies feature
+# sets across the dep graph globally, so default features on a macOS-only
+# dep still enable optional Linux deps elsewhere.) Tauri itself opts out
+# the same way; libxdo is behind its `linux-libxdo` feature flag.
+muda = { version = "0.19", default-features = false }
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSApplication", "NSMenu", "NSResponder"] }
+
+# Dock/Home Screen Quick Actions + iPad menu bar (iOS/iPadOS). Quick
+# Actions mirror the recents into UIApplication.shortcutItems and inject
+# `windowScene:performActionForShortcutItem:completionHandler:` onto tao's
+# TaoSceneDelegate class via class_addMethod so a tapped shortcut routes
+# through the same recent-{idx} handler as macOS. The menu bar (ios_menu.rs)
+# injects `buildMenuWithBuilder:` + an action selector onto tao's
+# AppDelegate the same way — UIMenu/UICommand/UIKeyCommand/UIMenuSystem/
+# UIImage features cover its bindings (all are default-on in objc2-ui-kit;
+# listed anyway to document what we actually use).
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-ui-kit = { version = "0.3", features = ["UIApplication", "UIApplicationShortcutItem", "UIResponder", "UIScene", "UIWindowScene", "UIMenu", "UIMenuBuilder", "UIMenuElement", "UIMenuSystem", "UICommand", "UIKeyCommand", "UIImage"] }
+
+# Local tao fork carrying a one-line fix for the iOS scene-delegate use-after-free
+# in tao 0.35.2's view.rs (the release-only "(null)" delegateClass crash on iPad).
+# The sibling `../../tao` directory is auto-cloned and patched by
+# ../scripts/tao-setup.sh, which every npm cargo-touching script runs first.
+# Drop this block + ../scripts/tao-{setup.sh,fix.patch} + the tao-setup calls
+# in ../package.json once an upstream release ships the fix.
+[patch.crates-io]
+tao = { path = "../../tao" }

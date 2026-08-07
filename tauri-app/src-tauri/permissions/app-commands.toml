@@ -1,0 +1,47 @@
+"$schema" = "schemas/schema.json"
+
+# Permissions for the app's own #[tauri::command] handlers (lib.rs).
+# Tauri v2 rejects every IPC call without an explicit permission — even for
+# app-level commands — surfacing as "<cmd> not allowed" in the webview console.
+#
+# Split into two so the broader scope (remote URLs, used by the injected
+# back-button script on server pages) only grants the one command it actually
+# needs. The launcher-only commands stay scoped to local URLs.
+
+[[permission]]
+identifier = "allow-launcher-commands"
+description = "Commands the launcher's JS invokes — local scope only."
+commands.allow = [
+    "check_server_health",
+    # Was missing: launcher's verifyPassword() invoke silently rejected and
+    # degraded every check to 'unknown' (navigate-and-hope). Latent bug.
+    "check_server_auth",
+    "watch_navigation",
+    "start_proxy",
+    "set_session_name",
+    # Local server mode (desktop builds only — commands absent on iOS, where
+    # the launcher hides the local card when local_status rejects).
+    "local_status",
+    "local_provision",
+    "local_start",
+    "local_stop",
+    "local_logs",
+    "local_install_claude",
+    # Setup wizard (This Mac + Docker engines).
+    "local_tool",
+    "local_docker_state",
+    "local_docker_remove_profile",
+    "local_seed_claude",
+    "local_probe_dir",
+]
+
+[[permission]]
+identifier = "allow-cross-page-shortcuts"
+description = """Commands the cross-page keyboard shortcuts in PAGE_INIT_SCRIPT invoke, plus the launcher popup's own dismiss command. Granted on remote origins (server pages) so Cmd+Shift+L / Cmd+Shift+N work the same on iPad-with-keyboard as in the macOS menu, and on local origin so the popup launcher window can close itself."""
+commands.allow = [
+    "back_to_launcher",
+    "new_window",
+    "open_launcher_popup",
+    "close_self",
+    "set_browser_direct_mode",
+]

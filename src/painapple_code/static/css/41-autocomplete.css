@@ -1,0 +1,127 @@
+/* ═══════════════════════════════════════════════════════════════════
+   DEV PANEL (Bottom Sheet)
+   Long-press status bar to reveal
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Status bar long-press visual feedback */
+#status-bar.pressing {
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   AUTOCOMPLETE
+   ═══════════════════════════════════════════════════════════════════ */
+#autocomplete {
+    position: absolute;
+    bottom: 100%;
+    min-width: 240px;
+    width: max-content;
+    max-width: min(640px, 85vw);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    margin-bottom: 6px;
+    box-shadow: var(--shadow);
+    display: none;
+    max-height: 240px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: var(--z-overlay-autocomplete); /* Above overlays (2000), widgets (1650) */
+}
+
+#autocomplete.visible {
+    display: block;
+}
+
+.autocomplete-item {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-4) var(--sp-10);
+    cursor: pointer;
+    transition: background 0.1s ease;
+    font-size: var(--font-size-sm);
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+    background: var(--bg-tertiary);
+}
+
+.autocomplete-item.selected {
+    background: var(--accent-muted);
+}
+
+.autocomplete-cmd {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 64px;
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+}
+
+.autocomplete-desc {
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+/* Send button */
+.autocomplete-send-btn {
+    padding: var(--sp-3);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: var(--sp-6);
+}
+
+.autocomplete-send-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-muted);
+}
+
+.autocomplete-send-btn svg {
+    width: 11px;
+    height: 11px;
+    display: block;
+}
+
+.autocomplete-section {
+    padding: var(--sp-3) var(--sp-10);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.autocomplete-hint {
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-left: var(--sp-4);
+}
+
+.autocomplete-source {
+    font-size: 9px;
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    margin-left: var(--sp-6);
+    text-transform: uppercase;
+}
+

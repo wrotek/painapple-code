@@ -1,0 +1,2340 @@
+/* ═══════════════════════════════════════════════════════════════════
+   TOOL BLOCK WRAPPER & GUTTER ICONS (Normal tools, not in thinking)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Wrapper for tool blocks with gutter icon */
+.tool-block-wrapper {
+    position: relative;
+    overflow: visible; /* Allow gutter icons to extend outside */
+}
+
+/* Tool messages need overflow visible to show gutter icons in margin */
+.message.tool {
+    overflow: visible;
+}
+
+/* Gutter icon for normal tool blocks - reuses same class as thinking tools
+   Uses float positioning to sit in right margin without taking vertical space */
+.message.tool .tool-gutter-icon,
+.task-block-child .tool-gutter-icon {
+    display: none; /* Hidden by default, shown when .has-gutter-space on parent group */
+    position: sticky;
+    top: 40px; /* Below collapse-all if present */
+    float: right;
+    /* Match thinking tools alignment: account for message padding + gutter offset */
+    margin-right: calc(-1 * var(--layout-msg-padding-h) - 32px);
+    margin-left: var(--sp-8);
+    margin-bottom: -24px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+
+.message.tool .tool-gutter-icon:hover,
+.task-block-child .tool-gutter-icon:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+/* Show gutter icons when tool group has space */
+.tool-group.has-gutter-space .tool-gutter-icon {
+    display: flex;
+}
+
+/* Show gutter icons for single tool messages (not in groups) with space */
+.message.tool.has-gutter-space .tool-gutter-icon {
+    display: flex;
+    top: 8px; /* No collapse-all button for single tools, so position higher */
+}
+
+/* First tool in group: offset gutter icon below collapse-all button
+   (collapse-all is :nth-child(1), first .message.tool is :nth-child(2)) */
+.tool-group > .message.tool:nth-child(2) .tool-gutter-icon {
+    margin-top: 28px;       /* 24px button height + 4px gap */
+    margin-bottom: -52px;   /* Negate: -(24px icon + 28px margin) = zero effective height */
+}
+
+/* Icon states */
+.tool-block-wrapper .tool-gutter-icon .gutter-expand-icon {
+    display: none;
+}
+
+.tool-block-wrapper .tool-gutter-icon .gutter-collapse-icon {
+    display: block;
+}
+
+/* When collapsed - show expand icon */
+.tool-block-wrapper.tool-collapsed .tool-gutter-icon .gutter-collapse-icon {
+    display: none;
+}
+
+.tool-block-wrapper.tool-collapsed .tool-gutter-icon .gutter-expand-icon {
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOOL GROUP - Container for consecutive tool messages
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Tool group wraps consecutive .message.tool elements */
+.tool-group {
+    position: relative;
+    overflow: visible;
+    /* Flex column like .thinking-section for sticky button positioning */
+    display: flex;
+    flex-direction: column;
+    gap: 0;  /* No gap between tools in a group */
+}
+
+/* Remove internal margins from tool blocks inside tool-group (they're already close) */
+.tool-group .tool-block,
+.tool-group .bash-block,
+.tool-group .grep-block,
+.tool-group .glob-block,
+.tool-group .read-block,
+.tool-group .write-block,
+.tool-group .edit-diff,
+.tool-group .webfetch-block {
+    margin: 0;
+}
+
+/* Collapse-all button for tool groups - sticky in right gutter
+   Same pattern as .thinking-collapse-tools-btn: negative margin negates vertical space */
+.tool-group-collapse-btn {
+    display: none; /* Hidden by default, shown when .has-gutter-space */
+    position: sticky;
+    top: 8px;
+    /* Align to right edge of flex column cross-axis */
+    align-self: flex-end;
+    /* Push into right gutter */
+    margin-right: calc(-1 * var(--layout-msg-padding-h) - 32px);
+    /* Negate vertical space (24px height, no gap set) */
+    margin-bottom: -24px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    z-index: 10;
+}
+
+.tool-group.has-gutter-space .tool-group-collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tool-group-collapse-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+/* Icon states for collapse-all button */
+.tool-group-collapse-btn .expand-icon {
+    display: none;
+}
+
+.tool-group-collapse-btn .collapse-icon {
+    display: block;
+}
+
+.tool-group.tools-collapsed .tool-group-collapse-btn .collapse-icon {
+    display: none;
+}
+
+.tool-group.tools-collapsed .tool-group-collapse-btn .expand-icon {
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COLLAPSED STATE - Hide tool content when collapsed
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Hide tool content when wrapper is collapsed */
+.tool-block-wrapper.tool-collapsed .tool-content,
+.tool-block-wrapper.tool-collapsed .bash-output,
+.tool-block-wrapper.tool-collapsed .grep-results,
+.tool-block-wrapper.tool-collapsed .grep-empty,
+.tool-block-wrapper.tool-collapsed .glob-files,
+.tool-block-wrapper.tool-collapsed .glob-empty,
+.tool-block-wrapper.tool-collapsed .read-content,
+.tool-block-wrapper.tool-collapsed .read-image-preview,
+.tool-block-wrapper.tool-collapsed .write-content,
+.tool-block-wrapper.tool-collapsed .edit-diff-content,
+.tool-block-wrapper.tool-collapsed .todo-list,
+.tool-block-wrapper.tool-collapsed .webfetch-output {
+    display: none !important;
+}
+
+/* Visual indicator that tool is collapsed - rounded corners on headers */
+.tool-block-wrapper.tool-collapsed .tool-header,
+.tool-block-wrapper.tool-collapsed .bash-header,
+.tool-block-wrapper.tool-collapsed .grep-header,
+.tool-block-wrapper.tool-collapsed .glob-header,
+.tool-block-wrapper.tool-collapsed .read-header,
+.tool-block-wrapper.tool-collapsed .write-header,
+.tool-block-wrapper.tool-collapsed .edit-diff-header,
+.tool-block-wrapper.tool-collapsed .webfetch-header {
+    border-radius: var(--radius-sm);
+    border-bottom: none;
+}
+
+/* Clickable headers — collapse on click (same as gutter chevron) */
+.bash-header,
+.grep-header,
+.glob-header,
+.read-header,
+.write-header,
+.edit-diff-header,
+.webfetch-header {
+    cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOOL BLOCKS
+   ═══════════════════════════════════════════════════════════════════ */
+.tool-block {
+    background: var(--tool-bg);
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid var(--tool-border);
+    border-radius: var(--radius-md);
+    margin: var(--layout-gap-sm) 0;
+    overflow: hidden;
+}
+
+.tool-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--layout-tool-padding);
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+    cursor: pointer;
+    user-select: none;
+}
+
+.tool-header:hover {
+    background: var(--bg-hover);
+}
+
+.tool-name {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--warning);
+    overflow: hidden;
+    min-width: 0;
+    flex: 1;
+}
+
+.tool-header-path {
+    color: var(--text-secondary);
+    font-weight: 400;
+    margin-left: var(--sp-4);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tool-header-path::before {
+    content: '·';
+    margin-right: var(--sp-6);
+    color: var(--text-muted);
+}
+
+.tool-name svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s ease;
+}
+
+.tool-block.collapsed .tool-name svg {
+    transform: rotate(-90deg);
+}
+
+.tool-actions {
+    display: flex;
+    gap: var(--sp-4);
+}
+
+.tool-action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.tool-action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.tool-action-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.tool-content {
+    padding: var(--layout-tool-padding);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    line-height: var(--layout-line-height);
+    max-height: 400px;
+    overflow: auto;
+    /* iOS: Allow both scroll directions without blocking parent */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    /* Prevent scroll chaining to parent when reaching scroll bounds */
+    overscroll-behavior: contain;
+}
+
+.tool-block.collapsed .tool-content {
+    display: none;
+}
+
+.tool-input {
+    color: var(--text-secondary);
+    margin-bottom: var(--sp-4);
+    padding-bottom: var(--sp-4);
+    border-bottom: 1px solid var(--border-secondary);
+}
+
+.tool-input-label {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    margin-bottom: var(--sp-4);
+}
+
+.tool-input-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-base);
+    margin: 0;
+}
+
+.tool-input-table th.tool-input-key {
+    text-align: left;
+    font-weight: normal;
+    color: var(--text-muted);
+    padding: var(--sp-2) var(--sp-12) var(--sp-2) 0;
+    vertical-align: top;
+    white-space: nowrap;
+    width: 1%;
+}
+
+.tool-input-table td.tool-input-value {
+    color: var(--text-primary);
+    padding: var(--sp-2) 0;
+    vertical-align: top;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.tool-input-scalar {
+    color: var(--text-secondary);
+}
+
+.tool-input-null {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.tool-input-nested {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-sm);
+}
+
+.tool-output {
+    white-space: pre-wrap;
+    color: var(--text-primary);
+}
+
+.tool-output.error {
+    color: var(--error);
+}
+
+.tool-output.truncated::after {
+    content: '\n... (truncated)';
+    color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BASH BLOCK (Compact)
+   ═══════════════════════════════════════════════════════════════════ */
+.bash-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.bash-block.bash-error {
+    border-color: var(--error);
+}
+
+.bash-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+}
+
+/* Clickable command wrapper - click to copy */
+.bash-cmd-wrapper {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-3) var(--sp-8);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.bash-cmd-wrapper:hover {
+    background: var(--bg-hover);
+}
+
+.bash-cmd-wrapper:active {
+    transform: scale(0.98);
+}
+
+/* Copy feedback animation */
+.bash-cmd-wrapper.copied {
+    background: rgba(34, 197, 94, 0.15);
+}
+
+.bash-cmd-wrapper.copied .bash-cmd {
+    color: #22c55e;
+}
+
+.bash-cmd {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.bash-line-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px var(--sp-5);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+/* Copy command button (inside command wrapper) */
+.bash-copy-cmd {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-8);
+    margin-left: var(--sp-8);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    font-family: var(--font-sans);
+    opacity: 0;
+}
+
+.bash-cmd-wrapper:hover .bash-copy-cmd {
+    opacity: 1;
+}
+
+.bash-copy-cmd:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.bash-copy-cmd.copied {
+    opacity: 1;
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--success);
+}
+
+.bash-copy-cmd svg {
+    width: 12px;
+    height: 12px;
+}
+
+.bash-copy-cmd .copy-label {
+    font-size: 10px;
+}
+
+/* Copy output button (inside output area) */
+.bash-copy-output {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    float: right;
+    padding: var(--sp-2) var(--sp-8);
+    margin: 0 0 var(--sp-4) var(--sp-8);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+    font-size: 10px;
+    font-family: var(--font-sans);
+}
+
+.bash-copy-output:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.bash-copy-output.copied {
+    background: rgba(34, 197, 94, 0.2);
+    color: var(--success);
+}
+
+.bash-copy-output svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* Expandable command wrapper */
+.bash-block.has-long-cmd .bash-cmd-wrapper {
+    cursor: pointer;
+    position: relative;
+}
+
+.bash-block.has-long-cmd .bash-cmd-wrapper:hover .bash-cmd {
+    color: var(--text-primary);
+}
+
+/* Subtle expand indicator — tiny centered caret below command wrapper */
+.bash-block.has-long-cmd .bash-cmd-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--text-muted);
+    opacity: 0.5;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.bash-block.has-long-cmd .bash-cmd-wrapper:hover::after {
+    opacity: 0.85;
+}
+
+/* Flip caret when expanded */
+.bash-block.has-long-cmd.cmd-expanded .bash-cmd-wrapper::after {
+    transform: translateX(-50%) rotate(180deg);
+}
+
+/* Expanded: show full command with wrapping (stays inline in header) */
+.bash-block.cmd-expanded .bash-cmd {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: visible;
+}
+
+.bash-output {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--bg-primary);
+    line-height: 1.4;
+    max-height: none;
+}
+
+.bash-output-error {
+    color: var(--error);
+}
+
+.bash-line {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.bash-line-hidden {
+    display: none;
+}
+
+.bash-block.expanded .bash-line-hidden {
+    display: block;
+}
+
+.bash-expand-btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-4) var(--sp-8);
+    margin-top: var(--sp-4);
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.bash-expand-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   BASH OUTPUT COLORIZATION
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ANSI color codes */
+.ansi-bold { font-weight: bold; }
+.ansi-italic { font-style: italic; }
+.ansi-underline { text-decoration: underline; }
+
+.ansi-black { color: #6e6e6e; }
+.ansi-red { color: #ef4444; }
+.ansi-green { color: #22c55e; }
+.ansi-yellow { color: #eab308; }
+.ansi-blue { color: #3b82f6; }
+.ansi-magenta { color: #d946ef; }
+.ansi-cyan { color: #06b6d4; }
+.ansi-white { color: #e5e5e5; }
+
+.ansi-bright-black { color: #8e8e8e; }
+.ansi-bright-red { color: #f87171; }
+.ansi-bright-green { color: #4ade80; }
+.ansi-bright-yellow { color: #facc15; }
+.ansi-bright-blue { color: #60a5fa; }
+.ansi-bright-magenta { color: #e879f9; }
+.ansi-bright-cyan { color: #22d3ee; }
+.ansi-bright-white { color: #ffffff; }
+
+/* Git diff patterns */
+.bash-diff-add {
+    color: #4ade80;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.bash-diff-del {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.bash-diff-hunk {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+/* Git status patterns */
+.bash-git-modified { color: #facc15; }
+.bash-git-added { color: #4ade80; }
+.bash-git-deleted { color: #f87171; }
+.bash-git-untracked { color: #8e8e8e; }
+
+/* Error/warning/success patterns */
+.bash-error-line { color: #f87171; }
+.bash-warn-line { color: #facc15; }
+.bash-success-line { color: #4ade80; }
+
+.bash-status-loading {
+    color: var(--warning);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    margin-left: auto;
+}
+
+.bash-loading .bash-header {
+    border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WEBFETCH / WEBSEARCH BLOCK (Compact)
+   ═══════════════════════════════════════════════════════════════════ */
+.webfetch-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #06b6d4;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.websearch-block {
+    border-left-color: #8b5cf6;
+}
+
+.webfetch-block.webfetch-error {
+    border-left-color: var(--error);
+}
+
+.webfetch-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+}
+
+.webfetch-header:hover {
+    background: var(--bg-hover);
+}
+
+.webfetch-icon {
+    color: #06b6d4;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.websearch-block .webfetch-icon {
+    color: #8b5cf6;
+}
+
+.webfetch-domain {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: #06b6d4;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 250px;
+}
+
+.webfetch-domain:hover {
+    text-decoration: underline;
+}
+
+.websearch-block .webfetch-domain {
+    color: #8b5cf6;
+}
+
+.webfetch-prompt {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.webfetch-prompt::before {
+    content: '·';
+    margin-right: var(--sp-6);
+    color: var(--text-muted);
+}
+
+.webfetch-line-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px var(--sp-5);
+    background: rgba(6, 182, 212, 0.12);
+    border-radius: var(--radius-sm);
+    color: #06b6d4;
+    flex-shrink: 0;
+}
+
+.websearch-block .webfetch-line-count {
+    background: rgba(139, 92, 246, 0.12);
+    color: #8b5cf6;
+}
+
+.webfetch-status-loading {
+    color: var(--warning);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    margin-left: auto;
+}
+
+.webfetch-loading .webfetch-header {
+    border-bottom: none;
+}
+
+.webfetch-output {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-6) var(--sp-8);
+    background: var(--bg-primary);
+    line-height: 1.5;
+    max-height: none;
+}
+
+.webfetch-output-error {
+    color: var(--error);
+}
+
+.webfetch-line {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.webfetch-line-hidden {
+    display: none;
+}
+
+.webfetch-block.expanded .webfetch-line-hidden {
+    display: block;
+}
+
+.webfetch-expand-btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-4) var(--sp-8);
+    margin-top: var(--sp-4);
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.webfetch-expand-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GREP BLOCK (Compact)
+   ═══════════════════════════════════════════════════════════════════ */
+.grep-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.grep-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.grep-icon {
+    color: #a78bfa;
+    flex-shrink: 0;
+}
+
+.grep-pattern {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.1);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.grep-match-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px var(--sp-5);
+    background: rgba(34, 197, 94, 0.12);
+    border-radius: var(--radius-sm);
+    color: #22c55e;
+    flex-shrink: 0;
+}
+
+.grep-actions {
+    display: flex;
+    gap: var(--sp-2);
+    margin-left: auto;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.grep-header:hover .grep-actions {
+    opacity: 1;
+}
+
+.grep-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.grep-action:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.grep-action svg {
+    width: 12px;
+    height: 12px;
+}
+
+.grep-results {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-4) 0;
+    background: var(--bg-primary);
+}
+
+.grep-result {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-4);
+    padding: var(--sp-2) var(--sp-8);
+    overflow: hidden;
+}
+
+.grep-result:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.grep-result-hidden {
+    display: none;
+}
+
+.grep-block.expanded .grep-result-hidden {
+    display: flex;
+}
+
+.grep-file {
+    color: var(--accent);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.grep-linenum {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.grep-content {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    font-size: inherit;
+}
+
+/* Context lines (from grep -A/-B/-C) - slightly dimmed */
+.grep-context {
+    opacity: 0.7;
+}
+
+.grep-context .grep-linenum {
+    color: var(--text-muted);
+}
+
+.grep-empty {
+    padding: var(--sp-8);
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+}
+
+.grep-expand-btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-4) var(--sp-8);
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.grep-expand-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.grep-status-loading {
+    color: var(--warning);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    margin-left: auto;
+}
+
+.grep-loading .grep-header {
+    border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GLOB BLOCK (Compact)
+   ═══════════════════════════════════════════════════════════════════ */
+.glob-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.glob-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.glob-icon {
+    color: #fbbf24;
+    flex-shrink: 0;
+}
+
+.glob-pattern {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.glob-file-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px var(--sp-5);
+    background: rgba(251, 191, 36, 0.12);
+    border-radius: var(--radius-sm);
+    color: #fbbf24;
+    flex-shrink: 0;
+}
+
+.glob-actions {
+    display: flex;
+    gap: var(--sp-2);
+    margin-left: auto;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.glob-header:hover .glob-actions {
+    opacity: 1;
+}
+
+.glob-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.glob-action:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.glob-action svg {
+    width: 12px;
+    height: 12px;
+}
+
+.glob-files {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-4) 0;
+    background: var(--bg-primary);
+}
+
+.glob-file {
+    display: block;
+    padding: 1px var(--sp-8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    break-inside: avoid;
+}
+
+.glob-file:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.glob-file-hidden {
+    display: none;
+}
+
+.glob-block.expanded .glob-file-hidden {
+    display: block;
+}
+
+.glob-dir {
+    color: #fbbf24;
+}
+
+.glob-empty {
+    padding: var(--sp-8);
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+}
+
+.glob-expand-btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-4) var(--sp-8);
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    column-span: all;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.glob-expand-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.glob-status-loading {
+    color: var(--warning);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    margin-left: auto;
+}
+
+.glob-loading .glob-header {
+    border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   WRITE BLOCK (Compact)
+   ═══════════════════════════════════════════════════════════════════ */
+.write-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #22c55e;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.write-block.write-error {
+    border-left-color: var(--error);
+}
+
+.write-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.write-icon {
+    color: #22c55e;
+    flex-shrink: 0;
+}
+
+.write-filename {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.write-line-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px var(--sp-5);
+    background: rgba(34, 197, 94, 0.12);
+    border-radius: var(--radius-sm);
+    color: #22c55e;
+    flex-shrink: 0;
+}
+
+.write-lang {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.write-status {
+    font-size: 10px;
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.write-status-success {
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+}
+
+.write-status-pending {
+    background: rgba(251, 191, 36, 0.12);
+    color: #fbbf24;
+}
+
+.write-status-error {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+}
+
+.write-actions {
+    display: flex;
+    gap: var(--sp-2);
+    margin-left: auto;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+
+.write-header:hover .write-actions {
+    opacity: 1;
+}
+
+.write-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.write-action:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.write-action svg {
+    width: 12px;
+    height: 12px;
+}
+
+.write-content {
+    background: var(--bg-primary);
+    max-height: 300px;
+    overflow: auto;
+    /* iOS: Allow both scroll directions without blocking parent */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+    /* Prevent scroll chaining to parent when reaching scroll bounds */
+    overscroll-behavior: contain;
+}
+
+.write-code {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+}
+
+.write-code code {
+    /* Widest line defines the scroll width so the whole block scrolls
+       together in .write-content (same idea as .diff-hunk-inner). */
+    display: block;
+    min-width: max-content;
+}
+
+.write-line {
+    display: flex;
+    padding: 0 var(--sp-8);
+    background: rgba(34, 197, 94, 0.03);
+}
+
+.write-line:hover {
+    background: rgba(34, 197, 94, 0.08);
+}
+
+.write-line-hidden {
+    display: none;
+}
+
+.write-block.expanded .write-line-hidden {
+    display: flex;
+}
+
+.write-line-num {
+    width: 32px;
+    padding-right: var(--sp-8);
+    color: #22c55e;
+    opacity: 0.5;
+    text-align: right;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.write-line-content {
+    flex: 1;
+    min-width: 0;
+    white-space: pre;
+}
+
+/* Line-wrap toggle: wrap long lines inside their flex row instead of scrolling. */
+.write-block.wrapped .write-line-content {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.write-action.wrap-toggle.active {
+    color: var(--accent);
+    opacity: 1;
+}
+
+.write-expand-btn {
+    display: block;
+    width: 100%;
+    padding: var(--sp-4) var(--sp-8);
+    border: none;
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.write-expand-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.write-status-loading {
+    color: var(--warning);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    margin-left: auto;
+}
+
+.write-loading .write-header {
+    border-bottom: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   IMAGE THUMBNAILS (Read/Write blocks for image files)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Image blocks get a purple left border */
+.read-image {
+    border-left-color: #a78bfa;
+}
+
+.write-image {
+    border-left-color: #a78bfa;
+}
+
+.read-image-content,
+.write-image-content {
+    padding: var(--sp-8);
+    background: var(--bg-primary);
+    text-align: center;
+}
+
+.read-image-content img,
+.write-image-content img {
+    max-width: 100%;
+    max-height: 240px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: opacity 0.15s;
+    object-fit: contain;
+}
+
+.read-image-content img:hover,
+.write-image-content img:hover {
+    opacity: 0.85;
+}
+
+/* Hide image content when collapsed */
+.tool-block-wrapper.tool-collapsed .read-image-content,
+.tool-block-wrapper.tool-collapsed .write-image-content {
+    display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TASK BLOCK (Agent Tool - Compact grouped style)
+   For Task tools rendered outside thinking blocks
+   ═══════════════════════════════════════════════════════════════════ */
+.task-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #a78bfa;
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.task-block-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-size-sm);
+    transition: background 0.1s;
+}
+
+.task-block-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.task-block-icon {
+    display: flex;
+    align-items: center;
+    color: #a78bfa;
+    flex-shrink: 0;
+}
+
+.task-block-label {
+    color: #a78bfa;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.task-block-desc {
+    color: var(--text-secondary);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-block-type {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.task-block-badge {
+    font-size: 10px;
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.task-block-badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.task-block-badge-pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.task-block-badge-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.task-block-expand {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.task-block.expanded .task-block-expand {
+    transform: rotate(90deg);
+}
+
+/* Task preview - shown when collapsed */
+.task-block-preview {
+    display: block;
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Hide preview when expanded */
+.task-block.expanded .task-block-preview {
+    display: none;
+}
+
+/* Error display */
+.task-block-error {
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-sm);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-top: 1px solid var(--border-secondary);
+}
+
+/* Body container - hidden by default, shown when expanded */
+.task-block-body {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--border-secondary);
+}
+
+.task-block.expanded .task-block-body {
+    display: flex;
+}
+
+/* Full response with markdown rendering */
+.task-block-response {
+    padding: var(--sp-12);
+    background: var(--bg-primary);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-primary);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Markdown styling within response */
+.task-block-response h1,
+.task-block-response h2,
+.task-block-response h3 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: var(--text-primary);
+}
+
+.task-block-response h1:first-child,
+.task-block-response h2:first-child,
+.task-block-response h3:first-child {
+    margin-top: 0;
+}
+
+.task-block-response p {
+    margin: 0.5em 0;
+}
+
+.task-block-response pre {
+    background: var(--bg-secondary);
+    padding: var(--sp-8);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: var(--font-size-xs);
+}
+
+.task-block-response code {
+    background: var(--bg-secondary);
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+}
+
+.task-block-response pre code {
+    background: none;
+    padding: 0;
+}
+
+.task-block-response ul,
+.task-block-response ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+.task-block-response table {
+    border-collapse: collapse;
+    margin: 0.5em 0;
+    font-size: var(--font-size-sm);
+}
+
+.task-block-response th,
+.task-block-response td {
+    border: 1px solid var(--border-primary);
+    padding: var(--sp-4) var(--sp-8);
+}
+
+.task-block-response th {
+    background: var(--bg-secondary);
+}
+
+/* Task block count badge (number of child tools) */
+.task-block-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(167, 139, 250, 0.1);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.task-block-tokens,
+.task-block-duration {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(167, 139, 250, 0.08);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-lg);
+    flex-shrink: 0;
+}
+
+/* Container for nested child tools */
+.task-block-children {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    padding: var(--sp-8);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-secondary);
+}
+
+/* Individual child tool wrapper */
+.task-block-child {
+    position: relative; /* Positioning context for gutter icons */
+}
+
+/* Reduce nesting appearance for child tools */
+.task-block-children .bash-block,
+.task-block-children .grep-block,
+.task-block-children .glob-block,
+.task-block-children .read-block,
+.task-block-children .write-block,
+.task-block-children .edit-diff,
+.task-block-children .webfetch-block,
+.task-block-children .tool-block {
+    margin: 0;
+    border-left-width: 2px;
+}
+
+/* Gutter icons for sub-agent tools inside Task blocks
+   Override float positioning with absolute — float doesn't work inside flex columns.
+   Position at top-right of each task-block-child. */
+.task-block-children .tool-gutter-icon {
+    display: flex;
+    float: none;
+    position: absolute;
+    top: 4px;
+    right: -4px;
+    margin: 0;
+}
+
+/* ── Task Progress (live agent activity from task_progress events) ── */
+
+.task-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-12);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    background: rgba(167, 139, 250, 0.04);
+    border-top: 1px solid var(--border-secondary);
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.task-progress-pulse {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
+    animation: bg-task-pulse 1.5s ease-in-out infinite;
+}
+
+.task-progress-stalled .task-progress-pulse {
+    background: #f59e0b;
+    animation: none;
+}
+
+.task-progress-desc {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.task-progress-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(167, 139, 250, 0.1);
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+}
+
+.task-progress-stall-warn {
+    color: #f59e0b;
+    font-size: 10px;
+    flex-shrink: 0;
+}
+
+/* Warning badge for stalled agents */
+.task-block-badge-warn {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+/* Hide progress when task is expanded (body visible, children take over) */
+.task-block.expanded .task-progress {
+    display: none;
+}
+
+/* ── Skill Block (compact, matches Task block pattern) ── */
+
+.skill-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #22d3ee;
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.skill-block-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-size-sm);
+    transition: background 0.1s;
+}
+
+.skill-block-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.skill-block-icon {
+    display: flex;
+    align-items: center;
+    color: #22d3ee;
+    flex-shrink: 0;
+}
+
+.skill-block-label {
+    color: #22d3ee;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.skill-block-name {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.skill-block-args {
+    color: var(--text-secondary);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.skill-block-badge {
+    font-size: 10px;
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.skill-block-badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.skill-block-badge-pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.skill-block-badge-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.skill-block-expand {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.skill-block.expanded .skill-block-expand {
+    transform: rotate(90deg);
+}
+
+.skill-block-preview {
+    display: block;
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.skill-block.expanded .skill-block-preview {
+    display: none;
+}
+
+.skill-block-error {
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-sm);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-top: 1px solid var(--border-secondary);
+}
+
+.skill-block-body {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--border-secondary);
+}
+
+.skill-block.expanded .skill-block-body {
+    display: flex;
+}
+
+.skill-block-response {
+    padding: var(--sp-12);
+    background: var(--bg-primary);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-primary);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.skill-block-response pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: var(--font-size-sm);
+}
+
+/* ── TaskOutput Block — Agent Result / Task Result ── */
+
+.tob {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #f59e0b;
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+/* Agent variant uses purple accent (matches Task block) */
+.tob-agent {
+    border-left-color: #a78bfa;
+}
+
+.tob-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-size-sm);
+    transition: background 0.1s;
+}
+
+.tob-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.tob-icon {
+    display: flex;
+    align-items: center;
+    color: #f59e0b;
+    flex-shrink: 0;
+}
+
+.tob-agent .tob-icon {
+    color: #a78bfa;
+}
+
+.tob-label {
+    color: #f59e0b;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.tob-agent .tob-label {
+    color: #a78bfa;
+}
+
+.tob-slug {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: var(--font-size-xs);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tob-task-id {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.tob-type {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.tob-badge {
+    font-size: 10px;
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.tob-badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.tob-badge-pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.tob-badge-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.tob-badge-warn {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.tob-expand {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.tob.expanded .tob-expand {
+    transform: rotate(90deg);
+}
+
+/* Preview — shown when collapsed */
+.tob-preview {
+    display: block;
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tob-preview-muted {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Shell task preview uses monospace */
+.tob-shell .tob-preview {
+    font-family: var(--font-mono);
+}
+
+.tob.expanded .tob-preview {
+    display: none;
+}
+
+/* Error bar */
+.tob-error {
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-sm);
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-top: 1px solid var(--border-secondary);
+}
+
+/* Truncation warning banner */
+.tob-truncated {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-xs);
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+    border-top: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.tob-truncated svg {
+    flex-shrink: 0;
+}
+
+.tob-truncated code {
+    font-size: 10px;
+    color: var(--text-muted);
+    word-break: break-all;
+}
+
+.tob-truncated span {
+    flex: 1;
+    min-width: 0;
+}
+
+/* "View Full Output" button inside truncation bar */
+.tob-view-full-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    padding: var(--sp-2) var(--sp-10);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: var(--radius-sm);
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+    font-family: inherit;
+}
+
+.tob-view-full-btn:hover {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: #f59e0b;
+}
+
+/* Body — hidden by default, shown when expanded */
+.tob-body {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--border-secondary);
+}
+
+.tob.expanded .tob-body {
+    display: flex;
+}
+
+/* Agent markdown response */
+.tob-response {
+    padding: var(--sp-12);
+    background: var(--bg-primary);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-primary);
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.tob-response h1, .tob-response h2, .tob-response h3 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: var(--text-primary);
+}
+
+.tob-response h1:first-child, .tob-response h2:first-child, .tob-response h3:first-child {
+    margin-top: 0;
+}
+
+.tob-response p { margin: 0.5em 0; }
+
+.tob-response pre {
+    background: var(--bg-secondary);
+    padding: var(--sp-8);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: var(--font-size-xs);
+}
+
+.tob-response code {
+    background: var(--bg-secondary);
+    padding: 1px var(--sp-4);
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+}
+
+.tob-response pre code {
+    background: none;
+    padding: 0;
+}
+
+.tob-response ul, .tob-response ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+/* Shell log output */
+.tob-log {
+    padding: var(--sp-12);
+    background: var(--bg-primary);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.tob-log pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+/* Tool activity footer */
+.tob-footer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-12);
+    border-top: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+}
+
+.tob-tool-pill {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-8);
+    border-radius: var(--radius-sm);
+}
+
+.tob-tokens {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+/* Stop variant — red accent */
+.tob-stop {
+    border-left-color: #ef4444;
+}
+
+.tob-stop .tob-icon {
+    color: #ef4444;
+}
+
+.tob-stop .tob-label {
+    color: #ef4444;
+}
+
+.tob-badge-stopped {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+/* Neutral variant for "already completed" stops — no red accent */
+.tob-stop-neutral {
+    border-left-color: var(--border-primary);
+}
+
+.tob-stop-neutral .tob-icon {
+    color: var(--text-muted);
+}
+
+.tob-stop-neutral .tob-label {
+    color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PLAN MODE BLOCK (EnterPlanMode)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.plan-mode-block {
+    border-left-color: var(--accent-green, #22c55e);
+}
+
+.plan-mode-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-10);
+}
+
+.plan-mode-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke: var(--accent-green, #22c55e);
+}
+
+.plan-mode-label {
+    font-weight: 500;
+    font-size: 0.85rem;
+}
+
+.plan-mode-badge {
+    font-size: 0.7rem;
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+}
+
+.plan-mode-badge-active {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--accent-green, #22c55e);
+}
+
+.plan-mode-badge-pending {
+    background: rgba(250, 204, 21, 0.15);
+    color: var(--text-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIBLING ERROR — parallel tool call failed, this one was skipped
+   ═══════════════════════════════════════════════════════════════════ */
+
+.sibling-error {
+    border-left: 3px solid rgba(250, 204, 21, 0.4) !important;
+    opacity: 0.7;
+}
+
+.sibling-error-badge {
+    font-size: var(--font-size-xs);
+    padding: 1px var(--sp-8);
+    border-radius: var(--radius-sm);
+    background: rgba(250, 204, 21, 0.15);
+    color: #facc15;
+    font-weight: 500;
+    margin-left: auto;
+}
+
+.sibling-error-msg {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    padding: var(--sp-4) var(--sp-12) var(--sp-8);
+    font-style: italic;
+}
+
+/* Bash-specific sibling error (inline in output area) */
+.bash-output-sibling-error {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    padding: var(--sp-6) var(--sp-12);
+    font-style: italic;
+}
+
+.bash-sibling-label {
+    font-size: var(--font-size-xs);
+    padding: 1px var(--sp-8);
+    border-radius: var(--radius-sm);
+    background: rgba(250, 204, 21, 0.15);
+    color: #facc15;
+    font-weight: 500;
+    font-style: normal;
+    margin-right: var(--sp-6);
+}
+

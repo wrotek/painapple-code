@@ -1,0 +1,18 @@
+# models.defaults.yaml - Pristine default model list.
+# Never edited by the UI; `Restore defaults` in Settings → Models copies
+# this over models.yaml. Keep in sync with the shipped models.yaml.
+
+selectable:
+- id: claude-sonnet-5
+  label: Sonnet 5
+  desc: Balanced speed and capability
+- id: claude-opus-5[1m]
+  label: Opus 5 (1M)
+  desc: Complex agentic coding and enterprise work
+- id: claude-opus-4-8[1m]
+  label: Opus 4.8 (1M)
+  desc: Previous Opus tier (1M context)
+- id: claude-fable-5
+  label: Fable 5
+  desc: Most capable, premium cost
+summary_model: claude-haiku-4-5

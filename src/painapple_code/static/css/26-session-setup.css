@@ -1,0 +1,144 @@
+/* ═══════════════════════════════════════════════════════════════════
+   SESSION SETUP PANEL
+   Friendly engine/model/permissions/effort/account pills shown in the
+   empty chat area of a fresh session (project picked, nothing sent).
+   Overlays #messages-container; hides itself on the first message.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Anchor for the absolutely-positioned panel (container itself has no
+   positioning in 20-messages.css). */
+#messages-container {
+    position: relative;
+}
+
+#session-setup-panel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    /* Same padding as the message column so the card's edges line up
+       with chat content (and the input right below) */
+    padding: var(--layout-content-padding);
+    overflow-y: auto;
+    /* Let the (empty) chat area behind keep receiving events outside the card */
+    pointer-events: none;
+}
+
+#session-setup-panel[hidden] {
+    display: none;
+}
+
+.setup-panel-card {
+    pointer-events: auto;
+    /* Bottom-left, directly above the input, spanning the same column as
+       chat content / input (both cap children at 900px). margin-top:auto
+       rather than justify-content:flex-end so the card top stays
+       scrollable when it's taller than the chat area. */
+    margin-top: auto;
+    width: 100%;
+    max-width: 900px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--sp-20) var(--sp-20) var(--sp-12);
+}
+
+.setup-panel-title {
+    font-size: var(--font-size-content);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.setup-panel-subtitle {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-top: var(--sp-2);
+    margin-bottom: var(--sp-16);
+}
+
+.setup-panel-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-12);
+}
+
+.setup-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-12);
+}
+
+.setup-row-label {
+    flex: 0 0 88px;
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.setup-row-options {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-6);
+}
+
+.setup-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-5);
+    padding: var(--sp-5) var(--sp-10);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.setup-pill:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+}
+
+.setup-pill.selected {
+    border-color: var(--accent);
+    background: var(--accent-muted);
+    color: var(--text-primary);
+}
+
+.setup-pill.unavailable {
+    opacity: 0.45;
+}
+
+/* Permission-mode dot on a setup pill — the mode's own self-described
+   color (engines carry no dot; they're identified by name alone). */
+.setup-pill .pv-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+}
+
+.setup-panel-hint {
+    margin-top: var(--sp-16);
+    padding-top: var(--sp-10);
+    border-top: 1px solid var(--border-primary);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+/* Narrow screens: labels stack above their pills */
+@media (max-width: 600px) {
+    .setup-row {
+        flex-direction: column;
+        gap: var(--sp-4);
+    }
+
+    .setup-row-label {
+        flex: none;
+    }
+}

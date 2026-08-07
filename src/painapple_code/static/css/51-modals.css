@@ -1,0 +1,301 @@
+/* ═══════════════════════════════════════════════════════════════════
+   HELP MODAL
+   ═══════════════════════════════════════════════════════════════════ */
+#modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+#modal-overlay.visible {
+    display: flex;
+}
+
+.modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-16) var(--sp-20);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.modal-header h3 {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+}
+
+.modal-close {
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--sp-20);
+    overflow-y: auto;
+    max-height: calc(80vh - 60px);
+}
+
+.help-section {
+    margin-bottom: var(--sp-24);
+}
+
+.help-section:last-child {
+    margin-bottom: 0;
+}
+
+.help-section h4 {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: var(--sp-12);
+}
+
+.help-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-16);
+    padding: var(--sp-8) 0;
+}
+
+/* Trailing note under a help section's items (e.g. the Tab-cycle tip) */
+.help-hint {
+    margin-top: var(--sp-8);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.help-item code {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    background: var(--bg-tertiary);
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    min-width: 100px;
+}
+
+.help-item span {
+    color: var(--text-secondary);
+    font-size: var(--font-size-base);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PROMPT DIALOG (generic input modal)
+   ═══════════════════════════════════════════════════════════════════ */
+.prompt-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: prompt-fade-in 0.15s ease;
+}
+
+@keyframes prompt-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.prompt-dialog {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 400px;
+    padding: var(--sp-20);
+    box-shadow: var(--shadow);
+    animation: prompt-slide-in 0.15s ease;
+}
+
+@keyframes prompt-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.prompt-dialog-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--sp-16);
+}
+
+.prompt-dialog-label {
+    display: block;
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin-bottom: var(--sp-8);
+}
+
+.prompt-dialog-input {
+    width: 100%;
+    padding: var(--sp-10) var(--sp-12);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: var(--font-size-md);
+    box-sizing: border-box;
+}
+
+.prompt-dialog-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.prompt-dialog-input::placeholder {
+    color: var(--text-muted);
+}
+
+.prompt-dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-8);
+    margin-top: var(--sp-20);
+}
+
+.prompt-dialog-btn {
+    padding: var(--sp-8) var(--sp-16);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.prompt-dialog-btn.cancel {
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+}
+
+.prompt-dialog-btn.cancel:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.prompt-dialog-btn.confirm {
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: white;
+}
+
+.prompt-dialog-btn.confirm:hover {
+    background: var(--accent-hover);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   APP CONFIRM DIALOG (replaces native confirm() for iPadOS PWA)
+   ═══════════════════════════════════════════════════════════════════ */
+.app-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-modal);
+    animation: prompt-fade-in 0.15s ease;
+}
+
+.app-confirm-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 400px;
+    padding: var(--sp-20);
+    box-shadow: var(--shadow);
+    animation: prompt-slide-in 0.15s ease;
+}
+
+.app-confirm-message {
+    font-size: var(--font-size-md);
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin-bottom: var(--sp-20);
+}
+
+.app-confirm-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--sp-8);
+}
+
+.app-confirm-cancel,
+.app-confirm-ok {
+    padding: var(--sp-8) var(--sp-16);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.app-confirm-cancel {
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+}
+
+.app-confirm-cancel:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.app-confirm-ok {
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: white;
+}
+
+.app-confirm-ok:hover {
+    background: var(--accent-hover);
+}
+
+.app-confirm-ok.danger {
+    background: var(--error);
+    border-color: var(--error);
+}
+
+.app-confirm-ok.danger:hover {
+    filter: brightness(1.15);
+}
+

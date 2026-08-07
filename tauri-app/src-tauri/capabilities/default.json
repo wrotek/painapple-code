@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Local scope — launcher's own JS calls these from the bundled UI.",
+  "windows": ["main*", "launcher-popup-*"],
+  "permissions": [
+    "core:default",
+    "allow-launcher-commands",
+    "allow-cross-page-shortcuts"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "painapple-code-app",
+  "version": "0.0.0",
+  "description": "Native shell (iOS / iPadOS / macOS) for pAInapple Code",
+  "private": true,
+  "scripts": {
+    "tauri": "bash scripts/tao-setup.sh && CARGO_TARGET_DIR=\"${CARGO_TARGET_DIR:-$HOME/Library/Caches/painapple-tauri-target}\" tauri",
+    "dev": "bash scripts/tao-setup.sh && bash scripts/fetch-uv.sh && bash scripts/tauri-run.sh dev",
+    "build": "bash scripts/tao-setup.sh && bash scripts/fetch-uv.sh && bash scripts/tauri-run.sh build",
+    "ios:init": "bash scripts/tao-setup.sh && bash scripts/tauri-run.sh ios init && bash scripts/ios-postinit.sh && npm run icon",
+    "ios:postinit": "bash scripts/ios-postinit.sh",
+    "ios:dev": "bash scripts/tao-setup.sh && bash scripts/ios-postinit.sh && bash scripts/tauri-run.sh ios dev",
+    "ios:build": "bash scripts/tao-setup.sh && bash scripts/ios-postinit.sh && bash scripts/tauri-run.sh ios build",
+    "ios:install": "bash scripts/ios-install.sh",
+    "macos:install": "bash scripts/macos-install.sh",
+    "icon": "tauri icon ../src/painapple_code/static/icons/icon-512.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.1.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop-dialog",
+  "description": "Native folder picker for the local-setup wizard. Desktop only — the dialog plugin isn't compiled into mobile builds, and an unknown permission there would fail capability validation.",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main*", "launcher-popup-*"],
+  "permissions": [
+    "dialog:allow-open"
+  ]
+}

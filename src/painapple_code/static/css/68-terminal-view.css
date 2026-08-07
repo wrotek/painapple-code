@@ -1,0 +1,98 @@
+/* ═══════════════════════════════════════════════════════════════════
+   TERMINAL VIEW (Full Tab)
+   Terminal as a first-class tab, similar to editor-view
+   ═══════════════════════════════════════════════════════════════════ */
+
+#terminal-view {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    background: #1a1a2e;
+    min-height: 0; /* Allow flex shrinking */
+}
+
+#terminal-view.active {
+    display: flex;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Terminal Container
+   ───────────────────────────────────────────────────────────────────── */
+
+#terminal-container {
+    flex: 1;
+    position: relative;
+    background: #1a1a2e;
+    min-height: 0; /* Allow flex shrinking */
+    overflow: hidden;
+}
+
+#terminal-xterm {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    right: 12px;
+    bottom: 8px;
+    touch-action: none; /* Prevent browser scroll — xterm.js handles touch internally */
+}
+
+#terminal-xterm .xterm {
+    height: 100%;
+}
+
+#terminal-container .xterm-viewport {
+    background: #1a1a2e !important;
+    box-shadow: none !important;
+}
+
+#terminal-container .xterm-screen {
+    padding: 0;
+    box-shadow: none !important;
+}
+
+#terminal-container .xterm {
+    box-shadow: none !important;
+}
+
+#terminal-container .xterm-decoration-container {
+    box-shadow: none !important;
+}
+
+/* Hide native OS caret on iPad/iOS - xterm.js has its own cursor */
+#terminal-container .xterm-helper-textarea {
+    caret-color: transparent !important;
+    opacity: 0 !important;
+}
+
+/* Loading state */
+#terminal-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-md);
+    background: #1a1a2e;
+}
+
+#terminal-loading[hidden] {
+    display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Terminal Tabs in Header
+   ───────────────────────────────────────────────────────────────────── */
+
+.tab-terminal {
+    /* Terminal tabs have a distinct style */
+}
+
+.tab-terminal .file-icon {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--accent);
+    font-family: var(--font-mono);
+}
+
+

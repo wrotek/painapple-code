@@ -1,0 +1,854 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MARKDOWN CONTENT
+   ═══════════════════════════════════════════════════════════════════ */
+.markdown-content {
+    line-height: var(--layout-line-height-tight);
+}
+
+/* Remove margins from first/last children to avoid double-padding with container */
+.markdown-content > *:first-child {
+    margin-top: 0;
+}
+.markdown-content > *:last-child {
+    margin-bottom: 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+    margin: var(--layout-gap-md) 0 var(--layout-gap-xs) 0;
+    font-weight: 600;
+}
+
+.markdown-content h1 { font-size: 1.4em; }
+.markdown-content h2 { font-size: 1.25em; }
+.markdown-content h3 { font-size: 1.1em; }
+
+.markdown-content p {
+    margin: var(--layout-paragraph-margin) 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin: var(--layout-paragraph-margin) 0;
+    /* Marker gutter is alignment geometry (font-driven, not density-driven):
+       floor at 1.5em so compact's 13px --sp-20 can't push outside markers
+       flush with the bubble edge; spacious keeps its wider 27px. */
+    padding-left: max(var(--sp-20), 1.5em);
+}
+
+.markdown-content li {
+    margin: var(--layout-gap-xs) 0;
+}
+
+.markdown-content a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+/* External links (http/https URLs) */
+.external-link {
+    color: var(--accent);
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.external-link:hover {
+    text-decoration: underline;
+}
+
+/* Add external link icon after URL */
+.external-link::after {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-left: var(--sp-3);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2358a6ff' stroke-width='2'%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3Cpolyline points='15 3 21 3 21 9'/%3E%3Cline x1='10' y1='14' x2='21' y2='3'/%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    vertical-align: middle;
+    opacity: 0.7;
+}
+
+/* File path links - clickable paths that open file preview */
+.file-path-link {
+    position: relative;
+    color: var(--accent);
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s, opacity 0.15s;
+    /* Disable iOS link preview to allow custom context menu */
+    -webkit-touch-callout: none;
+}
+
+/* On touch devices, let file-path links participate in text selection normally.
+   Previously user-select:none was used to prevent iOS long-press menu,
+   but that caused selected text to omit linkified paths entirely.
+   -webkit-touch-callout:none (above) is sufficient to suppress iOS link preview. */
+
+.file-path-link:hover {
+    text-decoration: underline;
+    background: var(--bg-tertiary);
+}
+
+/* File-path tooltips handled by JS tooltip system (tooltips.js) */
+
+/* File path links in tool headers - keep tool's native filename styling */
+.file-path-link.read-filename,
+.file-path-link.write-filename,
+.file-path-link.edit-diff-path {
+    color: var(--text-primary);
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+.file-path-link.read-filename:hover,
+.file-path-link.write-filename:hover,
+.file-path-link.edit-diff-path:hover {
+    color: var(--accent);
+    background: transparent;
+}
+
+/* File path inside inline code - code tag provides background, link just changes color */
+code .file-path-link,
+.markdown-content code .file-path-link {
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+code .file-path-link:hover,
+.markdown-content code .file-path-link:hover {
+    background: transparent;
+    text-decoration: underline;
+}
+
+.markdown-content code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+}
+
+.markdown-content pre {
+    /* iPadOS: overflow:hidden creates a scroll port that captures touch events.
+       Let both directions pass through to child/parent scroll containers. */
+    margin: var(--layout-block-margin) 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    position: relative;
+    touch-action: pan-x pan-y;
+}
+
+.markdown-content pre code {
+    /* clip instead of hidden: avoids creating a vertical scroll port that traps
+       wheel events on iPadOS when code has horizontal overflow (long lines). */
+    display: block;
+    padding: var(--layout-gap-md) var(--layout-msg-padding-h);
+    background: var(--bg-tertiary);
+    overflow-x: auto;
+    overflow-y: clip;
+    overscroll-behavior-x: contain;
+    font-size: var(--font-size-base);
+    line-height: var(--layout-line-height);
+    /* pan-y: let vertical scroll pass through to parent container */
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+}
+
+.code-block-wrapper {
+    /* iPadOS: overflow:hidden creates a scroll port that captures touch events.
+       Let vertical pan pass through to parent scroll container. */
+    position: relative;
+    margin: var(--layout-block-margin) 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    touch-action: pan-x pan-y;
+}
+
+.code-block-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-5) var(--sp-8);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-secondary);
+    font-size: var(--font-size-xs);
+}
+
+.code-block-lang {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+}
+
+.code-block-copy,
+.code-block-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+    opacity: 0.6;
+}
+
+/* First action button carries the auto margin so both toggles hug the right edge. */
+.code-block-wrap {
+    margin-left: auto;
+}
+
+.code-block-header:hover .code-block-copy,
+.code-block-header:hover .code-block-wrap {
+    opacity: 1;
+}
+
+.code-block-copy:hover,
+.code-block-wrap:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.code-block-copy.copied {
+    color: var(--success);
+    opacity: 1;
+}
+
+.code-block-wrap.active {
+    color: var(--accent);
+    opacity: 1;
+}
+
+.code-block-copy svg,
+.code-block-wrap svg {
+    width: 14px;
+    height: 14px;
+}
+
+.code-block-wrapper pre {
+    margin: 0;
+    border-radius: 0;
+}
+
+/* Line-wrap toggle: wrap long lines instead of horizontal scroll. */
+.code-block-wrapper.wrapped pre code {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow-x: hidden;
+}
+
+/* Images fit their container — never force horizontal scroll.
+   Covers every .markdown-content surface: chat messages, file-preview rendered
+   view, prompt-explorer responses, editor-view preview.
+   :not(.panzoom-img) — the pan/zoom viewer sizes its image by CSS transform
+   against a clipped canvas, so a max-width would break its scale math. */
+.markdown-content img:not(.panzoom-img) {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Table wrapper for horizontal scroll on overflow */
+.markdown-content .table-wrapper {
+    overflow-x: auto;
+    margin: var(--layout-block-margin) 0;
+    -webkit-overflow-scrolling: touch;
+    /* Allow horizontal scroll without blocking parent's vertical scroll */
+    touch-action: pan-x pan-y;
+}
+
+.markdown-content table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--font-size-base);
+    table-layout: auto;
+}
+
+.markdown-content th,
+.markdown-content td {
+    padding: var(--sp-6) var(--sp-10);
+    border: 1px solid var(--border-primary);
+    text-align: left;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+/* Prevent header labels from wrapping */
+.markdown-content th {
+    white-space: nowrap;
+}
+
+.markdown-content th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TABLE LAYOUT SWITCH — table / stacked / text
+   One per-table cycling control that reformats a wide table in place:
+
+     table    the plain grid (default, no data-layout attribute)
+     stacked  each row becomes a card of label|value pairs, the way
+              `\G` renders a row in the mysql client
+     text     all table chrome dropped for a prose report,
+              "**label:** value" per line — for reading rather than
+              cross-referencing
+
+   Together these continue the "reflow, don't hide" line the table CSS
+   already takes (wrap cells, never truncate) — a wide table that is
+   still unreadable after wrapping gets restructured instead of clipped.
+
+   Deliberately UNSCOPED (no .markdown-content prefix): every surface
+   that renders markdown gets .table-block, and the ones outside chat
+   (.task-block-response, .tob-response, .thinking-step-content, the
+   discussion sidebar) are exactly the ones with no horizontal-scroll
+   rule today, so restructuring is their only way out of an overflow.
+
+   Specificity note: `.table-block[data-layout="x"] td` is (0,2,1),
+   which beats both `.markdown-content td` (0,1,1) and the per-surface
+   `.x table td` (0,1,2) rules, so it wins without !important.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Positioning context for the switch. .table-wrapper can't host it — that's
+   the overflow-x scroller, so the control would scroll away and clip. No
+   margin here on purpose: .table-wrapper's own margin collapses through,
+   keeping the switch aligned to the table's top edge. */
+.table-block {
+    position: relative;
+}
+
+/* ── Segmented layout switch ──────────────────────────────────────────────
+   Three connected segments, active one highlighted — not a cycling button.
+   A cycler shows a single state, so it can't say which layouts exist or
+   which one you're in without being clicked to find out; segments make the
+   vocabulary and the selection readable at a glance and allow jumping
+   straight to a layout.
+
+   Sits over the header row's right edge, which is the least data-dense
+   corner of a table (short header labels, and the widest column is
+   conventionally last). */
+.table-block > .table-layout-switch {
+    position: absolute;
+    top: var(--sp-4);
+    right: var(--sp-4);
+    z-index: var(--z-internal);
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xs);
+    background: var(--bg-tertiary);
+    /* Clip the segments' square corners to the group's rounded ones so the
+       strip reads as one control. */
+    overflow: hidden;
+    /* Faintly present at rest rather than hover-only: a table that has been
+       reformatted must keep showing why, and an invisible control is an
+       undiscovered one. Rises to full on hover. */
+    opacity: 0.45;
+    transition: opacity 0.15s;
+}
+
+.table-block:hover > .table-layout-switch {
+    opacity: 1;
+}
+
+/* Any non-default layout keeps the switch fully lit and accents its frame, so a
+   reformatted table further up the transcript still reads as deliberately
+   changed. */
+.table-block[data-layout] > .table-layout-switch {
+    opacity: 1;
+    border-color: var(--accent);
+}
+
+/* Touch devices: keep it permanently legible. Do NOT zero the opacity in a
+   pure-touch query — iOS latches :hover on the last-tapped element, so the
+   control would fade the instant you used it. That exact bug ate the stash
+   bubble on table rows; the fix there was the same "leave it visible" rule. */
+@media (hover: none), (pointer: coarse) {
+    .table-block > .table-layout-switch {
+        opacity: 0.75;
+    }
+}
+
+.table-layout-switch > .table-layout-opt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+/* Hairline dividers between segments — the "connected" part. */
+.table-layout-switch > .table-layout-opt + .table-layout-opt {
+    border-left: 1px solid var(--border-primary);
+}
+
+.table-layout-switch > .table-layout-opt svg {
+    width: 13px;
+    height: 13px;
+}
+
+/* Same hover treatment as the code-block copy/wrap buttons: tint the glyph to
+   the themed accent rather than inventing a colour for this control. */
+.table-layout-switch > .table-layout-opt:hover {
+    background: var(--bg-secondary);
+    color: var(--accent);
+}
+
+/* The selected segment. Filled rather than merely tinted so the active state
+   survives at the switch's resting opacity. Uses the instance --accent (the
+   same variable links, focus rings and checked checkboxes use) so the control
+   themes with the tier — deliberately NOT the fixed --accent-purple the stash
+   bubble uses, which is pinned only because it has to stay distinct from the
+   accent as a "has a comment" signal. */
+.table-layout-switch > .table-layout-opt.active,
+.table-layout-switch > .table-layout-opt.active:hover {
+    background: var(--accent);
+    color: white;
+}
+
+/* ── Shared by both reformatted layouts ───────────────────────────────── */
+
+/* Nothing overflows once rows are restructured, so drop the scroller (it would
+   otherwise keep a stale horizontal scroll offset from the grid layout). */
+.table-block[data-layout="stacked"] > .table-wrapper,
+.table-block[data-layout="text"] > .table-wrapper {
+    overflow-x: hidden;
+}
+
+/* Headers move into the cells as data-label, so the header row itself goes. */
+.table-block[data-layout="stacked"] thead,
+.table-block[data-layout="text"] thead {
+    display: none;
+}
+
+.table-block[data-layout="stacked"] table,
+.table-block[data-layout="stacked"] tbody,
+.table-block[data-layout="stacked"] tr,
+.table-block[data-layout="stacked"] td,
+.table-block[data-layout="text"] table,
+.table-block[data-layout="text"] tbody,
+.table-block[data-layout="text"] tr,
+.table-block[data-layout="text"] td {
+    display: block;
+    width: auto;
+}
+
+/* ── STACKED: one card per row, label|value columns ───────────────────── */
+
+.table-block[data-layout="stacked"] tr {
+    margin-bottom: var(--sp-8);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.table-block[data-layout="stacked"] tr:last-child {
+    margin-bottom: 0;
+}
+
+/* Two-column grid per cell: the ::before label, then the .cell-value wrapper.
+   Padding is inherited from the base th/td rule so density tokens still apply. */
+.table-block[data-layout="stacked"] td {
+    display: grid;
+    grid-template-columns: minmax(4em, 11em) 1fr;
+    gap: var(--sp-10);
+    border: none;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.table-block[data-layout="stacked"] tr > td:last-child {
+    border-bottom: none;
+}
+
+.table-block[data-layout="stacked"] td::before {
+    content: attr(data-label);
+    color: var(--text-secondary);
+    font-weight: 600;
+    overflow-wrap: break-word;
+    /* Grid items default to min-width:auto, which refuses to shrink below the
+       content's min-content size — an unbreakable token would then push the
+       column wider than its track. */
+    min-width: 0;
+}
+
+/* The value half. Wrapping the cell's content in one element is what keeps the
+   grid at exactly two items (see _prepareTableLayouts) — without it, a cell
+   like "Add `env=...` to the call" becomes three items and the code span lands
+   in the label gutter. */
+.table-block[data-layout="stacked"] td > .cell-value {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+/* Ragged rows: a cell with no matching header spans the full width instead of
+   leaving an empty label gutter. */
+.table-block[data-layout="stacked"] td:not([data-label]),
+.table-block[data-layout="stacked"] td[data-label=""] {
+    grid-template-columns: 1fr;
+}
+
+.table-block[data-layout="stacked"] td:not([data-label])::before,
+.table-block[data-layout="stacked"] td[data-label=""]::before {
+    display: none;
+}
+
+/* ── TEXT: prose report, "**label:** value" per line ─────────────────────
+   No borders, no cards, no columns — the label sits inline ahead of its
+   value exactly like bold markdown, so a row reads as a short paragraph
+   instead of a record to cross-reference. Records are separated by a
+   paragraph gap plus one hairline rule, which is what keeps multi-line
+   values from bleeding into the next row visually. */
+
+.table-block[data-layout="text"] tr {
+    margin-bottom: var(--layout-paragraph-margin);
+}
+
+.table-block[data-layout="text"] tr + tr {
+    padding-top: var(--layout-paragraph-margin);
+    border-top: 1px solid var(--border-secondary);
+}
+
+.table-block[data-layout="text"] tr:last-child {
+    margin-bottom: 0;
+}
+
+.table-block[data-layout="text"] td {
+    padding: 0;
+    border: none;
+    /* Own line per field, with the tight leading the rest of a report gets. */
+    margin: var(--sp-3) 0;
+    line-height: var(--layout-line-height);
+}
+
+.table-block[data-layout="text"] td::before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Inline, so the value continues on the label's line and wraps beneath it. */
+.table-block[data-layout="text"] td > .cell-value {
+    display: inline;
+}
+
+/* A cell with no header prints as a bare line — no stray ": ". */
+.table-block[data-layout="text"] td:not([data-label])::before,
+.table-block[data-layout="text"] td[data-label=""]::before {
+    content: none;
+}
+
+/* The row's stash bubble is anchored to its last cell, which in text layout has
+   no padding of its own to sit in — give that one cell the gutter back so the
+   comment icon never lands on top of the value. */
+.table-block[data-layout="text"] tr > [data-stash-cell] {
+    padding-right: 28px;
+}
+
+.markdown-content blockquote {
+    margin: var(--layout-block-margin) 0;
+    padding: var(--layout-gap-sm) var(--layout-msg-padding-h);
+    border-left: 3px solid var(--border-primary);
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.markdown-content hr {
+    border: none;
+    border-top: 1px solid var(--border-primary);
+    margin: var(--layout-gap-lg) 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TASK LIST CHECKBOXES (clickable in preview)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Task list items: remove bullet when checkbox is present */
+.markdown-content li:has(> .md-task-checkbox) {
+    list-style: none;
+    margin-left: -1.2em;
+}
+
+/* Styled checkbox */
+.markdown-content .md-task-checkbox {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--text-muted, #666);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    vertical-align: middle;
+    margin-right: var(--sp-6);
+    position: relative;
+    top: -1px;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.markdown-content .md-task-checkbox:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.markdown-content .md-task-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 0px;
+    width: 5px;
+    height: 9px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.markdown-content .md-task-checkbox:hover {
+    border-color: var(--accent);
+}
+
+/* Checked task text gets subtle strikethrough */
+.markdown-content li:has(> .md-task-checkbox:checked) {
+    color: var(--text-muted, #666);
+    text-decoration: line-through;
+    text-decoration-color: var(--text-muted, #666);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TAP-TO-SELECT ICONS (iOS-friendly selection)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Selectable elements get relative positioning for icon placement */
+.markdown-content [data-selectable] {
+    position: relative;
+    padding-right: var(--sp-24); /* Space for icon */
+}
+
+/* Sentence spans within paragraphs */
+.markdown-content span[data-selectable="sentence"] {
+    display: inline;
+    padding-right: 0; /* No padding on inline spans */
+}
+
+/* List items already have bullet, need less padding */
+.markdown-content li[data-selectable] {
+    padding-right: var(--sp-20);
+}
+
+/* The bubble icon — a real <span> child (injected by components.js) so it
+   can carry data-tooltip and have its own :hover. The glyph is drawn by
+   ::before so it stays out of parent.textContent.
+   Descendant selector (not child) so table-row bubbles inside <td> match too.
+
+   The glyph is a MASKED svg, not the 💬 emoji: an emoji renders in its own
+   fixed colours and cannot be tinted, which is why the "has a comment" state
+   used to need a translucent background disc behind it. With a mask,
+   background-color paints the icon itself, so the commented state is just a
+   colour swap (see .has-stash below) — no disc, far more legible. */
+.markdown-content [data-selectable] .stash-bubble {
+    /* Tappable padding kept inside parent so hovering the bubble
+       still fires the parent's :hover. */
+    position: absolute;
+    right: 0;
+    bottom: 2px; /* Position at bottom for wrapped paragraphs */
+    display: inline-block;
+    font-size: var(--font-size-sm);
+    line-height: 1;
+    opacity: 0;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition: opacity 0.15s, transform 0.15s;
+    z-index: 1;
+    padding: var(--sp-4);
+}
+
+/* Outline speech bubble = "no comment yet" (tinted by background-color). */
+.markdown-content [data-selectable] .stash-bubble::before {
+    content: '';
+    display: block;
+    width: 0.95em;
+    height: 0.95em;
+    background-color: var(--text-secondary, #8b949e);
+    -webkit-mask-image: var(--stash-bubble-glyph-outline);
+    mask-image: var(--stash-bubble-glyph-outline);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    transition: background-color 0.15s;
+}
+
+/* For sentence spans, position icon inline at end */
+.markdown-content span[data-selectable="sentence"] > .stash-bubble {
+    position: relative;
+    display: inline-block;
+    top: auto;
+    right: auto;
+    transform: none;
+    margin-left: var(--sp-4);
+    padding: var(--sp-2);
+    vertical-align: middle;
+}
+
+/* Show icons on touch devices */
+@media (hover: none), (pointer: coarse) {
+    .markdown-content [data-selectable] .stash-bubble {
+        opacity: 0.35;
+    }
+    /* Note: :active highlight removed - was highlighting icon on ANY click in text.
+       JavaScript adds .select-icon-active class when icon is actually tapped. */
+}
+
+/* Show selection icon on hover (desktop + iPadOS with trackpad).
+   Hovering the bubble itself also triggers this because the bubble
+   lives inside the parent. */
+.markdown-content [data-selectable]:hover .stash-bubble {
+    opacity: 0.8;
+}
+
+/* Brighten further when hovering the bubble itself (real element → real :hover) */
+.markdown-content [data-selectable] .stash-bubble:hover {
+    opacity: 1;
+}
+
+/* Preview highlight on hover - lighter than selected state */
+.markdown-content [data-selectable]:hover:not(.selected-for-comment) {
+    background: rgba(139, 92, 246, 0.08);
+    border-radius: var(--radius-sm);
+}
+
+/* Hide sticky hover background on pure-touch (don't zero the bubble's opacity here — :hover sticks after tap). */
+@media (hover: none) and (pointer: coarse) and (not (any-pointer: fine)) {
+    .markdown-content [data-selectable]:hover:not(.selected-for-comment) {
+        background: transparent;
+    }
+}
+
+/* Visual feedback when tapped */
+.markdown-content [data-selectable].select-icon-active .stash-bubble {
+    opacity: 1 !important;
+    transform: scale(1.2);
+}
+
+.markdown-content span[data-selectable="sentence"].select-icon-active > .stash-bubble {
+    transform: scale(1.2);
+}
+
+/* Highlight selected content */
+.markdown-content [data-selectable].selected-for-comment {
+    background: rgba(139, 92, 246, 0.15);
+    border-radius: var(--radius-sm);
+    outline: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+/* ── Table row selectables ──
+   <tr> can't use position:relative, so bubble lives on last <td>.
+   The .stash-bubble for table-row is appended into the last cell
+   (see components.js _appendStashBubbles). */
+.markdown-content tr[data-selectable="table-row"] {
+    padding-right: 0;  /* padding ignored on table-row, but be explicit */
+}
+
+/* Put the bubble on the last cell — override the absolute positioning
+   from the generic rule above so it sits at the cell's right-middle. */
+.markdown-content tr[data-selectable="table-row"] > [data-stash-cell] {
+    position: relative;
+    padding-right: 28px; /* fixed: room for the row-select bubble */
+}
+
+.markdown-content tr[data-selectable="table-row"] > [data-stash-cell] > .stash-bubble {
+    bottom: auto;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Touch devices: always-visible bubble (inherits opacity from generic rule but
+   keep this here so future overrides are easy to find). */
+
+/* Desktop/trackpad hover — fires when hovering anywhere in the row */
+.markdown-content tr[data-selectable="table-row"]:hover > [data-stash-cell] > .stash-bubble {
+    opacity: 0.8;
+}
+
+/* Row hover highlight - no border-radius on table rows */
+.markdown-content tr[data-selectable="table-row"]:hover:not(.selected-for-comment) {
+    background: rgba(139, 92, 246, 0.08);
+    border-radius: 0;
+}
+
+/* Hide the sticky hover background on pure-touch. Deliberately does NOT zero
+   the bubble's opacity (the generic rule above makes the same point): iOS keeps
+   :hover latched on the last-tapped row, so zeroing it here made the bubble
+   vanish the moment you used it — the row you just commented on lost its icon. */
+@media (hover: none) and (pointer: coarse) and (not (any-pointer: fine)) {
+    .markdown-content tr[data-selectable="table-row"]:hover:not(.selected-for-comment) {
+        background: transparent;
+    }
+}
+
+/* Active tap feedback (keep translateY in transform so the bubble stays centered) */
+.markdown-content tr[data-selectable="table-row"].select-icon-active > [data-stash-cell] > .stash-bubble {
+    opacity: 1 !important;
+    transform: translateY(-50%) scale(1.2);
+}
+
+/* Selected row */
+.markdown-content tr[data-selectable="table-row"].selected-for-comment {
+    background: rgba(139, 92, 246, 0.15);
+}
+
+/* ── "Has a stashed comment" indicator ──────────────────────────────────
+   A commented block's bubble is always visible and simply switches colour:
+   the outline glyph becomes a SOLID violet one. No background disc — the
+   old translucent circle used the themed --accent-muted (blue/green/red per
+   instance), which read as a faint whitish blob rather than a comment mark.
+   Violet is fixed (--accent-purple) so it matches the rest of the stash /
+   selection language on every tier. */
+.markdown-content tr[data-selectable="table-row"].has-stash > [data-stash-cell] > .stash-bubble,
+.markdown-content [data-selectable].has-stash > .stash-bubble {
+    opacity: 1 !important;
+}
+
+.markdown-content tr[data-selectable="table-row"].has-stash > [data-stash-cell] > .stash-bubble::before,
+.markdown-content [data-selectable].has-stash > .stash-bubble::before {
+    background-color: var(--accent-purple, #8b5cf6);
+    -webkit-mask-image: var(--stash-bubble-glyph-filled);
+    mask-image: var(--stash-bubble-glyph-filled);
+}
+
+/* Hover lifts it brighter still */
+.markdown-content tr[data-selectable="table-row"].has-stash:hover > [data-stash-cell] > .stash-bubble::before,
+.markdown-content [data-selectable].has-stash:hover > .stash-bubble::before,
+.markdown-content [data-selectable].has-stash > .stash-bubble:hover::before {
+    background-color: #a78bfa;
+}
+
+

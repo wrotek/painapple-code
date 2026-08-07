@@ -1,0 +1,52 @@
+{
+  "name": "painapple-code-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "npm run build",
+    "build": "npm run build:codemirror && npm run build:xterm && npm run build:marked && npm run build:dompurify && npm run build:highlight && npm run build:github-markdown",
+    "build:codemirror": "esbuild codemirror-entry.js --bundle --format=esm --minify --target=es2020 --legal-comments=none --outfile=../src/painapple_code/static/vendor/codemirror.js",
+    "build:xterm": "cp node_modules/xterm/lib/xterm.js ../src/painapple_code/static/vendor/xterm.js && cp node_modules/xterm/css/xterm.css ../src/painapple_code/static/vendor/xterm.css && cp node_modules/xterm-addon-fit/lib/xterm-addon-fit.js ../src/painapple_code/static/vendor/xterm-addon-fit.js",
+    "build:marked": "cp node_modules/marked/marked.min.js ../src/painapple_code/static/vendor/marked.min.js",
+    "build:dompurify": "cp node_modules/dompurify/dist/purify.min.js ../src/painapple_code/static/vendor/purify.min.js",
+    "build:highlight": "cp node_modules/@highlightjs/cdn-assets/highlight.min.js ../src/painapple_code/static/vendor/highlight.min.js && cp node_modules/@highlightjs/cdn-assets/languages/dockerfile.min.js ../src/painapple_code/static/vendor/highlight-lang-dockerfile.min.js && cp node_modules/@highlightjs/cdn-assets/languages/scala.min.js ../src/painapple_code/static/vendor/highlight-lang-scala.min.js && cp node_modules/@highlightjs/cdn-assets/languages/nginx.min.js ../src/painapple_code/static/vendor/highlight-lang-nginx.min.js && cp node_modules/@highlightjs/cdn-assets/languages/properties.min.js ../src/painapple_code/static/vendor/highlight-lang-properties.min.js && cp node_modules/@highlightjs/cdn-assets/styles/github-dark.min.css ../src/painapple_code/static/vendor/highlight-github-dark.min.css",
+    "build:github-markdown": "cp node_modules/github-markdown-css/github-markdown-dark.css ../src/painapple_code/static/vendor/github-markdown-dark.min.css"
+  },
+  "dependencies": {
+    "@excalidraw/utils": "0.1.3-test32",
+    "canvas": "^3.2.1",
+    "jsdom": "^28.0.0",
+    "lz-string": "^1.5.0",
+    "vega": "^6.2.0",
+    "vega-lite": "^6.4.2"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "^6",
+    "@codemirror/commands": "^6",
+    "@codemirror/lang-cpp": "^6",
+    "@codemirror/lang-css": "^6",
+    "@codemirror/lang-html": "^6",
+    "@codemirror/lang-java": "^6",
+    "@codemirror/lang-javascript": "^6",
+    "@codemirror/lang-json": "^6",
+    "@codemirror/lang-markdown": "^6",
+    "@codemirror/lang-php": "^6",
+    "@codemirror/lang-python": "^6",
+    "@codemirror/lang-rust": "^6",
+    "@codemirror/lang-sql": "^6",
+    "@codemirror/lang-xml": "^6",
+    "@codemirror/lang-yaml": "^6",
+    "@codemirror/language": "^6",
+    "@codemirror/legacy-modes": "^6.5.3",
+    "@codemirror/search": "^6",
+    "@codemirror/state": "^6",
+    "@codemirror/view": "^6",
+    "@highlightjs/cdn-assets": "11.9.0",
+    "dompurify": "^3.4.11",
+    "esbuild": "^0.28.0",
+    "github-markdown-css": "^5",
+    "marked": "4.3.0",
+    "xterm": "^5",
+    "xterm-addon-fit": "^0.8"
+  }
+}

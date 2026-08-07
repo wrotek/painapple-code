@@ -1,0 +1,106 @@
+site_name: pAInapple Code
+site_description: >-
+  A WebUI wrapper for Claude Code — run the CLI as a subprocess and use it
+  from any browser, with multi-session tabs, an embedded terminal, and an
+  auto-journal of every turn.
+site_url: https://painapple.ai/
+repo_url: https://github.com/wrotek/painapple-code
+repo_name: wrotek/painapple-code
+edit_uri: edit/main/docs-site/
+copyright: >-
+  These docs were written by AI (Claude) from the source code, and are not
+  fully human-reviewed — verify anything important against the code or the
+  <code>--help</code> output.
+
+docs_dir: docs-site
+site_dir: site
+
+theme:
+  name: material
+  # Both generated from the app's own PWA icon set (utils/generate_icons.py) —
+  # the favicon is the pure fruit, since the ">" prompt on its face turns to
+  # mush below ~64px; the header logo keeps the prompt.
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  palette:
+    # Dark by default — matches the app's dark-only theme
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep orange
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep orange
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - content.code.copy
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.keys
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Requirements: getting-started/requirements.md
+      - Read this first (security): getting-started/security.md
+      - Install with Docker / Podman: getting-started/install-docker.md
+      - Install with pip / pipx: getting-started/install-pip.md
+      - Dev Containers & Codespaces: getting-started/install-devcontainer.md
+      - First run & login: getting-started/first-run.md
+  - Guides:
+      - Sessions & tabs: guides/sessions.md
+      - AI engines (Claude & Codex): guides/engines.md
+      - Welcome screen: guides/welcome-screen.md
+      - Writing prompts & commands: guides/input-and-commands.md
+      - Permission modes & thinking: guides/permissions-and-thinking.md
+      - Embedded terminal: guides/terminal.md
+      - Files, preview & editing: guides/files.md
+      - Git & diff viewer: guides/git-and-diffs.md
+      - Shadow Git journal: guides/shadow-git.md
+      - Comments stash & discussions: guides/stash-and-discussions.md
+      - Images & annotation: guides/images-and-annotation.md
+      - Cost analytics & prompt history: guides/analytics-and-history.md
+      - Skills, commands, agents & plugins: guides/claude-artifacts.md
+      - Zen mode: guides/zen-mode.md
+      - Customization: guides/customization.md
+      - iPad & mobile (PWA): guides/ipad-and-mobile.md
+  - Reference:
+      - Server CLI & environment: reference/server-cli.md
+      - Profiles & Docker: reference/profiles.md
+      - Keyboard shortcuts: reference/keyboard-shortcuts.md
+      - Slash & bang commands: reference/commands.md
+      - Data storage & logs: reference/data-storage.md
+      - HTTP & WebSocket API: reference/api.md
+      - Optional helpers: reference/optional-helpers.md
+  - Features overview: features.md

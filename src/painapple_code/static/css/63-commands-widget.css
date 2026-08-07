@@ -1,0 +1,30 @@
+/* ============================================================
+   Commands Manager Widget
+   Reuses 62-skills-widget.css via the shared `.skills-widget`
+   class on the container. This file holds command-specific
+   overrides only.
+   ============================================================ */
+
+.commands-widget .sk-card--builtin .sk-card-name {
+    color: var(--text-secondary);
+}
+
+.commands-widget .sk-card--custom .sk-card-name {
+    color: var(--accent);
+}
+
+.commands-widget .sk-badge--custom {
+    background: var(--bg-secondary, #1e293b);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+}
+
+.commands-widget .sk-editor-note {
+    background: var(--bg-secondary, #1e293b);
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    padding: var(--sp-8) var(--sp-10);
+    border-radius: var(--radius-md);
+    margin: 0 0 var(--sp-8) 0;
+    border-left: 3px solid var(--accent);
+}

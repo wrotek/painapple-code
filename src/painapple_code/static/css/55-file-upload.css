@@ -1,0 +1,113 @@
+/* ═══════════════════════════════════════════════════════════════════
+   FILE UPLOAD
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* File previews container */
+#file-previews {
+    display: none;
+    flex-wrap: wrap;
+    gap: var(--sp-8);
+    width: 100%;
+    padding-bottom: var(--sp-8);
+    order: -2;  /* Appear before image previews */
+}
+
+#file-previews.visible {
+    display: flex;
+}
+
+/* Individual file preview chip */
+.file-preview {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-6) var(--sp-10);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    max-width: 200px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.file-preview:hover {
+    border-color: var(--accent);
+    background: var(--bg-hover);
+}
+
+.file-preview.uploading {
+    border-color: var(--accent);
+    opacity: 0.7;
+    cursor: default;
+}
+
+.file-icon {
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.file-name {
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+}
+
+.file-size {
+    color: var(--text-secondary);
+    font-size: var(--font-size-xs);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Remove button */
+.file-remove {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.7;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.file-preview:hover .file-remove {
+    opacity: 1;
+}
+
+.file-remove svg {
+    width: 12px;
+    height: 12px;
+}
+
+.file-remove:hover {
+    background: var(--error);
+    color: white;
+    opacity: 1;
+}
+
+/* Upload spinner for files */
+.file-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--border-primary);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+/* Update drag-drop overlay text to include files */
+#messages-container.drag-over::after {
+    content: 'Drop files here';
+}

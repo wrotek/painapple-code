@@ -1,0 +1,339 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CONTEXT MENU
+   Custom right-click / long-press context menu
+   ═══════════════════════════════════════════════════════════════════ */
+
+.context-menu {
+    position: fixed;
+    z-index: var(--z-always-top);
+    min-width: 180px;
+    max-width: 280px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: var(--sp-6) 0;
+    overflow: hidden;
+    /* Subtle backdrop blur for glassmorphism effect */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.context-menu-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: var(--sp-6) var(--sp-10);
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    line-height: var(--layout-menu-line-height);
+    text-align: left;
+    cursor: pointer;
+    outline: none;
+    transition: background-color 0.1s ease;
+    /* Prevent text selection during long-press */
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Leading icon slot. Rendered for every plain item in a menu that has at
+   least one icon (empty for the iconless ones) so labels stay aligned. */
+.context-menu-item .context-menu-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-right: var(--sp-8);
+    color: var(--text-secondary);
+}
+
+/* Colour is set on the <svg> itself, not inherited: 50-welcome.css carries a
+   global `.context-menu-item svg { color: var(--text-muted) }` that would
+   otherwise win over the slot's colour. Keep this file authoritative. */
+.context-menu-item .context-menu-icon svg {
+    width: 14px;
+    height: 14px;
+    color: var(--text-secondary);
+}
+
+.context-menu-item:hover .context-menu-icon svg,
+.context-menu-item:focus-visible .context-menu-icon svg,
+.context-menu-item.hover-mouse .context-menu-icon svg {
+    color: var(--accent);
+}
+
+.context-menu-item:disabled .context-menu-icon svg {
+    color: var(--text-muted);
+}
+
+.context-menu-item .context-menu-label {
+    flex: 1;
+    min-width: 0;
+}
+
+.context-menu-item:hover,
+.context-menu-item:focus-visible {
+    background: var(--bg-hover);
+}
+
+.context-menu-item:focus-visible {
+    /* Keyboard-only focus indicator. :focus-visible (not :focus) so the
+       programmatic firstItem.focus() on menu open doesn't paint the accent
+       bar under the user's finger on iPadOS long-press. */
+    background: var(--bg-hover);
+    box-shadow: inset 2px 0 0 var(--accent);
+    outline: none;
+}
+
+.context-menu-item:active {
+    background: var(--accent-muted);
+}
+
+.context-menu-item:disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
+.context-menu-item:disabled:hover,
+.context-menu-item:disabled:focus-visible {
+    background: none;
+    box-shadow: none;
+}
+
+/* Suppress :hover styling on pure-touch devices — iOS keeps the last-touched
+   element in :hover state until another tap, which on long-press makes the
+   item under the finger look pre-selected. NOTE: iPadOS reports
+   `pointer: coarse` AND `hover: none` even with a Magic Trackpad, so this
+   query *also* matches when the user has real hover. JS adds `.hover-mouse`
+   on `pointerenter` with `pointerType === 'mouse'` to restore the highlight
+   for trackpad users — see rule below. */
+@media (hover: none) and (pointer: coarse) {
+    .context-menu-item:hover {
+        background: none;
+    }
+}
+
+/* JS-driven hover (set on pointerenter, pointerType === 'mouse'). Wins on
+   iPadOS-with-trackpad where the media query above kills :hover. Placed
+   after the media query so it always overrides. */
+.context-menu-item.hover-mouse:not(:disabled) {
+    background: var(--bg-hover);
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: var(--border-primary);
+    margin: var(--sp-6) var(--sp-12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATION
+   Brief feedback after actions like "Copy"
+   ═══════════════════════════════════════════════════════════════════ */
+
+.context-menu-toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: var(--sp-10) var(--sp-20);
+    border-radius: var(--radius-md);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-base);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: pre-line;
+    text-align: left;
+    max-width: 340px;
+    z-index: var(--z-toast);
+    pointer-events: none;
+}
+
+.context-menu-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.context-menu-toast.toast-top {
+    bottom: auto;
+    top: 60px;
+    transform: translateX(-50%) translateY(-20px);
+}
+.context-menu-toast.toast-top.visible {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast-close {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    line-height: 1;
+    padding: var(--sp-2) var(--sp-6);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    pointer-events: auto;
+}
+
+.toast-close:hover {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOUCH-FRIENDLY SIZING
+   Slightly larger touch targets on touch devices (iPad, phones)
+   ═══════════════════════════════════════════════════════════════════ */
+
+@media (pointer: coarse) {
+    .context-menu {
+        min-width: 200px;
+    }
+
+    .context-menu-item {
+        /* touch bump rides on top of the density tokens */
+        padding: calc(var(--sp-6) + 2px) calc(var(--sp-10) + 2px);
+        font-size: var(--font-size-content);
+    }
+
+    .context-menu-toast {
+        bottom: 120px;
+        padding: calc(var(--sp-10) + 2px) var(--sp-24);
+        font-size: var(--font-size-content);
+    }
+    .context-menu-toast.toast-top {
+        bottom: auto;
+        top: 60px;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ANIMATION
+   Subtle entrance animation
+   ═══════════════════════════════════════════════════════════════════ */
+
+.context-menu {
+    animation: contextMenuIn 0.15s ease-out;
+}
+
+@keyframes contextMenuIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SUBMENUS
+   Expandable menu items with nested options
+   ═══════════════════════════════════════════════════════════════════ */
+
+.context-menu-item.has-submenu {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.context-menu-item.has-submenu.active {
+    background: var(--bg-hover);
+}
+
+.context-menu-item .submenu-arrow {
+    margin-left: var(--sp-12);
+    color: var(--text-muted);
+    font-size: 1.1em;
+    transition: transform 0.15s ease;
+}
+
+.context-menu-item.has-submenu.active .submenu-arrow {
+    transform: rotate(90deg);
+}
+
+.context-menu-submenu-items {
+    display: none;
+    /* fixed (not absolute) so it escapes the parent .context-menu's
+       overflow: hidden. JS sets left/top from the trigger's rect. */
+    position: fixed;
+    z-index: var(--z-always-top);
+    min-width: 200px;
+    max-width: 320px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    padding: var(--sp-6) 0;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.context-menu-submenu-items.open {
+    display: block;
+    animation: contextMenuIn 0.12s ease-out;
+}
+
+/* Submenu item with sublabel (e.g., session path) */
+.context-menu-submenu-items .context-menu-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+}
+
+.context-menu-item .menu-label {
+    font-weight: 500;
+}
+
+.context-menu-item .menu-sublabel {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+}
+
+/* Edge-overflow handling is now done by JS in context-menu.js (see _positionSubmenus). */
+
+/* ═══════════════════════════════════════════════════════════════════
+   SNAPSHOT TOAST
+   Modifier on .context-menu-toast for rich perf snapshot results
+   ═══════════════════════════════════════════════════════════════════ */
+
+.context-menu-toast.snapshot-toast {
+    min-width: 240px;
+    max-width: 360px;
+    transition-duration: 0.3s;
+}
+
+.snapshot-toast-path {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    background: var(--bg-secondary);
+    padding: var(--sp-4) var(--sp-8);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    word-break: break-all;
+    -webkit-user-select: all;
+    user-select: all;
+}
+
+.snapshot-toast-path:active {
+    background: var(--accent);
+    color: var(--bg-primary);
+}

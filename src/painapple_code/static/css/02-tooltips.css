@@ -1,0 +1,36 @@
+/* ═══════════════════════════════════════════════════════════════════
+   TOOLTIP SYSTEM
+   JS-driven tooltips using position:fixed (immune to overflow clipping).
+   CSS only provides styling for the tooltip element created by tooltips.js.
+
+   Usage:
+     <button data-tooltip="Hello">Click</button>
+     <button data-tooltip="Hello" data-tooltip-position="right">Click</button>
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Tooltip element (created by tooltips.js, appended to body)
+   Pinned at top:0/left:0 — JS moves it with `transform: translate3d`.
+   Position writes via transform are compositor-only and do NOT
+   invalidate the WebKit selection/caret paint layer (left/top do). */
+.tooltip-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: var(--sp-4) var(--sp-8);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: var(--z-tooltip);
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+    will-change: transform, opacity;
+}
+
+.tooltip-fixed.visible {
+    opacity: 1;
+}

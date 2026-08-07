@@ -1,0 +1,422 @@
+/* ═══════════════════════════════════════════════════════════════════
+   JSON TREE VIEWER
+   ═══════════════════════════════════════════════════════════════════ */
+
+.json-tree {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--sp-12);
+    overflow-x: auto;
+}
+
+.json-raw {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--sp-12);
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--text-secondary);
+}
+
+.json-line {
+    padding: 1px 0;
+}
+
+/* Leaf lines have no disclosure triangle, so give them a left gutter equal to
+   the triangle column (width 12px + its margin) — otherwise a leaf value sits
+   only ~6px right of its parent key and reads as un-indented, while its
+   collapsible siblings' keys sit a triangle-width further in. This aligns every
+   child of a node at the same indent whether it's a leaf, a scalar array item,
+   or a nested object/array. */
+.json-line:not(.json-toggle) {
+    padding-left: calc(12px + var(--sp-4));
+}
+
+/* JSON value types - color coded */
+.json-key {
+    color: #79c0ff; /* Blue for keys */
+}
+
+.json-colon {
+    color: var(--text-muted);
+}
+
+.json-string {
+    color: #a5d6ff; /* Light blue for strings */
+}
+
+.json-string-preview {
+    color: #a5d6ff;
+    opacity: 0.7;
+    max-width: 300px;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+}
+
+.json-number {
+    color: #79c0ff; /* Cyan for numbers */
+}
+
+.json-boolean {
+    color: #ff7b72; /* Orange for booleans */
+}
+
+.json-null {
+    color: #8b949e; /* Gray for null */
+    font-style: italic;
+}
+
+.json-bracket {
+    color: var(--text-muted);
+}
+
+.json-truncated {
+    color: var(--text-muted);
+    font-style: italic;
+    margin-left: var(--sp-4);
+}
+
+/* Collapsible nodes */
+.json-collapsible {
+    position: relative;
+}
+
+.json-toggle {
+    cursor: pointer;
+    user-select: none;
+}
+
+.json-toggle:hover {
+    background: var(--bg-hover);
+    border-radius: var(--radius-sm);
+}
+
+.json-toggle::before {
+    content: '▶';
+    display: inline-block;
+    width: 12px;
+    margin-right: var(--sp-4);
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.15s;
+}
+
+.json-collapsible.expanded > .json-toggle::before {
+    transform: rotate(90deg);
+}
+
+/* Summary shown when collapsed */
+.json-summary {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    margin: 0 var(--sp-4);
+}
+
+.json-ellipsis {
+    color: var(--text-muted);
+}
+
+.json-close-bracket {
+    margin-left: 0;
+}
+
+/* Hide children when collapsed */
+.json-children {
+    display: none;
+    padding-left: var(--sp-16);
+    border-left: 1px solid var(--border-secondary);
+    margin-left: var(--sp-5);
+}
+
+.json-collapsible.expanded > .json-children {
+    display: block;
+}
+
+/* Hide summary and close bracket when expanded */
+.json-collapsible.expanded > .json-toggle .json-summary,
+.json-collapsible.expanded > .json-toggle .json-ellipsis,
+.json-collapsible.expanded > .json-toggle .json-close-bracket {
+    display: none;
+}
+
+/* Array items */
+.json-array-item {
+    position: relative;
+}
+
+.json-array-item::before {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 10px;
+    /* Reach across the leaf gutter so the tick meets the (now indented) item. */
+    width: calc(16px + 12px + var(--sp-4));
+    height: 1px;
+    background: var(--border-secondary);
+}
+
+/* Nested JSON (JSON inside a string) */
+.json-nested-container {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-4);
+    flex-wrap: wrap;
+}
+
+.json-parse-btn {
+    padding: var(--sp-2) var(--sp-6);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+
+.json-parse-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.json-parse-btn.active {
+    background: var(--accent-muted);
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.json-nested-content {
+    width: 100%;
+    margin-top: var(--sp-8);
+    padding-left: var(--sp-16);
+    border-left: 2px solid var(--accent);
+}
+
+.json-nested-content .json-tree {
+    border: none;
+    padding: 0;
+    background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   JSON PREVIEW PLUGIN — toolbar, search, parse errors
+   ═══════════════════════════════════════════════════════════════════ */
+
+.json-preview-body {
+    padding: var(--sp-12);
+}
+
+/* Inside the preview body the tree is flush with the body —
+   no nested box, so empty space doesn't show a bordered frame. */
+.json-preview-body .json-tree {
+    font-size: var(--font-size-base);
+    line-height: 1.7;
+    border: none;
+    background: transparent;
+    padding: 0;
+    overflow: visible;
+}
+
+.json-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    margin-bottom: var(--sp-10);
+    padding: var(--sp-6);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.json-search-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--sp-8);
+    min-width: 0;
+}
+
+.json-search-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.json-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: var(--font-size-base);
+    padding: var(--sp-6) 0;
+    min-width: 0;
+}
+
+.json-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.json-search-clear {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 var(--sp-4);
+    border-radius: var(--radius-sm);
+}
+
+.json-search-clear:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.json-ctrl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.12s;
+    flex-shrink: 0;
+}
+
+.json-ctrl-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.json-ctrl-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+/* Search match highlighting */
+.json-match {
+    background: var(--accent-muted, rgba(255, 200, 60, 0.35));
+    color: var(--accent);
+    border-radius: var(--radius-xs);
+    padding: 0 1px;
+    box-shadow: 0 0 0 1px var(--accent, rgba(255, 200, 60, 0.7));
+}
+
+.json-parse-error {
+    background: rgba(255, 80, 80, 0.12);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    color: #ff8080;
+    border-radius: var(--radius-sm);
+    padding: var(--sp-8) var(--sp-10);
+    margin-bottom: var(--sp-8);
+    font-size: var(--font-size-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   JSONL PREVIEW — per-line tree rows
+   ═══════════════════════════════════════════════════════════════════ */
+
+.jsonl-preview-body {
+    padding: var(--sp-12);
+}
+
+.jsonl-preview-body .json-tree {
+    font-size: var(--font-size-base);
+    line-height: 1.7;
+    border: none;
+    background: transparent;
+    padding: 0;
+    overflow: visible;
+}
+
+.jsonl-status {
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono);
+    padding: var(--sp-4) var(--sp-6) var(--sp-8);
+    display: flex;
+    gap: var(--sp-12);
+    align-items: baseline;
+}
+
+.jsonl-trunc-note {
+    color: #ff9966;
+}
+
+.jsonl-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.jsonl-row {
+    display: flex;
+    gap: var(--sp-8);
+    align-items: flex-start;
+    padding: var(--sp-4) var(--sp-6);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid transparent;
+}
+
+.jsonl-row:hover {
+    background: var(--bg-secondary);
+}
+
+.jsonl-row-num {
+    flex-shrink: 0;
+    width: 48px;
+    text-align: right;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.7;
+    user-select: none;
+    padding-top: 1px;
+}
+
+.jsonl-row-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.jsonl-row-error {
+    border-left-color: rgba(255, 80, 80, 0.5);
+}
+
+.jsonl-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--sp-24);
+    text-align: center;
+    font-size: var(--font-size-base);
+}

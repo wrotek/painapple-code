@@ -1,0 +1,105 @@
+# Design tokens — single source of truth for the density system.
+#
+# This file mirrors the CURRENT shipped values in
+# src/painapple_code/static/css/00-variables.css (LAYOUT MODES section).
+# Regenerate that section with:
+#
+#   venv/bin/python tools/gen_density_css.py --diff    # preview
+#   venv/bin/python tools/gen_density_css.py --write   # splice into 00-variables.css
+#   venv/bin/python tools/gen_density_css.py --emit out.css   # standalone override
+#                                                     # (for gallery --inject-css)
+#
+# A redesign proposal is any file with the same schema, passed via --spec.
+# Full rules: docs-ai/layout-density-guide.md
+
+radius:
+  xs: 2px
+  sm: 3px
+  md: 5px
+  lg: 8px
+
+# --sp-N spacing scale. N is the normal-mode px value; each mode lists its
+# px per token, aligned with sp_tokens order.
+sp_tokens: [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24, 32, 48]
+
+modes:
+  normal:
+    comment: "Default: normal layout"
+    sp:      [2, 3, 4, 5, 6, 8, 10, 12, 14, 16, 20, 24, 32, 48]
+    layout:
+      header-height: 44px
+      widget-header-height: 40px
+      content-padding: 14px
+      gap-xs: 4px
+      gap-sm: 6px
+      gap-md: 10px
+      gap-lg: 14px
+      msg-padding-v: 8px
+      msg-padding-h: 12px
+      msg-radius: var(--radius-md)
+      line-height: 1.5
+      line-height-tight: 1.4
+      menu-line-height: 1.4
+      btn-xs: 20px
+      btn-sm: 28px
+      btn-md: 32px
+      btn-lg: 36px
+      input-padding-v: 10px
+      input-padding-h: 16px
+      tool-padding: 8px 12px
+      block-margin: 8px
+      paragraph-margin: 6px
+
+  compact:
+    comment: "Compact layout - minimal spacing"
+    sp:      [1, 2, 2, 3, 4, 5, 6, 8, 8, 10, 13, 15, 20, 30]
+    layout:
+      header-height: 36px
+      widget-header-height: 34px
+      content-padding: 8px
+      gap-xs: 2px
+      gap-sm: 4px
+      gap-md: 6px
+      gap-lg: 8px
+      msg-padding-v: 5px
+      msg-padding-h: 8px
+      msg-radius: var(--radius-sm)
+      line-height: 1.35
+      line-height-tight: 1.3
+      menu-line-height: 1.2
+      btn-xs: 18px
+      btn-sm: 24px
+      btn-md: 28px
+      btn-lg: 32px
+      input-padding-v: 6px
+      input-padding-h: 12px
+      tool-padding: 5px 8px
+      block-margin: 4px
+      paragraph-margin: 3px
+
+  spacious:
+    comment: "Spacious layout - comfortable spacing"
+    sp:      [3, 4, 6, 7, 9, 11, 14, 16, 19, 22, 27, 32, 42, 62]
+    layout:
+      header-height: 52px
+      widget-header-height: 46px
+      content-padding: 20px
+      gap-xs: 6px
+      gap-sm: 10px
+      gap-md: 14px
+      gap-lg: 20px
+      msg-padding-v: 12px
+      msg-padding-h: 16px
+      msg-radius: var(--radius-lg)
+      line-height: 1.6
+      line-height-tight: 1.5
+      menu-line-height: 1.5
+      btn-xs: 24px
+      btn-sm: 32px
+      btn-md: 38px
+      btn-lg: 44px
+      input-padding-v: 14px
+      input-padding-h: 20px
+      tool-padding: 10px 14px
+      block-margin: 12px
+      paragraph-margin: 8px

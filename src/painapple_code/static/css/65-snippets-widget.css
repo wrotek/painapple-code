@@ -1,0 +1,426 @@
+/* ============================================================
+   Snippets Widget
+   ============================================================ */
+
+.snw {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* ─── Toolbar ──────────────────────────────────────────────── */
+.snw-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    padding: var(--sp-10) var(--sp-14);
+    border-bottom: 1px solid var(--border-color, #2d2d44);
+    background: var(--bg-secondary, #16162a);
+    flex-shrink: 0;
+}
+
+.snw-search-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.snw-search-icon {
+    position: absolute;
+    left: 10px;
+    width: 14px;
+    height: 14px;
+    color: var(--text-secondary, #9ca3af);
+    pointer-events: none;
+}
+
+.snw-search {
+    flex: 1;
+    width: 100%;
+    padding: var(--sp-8) var(--sp-32) var(--sp-8) var(--sp-32);
+    background: var(--bg-tertiary, #252540);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-primary, #e0e0e0);
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    transition: border-color 0.12s, background 0.12s;
+}
+
+.snw-search::placeholder {
+    color: var(--text-secondary, #9ca3af);
+}
+
+.snw-search:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--bg-primary, #0f0f1e);
+}
+
+.snw-search-clear {
+    position: absolute;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-secondary, #9ca3af);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    padding: 0;
+}
+
+.snw-search-clear svg {
+    width: 12px;
+    height: 12px;
+}
+
+.snw-search-clear:hover {
+    color: var(--text-primary, #e0e0e0);
+    background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.snw-new-btn {
+    height: var(--layout-btn-md);
+    display: flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-14);
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: filter 0.12s, transform 0.06s;
+}
+
+.snw-new-btn:hover {
+    filter: brightness(1.1);
+}
+
+.snw-new-btn:active {
+    transform: translateY(1px);
+}
+
+.snw-new-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ─── Body ─────────────────────────────────────────────────── */
+.snw-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--sp-8);
+}
+
+/* ─── List ─────────────────────────────────────────────────── */
+.snw-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+}
+
+.snw-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-10) var(--sp-12) var(--sp-10) var(--sp-8);
+    background: var(--bg-secondary, #16162a);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: default;
+    transition: background 0.12s, border-color 0.12s;
+}
+
+.snw-item:hover {
+    background: var(--bg-tertiary, #252540);
+    border-color: var(--border-color, #2d2d44);
+}
+
+.snw-item.dragging {
+    opacity: 0.4;
+}
+
+.snw-item.drag-over-top::before,
+.snw-item.drag-over-bottom::after {
+    content: '';
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    height: 2px;
+    background: var(--accent);
+    border-radius: var(--radius-xs);
+}
+.snw-item.drag-over-top::before { top: -2px; }
+.snw-item.drag-over-bottom::after { bottom: -2px; }
+
+.snw-drag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 28px;
+    color: var(--text-secondary, #9ca3af);
+    cursor: grab;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+
+.snw-drag:active {
+    cursor: grabbing;
+}
+
+.snw-drag svg {
+    width: 14px;
+    height: 14px;
+}
+
+.snw-item:hover .snw-drag {
+    opacity: 0.6;
+}
+
+.snw-item-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+}
+
+.snw-item-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-8);
+    min-width: 0;
+}
+
+.snw-item-name {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+    color: var(--text-primary, #e0e0e0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.snw-item-trigger {
+    flex-shrink: 0;
+    padding: 1px var(--sp-6);
+    background: rgba(var(--accent-rgb), 0.12);
+    color: var(--accent);
+    border-radius: var(--radius-sm);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+
+.snw-item:hover .snw-item-trigger {
+    opacity: 1;
+}
+
+.snw-item-text {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary, #9ca3af);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.snw-item-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.12s;
+}
+
+.snw-item:hover .snw-item-actions,
+.snw-item:focus-within .snw-item-actions {
+    opacity: 1;
+}
+
+/* Always-visible actions on touch devices (no hover) */
+@media (hover: none) and (pointer: coarse) {
+    .snw-item-actions { opacity: 1; }
+    .snw-item-trigger { opacity: 1; }
+    .snw-drag { opacity: 0.6; }
+}
+
+.snw-act {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-sm);
+    height: var(--layout-btn-sm);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary, #9ca3af);
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.snw-act svg {
+    width: 14px;
+    height: 14px;
+}
+
+.snw-act:hover {
+    color: var(--text-primary, #e0e0e0);
+    background: var(--bg-primary, #0f0f1e);
+    border-color: var(--border-color, #2d2d44);
+}
+
+.snw-act-send:hover {
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.4);
+}
+
+.snw-act-del:hover {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.4);
+}
+
+/* ─── Show/hide in # suggestions (eye toggle) ──────────────────
+   Sits outside .snw-item-actions so it stays visible without
+   hovering — needed so users can spot and re-enable hidden
+   snippets on touch devices and at-a-glance on desktop. */
+.snw-act-eye {
+    flex-shrink: 0;
+    opacity: 0.5;
+}
+.snw-act-eye:hover {
+    opacity: 1;
+}
+.snw-act-eye.is-hidden {
+    opacity: 1;
+    color: var(--accent);
+    border-color: rgba(var(--accent-rgb), 0.4);
+}
+/* Dim a snippet's text when it's hidden from # suggestions
+   (leave the eye button fully tappable so it can be re-enabled). */
+.snw-item--hidden .snw-item-name,
+.snw-item--hidden .snw-item-text,
+.snw-item--hidden .snw-item-trigger {
+    opacity: 0.5;
+}
+
+/* ─── Empty state ──────────────────────────────────────────── */
+.snw-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: var(--sp-32) var(--sp-20);
+    min-height: 240px;
+    color: var(--text-secondary, #9ca3af);
+}
+
+.snw-empty--small {
+    min-height: 80px;
+    padding: var(--sp-20);
+}
+
+.snw-empty-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--text-secondary, #9ca3af);
+    opacity: 0.4;
+    margin-bottom: var(--sp-16);
+}
+
+.snw-empty-title {
+    margin: 0 0 var(--sp-6);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--text-primary, #e0e0e0);
+}
+
+.snw-empty-hint {
+    margin: 0 0 var(--sp-20);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    max-width: 360px;
+}
+
+.snw-empty-hint code {
+    background: var(--bg-tertiary, #252540);
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: var(--font-size-xs);
+    color: var(--accent);
+}
+
+.snw-empty-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-8) var(--sp-16);
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter 0.12s, transform 0.06s;
+}
+
+.snw-empty-cta:hover {
+    filter: brightness(1.1);
+}
+
+.snw-empty-cta:active {
+    transform: translateY(1px);
+}
+
+.snw-empty-cta svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ─── Footer hint ──────────────────────────────────────────── */
+.snw-footer {
+    flex-shrink: 0;
+    padding: var(--sp-8) var(--sp-14);
+    border-top: 1px solid var(--border-color, #2d2d44);
+    background: var(--bg-secondary, #16162a);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary, #9ca3af);
+}
+
+.snw-footer code {
+    background: var(--bg-tertiary, #252540);
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+    color: var(--accent);
+}

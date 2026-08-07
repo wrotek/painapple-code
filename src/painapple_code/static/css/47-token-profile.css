@@ -1,0 +1,106 @@
+/* Token Profile — status bar item + popup (mirrors model-popup pattern) */
+
+/* Status bar item — `#status-bar` prefix needed to beat `.status-item { display: flex }` (40-input.css) */
+#status-bar #status-token-profile {
+    display: none;
+    align-items: center;
+    gap: var(--sp-5);
+    cursor: pointer;
+    padding: var(--sp-2) var(--sp-6);
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+    font-size: var(--font-size-xs);
+    font-family: var(--font-mono, monospace);
+}
+
+#status-bar #status-token-profile.visible {
+    display: inline-flex;
+}
+
+#status-bar #status-token-profile.clickable:hover {
+    background: var(--bg-tertiary);
+}
+
+#status-token-profile .tp-name {
+    white-space: nowrap;
+}
+
+/* Popup (appended to body, positioned above status bar) */
+.token-profile-popup {
+    position: fixed;
+    z-index: var(--z-always-top);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--sp-4);
+    min-width: 180px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s, transform 0.12s;
+    pointer-events: none;
+}
+
+.token-profile-popup.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+/* Option rows */
+.tp-option {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-10);
+    line-height: var(--layout-menu-line-height);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.tp-option:hover {
+    background: var(--bg-tertiary);
+}
+
+.tp-option.selected {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.tp-opt-label {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    font-family: var(--font-mono, monospace);
+    color: inherit;
+    flex: 1;
+}
+
+.tp-opt-desc {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+/* "Set as default" footer */
+.tp-popup-footer {
+    border-top: 1px solid var(--border-color);
+    margin-top: var(--sp-4);
+    padding: var(--sp-6) var(--sp-4) var(--sp-2);
+}
+
+.tp-set-default {
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: var(--font-size-xs);
+    padding: var(--sp-4) var(--sp-6);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+}
+
+.tp-set-default:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}

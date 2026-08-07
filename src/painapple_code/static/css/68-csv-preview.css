@@ -1,0 +1,106 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+ * CSV/TSV Table Preview
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.csv-preview-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.csv-badge {
+    padding: var(--sp-4) var(--sp-12);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary, #888);
+    background: var(--bg-secondary, #1a1a1a);
+    border-bottom: 1px solid var(--border-color, #333);
+    flex-shrink: 0;
+}
+
+.csv-table-wrapper {
+    overflow: auto;
+    overscroll-behavior: contain;
+    flex: 1;
+}
+
+.csv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+}
+
+.csv-table th,
+.csv-table td {
+    padding: var(--sp-4) var(--sp-10);
+    text-align: left;
+    white-space: nowrap;
+    border-right: 1px solid var(--border-color, #333);
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.csv-table th:last-child,
+.csv-table td:last-child {
+    border-right: none;
+}
+
+/* Sticky header */
+.csv-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.csv-table th {
+    background: var(--bg-tertiary, #222);
+    color: var(--text-primary, #e0e0e0);
+    font-weight: 600;
+    border-bottom: 2px solid var(--accent);
+    user-select: none;
+}
+
+.csv-table th:hover {
+    background: var(--bg-hover, #2a2a2a);
+}
+
+.csv-th-text {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+}
+
+.csv-col-index {
+    color: var(--text-tertiary, #666);
+    font-style: italic;
+    font-weight: 400;
+}
+
+/* Alternating rows */
+.csv-table tbody tr:nth-child(even) {
+    background: var(--bg-secondary, #1a1a1a);
+}
+
+.csv-table tbody tr:nth-child(odd) {
+    background: var(--bg-primary, #111);
+}
+
+.csv-table tbody tr:hover {
+    background: var(--bg-hover, #2a2a2a);
+}
+
+.csv-table td {
+    color: var(--text-secondary, #ccc);
+    border-bottom: 1px solid var(--border-subtle, #2a2a2a);
+}
+
+.csv-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-tertiary, #666);
+    font-style: italic;
+}

@@ -1,0 +1,245 @@
+/* ═══════════════════════════════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    /* Kill iPadOS text autosizing ("font boosting"): WKWebView inflates text
+       inside blocks wider than the viewport (e.g. max-content diff hunks),
+       scaling each block by its width. We own the type scale — never adjust. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Prevent browser's swipe-to-navigate gesture */
+    overscroll-behavior-x: none;
+    /* Disable pan gestures that could trigger browser navigation */
+    touch-action: pan-y pinch-zoom;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    /* App-shell selection model: the chrome (buttons, toolbars, tab strip,
+       status bar, rail, labels) is NOT text-selectable — on iPad a double-tap
+       or drag would otherwise blue-highlight button labels ("Edit"/"History").
+       Real content re-enables selection below. Widgets portal to document.body
+       (siblings of #app), so this default reaches them too. */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Selectable content — opt back IN everywhere the user needs to copy.
+   More-specific chrome rules inside these (e.g. .tool-header, .line-number,
+   .sbs-linenum, .json-toggle, .stash-bubble) keep their own user-select:none.
+   ───────────────────────────────────────────────────────────────────── */
+.message-content,
+.markdown-content,
+.tool-content,
+.tool-output,
+.bash-output,
+.line-content,
+.preview-rendered,
+.preview-fm-fields,
+.sbs-text,
+.he-diff-content,
+.he-diff-line,
+.git-diff-container,
+.git-diff-line,
+.cm-editor,
+.cm-content,
+.json-key,
+.json-string,
+.json-number,
+.json-bool,
+.json-null,
+.jsonl-row-content,
+.pe-card-content,
+.pe-response-text,
+.cost-value,
+.stat-value,
+.metric-value,
+.sf-line-text,
+.logs-content,
+.log-raw-item,
+input,
+textarea,
+select,
+#message-input,
+[contenteditable="true"],
+[contenteditable=""] {
+    user-select: text;
+    -webkit-user-select: text;
+    -webkit-touch-callout: default;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Images opt back into the native iOS long-press callout ("Copy Image",
+   "Save to Photos", "Share"). This is the ONLY way to copy image bytes on
+   an iPad PWA — navigator.clipboard.write() rejects image blobs inside
+   standalone WKWebView, so the app's own "Copy Image" can't work there.
+   The app's custom long-press menus stand down on touch (see
+   lastInputWasTouch() in context-menu.js) so the two never compete;
+   desktop right-click still gets the richer app menu.
+   ───────────────────────────────────────────────────────────────────── */
+.uploads-thumb img,
+.img-preview-main {
+    -webkit-touch-callout: default;
+    /* WebKit suppresses the image callout when selection is off, even
+       though an <img> has no selectable text of its own. */
+    user-select: auto;
+    -webkit-user-select: auto;
+}
+
+/* Buttons render the app font instead of the UA default (Arial @ 13.33px).
+   Weakest possible selector — any classed rule still wins. */
+button {
+    font-family: inherit;
+    font-size: var(--font-size-base);
+}
+
+/* iOS: Reduce form accessory bar interference */
+input, textarea {
+    /* Prevent text size adjustment on orientation change */
+    -webkit-text-size-adjust: 100%;
+}
+
+/* Remove iOS default styling for text inputs only (not checkboxes/radios) */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Prevent iOS zoom on input focus (font-size >= 16px) */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    input, textarea, select {
+        font-size: var(--font-size-lg);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LAYOUT
+   ═══════════════════════════════════════════════════════════════════ */
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Per-instance accent stripe at top of viewport (set by --instance-name flag) */
+.instance-stripe {
+    height: 3px;
+    flex-shrink: 0;
+    /* background color set inline by JS from INSTANCE.accent */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   IMAGE VIEWER (for file tabs - viewing full images with zoom)
+   ═══════════════════════════════════════════════════════════════════ */
+.image-viewer {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-tertiary);
+    position: relative;
+}
+
+.image-viewer-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-8);
+    padding: var(--sp-8) var(--sp-12);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.image-viewer-toolbar button {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: var(--sp-4) var(--sp-10);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-md);
+    min-width: 32px;
+}
+
+.image-viewer-toolbar button:hover {
+    background: var(--bg-hover);
+}
+
+.image-viewer-toolbar button:active {
+    background: var(--accent);
+}
+
+.image-viewer-zoom-level {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    min-width: 50px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.image-viewer-container {
+    flex: 1;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp-16);
+    cursor: grab;
+    /* When zoomed: normal block layout for scrolling */
+}
+
+.image-viewer-container:active {
+    cursor: grabbing;
+}
+
+.image-viewer-container.fit-mode {
+    /* When fit: center the image */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-in;
+}
+
+.image-viewer img {
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    /* Dimensions set by JS for zoom, no max constraints */
+    flex-shrink: 0;
+}
+
+.image-viewer-container.fit-mode img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    /* Reset explicit dimensions in fit mode */
+    width: auto !important;
+    height: auto !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────
+   Native form controls follow the instance accent.
+   Without this, checkboxes/radios/sliders render the browser-default
+   blue regardless of the per-instance color (green/red/orange/gray).
+   ───────────────────────────────────────────────────────────────────── */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+progress {
+    accent-color: var(--accent);
+}

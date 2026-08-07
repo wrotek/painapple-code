@@ -1,0 +1,38 @@
+name: Release Dev Container Features
+
+# Publishes the Dev Container Features under features/src/ to GHCR.
+# Consumers reference them via ghcr.io/<owner>/<repo>/<feature-id>:<major>.
+#
+# Triggers:
+#   - push to main that touches features/**
+#   - manual dispatch (for re-publishing after a metadata-only edit)
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - "features/src/**"
+            - ".github/workflows/release-features.yml"
+    workflow_dispatch:
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: write
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Bundle bridge source into Feature
+              run: tools/bundle-feature-source.sh --feature-only
+
+            - name: Publish Features to GHCR
+              uses: devcontainers/action@v1
+              with:
+                  publish-features: "true"
+                  base-path-to-features: "./features/src"
+                  generate-docs: "false"
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

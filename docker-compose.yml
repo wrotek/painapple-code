@@ -1,0 +1,58 @@
+services:
+  painapple-code:
+    build:
+      context: .
+      args:
+        # Match host UID/GID so bind-mounted ~/.claude stays writable.
+        # Set UID/GID in your shell or a .env file: UID=$(id -u) GID=$(id -g)
+        USER_UID: ${UID:-1000}
+        USER_GID: ${GID:-1000}
+    image: painapple-code:latest
+    container_name: painapple-code
+    # PID 1 = tini: reap the spawned `claude`/node subprocesses and forward
+    # SIGTERM so `docker compose down` stops in ~1s instead of a 10s SIGKILL.
+    init: true
+    restart: unless-stopped
+    ports:
+      # Loopback-only by default so a plain `docker compose up` isn't exposed on
+      # the LAN. To expose deliberately, drop the 127.0.0.1 prefix — but put a
+      # reverse proxy with TLS in front first (the bridge is a remote shell).
+      - "127.0.0.1:${BRIDGE_PORT:-8765}:8765"
+    volumes:
+      # Bridge state: sessions, logs, shadow DBs, project metadata.
+      # Mountpoint matches PAINAPPLE_CODE_HOME=/data set in the Dockerfile.
+      - painapple-data:/data
+      # Auth config (the generated password). Persisted so it survives recreate.
+      - painapple-config:/home/app/.config/painapple-code
+      # Claude Code CLI auth + history. Mounted from an isolated path on the
+      # host so the container has its own .claude state (history, sessions,
+      # settings) separate from your host's Claude CLI.
+      #   CLAUDE_HOME=$HOME/.painapple-code/claude-home (default — created on demand)
+      # To seed it with your host login once:
+      #   mkdir -p ~/.painapple-code/claude-home && cp ~/.claude/.credentials.json ~/.painapple-code/claude-home/
+      # Or use API-key auth instead — uncomment ANTHROPIC_API_KEY below.
+      - ${CLAUDE_HOME:-${HOME}/.painapple-code/claude-home}:/home/app/.claude
+      # The project Claude operates on. WORKSPACE env var is REQUIRED — set
+      # it to the absolute path of your repo, e.g.
+      #   WORKSPACE=/path/to/your/repo docker compose up
+      # or in a .env file next to this compose file.
+      - ${WORKSPACE:?WORKSPACE env var is required — set to the absolute path of the project Claude should operate on}:/workspace
+    environment:
+      # Shown verbatim on the login page as the "reveal password" command, so
+      # it targets this compose deployment instead of the page guessing. Keep
+      # the name in sync if you change container_name above. ($$ escapes $ for
+      # compose interpolation, leaving a literal $2 for awk.)
+      PAINAPPLE_REVEAL_CMD: "docker exec painapple-code awk '/^password:/ {print $$2}' /home/app/.config/painapple-code/config.yaml"
+      # Who owns the bind mounts. The entrypoint starts as root, re-stamps
+      # the in-container `app` user to these ids, fixes /data if a
+      # previous image left it owned by someone else, then drops
+      # privileges — so a pulled image works on any host UID without a
+      # rebuild. Harmless when they already match (nothing to re-stamp).
+      # Set UID/GID in your shell or .env: UID=$(id -u) GID=$(id -g)
+      PAINAPPLE_UID: ${UID:-1000}
+      PAINAPPLE_GID: ${GID:-1000}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+volumes:
+  painapple-data:
+  painapple-config:

@@ -1,0 +1,1570 @@
+/* ═══════════════════════════════════════════════════════════════════
+   THINKING BLOCKS - CLEAN MINIMAL DESIGN (2025-12-29)
+
+   Design principles:
+   - Reasoning text is SUBTLE (muted, italic) - secondary to tools
+   - Tools are PROMINENT - full width, normal styling
+   - Orange left accent ties it together as "thinking" context
+   - Clean, uncluttered appearance
+   ═══════════════════════════════════════════════════════════════════ */
+.message.thinking {
+    /* Orange-tinted bubble like assistant messages */
+    background: rgba(251, 146, 60, 0.06);
+    padding: var(--layout-msg-padding-v) var(--layout-msg-padding-h);
+    border-radius: var(--layout-msg-radius);
+    border: 1px solid rgba(251, 146, 60, 0.15);
+    /* Allow gutter icons to extend outside the message */
+    overflow: visible;
+}
+
+/* Section container */
+.thinking-section {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COLLAPSE ALL BUTTON - Toggles all tool outputs in the section
+   Positioned sticky in the right gutter. Uses negative margin-bottom
+   to negate vertical space (height + gap) so it doesn't create empty row.
+   Hidden by default, shown when gutter space is detected
+   ═══════════════════════════════════════════════════════════════════ */
+.thinking-collapse-tools-btn {
+    display: none; /* Hidden by default, shown when gutter space detected */
+    position: sticky;
+    top: 8px;
+    /* Align to right edge of flex column cross-axis */
+    align-self: flex-end;
+    /* Push into right gutter */
+    margin-right: calc(-1 * var(--layout-msg-padding-h) - 32px);
+    /* Negate vertical space: 24px height + 4px gap = 28px */
+    margin-bottom: -28px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    z-index: 10;
+}
+
+/* Show collapse-all button when gutter space is detected */
+.thinking-section.has-gutter-space .thinking-collapse-tools-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.thinking-collapse-tools-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+/* Icon states */
+.thinking-collapse-tools-btn .expand-icon {
+    display: none;
+}
+
+.thinking-collapse-tools-btn .collapse-icon {
+    display: block;
+}
+
+/* When collapsed - show expand icon instead */
+.thinking-section.tools-collapsed .thinking-collapse-tools-btn .collapse-icon {
+    display: none;
+}
+
+.thinking-section.tools-collapsed .thinking-collapse-tools-btn .expand-icon {
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOOLS COLLAPSED STATE - Section-level collapse affects Task groups only
+   Individual tool content hiding is handled by .tool-collapsed on each card
+   (This allows individual tools to be expanded while section is "collapsed")
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Collapse Task groups when section is collapsed
+   (Task groups don't have individual gutter icons, so they only toggle via collapse-all) */
+.thinking-section.tools-collapsed .task-group-body {
+    display: none !important;
+}
+
+.thinking-section.tools-collapsed .task-group-preview {
+    display: block !important;
+}
+
+/* Visual indicator that tool is collapsed - rounded corners on headers */
+.thinking-tool-card.tool-collapsed .grep-header,
+.thinking-tool-card.tool-collapsed .glob-header,
+.thinking-tool-card.tool-collapsed .bash-header,
+.thinking-tool-card.tool-collapsed .read-header,
+.thinking-tool-card.tool-collapsed .write-header,
+.thinking-tool-card.tool-collapsed .edit-diff-header,
+.thinking-tool-card.tool-collapsed .tt-header,
+.thinking-tool-card.tool-collapsed .tool-header {
+    border-radius: var(--radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GUTTER ICONS - Per-tool collapse in right margin
+   Only visible when .has-gutter-space is set (detected by JavaScript)
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Tool card - no special positioning needed since gutter icon is sticky */
+.thinking-tool-card {
+    /* Default block positioning */
+}
+
+/* Per-tool gutter icon - sticky in right margin, below collapse-all button
+   Sticks at top: 40px (below collapse-all at ~8px + 24px height + 8px gap) */
+.tool-gutter-icon {
+    display: none; /* Hidden by default, shown when space detected */
+    position: sticky;
+    top: 40px;
+    /* Float to right edge, then into gutter */
+    float: right;
+    margin-right: -32px;
+    margin-left: 8px;
+    margin-bottom: -24px; /* Pull following content up */
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+}
+
+.tool-gutter-icon:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border-color: var(--border-primary);
+}
+
+/* Show gutter icons when space is detected - only for top-level tools
+   Use direct child selector to exclude tools nested inside Task groups */
+.thinking-section.has-gutter-space .thinking-step-tools > .thinking-tool-card > .tool-gutter-icon {
+    display: flex;
+}
+
+/* Hide gutter icons for tools nested inside Task groups
+   (Task groups are already collapsible, and nested tool positioning is different) */
+.task-group-children .tool-gutter-icon {
+    display: none !important;
+}
+
+/* Icon states for gutter icons */
+.tool-gutter-icon .gutter-expand-icon {
+    display: none;
+}
+
+.tool-gutter-icon .gutter-collapse-icon {
+    display: block;
+}
+
+/* When tool is collapsed - show expand icon */
+.thinking-tool-card.tool-collapsed .tool-gutter-icon .gutter-collapse-icon {
+    display: none;
+}
+
+.thinking-tool-card.tool-collapsed .tool-gutter-icon .gutter-expand-icon {
+    display: block;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PER-TOOL COLLAPSED STATE - Individual tool collapse
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Hide tool output when individually collapsed */
+.thinking-tool-card.tool-collapsed .grep-results,
+.thinking-tool-card.tool-collapsed .grep-empty,
+.thinking-tool-card.tool-collapsed .glob-files,
+.thinking-tool-card.tool-collapsed .glob-empty,
+.thinking-tool-card.tool-collapsed .bash-output,
+.thinking-tool-card.tool-collapsed .read-content,
+.thinking-tool-card.tool-collapsed .read-image-preview,
+.thinking-tool-card.tool-collapsed .write-content,
+.thinking-tool-card.tool-collapsed .edit-diff-content,
+.thinking-tool-card.tool-collapsed .tool-content,
+.thinking-tool-card.tool-collapsed .tt-code,
+.thinking-tool-card.tool-collapsed .tt-results,
+.thinking-tool-card.tool-collapsed .tt-output,
+.thinking-tool-card.tool-collapsed .todo-list {
+    display: none !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STEP - One thought with its tools
+   ═══════════════════════════════════════════════════════════════════ */
+.thinking-step {
+    display: block;
+    padding: 0;
+    cursor: default;
+}
+
+/* Clickable header - text aligns with normal message content */
+.thinking-step-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* Preview text - shown when collapsed, truncated */
+.thinking-step-preview {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-content);
+    line-height: var(--layout-line-height-tight);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-right: 28px; /* Space for collapse button */
+}
+
+/* Hide preview when expanded */
+.thinking-step.expanded .thinking-step-preview {
+    display: none;
+}
+
+/* Compact header when expanded - only chevron visible, minimize height */
+.thinking-step.expanded .thinking-step-header {
+    line-height: 1;
+}
+
+/* Full content with markdown - hidden by default */
+.thinking-step-content {
+    display: none;
+    padding: 0 0 8px;
+    color: var(--text-primary);
+    font-size: var(--font-size-content);
+    line-height: 1.5;
+}
+
+/* Show content when expanded */
+.thinking-step.expanded .thinking-step-content {
+    display: block;
+}
+
+/* Remove top margin from first child to prevent gap after header */
+.thinking-step-content > :first-child {
+    margin-top: 0;
+}
+
+/* Markdown styling within thinking content */
+.thinking-step-content h1,
+.thinking-step-content h2,
+.thinking-step-content h3,
+.thinking-step-content h4 {
+    margin-top: 0.8em;
+    margin-bottom: 0.4em;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.thinking-step-content p {
+    margin: 0.5em 0;
+}
+
+.thinking-step-content pre {
+    background: var(--bg-secondary);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: 11px;
+    margin: 0.5em 0;
+}
+
+.thinking-step-content code {
+    background: var(--bg-secondary);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+}
+
+.thinking-step-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.thinking-step-content ul,
+.thinking-step-content ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+.thinking-step-content table {
+    border-collapse: collapse;
+    margin: 0.5em 0;
+    font-size: 12px;
+}
+
+.thinking-step-content th,
+.thinking-step-content td {
+    border: 1px solid var(--border-primary);
+    padding: 4px 8px;
+}
+
+.thinking-step-content th {
+    background: var(--bg-secondary);
+}
+
+/* Legacy: keep .thinking-step-text for backwards compat */
+.thinking-step-text {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-content);
+    line-height: var(--layout-line-height-tight);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.thinking-step.expanded .thinking-step-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: visible;
+}
+
+/* Expand indicator */
+.thinking-step-expand {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+    transition: transform 0.2s ease;
+    opacity: 0.3;
+    margin-top: 3px;
+}
+
+.thinking-step-header:hover .thinking-step-expand {
+    opacity: 0.7;
+}
+
+.thinking-step.expanded .thinking-step-expand {
+    transform: rotate(90deg);
+    opacity: 0.7;
+}
+
+/* Tools container - full width, with spacing from reasoning text */
+.thinking-step-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+/* Tool cards - break out of padding for full width */
+.thinking-tool-card {
+    width: calc(100% + var(--layout-msg-padding-h) * 2);
+    margin-left: calc(-1 * var(--layout-msg-padding-h));
+    margin-right: calc(-1 * var(--layout-msg-padding-h));
+}
+
+/* Reset tool block margins and borders for consistent spacing */
+.thinking-tool-card .read-block,
+.thinking-tool-card .bash-block,
+.thinking-tool-card .grep-block,
+.thinking-tool-card .glob-block,
+.thinking-tool-card .write-block,
+.thinking-tool-card .edit-diff,
+.thinking-tool-card .tool-block {
+    margin: 0;
+    border-left: none;
+    border-radius: 0;
+}
+
+/* Compact tool items (.ta-item) inside thinking tool cards
+   These are used for tools without dedicated block renderers (Skill, etc.) */
+.thinking-tool-card > .ta-item {
+    background: var(--bg-secondary);
+    padding: 8px 12px;
+    border-left: 2px solid var(--border);
+}
+
+.thinking-tool-card > .ta-item.ta-cyan {
+    border-left-color: #22d3ee;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LEGACY STYLES - Kept for backwards compatibility
+   Old thinking blocks may still exist in loaded conversations
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Old collapsible thinking block */
+.thinking-block {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #fb923c;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    overflow: hidden;
+}
+
+.thinking-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+}
+
+.thinking-header:hover {
+    background: var(--bg-hover);
+}
+
+.thinking-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #fb923c;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.thinking-label svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s ease;
+}
+
+.thinking-block.collapsed .thinking-label svg {
+    transform: rotate(-90deg);
+}
+
+.thinking-preview {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.thinking-block:not(.collapsed) .thinking-preview {
+    display: none;
+}
+
+.thinking-content {
+    padding: var(--layout-tool-padding);
+    border-top: 1px solid var(--border-secondary);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+    /* iOS: Allow vertical scroll without blocking parent */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    /* Prevent scroll chaining to parent when reaching scroll bounds */
+    overscroll-behavior: contain;
+}
+
+.thinking-block.collapsed .thinking-content {
+    display: none;
+}
+
+/* Old thinking message tools */
+.thinking-tools {
+    margin-top: var(--layout-gap-md);
+    padding-top: var(--layout-gap-sm);
+    border-top: 1px solid var(--border-secondary);
+}
+
+.thinking-msg-tool {
+    margin: var(--layout-gap-xs) 0;
+    padding: var(--layout-tool-padding);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--warning);
+    font-size: 11px;
+}
+
+.thinking-msg-tool-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.thinking-msg-tool-name {
+    color: var(--warning);
+    font-weight: 500;
+}
+
+.thinking-msg-tool-header code {
+    background: var(--bg-secondary);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.thinking-msg-tool-output {
+    margin-top: 4px;
+    padding: 4px 6px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    max-height: 80px;
+    overflow-y: auto;
+    font-size: 10px;
+}
+
+.thinking-msg-tool-output.completed {
+    color: var(--text-secondary);
+}
+
+/* Old tool output expand button */
+.thinking-msg-tool-output-wrapper {
+    position: relative;
+}
+
+.thinking-msg-tool-output-wrapper .thinking-msg-tool-output {
+    max-height: 80px;
+    overflow: hidden;
+}
+
+.thinking-msg-tool-output-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    right: 0;
+    height: 30px;
+    background: linear-gradient(transparent, var(--bg-secondary));
+    pointer-events: none;
+}
+
+.tool-output-expand-btn {
+    display: block;
+    width: 100%;
+    padding: 4px 8px;
+    margin-top: 2px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.tool-output-expand-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+}
+
+/* Old expanded state */
+.thinking-msg-tool-output-wrapper.expanded .thinking-msg-tool-output {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.thinking-msg-tool-output-wrapper.expanded::after {
+    display: none;
+}
+
+.thinking-text {
+    white-space: pre-wrap;
+    margin: 0;
+}
+
+.thinking-text:empty {
+    display: none;
+}
+
+/* Old grouped thinking session */
+.thinking-group {
+    padding: 0;
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #fb923c;
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    margin: var(--layout-gap-sm) 0;
+    overflow: hidden;
+}
+
+.thinking-group-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+}
+
+.thinking-group-header:hover {
+    background: var(--bg-hover);
+}
+
+.thinking-group-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #fb923c;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.thinking-group-label svg {
+    width: 14px;
+    height: 14px;
+    transition: transform 0.2s ease;
+}
+
+.thinking-group.collapsed .thinking-group-label svg {
+    transform: rotate(-90deg);
+}
+
+.thinking-group-preview {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.thinking-group:not(.collapsed) .thinking-group-preview {
+    display: none;
+}
+
+.thinking-group-content {
+    border-top: 1px solid var(--border-secondary);
+    padding: var(--layout-gap-md) 0;
+}
+
+.thinking-group.collapsed .thinking-group-content {
+    display: none;
+}
+
+/* Old timeline view */
+.thinking-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* REMOVED - legacy .thinking-step was overriding new design
+.thinking-step {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.thinking-step:hover {
+    background: var(--bg-hover);
+}
+*/
+
+.thinking-step-marker {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: #fb923c;
+    opacity: 0.6;
+    margin-right: 4px;
+}
+
+.thinking-step:hover .thinking-step-marker {
+    opacity: 1;
+}
+
+.thinking-step-summary {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+/* Note: .thinking-step-preview, .thinking-step-tools, .thinking-step-expand
+   now defined above in new inline design section */
+
+.thinking-step-detail {
+    display: none;
+    flex-basis: 100%;
+    margin: 6px 0 4px 0;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    max-height: 70vh;
+    overflow-y: auto;
+    cursor: default;
+}
+
+.thinking-step.expanded .thinking-step-detail {
+    display: block;
+}
+
+.thinking-step-detail.has-expanded-output {
+    max-height: 80vh;
+}
+
+.thinking-step-detail .thinking-tools {
+    margin-top: var(--layout-gap-md);
+    padding-top: var(--layout-gap-md);
+    border-top: 1px solid var(--border-secondary);
+}
+
+/* Old thinking tools content */
+.thinking-tools-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gap-sm);
+}
+
+/* Old thinking summary */
+.thinking-summary {
+    margin-top: var(--layout-gap-sm);
+}
+
+/* Old thinking edits */
+.thinking-edits {
+    padding: var(--layout-gap-md);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    border-left: 2px solid var(--accent);
+}
+
+.thinking-edits-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: var(--layout-gap-md);
+}
+
+.thinking-edits-header svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+}
+
+.thinking-edits-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--layout-gap-sm);
+}
+
+.thinking-edits-content > .thinking-tool {
+    margin: 0;
+}
+
+.thinking-edit-card {
+    /* Wrapper for edit-diff inside thinking */
+}
+
+.thinking-edit-card .edit-diff {
+    margin: 0;
+    font-size: 12px;
+}
+
+.thinking-edit-card .edit-diff-content {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+/* Simple file card for Write tool */
+.simple-file-card {
+    background: var(--bg-tertiary);
+}
+
+.simple-file-card .edit-diff-header {
+    padding: 8px 12px;
+}
+
+.simple-file-card .edit-diff-action {
+    color: var(--success);
+    font-size: 11px;
+    font-weight: 500;
+    margin-left: auto;
+    margin-right: 8px;
+}
+
+.simple-file-card .edit-diff-footer {
+    padding: 4px 12px 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THINKING TOOL MINI-BLOCKS (tt-*)
+   Compact styled tool displays inside thinking blocks
+   ═══════════════════════════════════════════════════════════════════ */
+
+.thinking-tool {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    margin: 6px 0;
+    overflow: hidden;
+}
+
+.tt-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+.tt-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: var(--text-muted);
+}
+
+.tt-icon-blue { color: var(--accent); }
+.tt-icon-green { color: var(--success); }
+.tt-icon-orange { color: var(--warning); }
+.tt-icon-purple { color: #a78bfa; }
+.tt-icon-yellow { color: #fbbf24; }
+.tt-icon-cyan { color: #22d3ee; }
+
+.tt-skill-name {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    color: #22d3ee;
+    font-size: 12px;
+}
+
+.tt-args {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    margin-left: 6px;
+}
+
+.tt-filename {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tt-cmd {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.tt-pattern {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+}
+
+.tt-url, .tt-desc, .tt-op, .tt-name {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.tt-preview {
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 1px 4px;
+    border-radius: var(--radius-xs);
+}
+
+.tt-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.tt-badge-muted {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+}
+
+.tt-badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.tt-badge-pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.tt-badge-lines {
+    background: rgba(255, 213, 79, 0.12);
+    color: #ffd54f;
+    border: 1px solid rgba(255, 213, 79, 0.3);
+}
+
+.tt-badge-lang {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    text-transform: lowercase;
+}
+
+.tt-badge-diff {
+    background: var(--bg-tertiary);
+    font-family: var(--font-mono);
+}
+
+.tt-plus { color: #22c55e; }
+.tt-minus { color: #ef4444; }
+
+.tt-status {
+    font-size: 10px;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.tt-ok { color: var(--success); }
+.tt-pending { color: var(--text-muted); }
+
+.tt-output {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 6px 10px;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    white-space: pre-wrap;
+    max-height: 60px;
+    overflow: hidden;
+    border-top: 1px solid var(--border-secondary);
+}
+
+.tt-output.tt-running {
+    color: var(--warning);
+    font-style: italic;
+}
+
+/* Tool-specific left borders */
+.tt-bash { border-left: 2px solid var(--text-muted); }
+.tt-read { border-left: none; }
+.tt-write { border-left: 2px solid var(--success); }
+.tt-edit { border-left: 2px solid var(--warning); }
+.tt-grep { border-left: 2px solid #a78bfa; }
+.tt-glob { border-left: 2px solid #fbbf24; }
+.tt-web { border-left: 2px solid #22d3ee; }
+.tt-task { border-left: 2px solid #a78bfa; }
+.tt-lsp { border-left: 2px solid var(--accent); }
+.tt-default { border-left: 2px solid var(--text-muted); }
+
+/* Code preview */
+.tt-code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.tt-code.tt-running {
+    padding: 8px 10px;
+    color: var(--warning);
+    font-style: italic;
+    background: var(--bg-tertiary);
+}
+
+.tt-code-line {
+    display: flex;
+    line-height: 1.5;
+}
+
+.tt-code-line:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tt-line-num {
+    flex-shrink: 0;
+    width: 40px;
+    padding: 0 8px;
+    text-align: right;
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    user-select: none;
+    border-right: 1px solid var(--border-secondary);
+}
+
+.tt-line-content {
+    flex: 1;
+    padding: 0 10px;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-secondary);
+}
+
+.tt-code-line.tt-added {
+    background: rgba(34, 197, 94, 0.08);
+}
+
+.tt-code-line.tt-added .tt-line-num {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+/* Image thumbnail in thinking tools */
+.tt-image-thumb {
+    padding: 6px 8px;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-secondary);
+    text-align: center;
+}
+
+.tt-image-thumb img {
+    max-width: 100%;
+    max-height: 180px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    object-fit: contain;
+}
+
+.tt-image-thumb img:hover {
+    opacity: 0.85;
+}
+
+/* Search results */
+.tt-results {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-secondary);
+    padding: 6px 0;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.tt-results.tt-running {
+    padding: 8px 10px;
+    color: var(--warning);
+    font-style: italic;
+}
+
+.tt-result-line {
+    display: flex;
+    align-items: baseline;
+    padding: 2px 10px;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.tt-result-line:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tt-result-dir {
+    color: var(--text-muted);
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.tt-result-file {
+    color: var(--text-primary);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.tt-result-linenum {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.tt-result-content {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.tt-more {
+    padding: 4px 10px;
+    color: var(--text-muted);
+    font-size: 10px;
+    font-style: italic;
+    border-top: 1px solid var(--border-secondary);
+    margin-top: 4px;
+}
+
+.tt-input-desc {
+    color: var(--text-muted);
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   THINKING ACTIVITY LOG (ta-*)
+   Ultra-compact single-line tool summary
+   ═══════════════════════════════════════════════════════════════════ */
+
+.thinking-activity {
+    font-size: 12px;
+    margin-bottom: var(--layout-gap-sm);
+}
+
+.ta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: background 0.1s ease;
+}
+
+.ta-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.ta-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.ta-item.ta-blue .ta-icon { stroke: var(--accent); }
+.ta-item.ta-green .ta-icon { stroke: var(--success); }
+.ta-item.ta-orange .ta-icon { stroke: var(--warning); }
+.ta-item.ta-purple .ta-icon { stroke: #a78bfa; }
+.ta-item.ta-yellow .ta-icon { stroke: #fbbf24; }
+.ta-item.ta-cyan .ta-icon { stroke: #22d3ee; }
+
+.ta-file {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ta-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.ta-op {
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+}
+
+.ta-name {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.ta-skill {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: #22d3ee;
+}
+
+.ta-url {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ta-item code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 300px;
+}
+
+.ta-bash-cmd {
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.ta-bash-cmd:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.ta-bash-cmd.copied {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.ta-result {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.ta-success {
+    color: var(--success);
+}
+
+.ta-pending {
+    color: var(--warning);
+    font-style: italic;
+}
+
+.ta-muted {
+    color: var(--text-muted);
+}
+
+.ta-diff {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    margin-left: auto;
+}
+
+.ta-diff .ta-plus { color: #22c55e; }
+.ta-diff .ta-minus { color: #ef4444; }
+
+.ta-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: background-color 0.1s, color 0.1s, border-color 0.1s, opacity 0.1s;
+}
+
+.ta-item:hover .ta-action {
+    opacity: 1;
+}
+
+.ta-action:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.ta-action svg {
+    width: 12px;
+    height: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   TASK GROUP (Sub-agent container)
+   Collapsible container for Task tool + its sub-agent tools
+   ═══════════════════════════════════════════════════════════════════ */
+
+.task-group {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid #a78bfa;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin: 4px 0;
+}
+
+.task-group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    transition: background 0.1s;
+}
+
+.task-group-header:hover {
+    background: var(--bg-tertiary);
+}
+
+.task-group-icon {
+    display: flex;
+    align-items: center;
+    color: #a78bfa;
+    flex-shrink: 0;
+}
+
+.task-group-label {
+    color: #a78bfa;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.task-group-desc {
+    color: var(--text-secondary);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-group-type {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.task-group-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(167, 139, 250, 0.1);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    flex-shrink: 0;
+}
+
+.task-group-tokens,
+.task-group-duration {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(167, 139, 250, 0.08);
+    padding: 2px 6px;
+    border-radius: var(--radius-lg);
+    flex-shrink: 0;
+}
+
+.task-group-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.task-group-badge-success {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.task-group-badge-pending {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.task-group-expand {
+    color: var(--text-muted);
+    font-size: 12px;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.task-group.expanded .task-group-expand {
+    transform: rotate(90deg);
+}
+
+/* Task preview - shown when collapsed */
+.task-group-preview {
+    display: block;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border-top: 1px solid var(--border-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Hide preview when expanded */
+.task-group.expanded .task-group-preview {
+    display: none;
+}
+
+/* Body container - hidden by default, shown when expanded */
+.task-group-body {
+    display: none;
+    flex-direction: column;
+    border-top: 1px solid var(--border-secondary);
+}
+
+.task-group.expanded .task-group-body {
+    display: flex;
+}
+
+/* Full response with markdown rendering */
+.task-group-response {
+    padding: 12px;
+    background: var(--bg-primary);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Markdown styling within response */
+.task-group-response h1,
+.task-group-response h2,
+.task-group-response h3 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: var(--text-primary);
+}
+
+.task-group-response h1:first-child,
+.task-group-response h2:first-child,
+.task-group-response h3:first-child {
+    margin-top: 0;
+}
+
+.task-group-response p {
+    margin: 0.5em 0;
+}
+
+.task-group-response pre {
+    background: var(--bg-secondary);
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    font-size: 11px;
+}
+
+.task-group-response code {
+    background: var(--bg-secondary);
+    padding: 1px 4px;
+    border-radius: var(--radius-sm);
+    font-size: 0.9em;
+}
+
+.task-group-response pre code {
+    background: none;
+    padding: 0;
+}
+
+.task-group-response ul,
+.task-group-response ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+.task-group-response table {
+    border-collapse: collapse;
+    margin: 0.5em 0;
+    font-size: 12px;
+}
+
+.task-group-response th,
+.task-group-response td {
+    border: 1px solid var(--border-primary);
+    padding: 4px 8px;
+}
+
+.task-group-response th {
+    background: var(--bg-secondary);
+}
+
+/* Children container - inside body */
+.task-group-children {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--bg-secondary);
+    padding: 4px 0;
+    border-top: 1px solid var(--border-secondary);
+}
+
+/* Indent and style child tools */
+.task-group-children .thinking-tool-card {
+    width: calc(100% - 12px);
+    margin-left: 12px;
+    margin-right: 0;
+    border-left: 2px solid rgba(167, 139, 250, 0.3);
+}
+
+/* Nested tool blocks - reset padding for consistency */
+.task-group-children .bash-block,
+.task-group-children .grep-block,
+.task-group-children .glob-block,
+.task-group-children .read-block,
+.task-group-children .write-block,
+.task-group-children .edit-diff {
+    border-radius: 0;
+    border-left: none;
+}

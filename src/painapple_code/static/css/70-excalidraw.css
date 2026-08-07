@@ -1,0 +1,136 @@
+/**
+ * Excalidraw inline rendering styles
+ * For diagrams rendered in chat messages via ```excalidraw code blocks
+ */
+
+/* Container for excalidraw diagram in chat */
+.excalidraw-inline {
+    margin: var(--sp-8) 0;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border-primary, #30363d);
+    background: var(--bg-primary, #0d1117);
+}
+
+/* Loading state */
+.excalidraw-inline-loading {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-16) var(--sp-20);
+    color: var(--text-secondary, #8b949e);
+    font-size: var(--font-size-base);
+}
+
+.excalidraw-inline-loading svg {
+    animation: excalidraw-pulse 1.5s ease-in-out infinite;
+    color: var(--accent);
+}
+
+@keyframes excalidraw-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.9); }
+    50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Rendered SVG container */
+.excalidraw-inline-rendered {
+    position: relative;
+}
+
+.excalidraw-inline-svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-12);
+    background: #fff;
+    min-height: 100px;
+    max-height: 500px;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.excalidraw-inline-svg svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Action buttons overlay */
+.excalidraw-inline-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: var(--sp-4);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.excalidraw-inline:hover .excalidraw-inline-actions {
+    opacity: 1;
+}
+
+.excalidraw-copy-btn {
+    background: rgba(13, 17, 23, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--sp-6);
+    cursor: pointer;
+    color: #fff;
+    display: flex;
+    align-items: center;
+}
+
+.excalidraw-copy-btn:hover {
+    background: rgba(13, 17, 23, 0.9);
+}
+
+/* Error state */
+.excalidraw-inline-error {
+    padding: var(--sp-12) var(--sp-16);
+    color: var(--text-error, #f85149);
+    font-size: var(--font-size-base);
+    background: rgba(248, 81, 73, 0.1);
+}
+
+/* Write tool block excalidraw rendering */
+.write-excalidraw .write-excalidraw-json {
+    display: none;
+}
+.write-excalidraw.show-json .write-excalidraw-json {
+    display: block;
+}
+.write-excalidraw.show-json .write-content:not(.write-excalidraw-json) {
+    display: none;
+}
+.write-excalidraw .excalidraw-inline-svg {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+.write-excalidraw-toggle-json svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Read tool block excalidraw rendering */
+.read-excalidraw-content {
+    position: relative;
+}
+.read-excalidraw-loading {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-16) var(--sp-20);
+    color: var(--text-secondary, #8b949e);
+    font-size: var(--font-size-base);
+}
+.read-excalidraw-loading svg {
+    animation: excalidraw-pulse 1.5s ease-in-out infinite;
+    color: var(--accent);
+}
+.read-excalidraw-svg .excalidraw-inline-svg {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+/* Clickable excalidraw thumbnails */
+.excalidraw-clickable {
+    cursor: pointer;
+}
