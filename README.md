@@ -22,6 +22,19 @@ pAInapple Code hands a browser tab full control of a Claude Code instance on you
 
 **This is an MVP, and heavily "vibe-coded".** Most of the code was written by AI under my direction and review. I've put real effort into the security model, but I can't guarantee it — one more reason to take the isolation advice above seriously. A rewrite to a more rigorous standard is planned; for now the priority is implementing and testing ideas.
 
+## Security model
+
+One sentence to internalize: **whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** The bridge exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user. Treat the password like an SSH key.
+
+What that means in practice:
+
+- **Loopback by default.** The server binds `127.0.0.1`. Keep it there for local use.
+- **Remote access goes through a tunnel.** Reach it over a VPN, an SSH tunnel, or an authenticating reverse proxy — don't expose the port directly to the internet or a shared LAN.
+- **Single-user, not multi-tenant.** It is not hardened for untrusted multi-user hosting. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead.
+- **Isolate autonomous modes** in a container or VM — `painapple --in-docker` is the built-in way.
+
+Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURITY.md).
+
 ## What it is, and what it isn't
 
 **It is** a thin wrapper around Claude Code — every prompt streams through the official CLI/Agent SDK, and any session started here can be resumed in the plain CLI with `claude --resume <id>`. It doesn't rewrite prompts, inject planning steps, or change Claude's behavior. The same wrapper can drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/), selected per session, resumable with `codex exec resume <id>` — the Codex path is newer and has had less testing than the Claude path.
@@ -197,19 +210,6 @@ This is an MVP — there are tradeoffs.
 2. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
 3. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
 4. **Codex engine** — functional, but much newer than the Claude path and not yet as thoroughly tested.
-
-## Security model
-
-One sentence to internalize: **whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** The bridge exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user. Treat the password like an SSH key.
-
-What that means in practice:
-
-- **Loopback by default.** The server binds `127.0.0.1`. Keep it there for local use.
-- **Remote access goes through a tunnel.** Reach it over a VPN, an SSH tunnel, or an authenticating reverse proxy — don't expose the port directly to the internet or a shared LAN.
-- **Single-user, not multi-tenant.** It is not hardened for untrusted multi-user hosting. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead.
-- **Isolate autonomous modes** in a container or VM — `painapple --in-docker` is the built-in way.
-
-Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
 ## License
 
