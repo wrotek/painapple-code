@@ -2,7 +2,7 @@
 
 A self-hosted server that runs the [Claude Code](https://github.com/anthropics/claude-code) CLI on your machine; remote clients connect to it — streaming chat, interactive permission cards, an embedded terminal, git tools, multi-session tabs. It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
 
-The distinguishing feature is the **Auto Journal**: after every turn, all file changes are committed to a per-project shadow git repo, and the conversation is forked in the background to Haiku — so the summarizer sees the turn's full context — to write a structured summary (work done, decisions, learnings) into a local DuckDB that later sessions can query.
+The distinguishing feature is the **Auto Journal**. After every turn, the session forks itself in the background to a fast summarizer model (Haiku by default), so the summarizer reads the turn's full conversation rather than just its diff. It writes one structured summary — work done, decisions, problems solved, learnings — and that summary does double duty: it becomes the commit message for a per-project shadow git repo holding the turn's file changes, and it lands as a queryable row in a local DuckDB that later sessions can search.
 
 The goal is native apps for every platform; desktop and mobile apps are in development. Today the client is a web app that installs as a PWA on iOS, Android, and desktop — a workable setup in practice: much of this project was written from a phone and an iPad through this same UI.
 
