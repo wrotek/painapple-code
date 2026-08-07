@@ -130,7 +130,7 @@ A selection — the full list is in the [feature docs](https://painapple.ai/feat
 
 ### Auto Journal (shadow git)
 
-After each turn, a background Haiku fork summarizes what happened and commits all file changes to a per-project shadow git repo (respecting `.gitignore`). Summaries are parsed into structured fields — work done, decisions, learnings, problems solved — and stored in a local DuckDB, so the project's own history is queryable: from the Journal widget, over a SQL endpoint, or by future sessions. The optional `shadow-git-helper` agent covers that last case — write *"consult shadow-git-helper about X"* and a sub-agent digs through past turns without loading them into your main context. It's not a backup mechanism; it's a searchable record of what was done and why.
+After each turn, the session forks itself in the background to a fast summarizer model (Haiku by default) that reads the whole turn, not just the diff. Its structured write-up — work done, decisions, learnings, problems solved — becomes the commit message for a per-project shadow git repo holding that turn's file changes (respecting `.gitignore`), and the same fields land in a local DuckDB, so the project's own history is queryable: from the Journal widget, over a SQL endpoint, or by future sessions. The optional `shadow-git-helper` agent covers that last case — write *"consult shadow-git-helper about X"* and a sub-agent digs through past turns without loading them into your main context. It's not a backup mechanism; it's a searchable record of what was done and why.
 
 <img src="docs-site/assets/shadow-journal.png" alt="Journal widget showing per-turn Haiku summaries, files changed and cost, grouped by session" width="500">
 
