@@ -80,13 +80,20 @@ def _signal_handler(signum, frame):
     faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
     # Re-raise with default handler so process actually dies
     signal.signal(signum, signal.SIG_DFL)
+    if sys.platform == "win32":
+        # os.kill(pid, sig) can't re-deliver arbitrary signals on Windows
+        # (only CTRL_C/CTRL_BREAK events); the diagnostics above are the
+        # point of this handler, so just exit with the conventional code.
+        os._exit(128 + signum)
     os.kill(os.getpid(), signum)
 
 # Enable faulthandler for SIGSEGV/SIGABRT/SIGFPE/SIGBUS tracebacks
 faulthandler.enable(file=sys.stderr, all_threads=True)
-# Trap signals that would normally kill silently
-for _sig in (signal.SIGTERM, signal.SIGHUP):
-    signal.signal(_sig, _signal_handler)
+# Trap signals that would normally kill silently. SIGHUP doesn't exist on
+# Windows — build the tuple defensively instead of naming it directly.
+for _sig in (signal.SIGTERM, getattr(signal, "SIGHUP", None)):
+    if _sig is not None:
+        signal.signal(_sig, _signal_handler)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

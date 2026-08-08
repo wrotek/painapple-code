@@ -10,6 +10,7 @@ import json
 import logging
 import re
 import signal
+import sys
 from typing import Optional
 
 from painapple_code import bridge_paths
@@ -21,12 +22,19 @@ MAX_LINE_SIZE = 10 * 1024 * 1024  # 10MB limit for single JSON line (Claude thin
 
 # Exit codes that indicate normal termination (not errors)
 # Python subprocess: negative signal number (-15 for SIGTERM, -9 for SIGKILL)
-# Shell convention: 128 + signal number (143 for SIGTERM, 137 for SIGKILL)
-NORMAL_TERMINATION_CODES = frozenset({
-    -signal.SIGTERM, 128 + signal.SIGTERM,  # -15, 143: graceful stop
-    -signal.SIGKILL, 128 + signal.SIGKILL,  # -9, 137: forced kill (after timeout)
-    -signal.SIGINT, 128 + signal.SIGINT,    # -2, 130: Ctrl+C / interrupt
-})
+# Shell convention: 128 + signal number (137 for SIGKILL, 130 for SIGINT)
+# SIGKILL doesn't exist on Windows — resolve via getattr and skip absent
+# signals (module must import on win32; see the 2026-08-08 windows plan).
+# On win32 add 0xC000013A (STATUS_CONTROL_C_EXIT as the unsigned DWORD
+# Popen reports): the CTRL_C/CTRL_BREAK death code. Deliberately NOT
+# adding 1, even though terminate() exits with it — 1 is also the generic
+# error exit, and treating it as normal would mask real crashes.
+NORMAL_TERMINATION_CODES = frozenset(
+    code
+    for name in ("SIGTERM", "SIGKILL", "SIGINT")
+    if (_sig := getattr(signal, name, None)) is not None
+    for code in (-_sig, 128 + _sig)
+) | ({0xC000013A} if sys.platform == "win32" else set())
 
 def get_claude_binary() -> str:
     """Get the Claude CLI binary path from config or default to 'claude'.
