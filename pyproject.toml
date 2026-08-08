@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "painapple-code"
-description = "WebUI wrapper for Claude Code with auto journal - PWA frontend, REST + WebSocket API"
+description = "Self-hosted remote UI for Claude Code that journals every turn - background AI summaries become shadow-git commits and a queryable DuckDB history"
 readme = "README.md"
 requires-python = ">=3.12"
 # version is resolved at build time by setuptools-scm from git tags;
