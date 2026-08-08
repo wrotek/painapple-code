@@ -20,7 +20,7 @@ pAInapple Code hands a browser tab full control of a Claude Code instance on you
 
 **Network defaults are conservative.** The server binds `127.0.0.1` over plain HTTP; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or VPN; for anything public, put your own reverse proxy in front. → [Security notes](https://painapple.ai/getting-started/security/)
 
-**This is an MVP, and heavily "vibe-coded".** Most of the code was written by AI under my direction and review. I've put real effort into the security model, but I can't guarantee it — one more reason to take the isolation advice above seriously. A rewrite to a more rigorous standard is planned; for now the priority is implementing and testing ideas.
+**This is an MVP, and heavily "vibe-coded".** Most of the code was written by AI. I can't guarantee the security model — one more reason to take the isolation advice above seriously. A rewrite to a more rigorous standard is planned; for now the priority is implementing and testing ideas.
 
 ## Security model
 
