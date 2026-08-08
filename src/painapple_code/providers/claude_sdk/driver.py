@@ -32,6 +32,7 @@ import os
 import shutil
 import signal
 import sys
+import threading
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -208,8 +209,21 @@ async def _amain(args: argparse.Namespace) -> int:
         exit_code = code
         stop.set()
 
-    loop.add_signal_handler(signal.SIGINT, _shutdown, 130)
-    loop.add_signal_handler(signal.SIGTERM, _shutdown, 143)
+    if sys.platform == "win32":
+        # Proactor has no add_signal_handler (NotImplementedError — winvm
+        # probe). signal.signal works: CPython's wakeup channel rouses the
+        # loop, and call_soon_threadsafe hops back onto it. The bridge's
+        # interrupt_process() sends CTRL_BREAK → SIGBREAK here (SIGTERM is
+        # undeliverable on win32; parent terminate() covers that path).
+        def _sig_handler(signum, frame):
+            loop.call_soon_threadsafe(
+                _shutdown, 130 if signum == signal.SIGINT else 143
+            )
+        signal.signal(signal.SIGINT, _sig_handler)
+        signal.signal(signal.SIGBREAK, _sig_handler)
+    else:
+        loop.add_signal_handler(signal.SIGINT, _shutdown, 130)
+        loop.add_signal_handler(signal.SIGTERM, _shutdown, 143)
 
     # With a custom transport, ClaudeSDKClient skips its own
     # `permission_prompt_tool_name="stdio"` injection (it only applies it to
@@ -230,12 +244,39 @@ async def _amain(args: argparse.Namespace) -> int:
 
     async def stdin_loop() -> None:
         """Forward each canonical user-message line from the bridge into the SDK."""
-        reader = asyncio.StreamReader(limit=MAX_STDIN_LINE)
-        await loop.connect_read_pipe(
-            lambda: asyncio.StreamReaderProtocol(reader), sys.stdin
-        )
+        if sys.platform == "win32":
+            # connect_read_pipe on an inherited stdin HALF-works under
+            # Proactor: it connects, then the first read dies with
+            # OSError WinError 6 and leaves stdin unusable (winvm probe
+            # 3). Don't attempt it — a daemon thread doing blocking
+            # readline feeds the loop through an asyncio queue instead.
+            queue: asyncio.Queue = asyncio.Queue()
+
+            def _pump() -> None:
+                try:
+                    while True:
+                        raw = sys.stdin.buffer.readline()
+                        loop.call_soon_threadsafe(queue.put_nowait, raw)
+                        if not raw:  # EOF — bridge closed our stdin
+                            return
+                except Exception:
+                    loop.call_soon_threadsafe(queue.put_nowait, b"")
+
+            threading.Thread(target=_pump, daemon=True, name="stdin-pump").start()
+
+            async def _readline() -> bytes:
+                return await queue.get()
+        else:
+            reader = asyncio.StreamReader(limit=MAX_STDIN_LINE)
+            await loop.connect_read_pipe(
+                lambda: asyncio.StreamReaderProtocol(reader), sys.stdin
+            )
+
+            async def _readline() -> bytes:
+                return await reader.readline()
+
         while True:
-            line = await reader.readline()
+            line = await _readline()
             if not line:
                 # Bridge closed stdin. Mirror `claude -p` one-shot semantics:
                 # close the CLI's stdin and let it finish in-flight work; the
