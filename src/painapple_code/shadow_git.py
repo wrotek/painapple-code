@@ -23,7 +23,6 @@ This file holds the public `ShadowGit` class plus the singleton accessor and
 """
 
 import asyncio
-import fcntl
 import json
 import logging
 from datetime import datetime, timezone
@@ -39,6 +38,7 @@ from painapple_code.bridge_paths import (
     get_summary_model,
 )
 from painapple_code.turn_tracker import TurnTracker
+from painapple_code.utils.file_lock import FileLock
 
 # Public re-exports — kept under shadow_git.* so downstream importers
 # (services/, routes/, shadow_parser.py, welcome_search.py) don't change.
@@ -433,20 +433,16 @@ class ShadowGit(_SummaryMixin):
         self.project_dir.mkdir(parents=True, exist_ok=True)
 
         lock_file = self.tracking_file.with_suffix(".lock")
-        with open(lock_file, "w") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
-                data = self._load_tracking()
+        with FileLock(lock_file):
+            data = self._load_tracking()
 
-                if file_path not in data:
-                    data[file_path] = []
-                if session_id not in data[file_path]:
-                    data[file_path].append(session_id)
+            if file_path not in data:
+                data[file_path] = []
+            if session_id not in data[file_path]:
+                data[file_path].append(session_id)
 
-                self._save_tracking(data)
-                logger.debug(f"Tracked modification: {file_path} by {session_id[:8]}")
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            self._save_tracking(data)
+            logger.debug(f"Tracked modification: {file_path} by {session_id[:8]}")
 
     def _cleanup_tracking(self, data: dict, files: list[str], sessions: set[str]):
         """Remove sessions from tracking for committed files."""
