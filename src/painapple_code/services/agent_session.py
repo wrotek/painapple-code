@@ -30,7 +30,12 @@ from painapple_code.turn_tracker import (
     TurnTracker, summarize_edit_output, summarize_write_output,
 )
 from painapple_code.utils.agent_cli import read_line_unlimited
-from painapple_code.utils.proc import pid_alive
+from painapple_code.utils.proc import (
+    interrupt_process,
+    pid_alive,
+    popen_kwargs_detached,
+    resolve_binary,
+)
 from painapple_code.utils.file_paths import (
     extract_file_links, add_verified_files_to_message, parse_edit_line_number,
 )
@@ -748,13 +753,15 @@ class AgentBridge:
 
             try:
                 session.process = await asyncio.create_subprocess_exec(
-                    *cmd,
+                    resolve_binary(cmd[0]), *cmd[1:],
                     stdin=asyncio.subprocess.DEVNULL if ephemeral else asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=session.cwd,
                     env=subprocess_env,
-                    start_new_session=True,  # isolate from server's process group
+                    # POSIX: own session; win32: own process group (needed
+                    # for CTRL_BREAK interrupts — see utils/proc.py)
+                    **popen_kwargs_detached(),
                 )
             except FileNotFoundError:
                 # Raised both for a missing executable and a missing cwd.
@@ -969,7 +976,7 @@ class AgentBridge:
                         logger.info(f"Auto-stopping agent for {tool} user input")
                         session._interrupting = True
                         try:
-                            session.process.send_signal(signal.SIGINT)
+                            interrupt_process(session.process)
                         except (ProcessLookupError, OSError):
                             pass
 
@@ -1292,7 +1299,7 @@ class AgentBridge:
                 await session.safe_send(self._auth_error_frame(session, 401))
                 session._interrupting = True
                 try:
-                    session.process.send_signal(signal.SIGINT)
+                    interrupt_process(session.process)
                 except (ProcessLookupError, OSError, AttributeError):
                     pass
 
@@ -2533,13 +2540,13 @@ class AgentBridge:
                 session._interrupting = False
 
         try:
-            logger.info("Interrupting Claude with SIGINT")
+            logger.info("Interrupting agent (SIGINT / CTRL_BREAK on win32)")
             session._interrupting = True
             # Cancel any pending API retry
             session._api_retry_pending = False
             session._api_error_detected = False
             session._api_retry_count = 0
-            session.process.send_signal(signal.SIGINT)
+            interrupt_process(session.process)
 
             # Notify client that we're stopping
             await session.safe_send({

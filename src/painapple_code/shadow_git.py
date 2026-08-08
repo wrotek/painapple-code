@@ -1181,8 +1181,9 @@ Files: {', '.join(shadow.get('files_touched', [])[:10])}
                 from painapple_code.providers import get_provider
                 subprocess_env = build_token_env(token_profile)
 
+                from painapple_code.utils.proc import resolve_binary
                 proc = await asyncio.create_subprocess_exec(
-                    get_provider("claude").binary(),
+                    resolve_binary(get_provider("claude").binary()),
                     "--resume", provider_session_id,
                     "--fork-session",
                     "--model", get_summary_model(),

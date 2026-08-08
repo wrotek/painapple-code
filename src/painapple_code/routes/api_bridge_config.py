@@ -87,7 +87,10 @@ async def _engine_path_payload(p) -> dict:
             # block every other request for up to 5s.
             result = await asyncio.to_thread(
                 subprocess.run,
-                [current, "--version"],
+                # `resolved`, not `current`: on win32 a bare npm-shim name
+                # ("claude" → claude.cmd) isn't spawnable, but the full
+                # path shutil.which returned is.
+                [resolved, "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -250,7 +253,9 @@ async def get_engine_auth(provider_name: str):
             # Off the event loop — a hung status probe must not block requests.
             result = await asyncio.to_thread(
                 subprocess.run,
-                [current, *p.auth_status_args],
+                # `resolved` for the same reason as the version probe:
+                # bare .cmd shim names aren't spawnable on win32.
+                [resolved, *p.auth_status_args],
                 capture_output=True,
                 text=True,
                 timeout=10,

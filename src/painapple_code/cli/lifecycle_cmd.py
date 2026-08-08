@@ -122,21 +122,23 @@ def _wait_gone(pid, timeout):
 
 
 def _kill(label, pid):
+    # psutil, not raw signals: SIGKILL doesn't exist on win32 and os.kill
+    # semantics differ there; terminate() is SIGTERM on POSIX and
+    # TerminateProcess on Windows.
+    import psutil
+    from painapple_code.utils.proc import kill_pid
     try:
-        os.kill(pid, signal.SIGTERM)
-    except ProcessLookupError:
+        psutil.Process(pid).terminate()
+    except psutil.NoSuchProcess:
         say(f"{DIM}{label}: not running{RESET}")
         return 0
-    except PermissionError:
+    except psutil.AccessDenied:
         err(f"{label}: pid {pid} belongs to another user — can't stop it")
         return 1
     if not _wait_gone(pid, STOP_TIMEOUT):
         warn(f"{label}: pid {pid} ignored SIGTERM for "
              f"{STOP_TIMEOUT}s — sending SIGKILL")
-        try:
-            os.kill(pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        kill_pid(pid)
         if not _wait_gone(pid, 3):
             err(f"{label}: pid {pid} would not die")
             return 1
@@ -205,10 +207,11 @@ def _spawn_and_wait(label, argv, *, env, cwd, home, host, port):
     with open(console, "ab") as out:
         out.write(f"\n--- painapple start {label} ---\n".encode())
         out.flush()
+        from painapple_code.utils.proc import popen_kwargs_detached
         proc = subprocess.Popen(
             argv, stdout=out, stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL, env=env, cwd=cwd,
-            start_new_session=True)
+            **popen_kwargs_detached(fully_detached=True))
 
     info(f"Starting {label} (pid {proc.pid}) on {host}:{port} …")
     probe_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host

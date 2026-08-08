@@ -146,13 +146,14 @@ async def fetch_context_tokens(cwd: str, provider_session_id: str = None, token_
         from painapple_code.utils.token_profiles import build_env as build_token_env
         subprocess_env = build_token_env(token_profile)
 
+        from painapple_code.utils.proc import popen_kwargs_detached, resolve_binary
         process = await asyncio.create_subprocess_exec(
-            *args,
+            resolve_binary(args[0]), *args[1:],
             cwd=cwd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=subprocess_env,
-            start_new_session=True,  # isolate from server's process group
+            **popen_kwargs_detached(),  # isolate from server's process group
         )
 
         stdout, stderr = await asyncio.wait_for(
