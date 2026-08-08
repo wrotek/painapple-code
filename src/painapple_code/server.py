@@ -333,7 +333,22 @@ from painapple_code.routes.api_sessions import router as sessions_router
 from painapple_code.routes.api_session_stash import router as session_stash_router
 from painapple_code.routes.api_session_welcome import router as session_welcome_router
 from painapple_code.routes.api_logs import router as logs_router
-from painapple_code.routes.api_terminal import router as terminal_router
+
+# The PTY terminal is POSIX-only (pty/fcntl/termios at module top). On
+# native Windows the import fails — degrade to "no terminal widget"
+# instead of taking the whole server down. TERMINAL_AVAILABLE feeds the
+# client via INSTANCE_CONFIG so the UI can hide the widget/shortcut.
+# Phase 3 of docs-ai/plans/2026-08-08-windows-native-port.md replaces
+# this with a ConPTY backend.
+try:
+    from painapple_code.routes.api_terminal import router as terminal_router
+    TERMINAL_AVAILABLE = True
+except ImportError as _terminal_err:
+    terminal_router = None
+    TERMINAL_AVAILABLE = False
+    logger.warning(
+        f"Terminal disabled: PTY support unavailable on this platform ({_terminal_err})"
+    )
 
 from painapple_code.routes.api_upload import router as upload_router
 from painapple_code.routes.api_exec import router as exec_router
@@ -373,7 +388,8 @@ app.include_router(sessions_router)
 app.include_router(session_stash_router)
 app.include_router(session_welcome_router)
 app.include_router(logs_router)
-app.include_router(terminal_router)
+if terminal_router is not None:
+    app.include_router(terminal_router)
 
 app.include_router(upload_router)
 app.include_router(exec_router)
@@ -1428,6 +1444,10 @@ def main(argv=None):
     )
     app.state.renderers_enabled = renderers_enabled
     instance_config["renderers_enabled"] = renderers_enabled
+
+    # PTY terminal availability (False on native Windows until the ConPTY
+    # backend lands) — client hides the terminal widget/shortcut on it.
+    instance_config["terminal_available"] = TERMINAL_AVAILABLE
 
     # Resolve the trusted-origin set now that host/port/--public-origin are
     # known. The HTTP + WebSocket Origin checks read this.

@@ -143,6 +143,8 @@ preview:
 # ============================================================
 toast:
   copied: "Copied"
+  terminal_unavailable: "Terminal isn't available on this server (Windows — coming with the ConPTY port)"
+  terminal_unavailable_login: "No terminal on this server — run the login command in a console on the server machine"
   draft_saved: "Draft saved"
   draft_save_failed: "Couldn't save draft"
   session_id_copied: "Session ID copied"

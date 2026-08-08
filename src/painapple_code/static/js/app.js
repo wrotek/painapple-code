@@ -6,7 +6,7 @@
 import './auth-fetch.js';
 import S from './strings.js';
 import { CONFIG, COMMANDS, HAS_PHYSICAL_KEYBOARD, debug, setServerHome, setServerWorkspace, INSTANCE } from './config.js';
-import { $, genId, escapeHtml, formatTime, formatRelativeTime, Storage, highlightThinkingKeywords, hasThinkingKeywords } from './utils.js';
+import { $, genId, escapeHtml, formatTime, formatRelativeTime, Storage, highlightThinkingKeywords, hasThinkingKeywords, terminalAvailable } from './utils.js';
 import { isThinkingKeywordsHighlightingEnabled } from './widgets/config-widget.js';
 import { Session, SessionManager } from './session.js';
 import { MarkdownRenderer, AutocompleteUI } from './components.js';
@@ -907,6 +907,10 @@ class App {
 
     /** @delegate TabController */
     createTerminal() {
+        if (!terminalAvailable()) {
+            showToast(S.toast.terminal_unavailable);
+            return;
+        }
         try {
             this.tabCtrl.openTerminalWidgetTab();
         } catch (e) {
@@ -924,6 +928,12 @@ class App {
      * `claude auth login`.
      */
     async openLoginTerminal(command = null) {
+        if (!terminalAvailable()) {
+            // No PTY on this server (native Windows) — the user runs the
+            // login command in their own console instead.
+            showToast(S.toast.terminal_unavailable_login);
+            return;
+        }
         try {
             if (!command) {
                 const engine = this.activeSession?.provider || this.activeSession?.pendingProvider;
@@ -1486,6 +1496,10 @@ class App {
     }
 
     toggleTerminalPanel() {
+        if (!terminalAvailable()) {
+            showToast(S.toast.terminal_unavailable);
+            return;
+        }
         WidgetManager.toggle('terminal');
     }
 

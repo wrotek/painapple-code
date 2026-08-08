@@ -9,6 +9,12 @@ export const $$ = (sel) => document.querySelectorAll(sel);
 // Generate unique ID
 export const genId = () => 'sess_' + Math.random().toString(36).substr(2, 9);
 
+// PTY terminal capability — false only when the server says so (native
+// Windows bridge, no ConPTY backend yet). Absent flag (older server)
+// means available.
+export const terminalAvailable = () =>
+    window.INSTANCE_CONFIG?.terminal_available !== false;
+
 // Escape HTML to prevent XSS
 export const escapeHtml = (text) => {
     const div = document.createElement('div');
