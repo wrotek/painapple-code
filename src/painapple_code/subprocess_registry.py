@@ -24,6 +24,8 @@ from typing import Optional
 from enum import Enum
 from collections import deque
 
+from painapple_code.utils.proc import pid_alive
+
 logger = logging.getLogger("painapple-code.subprocess-registry")
 
 # Maximum history entries to keep (rolling buffer)
@@ -234,11 +236,9 @@ class SubprocessRegistry:
         dead_pids = []
 
         for pid in self._processes:
-            try:
-                # os.kill(pid, 0) checks if process exists without killing it
-                os.kill(pid, 0)
-            except OSError:
-                # Process doesn't exist
+            # psutil-backed: os.kill(pid, 0) is not a probe on Windows
+            # (sig 0 == CTRL_C_EVENT, succeeds for dead pids).
+            if not pid_alive(pid):
                 dead_pids.append(pid)
 
         # Unregister dead processes with KILLED status

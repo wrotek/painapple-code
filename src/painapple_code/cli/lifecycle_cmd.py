@@ -105,13 +105,11 @@ def _row_label(row):
 # ──── stop ───────────────────────────────────────────────────────────────
 
 def _alive(pid):
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True  # exists, owned by someone else
+    # psutil, not os.kill(pid, 0): the POSIX idiom lies on Windows (sig 0
+    # is CTRL_C_EVENT and succeeds even for dead pids). Same contract:
+    # exists → True, including processes owned by someone else.
+    from painapple_code.utils.proc import pid_alive
+    return pid_alive(pid)
 
 
 def _wait_gone(pid, timeout):

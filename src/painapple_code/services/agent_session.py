@@ -30,6 +30,7 @@ from painapple_code.turn_tracker import (
     TurnTracker, summarize_edit_output, summarize_write_output,
 )
 from painapple_code.utils.agent_cli import read_line_unlimited
+from painapple_code.utils.proc import pid_alive
 from painapple_code.utils.file_paths import (
     extract_file_links, add_verified_files_to_message, parse_edit_line_number,
 )
@@ -562,13 +563,7 @@ class AgentBridge:
 
                 # Validate process state - fix stale is_running if process died
                 if session.is_running:
-                    process_alive = False
-                    if session.process:
-                        try:
-                            os.kill(session.process.pid, 0)
-                            process_alive = True
-                        except (OSError, ProcessLookupError):
-                            pass
+                    process_alive = bool(session.process) and pid_alive(session.process.pid)
 
                     if not process_alive:
                         logger.warning(

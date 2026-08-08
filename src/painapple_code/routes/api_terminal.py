@@ -21,6 +21,8 @@ import signal
 import struct
 import termios
 import time
+
+from painapple_code.utils.proc import pid_alive
 from datetime import datetime
 from pathlib import Path
 
@@ -116,7 +118,8 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
         pid = term_session["pid"]
 
         try:
-            os.kill(pid, 0)
+            if not pid_alive(pid):
+                raise ProcessLookupError(f"terminal pid {pid} gone")
             was_inactive = not term_session.get("active")
             logger.info(f"Reconnecting to existing terminal: pid={pid}, was_inactive={was_inactive}")
 
@@ -447,13 +450,7 @@ async def list_terminals():
     result = []
     for session_id, term in terminal_sessions.items():
         pid = term.get("pid")
-        alive = False
-        if pid:
-            try:
-                os.kill(pid, 0)
-                alive = True
-            except OSError:
-                pass
+        alive = pid_alive(pid) if pid else False
 
         result.append({
             "session": session_id,
@@ -491,13 +488,7 @@ async def list_active_sessions():
 
         # Validate process state
         if session.is_running:
-            process_alive = False
-            if session.process:
-                try:
-                    os.kill(session.process.pid, 0)
-                    process_alive = True
-                except (OSError, ProcessLookupError):
-                    pass
+            process_alive = bool(session.process) and pid_alive(session.process.pid)
 
             if not process_alive:
                 logger.warning(
