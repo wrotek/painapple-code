@@ -18,6 +18,7 @@ import signal
 import time
 import traceback
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
 
@@ -1628,10 +1629,18 @@ class AgentBridge:
     def _track_file_modification(self, session: AgentSession, tool_id: str, tool_name: str, tool_input: dict):
         """Track Edit/Write file modifications for shadow git and turn tracker."""
         file_path = tool_input.get("file_path")
-        # Make path relative to cwd (ensure directory boundary match)
-        cwd_prefix = session.cwd.rstrip("/") + "/"
-        if session.cwd and file_path.startswith(cwd_prefix):
-            file_path = file_path[len(cwd_prefix):]
+        # Make path relative to cwd (directory-boundary safe). pathlib, not
+        # string-prefix: `cwd.rstrip("/") + "/"` never matches Windows
+        # `C:\...` paths, which recorded every file under its ABSOLUTE
+        # path and broke shadow-git keying. Forward slashes always — git
+        # pathspecs and the shadow store use them on every platform.
+        if session.cwd and file_path:
+            try:
+                p, cwd = Path(file_path), Path(session.cwd)
+                if p.is_absolute() and p.is_relative_to(cwd):
+                    file_path = p.relative_to(cwd).as_posix()
+            except (ValueError, OSError):
+                pass  # foreign/malformed path — record as given, as before
         session.turn_tracker.add_modified_file(file_path)
 
         # Track in shadow git (skip for comment threads)
