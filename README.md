@@ -206,10 +206,11 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Everythi
 
 This is an MVP — there are tradeoffs.
 
-1. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
-2. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
-3. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
-4. **Codex engine** — functional, but much newer than the Claude path and not yet as thoroughly tested.
+1. **No Windows support (server side)** — the bridge currently runs on Linux and macOS only. A few modules import POSIX-only pieces (`pty`/`termios`/`fcntl`) at module level, so the package does not even import on Windows yet; process control also assumes POSIX process groups and signals. Work on a ConPTY/`pywinpty` terminal backend and Windows-safe file locking is underway — until then, use WSL2 or the Docker image. The web client itself works fine from a Windows browser.
+2. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
+3. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
+4. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
+5. **Codex engine** — functional, but much newer than the Claude path and not yet as thoroughly tested.
 
 ## License
 
