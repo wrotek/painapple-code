@@ -324,7 +324,9 @@ def _adopt_root_docker(root, notes):
             notes.append(f"adopted the root docker deployment → "
                          f"profiles/{target} (mode: docker)")
 
-    legacy_yaml.rename(legacy_yaml.with_suffix(".yaml.migrated"))
+    # os.replace: a re-run after a partial migration already left a
+    # .migrated file behind — Path.rename would raise on win32 then.
+    os.replace(legacy_yaml, legacy_yaml.with_suffix(".yaml.migrated"))
     notes.append("root docker.yaml → docker.yaml.migrated (superseded by "
                  "serve.yaml + profiles)")
 

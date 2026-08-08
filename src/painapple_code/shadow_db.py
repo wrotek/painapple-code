@@ -21,6 +21,7 @@ Usage:
 
 import asyncio
 import logging
+import os
 import threading
 import time
 import uuid
@@ -149,7 +150,9 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
         wal_path = Path(f"{self.db_path}.wal")
         if wal_path.exists():
             backup = wal_path.with_suffix(f".wal.corrupt-{int(_time.time())}")
-            wal_path.rename(backup)
+            # os.replace: Path.rename raises on win32 if the dest exists
+            # (same-second double recovery would collide on the timestamp).
+            os.replace(wal_path, backup)
             logger.warning(f"Moved corrupt WAL to {backup.name} — some recent turns may be lost")
             con = duckdb.connect(str(self.db_path))
             con.execute("SELECT 1")

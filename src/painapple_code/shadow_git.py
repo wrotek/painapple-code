@@ -25,6 +25,7 @@ This file holds the public `ShadowGit` class plus the singleton accessor and
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -411,7 +412,9 @@ class ShadowGit(_SummaryMixin):
         """Save active-modifications.json atomically."""
         temp = self.tracking_file.with_suffix(".tmp")
         temp.write_text(json.dumps(data, indent=2))
-        temp.rename(self.tracking_file)
+        # os.replace, not rename: rename over an existing dest raises
+        # FileExistsError on Windows — every save after the first.
+        os.replace(temp, self.tracking_file)
 
     def track_modification(self, file_path: str, session_id: str):
         """
