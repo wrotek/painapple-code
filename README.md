@@ -21,20 +21,18 @@ Right now it's a PWA, but desktop and mobile apps are in development.
 
 The embedded terminal is a real PTY, and anything Claude is approved to run executes as the user who started the server — prompt injection and poisoned packages are real risks for *any* coding agent.
 
-**Network defaults are conservative.** The server binds `127.0.0.1` over plain HTTP; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or behind a personal VPN. I strongly discourage exposing it on a public interface. → [Security notes](https://painapple.ai/getting-started/security/)
+The server binds `127.0.0.1` over plain HTTP by default; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or behind a personal VPN. I strongly discourage exposing it on a public interface.
 
-What that means in practice:
-
-- **Loopback by default.** The server binds `127.0.0.1`. Keep it there for local use.
-- **Single-user, not multi-tenant.** It is not hardened for untrusted multi-user hosting. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead.
+It is single-user, not multi-tenant. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead. → [Security notes](https://painapple.ai/getting-started/security/)
 
 ### Simple isolation with the built-in Docker/Podman instance manager
 
-The safest way to hand an agent the autonomous permission modes is to give it a container instead of your user account. That's built in — you never have to write a `docker run` line. `--in-docker` takes the invocation you would have run on the host and runs it inside the prebuilt image instead, with only the workspace you point it at mounted in:
+If you have Docker or Podman installed, add the `--in-docker` flag: it automatically creates and runs a container from an image that already has the basic development tools, the Claude Code CLI, and pAInapple Code itself.
 
 ```bash
 pipx install painapple-code
-painapple --in-docker          # sandbox the current directory, foreground
+painapple --in-docker                     # sandbox the current directory, foreground
+painapple --in-docker --workspace ~/dev/  # sandbox ~/dev/ instead, foreground
 ```
 
 For a sandbox you come back to, create a named instance. The wizard asks for the workspace, port, and container settings; after that the usual verbs manage it:
@@ -47,7 +45,7 @@ painapple password myapp       # print its login URL
 painapple stop myapp
 ```
 
-Docker and Podman are both auto-detected (or point at a custom binary in `painapple setup`). The image is pulled on first use and `painapple pull` updates it, instance state lives in its own named volume, and the in-container Claude CLI gets its own login — seed it from the host once, or run `painapple claude-login myapp`. Full reference: [Docker & container mode](https://painapple.ai/getting-started/install-docker/).
+Full reference: [Docker & container mode](https://painapple.ai/getting-started/install-docker/).
 
 Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
@@ -82,14 +80,14 @@ Plain `pip install painapple-code` into a venv works too — see the [pip/pipx g
 
 ### Containers: `painapple --in-docker`
 
-For the autonomous permission modes, run pAInapple Code isolated. Docker is a built-in run mode — the same invocation, sandboxed in the prebuilt image:
+If you have Docker or Podman installed, add the `--in-docker` flag and the same invocation runs sandboxed in a container instead — on a prebuilt image that already has the basic development tools, the Claude Code CLI, and pAInapple Code itself:
 
 ```bash
 pipx install painapple-code
 painapple --in-docker       # serve the current directory, containerized
 ```
 
-The prebuilt image (Python, Node, and the Claude Code CLI bundled) is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted. Docker and Podman are auto-detected. For a durable named sandbox, `painapple setup myapp` (pick "Docker" as the run mode) then `painapple start myapp`. Raw `docker run` / compose / Podman recipes and source builds: [Docker install guide](https://painapple.ai/getting-started/install-docker/).
+The image is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted. Docker and Podman are auto-detected. For a durable named sandbox, `painapple setup myapp` (pick "Docker" as the run mode) then `painapple start myapp`. Raw `docker run` / compose / Podman recipes and source builds: [Docker install guide](https://painapple.ai/getting-started/install-docker/).
 
 ### Desktop & mobile apps (in development)
 
