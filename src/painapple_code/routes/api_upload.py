@@ -18,6 +18,7 @@ from PIL import Image
 
 from painapple_code.session_store import SessionStore
 from painapple_code.bridge_paths import BRIDGE_HOME
+from painapple_code.utils.file_paths import is_reserved_dos_name
 
 logger = logging.getLogger(__name__)
 
@@ -149,16 +150,32 @@ async def upload_image(file: UploadFile = File(...), session: str = None):
     }
 
 
-# Reserved DOS device names. Applied on EVERY platform, not just win32:
-# uploads are shared (synced dirs, a repo later cloned on Windows), and a
-# Linux-hosted bridge shouldn't be able to mint a file its Windows users
-# can't open. `NUL.txt` addresses the device just like `NUL`, so the check
-# is on the stem.
-_WIN_RESERVED = frozenset(
-    {"CON", "PRN", "AUX", "NUL"}
-    | {f"COM{i}" for i in range(1, 10)}
-    | {f"LPT{i}" for i in range(1, 10)}
-)
+# Longest filename we hand to the filesystem. NAME_MAX is 255 on ext4 and
+# NTFS; 200 leaves room for the "-2", "-3" de-duplication suffixes callers
+# append.
+_MAX_NAME_LEN = 200
+
+
+def _truncate_name(name: str) -> str:
+    """Clamp to _MAX_NAME_LEN, keeping the extension when one can fit.
+
+    PurePosixPath, not Path, for the same reason as the basename split
+    below: nothing here should vary with the host OS. (No separators or
+    colons survive to this point, so the two flavors agree — but pinning
+    it keeps that true if the rules above ever change.)
+
+    The old form was `name[:200 - len(ext)] + ext`, which for any suffix
+    longer than 200 made the slice bound negative — `name[:-51]` chops the
+    WRONG end and still returns an over-limit name (a 256-char input came
+    back 251 chars). A suffix that alone busts the budget isn't an
+    extension in any useful sense, so it gets clamped like any other text.
+    """
+    if len(name) <= _MAX_NAME_LEN:
+        return name
+    ext = PurePosixPath(name).suffix
+    if len(ext) > _MAX_NAME_LEN:
+        return name[:_MAX_NAME_LEN]
+    return PurePosixPath(name).stem[:_MAX_NAME_LEN - len(ext)] + ext
 
 
 def sanitize_filename(filename: str) -> str:
@@ -185,20 +202,31 @@ def sanitize_filename(filename: str) -> str:
     # upload, and a way to smuggle a second name past a uniqueness check.
     filename = filename.rstrip(". ")
 
-    # An alternate-data-stream suffix is gone with ':' above; the reserved
-    # names still need their own check, before length truncation so that
-    # truncating can't create one.
-    if filename.split(".")[0].upper() in _WIN_RESERVED:
-        filename = "_" + filename
+    # Length first, reserved-device check AFTER it. The other order is what
+    # the comment here used to claim was safe ("before length truncation so
+    # that truncating can't create one") and it was exactly backwards:
+    # truncation is the step that CAN create one. `con` + 10 filler chars +
+    # a 197-char extension passed the guard on stem "conxxxxxxxxxx", then
+    # truncated to "con.yyy…" — a name Windows resolves to the CON console
+    # device, so the upload's write_bytes went to the console.
+    filename = _truncate_name(filename)
+    filename = filename.rstrip(". ")
 
-    if len(filename) > 200:
-        # PurePosixPath, not Path, for the same reason as the basename above:
-        # nothing here should vary with the host OS. (No separators or colons
-        # survive to this point, so the two flavors agree — but pinning it
-        # keeps that true if the rules above ever change.)
-        name, ext = PurePosixPath(filename).stem, PurePosixPath(filename).suffix
-        filename = name[:200 - len(ext)] + ext
-        filename = filename.rstrip(". ")
+    # An alternate-data-stream suffix is gone with ':' above; device names
+    # need their own check. Shared with the read-path screen in
+    # utils.file_paths so the two can't disagree about what a device is —
+    # this file's private copy had already drifted, accepting "nul .txt"
+    # (Windows strips the trailing space and opens the device) that
+    # is_path_allowed_for_read denies.
+    #
+    # Applied on EVERY platform, not just win32: uploads are shared (synced
+    # dirs, a repo later cloned on Windows), and a Linux-hosted bridge
+    # shouldn't be able to mint a file its Windows users can't open.
+    if is_reserved_dos_name(filename):
+        # The prefix can push a just-at-limit name one over, so re-clamp.
+        # This can't loop: every truncation of "_…" still starts with "_",
+        # which is not a device name.
+        filename = _truncate_name("_" + filename).rstrip(". ")
 
     if not filename or filename in ('.', '..'):
         raise ValueError("Invalid filename after sanitization")
