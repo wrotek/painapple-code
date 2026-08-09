@@ -1,6 +1,6 @@
 # pAInapple Code
 
-A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server runs on your machine and drives Claude Code through the official Agent SDK; you connect from any browser, including mobile. [OpenAI Codex CLI](https://painapple.ai/guides/engines/) support is experimental.
+A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server runs on your machine and drives Claude Code through the official Agent SDK. [OpenAI Codex CLI](https://painapple.ai/guides/engines/) support is experimental.
 Inspired by [code-server](https://github.com/coder/code-server).
 
 Thanks to the [**Auto Journal**](#auto-journal-shadow-git), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. It's not just for you: the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
@@ -13,19 +13,15 @@ Right now it's a PWA, but desktop and mobile apps are in development.
 
 ## Before you start
 
-pAInapple Code hands a browser tab full control of a Claude Code instance on your machine. Four things to know before the quick start:
+**Network defaults are conservative.** The server binds `127.0.0.1` over plain HTTP; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network; for anything public, put your own reverse proxy in front and use VPN. → [Security notes](https://painapple.ai/getting-started/security/)
 
-**The default permission mode is Ask.** pAInapple Code drives Claude through the official **Agent SDK**; every tool call pauses on an approve/deny card — with a readable preview of the edit or command — until you decide. Less restrictive modes are opt-in, per session: **Accept Edits**, **Auto** (Claude's own classifier gates each call), **Plan** (read-only), and full bypass. Permission mode and model switch live, mid-turn, without restarting the session. → [Permissions guide](https://painapple.ai/guides/permissions-and-thinking/)
-
-**Isolate the autonomous modes.** The embedded terminal is a real PTY, and anything Claude is approved to run executes as the user who started the server — prompt injection and poisoned packages are real risks for *any* coding agent. Approval cards cover the interactive modes; for autonomous use, run pAInapple Code in a container or VM. `painapple --in-docker` (below) is the built-in way to do that.
-
-**Network defaults are conservative.** The server binds `127.0.0.1` over plain HTTP; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or VPN; for anything public, put your own reverse proxy in front. → [Security notes](https://painapple.ai/getting-started/security/)
-
-**This is an MVP, and heavily "vibe-coded".** Most of the code was written by AI. I can't guarantee the security model — one more reason to take the isolation advice above seriously. A rewrite to a more rigorous standard is planned; for now the priority is implementing and testing ideas.
+**This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I can't guarantee the security model — one more reason to take the isolation advice above seriously. A rewrite to a more rigorous standard is planned; for now the priority is implementing and testing ideas.
 
 ## Security model
 
-One sentence to internalize: **whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** The bridge exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user. Treat the password like an SSH key.
+**Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** The bridge exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user. Treat the password like an SSH key.
+
+The embedded terminal is a real PTY, and anything Claude is approved to run executes as the user who started the server — prompt injection and poisoned packages are real risks for *any* coding agent. Approval cards cover the interactive modes; for autonomous use, run pAInapple Code in a container or VM. `painapple --in-docker` (below) is the built-in way to do that.
 
 What that means in practice:
 
