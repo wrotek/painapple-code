@@ -19,6 +19,7 @@ a local socket — worth knowing when reasoning about the trust boundary
 on a shared machine.
 """
 
+import codecs
 import logging
 import os
 import queue
@@ -30,6 +31,20 @@ from winpty import PtyProcess as _WinPtyProcess
 logger = logging.getLogger(__name__)
 
 _READ_CHUNK = 4096
+
+# The reader thread's queue is BOUNDED on purpose. A POSIX pty master
+# applies kernel-level write backpressure: when nobody drains it, the
+# shell blocks on write. An unbounded queue throws that away — and
+# api_terminal deliberately keeps a PTY alive after its tab closes
+# (the read task is cancelled, the pty is NOT), so the pump would read
+# and queue a chatty process forever. TERMINAL_SCROLLBACK_SIZE can't
+# bound that: the ring lives DOWNSTREAM of the queue.
+#
+# Full queue → the pump stops calling read() → pywinpty's own pump
+# blocks on its loopback socket → the ConPTY buffer fills → the shell
+# blocks, exactly like POSIX.
+_QUEUE_MAX_CHUNKS = 256          # ≈1 MB in flight at _READ_CHUNK
+_PUT_POLL = 0.25                 # wake-up interval so close() can't wedge
 
 
 def _pick_shell() -> str:
@@ -47,9 +62,13 @@ class WindowsPty:
         self._p = proc
         self.pid = proc.pid
         self.cwd = cwd
-        self._q: queue.Queue = queue.Queue()
+        self._q: queue.Queue = queue.Queue(maxsize=_QUEUE_MAX_CHUNKS)
         self._eof = False
         self._closed = False
+        self._reader_done = threading.Event()
+        # Incremental decoder for write(): see `write` for why the input
+        # side has to reassemble UTF-8 across calls.
+        self._wdec = codecs.getincrementaldecoder("utf-8")("replace")
         self._reader = threading.Thread(
             target=self._pump, name=f"pty-read-{self.pid}", daemon=True
         )
@@ -57,20 +76,39 @@ class WindowsPty:
 
     def _pump(self) -> None:
         """Blocking-read the pty until it closes; b'' sentinel marks EOF."""
-        while True:
+        try:
+            while not self._closed:
+                try:
+                    chunk = self._p.read(_READ_CHUNK)
+                except EOFError:
+                    break
+                except Exception as e:  # pty torn down under us (close/terminate)
+                    logger.debug(
+                        f"pty {self.pid} reader stopped: {type(e).__name__}: {e}")
+                    break
+                if not chunk:
+                    break
+                # pywinpty decodes to str (and already handles UTF-8 sequences
+                # split across reads); the rest of the stack speaks bytes.
+                data = chunk.encode("utf-8", "replace")
+                # Bounded put = backpressure, but never an unkillable block:
+                # the timeout loop re-checks _closed, so close() releases the
+                # thread within _PUT_POLL even with a full queue and no reader.
+                while not self._closed:
+                    try:
+                        self._q.put(data, timeout=_PUT_POLL)
+                        break
+                    except queue.Full:
+                        continue
+        finally:
+            # The flag is the authoritative EOF signal; the sentinel is only
+            # a fast path, and must never block (a full queue at teardown
+            # would otherwise strand the thread here forever).
+            self._reader_done.set()
             try:
-                chunk = self._p.read(_READ_CHUNK)
-            except EOFError:
-                break
-            except Exception as e:  # pty torn down under us (close/terminate)
-                logger.debug(f"pty {self.pid} reader stopped: {type(e).__name__}: {e}")
-                break
-            if not chunk:
-                break
-            # pywinpty decodes to str (and already handles UTF-8 sequences
-            # split across reads); the rest of the stack speaks bytes.
-            self._q.put(chunk.encode("utf-8", "replace"))
-        self._q.put(b"")
+                self._q.put_nowait(b"")
+            except queue.Full:
+                pass
 
     # ── output ────────────────────────────────────────────────────────
     def read(self, timeout: float = 0.1) -> bytes | None:
@@ -83,6 +121,12 @@ class WindowsPty:
         try:
             item = self._q.get(timeout=timeout)
         except queue.Empty:
+            # Queue drained AND the pump has finished → EOF, even if the
+            # b"" sentinel never fit (bounded queue, see _pump). Checked
+            # only on Empty, so queued output is always handed out first.
+            if self._reader_done.is_set():
+                self._eof = True
+                return b""
             return None
         if item == b"":
             self._eof = True
@@ -91,8 +135,34 @@ class WindowsPty:
 
     # ── input ─────────────────────────────────────────────────────────
     def write(self, data: bytes) -> None:
+        """Forward opaque bytes from the WebSocket to the shell.
+
+        pywinpty is str-only, verified in the 3.0.5 sources rather than
+        assumed: `PtyProcess.write(s)` → `_winpty.PTY.write(to_write: str)`
+        (typed `OsString` on the Rust side), and winpty-rs 1.0.6's
+        `base.rs` then does `encode_wide()` → `WideCharToMultiByte(CP_UTF8)`
+        → WriteFile. There is no bytes-accepting entry point, so whatever
+        str we hand over reaches the shell as its UTF-8 encoding.
+
+        Consequence, stated honestly: bytes that are not valid UTF-8
+        cannot be delivered through this backend at all — the naive
+        `data.decode("utf-8", "replace")` turned a 0x80 into U+FFFD and
+        thus into three wrong bytes (EF BF BD), and nothing about a
+        str-only API can turn it back into one right byte.
+
+        What IS fixable is the split-sequence case, which is the common
+        one: api_terminal forwards each binary WS frame straight in, so a
+        multi-byte character pasted across a frame boundary used to be
+        corrupted on BOTH sides of the split. An incremental decoder holds
+        an incomplete trailing sequence (≤3 bytes) until the next write
+        completes it, making that path byte-exact — matching
+        `PosixPty.write`'s `os.write(self._fd, data)` for all valid UTF-8.
+        """
+        text = self._wdec.decode(data)
+        if not text:
+            return          # nothing but a held-back partial sequence
         try:
-            self._p.write(data.decode("utf-8", "replace"))
+            self._p.write(text)
         except Exception as e:
             # Match the POSIX backend: a write to a dead pty is EOF, and
             # the WS loop already treats that as "terminal is over".

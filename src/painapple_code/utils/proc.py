@@ -77,15 +77,30 @@ def interrupt_process(process) -> None:
     raises ``ValueError: Unsupported signal: 2`` (verified on winvm).
 
     Raises ProcessLookupError for an already-dead child, like the direct
-    call did — callers keep their existing handling. A win32 ValueError
-    (signal genuinely unsendable) escalates to ``terminate()`` here, so
-    callers never need the win32-only except arm.
+    call did — callers keep their existing handling.
+
+    On win32 an unsendable CTRL_BREAK escalates to ``terminate()``, and
+    "unsendable" is BOTH shapes, not just ValueError:
+
+    * ``ValueError`` — Python refusing the signal number outright.
+    * ``OSError`` — ``GenerateConsoleCtrlEvent`` failing, which is the
+      realistic case: a bridge launched by ``painapple start NAME`` is
+      spawned with ``popen_kwargs_detached(fully_detached=True)``, i.e.
+      ``DETACHED_PROCESS`` — it has no console at all, so the call comes
+      back ``[WinError 6] The handle is invalid``. Catching only
+      ValueError meant the documented terminate() escalation never fired;
+      callers swallow OSError, so Stop was a silent no-op with the UI
+      stuck on "stopping".
+
+    Callers therefore still never need a win32-only except arm — but the
+    escalation itself can raise (a dead child, a permission problem), and
+    that surfaces as the OSError/ProcessLookupError they already handle.
     """
     if sys.platform == "win32":
         try:
             process.send_signal(signal.CTRL_BREAK_EVENT)
-        except ValueError:
-            logger.warning("CTRL_BREAK unsendable; terminating child instead")
+        except (ValueError, OSError) as e:
+            logger.warning(f"CTRL_BREAK unsendable ({e}); terminating child instead")
             process.terminate()
     else:
         process.send_signal(signal.SIGINT)
