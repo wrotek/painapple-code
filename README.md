@@ -45,6 +45,7 @@ Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURI
 
 ## Requirements
 
+- **Server:** Linux, macOS, or Windows 10/11 — natively, no WSL required. ([Windows notes](https://painapple.ai/getting-started/requirements/#windows-notes): install the Claude CLI with `irm https://claude.ai/install.ps1 | iex`, not npm.)
 - **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image bundles both.)
 - **Optional:** the [OpenAI Codex CLI](https://github.com/openai/codex), if you want the Codex engine.
 - **Client:** any modern browser with network access to the server.
@@ -86,7 +87,7 @@ Native desktop and mobile apps are in development — stay tuned.
 
 ## Authentication
 
-Every HTTP and WebSocket request needs a password. The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; mode 0600 either way), and logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest.
+Every HTTP and WebSocket request needs a password. The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; owner-only either way — mode 0600 on Unix, an owner-only NTFS ACL on Windows), and logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest.
 
 ```bash
 # Reveal the password — prints ready-to-open login URLs
@@ -182,7 +183,7 @@ No `sudo`, no `$PATH` edits — targets `~/.local/bin` and `~/.claude/agents/`. 
 
 ## Data storage
 
-Everything lives under `~/.painapple-code/` (or `$PAINAPPLE_CODE_HOME`; `/data` in Docker): per-project sessions, shadow git repos, the DuckDB turn store, and logs. Auth config sits apart in `~/.config/painapple-code/config.yaml` (mode 0600), so wiping the data directory doesn't rotate your password. Full layout: [data & storage reference](https://painapple.ai/reference/data-storage/).
+Everything lives under `~/.painapple-code/` (or `$PAINAPPLE_CODE_HOME`; `/data` in Docker): per-project sessions, shadow git repos, the DuckDB turn store, and logs. Auth config sits apart in `~/.config/painapple-code/config.yaml` (owner-only: mode 0600 on Unix, an NTFS ACL on Windows), so wiping the data directory doesn't rotate your password. Full layout: [data & storage reference](https://painapple.ai/reference/data-storage/).
 
 ## What it touches on your machine
 
@@ -194,7 +195,7 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Everythi
 
 **Auto-journal spends tokens in the background — on by default.** After each turn a second, short model call (Haiku by default) summarizes what happened to produce the journal entries and commit messages. It's cheap, but it is real API usage you didn't explicitly trigger. Same settings panel turns it off.
 
-**Outside the data home it touches very little.** Auth config and TLS cert live in `~/.config/painapple-code/` (mode 0600). The optional helpers — only if you install them — add two scripts to `~/.local/bin/` and one agent file to `~/.claude/agents/`; no `sudo`, no `$PATH` or shell-rc edits. It reads `~/.claude/` and `$CODEX_HOME` to list your existing skills, agents, commands, and models.
+**Outside the data home it touches very little.** Auth config and TLS cert live in `~/.config/painapple-code/`, restricted to your account (mode 0600 on Unix; an owner-only ACL applied with `icacls` on Windows, since POSIX mode bits do nothing on NTFS). The optional helpers — only if you install them — add two scripts to `~/.local/bin/` and one agent file to `~/.claude/agents/`; no `sudo`, no `$PATH` or shell-rc edits. On Windows the two scripts are bash and therefore skipped; only the agent file installs. It reads `~/.claude/` and `$CODEX_HOME` to list your existing skills, agents, commands, and models.
 
 **Nothing phones home.** No telemetry, no update checks, no analytics. The only outbound request the server itself makes is the browser widget fetching a URL you asked it to open (guarded against internal-network addresses). The Claude and Codex CLIs it launches talk to their own vendors, as they would anyway.
 

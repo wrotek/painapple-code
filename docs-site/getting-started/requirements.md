@@ -11,8 +11,29 @@ Running the bridge directly on a host (pip / pipx / source checkout):
 - **Network access between client and server** — any modern browser works as a client
 - *Optional:* the **[OpenAI Codex CLI](https://github.com/openai/codex)** if you want sessions on the Codex [engine](../guides/engines.md) — you can even log it in from inside the app
 
+### Server platforms
+
+The bridge runs natively on all three desktop platforms. No WSL required.
+
+| Platform | Status | Notes |
+|---|---|---|
+| **Linux** | Fully supported | The primary development and deployment target. |
+| **macOS** | Fully supported | Intel and Apple Silicon. |
+| **Windows 10/11** | Fully supported | Native — no WSL, no VM. See the Windows notes below. |
+
+#### Windows notes
+
+- **Install the Claude CLI with the native installer**, not npm: `irm https://claude.ai/install.ps1 | iex`. The Agent SDK that the default engine uses refuses to execute npm's `claude.cmd` shim (batch files are a command-injection vector — the same class as CVE-2024-27980), and will tell you so with a link to this fix. If you already logged in via the npm install, your credentials carry over.
+- **The terminal tab runs PowerShell** through ConPTY. `pwsh` (PowerShell 7) is preferred when present, otherwise Windows PowerShell; override with `PAINAPPLE_CODE_SHELL`.
+- **`!bang` commands are PowerShell-flavored** on Windows, not `sh`.
+- **File permissions** are enforced with NTFS ACLs (owner-only, applied via `icacls`) rather than POSIX mode bits — see [security](security.md).
+- **Windows on ARM** (Surface, Snapdragon X) works, on a slightly slower HTTP stack: the optional `httptools` parser publishes no ARM64 wheel, so those machines use uvicorn's pure-Python parser. This is automatic; you don't have to do anything.
+- Data lives in `%USERPROFILE%\.painapple-code` — the same `~/.painapple-code` layout as the other platforms, deliberately, so the docs and support answers match everywhere.
+
 !!! tip "Docker skips most of this"
-    The [Docker / Podman path](install-docker.md) is the recommended install. The image bundles Python 3.13, Node 20, and the `@anthropic-ai/claude-code` CLI, so the only host requirement is a container runtime.
+    The [Docker / Podman path](install-docker.md) is the recommended install on Linux and macOS. The image bundles Python 3.13, Node 20, and the `@anthropic-ai/claude-code` CLI, so the only host requirement is a container runtime.
+
+    On Windows, prefer the native install above. Docker Desktop works, but it runs the bridge inside a **Linux** container, so your projects are bind-mounted across the Windows/Linux boundary — which brings back the path translation, line-ending and file-watching problems that running natively avoids.
 
 ### Client devices
 

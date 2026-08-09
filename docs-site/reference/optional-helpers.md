@@ -10,6 +10,9 @@ Three small helpers ship with the package to make the [Shadow Git journal](../gu
 
 All targets are user-scoped: no `sudo`, no `$PATH` edits, no shell-rc changes. The agent invokes the CLI via its absolute path (`~/.local/bin/shadow-git`), so it works the same in Docker, VMs, Codespaces, and WSL. The Docker image installs all three at build time.
 
+!!! note "On native Windows"
+    `shadow-git` and `shadow-query` are bash scripts, so they are **not** installed on native Windows — copying them there would just put unrunnable files on disk. Only the `shadow-git-helper` agent installs, which is the part that matters in `#` autocomplete; the Settings panel marks the other two unsupported rather than nagging that they're out of date. Run them from WSL or a Git Bash shell if you want the CLIs themselves.
+
 ## Installing
 
 ### From the UI
