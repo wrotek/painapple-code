@@ -499,6 +499,23 @@ PATH_DENIED_DETAIL = (
 )
 
 
+def is_reserved_dos_name(component: str) -> bool:
+    """Does this single path component address a reserved DOS device?
+
+    Reserved in EVERY directory and with or without an extension —
+    `C:\\tmp\\nul` and `C:\\tmp\\nul.txt` both open the null device — and
+    Windows strips trailing dots and spaces from a component before it
+    resolves the name, so `"nul .txt"` and `"nul. "` are the device too.
+
+    Shared by the read-path screen below and by upload filename
+    sanitization (routes/api_upload.py). It lives here, next to the set it
+    consults, because two copies of "is this a device name" drifted apart
+    once already: the upload copy omitted the rstrip, so `"nul .txt"` was
+    denied as a path to read and accepted as a name to write.
+    """
+    return component.split(".")[0].rstrip(". ").upper() in _WIN_RESERVED_NAMES
+
+
 def _is_windows_path_allowed(resolved: Path) -> bool:
     """UNC/device/reserved-name rejection for win32."""
     text = str(resolved)
@@ -506,13 +523,7 @@ def _is_windows_path_allowed(resolved: Path) -> bool:
     # Path.resolve() normalizes / to \, so one check covers \\ and //.
     if text.startswith("\\\\"):
         return False
-    # A reserved name is reserved in EVERY directory, with or without an
-    # extension: C:\tmp\nul and C:\tmp\nul.txt both open the null device.
-    for part in resolved.parts:
-        stem = part.split(".")[0].rstrip(". ").upper()
-        if stem in _WIN_RESERVED_NAMES:
-            return False
-    return True
+    return not any(is_reserved_dos_name(part) for part in resolved.parts)
 
 
 def _lexical_path(p: Path) -> Path:
@@ -526,6 +537,18 @@ def _lexical_path(p: Path) -> Path:
         return Path(os.path.abspath(p))
     except (OSError, ValueError):
         return Path(os.path.normpath(str(p)))
+
+
+def _resolve_or_lexical(p: Path) -> Path:
+    """`p.resolve()`, degrading to a lexical normalization on OSError.
+
+    Assumes the caller has ALREADY screened `p` — call `safe_resolve`
+    instead unless you are the screen.
+    """
+    try:
+        return p.resolve()
+    except OSError:
+        return _lexical_path(p)
 
 
 def safe_resolve(raw) -> Path:
@@ -556,10 +579,7 @@ def safe_resolve(raw) -> Path:
     p = Path(raw).expanduser()
     if sys.platform == "win32" and not _is_windows_path_allowed(p):
         return _lexical_path(p)
-    try:
-        return p.resolve()
-    except OSError:
-        return _lexical_path(p)
+    return _resolve_or_lexical(p)
 
 
 def is_path_allowed_for_read(path: Path) -> bool:
@@ -572,11 +592,32 @@ def is_path_allowed_for_read(path: Path) -> bool:
     """
     # Screen before resolving, not after: see safe_resolve. A gate that
     # resolves first has already made the call it exists to prevent.
-    if sys.platform == "win32" and not _is_windows_path_allowed(path):
-        return False
-    resolved = safe_resolve(path)
+    #
+    # EXACTLY two screens, which is the minimum that is actually sound.
+    # This used to run three — one on the raw path, one inside safe_resolve
+    # on the expanduser'd path, one on the result — and the tempting
+    # simplification is to drop safe_resolve's on the grounds that the raw
+    # pre-check already covered it. It doesn't, and the redundancy runs the
+    # other way: expanduser can only rewrite the FIRST component, and no
+    # denied first component starts with `~`, so anything the raw check
+    # denies the expanded check denies too — while the reverse is false.
+    # `~/x` on a UNC roaming profile (USERPROFILE=\\fileserver\home\alice)
+    # is allowed raw and denied expanded, and only the expanded screen sees
+    # it. So the raw check is the redundant one, and the surviving screen
+    # runs on the expanded path.
+    p = Path(path).expanduser()
     if sys.platform == "win32":
-        return _is_windows_path_allowed(resolved)
+        if not _is_windows_path_allowed(p):
+            # Returned directly rather than via safe_resolve's lexical
+            # fallback: that fallback normalizes through os.path.abspath,
+            # and only ntpath keeps a leading `\\` — so leaning on it would
+            # make this denial correct on Windows and quietly wrong
+            # anywhere the platform is simulated or the flavor is mixed.
+            return False
+        # Second screen, on the RESULT: resolve() follows symlinks and
+        # junctions, so an allowed name can land on a UNC or device target.
+        return _is_windows_path_allowed(_resolve_or_lexical(p))
+    resolved = _resolve_or_lexical(p)
     return not any(
         resolved == deny or deny in resolved.parents
         for deny in _DENY_ROOTS

@@ -23,6 +23,7 @@ import ipaddress
 import logging
 import re
 import socket
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit, urljoin, quote
 
@@ -354,23 +355,38 @@ def _asset_base_url(directory: Path) -> str:
     """
     posix = directory.as_posix()
     if posix.startswith("//"):
-        # UNC. Kept lossless here for symmetry; is_path_allowed_for_read
-        # rejects UNC on win32 before anything gets served.
+        # UNC. Kept lossless here for symmetry; the round trip back through
+        # _asset_path_from_url ends in _serve_local_file, whose
+        # is_path_allowed_for_read rejects UNC on win32 before any byte is
+        # read — and safe_resolve rejects it before any packet is sent.
         return "/api/browser/asset/" + quote("//" + posix.lstrip("/")) + "/"
     return "/api/browser/asset/" + quote(posix.lstrip("/")) + "/"
 
 
 def _asset_path_from_url(path: str) -> Path:
-    """Inverse of _asset_base_url: URL tail -> absolute filesystem path."""
+    """Inverse of _asset_base_url: URL tail -> absolute filesystem path.
+
+    safe_resolve, never a bare Path.resolve(): this tail is whatever the
+    client put in the URL, and on Windows canonicalizing it is itself the
+    attack. Resolving //attacker/share/x makes the OS authenticate outbound
+    and offer the bridge user's NTLM hash, and an unreachable share raises
+    OSError [WinError 64] out of resolve() — a 500 with a stack trace where
+    a 403 belongs. safe_resolve screens the path lexically first, so a
+    denied path costs no packets and the 403 comes from _serve_local_file's
+    is_path_allowed_for_read on the value returned here.
+    """
     if not path:
         raise ValueError("empty asset path")
     if path.startswith("//"):
-        return Path(path.replace("/", "\\")).resolve()      # UNC
+        # UNC on Windows; a POSIX path with a doubled leading slash
+        # anywhere else, where backslashes are ordinary filename bytes and
+        # rewriting them would fabricate a different path.
+        return safe_resolve(path.replace("/", "\\") if sys.platform == "win32" else path)
     # A drive-qualified path ("C:/Users/...") is already absolute; a
     # rootless one is POSIX and needs its leading slash back.
     if re.match(r"^[A-Za-z]:/", path):
-        return Path(path).resolve()
-    return Path("/" + path).resolve()
+        return safe_resolve(path)
+    return safe_resolve("/" + path)
 
 
 def _serve_local_file(p: Path) -> Response:
