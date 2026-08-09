@@ -218,8 +218,10 @@ class Identity:
         self.repair = repair
 
 
-def plan_identity(cfg, rt):
+def plan_identity(cfg, rt, profile=None):
     """Decide the uid story for this launch — see :class:`Identity`.
+
+    ``profile`` only shapes the remediation hint on the give-up path.
 
     Everything the bridge is mounted FOR is owned by the host user: the
     workspace it edits, ~/.claude, the bridge config dir, and /data
@@ -292,6 +294,10 @@ def plan_identity(cfg, rt):
         env = {"PAINAPPLE_UID": str(host_uid), "PAINAPPLE_GID": str(host_gid)} if adapts else {}
         return Identity(env=env, app_ids=(app_uid, app_gid), repair=repair)
 
+    # The runtime is a config key, not an env var — `RUNTIME=podman` only
+    # means anything to the build wrapper, so spell out the real command.
+    switch = (f"painapple profile set {profile} RUNTIME=podman" if profile
+              else "painapple setup")
     die(f"This image runs as uid {app_uid}, but your files are owned by uid "
         f"{host_uid} — the container could not write your workspace, ~/.claude, "
         f"or its own /data.",
@@ -299,7 +305,8 @@ def plan_identity(cfg, rt):
         f"    painapple pull                {DIM}(newer images align on start){RESET}\n"
         f"    ./painapple-docker.sh build   {DIM}(repo checkout — bakes "
         f"USER_UID={host_uid}){RESET}\n"
-        f"    RUNTIME=podman                {DIM}(podman remaps uids for you){RESET}")
+        f"    {DIM}…or switch to podman, which remaps uids for you:{RESET}\n"
+        f"    {switch}")
 
 
 def prepare_volumes(cfg, rt, ident):
@@ -513,7 +520,7 @@ def run_container(cfg, detach, profile=None):
 
     # Everything mounted in is owned by the host user — line the
     # container's user up with it, or none of it is writable.
-    ident = plan_identity(cfg, rt)
+    ident = plan_identity(cfg, rt, profile)
     prepare_volumes(cfg, rt, ident)
 
     info("Starting Painapple Code…")

@@ -66,7 +66,9 @@ cd painapple-code
 painapple --in-docker           # then run it like any other sandbox
 ```
 
-The wrapper auto-detects the OCI runtime (force with `RUNTIME=docker` / `RUNTIME=podman`) and passes your `USER_UID`/`USER_GID` build args automatically so bind mounts stay writable. The runtime side of the CLI auto-applies the Podman-specific flags (`--userns=keep-id`, SELinux `:Z`).
+The wrapper auto-detects the OCI runtime (force this **build** with `RUNTIME=docker` / `RUNTIME=podman`) and passes your `USER_UID`/`USER_GID` build args automatically so bind mounts stay writable. The runtime side of the CLI auto-applies the Podman-specific flags (`--userns=keep-id`, SELinux `:Z`).
+
+The `RUNTIME` environment variable is the **wrapper's** lever only. The unified CLI reads its runtime from config instead — set it globally with `painapple setup`, or per deployment with `painapple profile set NAME RUNTIME=podman` (a value of `docker`, `podman`, an absolute path to a custom binary, or empty to auto-detect).
 
 To layer your own tooling on top of the base image:
 
