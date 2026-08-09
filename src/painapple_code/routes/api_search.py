@@ -171,7 +171,15 @@ async def _search_ripgrep(work_dir: Path, q, regex, case_sensitive, whole_word,
             data = event.get("data", {})
             # ripgrep emits OS-native separators; normalize so the client
             # and the Python fallback engine agree on the shape.
-            path = _event_text(data.get("path")).replace("\\", "/")
+            #
+            # Keyed off os.sep, NOT an unconditional '\\' -> '/'. On
+            # Linux/macOS a backslash is an ordinary filename byte, so the
+            # blanket rewrite turned a real `src/weird\name.txt` into
+            # `src/weird/name.txt` — a path that doesn't exist, 404ing in
+            # the preview — while _search_python's relative_to().as_posix()
+            # preserved it. Same query, two answers, depending only on
+            # whether rg happened to be installed.
+            path = _event_text(data.get("path")).replace(os.sep, "/")
             lines_obj = data.get("lines", {})
             raw = _event_text(lines_obj).rstrip("\r\n")
 

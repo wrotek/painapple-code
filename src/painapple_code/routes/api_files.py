@@ -9,6 +9,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -74,34 +75,52 @@ _WALK_SKIP_DIRS = {'node_modules', '.git', '__pycache__', 'venv', '.venv',
 _WALK_SKIP_NAMES = {'.DS_Store'}
 _WALK_MAX_FILES = 50000  # same order as fd's practical ceiling; keeps a
                          # runaway tree from pinning a worker thread
+_WALK_TIMEOUT = 15.0     # matches the `find` budget this path replaced
+                         # (5s spawn + 10s communicate)
 
 
-def _walk_files(directory: Path) -> list[str]:
+def _walk_files(directory: Path, deadline: float | None = None) -> tuple[list[str], bool]:
     """Relative file paths under `directory`, POSIX-separated.
+
+    Returns (paths, truncated) — truncated is True when the file cap or the
+    deadline cut the walk short, so the caller can tell the client its list
+    is partial instead of silently serving a prefix of the project.
 
     Runs in a worker thread (os.walk is blocking). Separators are
     normalized so the client gets the same shape fd produces, and so
     Windows results don't arrive with backslashes the @-autocomplete
     can't match.
+
+    `deadline` (a time.monotonic value) is checked once per directory. It
+    bounds the WORKER; the caller separately bounds the REQUEST, because a
+    single scandir stuck on a dead NFS/sshfs mount is uninterruptible and
+    no in-loop check can preempt it.
     """
     out = []
     root = str(directory)
     for dirpath, dirnames, filenames in os.walk(root):
+        if deadline is not None and time.monotonic() > deadline:
+            return out, True
         dirnames[:] = [d for d in dirnames if d not in _WALK_SKIP_DIRS]
+        # Once per directory, not once per file: os.walk already knows
+        # dirpath, and relpath abspath-normalizes and splits BOTH arguments
+        # on every call — 50k of them at the cap, for a prefix that changes
+        # only when the directory does.
+        rel_dir = os.path.relpath(dirpath, root)
+        prefix = '' if rel_dir == os.curdir else rel_dir.replace(os.sep, '/') + '/'
         for name in filenames:
             if name in _WALK_SKIP_NAMES or name.endswith('.pyc'):
                 continue
-            rel = os.path.relpath(os.path.join(dirpath, name), root)
-            out.append(rel.replace(os.sep, '/'))
+            out.append(prefix + name)
             if len(out) >= _WALK_MAX_FILES:
-                return out
-    return out
+                return out, True
+    return out, False
 
 
-async def _enumerate_files(directory: Path, include_ignored: bool = False) -> list[str]:
+async def _enumerate_files(directory: Path, include_ignored: bool = False) -> tuple[list[str], bool]:
     """
-    Enumerate files in a directory using fd (falls back to find).
-    Returns relative paths within the directory.
+    Enumerate files in a directory using fd (falls back to a Python walk).
+    Returns (relative paths within the directory, truncated).
 
     When `include_ignored` is True, .gitignore'd and hidden files are included
     (fd's --no-ignore --hidden). The hardcoded `--exclude` list still applies
@@ -137,7 +156,17 @@ async def _enumerate_files(directory: Path, include_ignored: bool = False) -> li
         stdout, stderr = await asyncio.wait_for(result.communicate(), timeout=10.0)
 
         if result.returncode == 0:
-            return [f for f in stdout.decode().strip().split('\n') if f]
+            # `.replace(os.sep, '/')`, matching _walk_files: fd emits
+            # OS-native separators, so on Windows this branch returned
+            # `src\app.js` while the fallback returned `src/app.js` — one
+            # endpoint with two shapes depending on whether fd happened to
+            # be installed. The client scores the user's typed `src/app`
+            # against that string and checks `changedSet.has(path)` against
+            # shadow-git paths that are always forward-slashed, so both
+            # silently missed on the fd machine. Keyed off os.sep rather
+            # than replacing '\\' unconditionally, because on POSIX a
+            # backslash is an ordinary filename byte.
+            return [f.replace(os.sep, '/') for f in stdout.decode().strip().split('\n') if f], False
         raise FileNotFoundError("fd failed")
 
     except (FileNotFoundError, asyncio.TimeoutError):
@@ -150,8 +179,19 @@ async def _enumerate_files(directory: Path, include_ignored: bool = False) -> li
         #
         # Like `find`, this doesn't read .gitignore, so include_ignored
         # stays a no-op on the fallback path.
-        return await asyncio.get_running_loop().run_in_executor(
-            None, _walk_files, directory
+        #
+        # Bounded on both sides. The `find` path it replaced had two
+        # timeouts (5s spawn + 10s communicate) and the executor handoff
+        # had none, so one directory on a hung autofs/NFS/sshfs mount held
+        # a shared ThreadPoolExecutor worker forever and the request never
+        # returned. wait_for can't kill the thread — nothing can — but it
+        # returns the request, and the in-walk deadline lets the thread
+        # retire as soon as it comes back from the stuck syscall.
+        loop = asyncio.get_running_loop()
+        deadline = time.monotonic() + _WALK_TIMEOUT
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _walk_files, directory, deadline),
+            timeout=_WALK_TIMEOUT + 1.0,
         )
 
 
@@ -171,7 +211,7 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
             raise HTTPException(status_code=404, detail="Directory not found")
 
         # Enumerate project files (relative paths)
-        files = await _enumerate_files(p, include_ignored=include_ignored)
+        files, walk_truncated = await _enumerate_files(p, include_ignored=include_ignored)
 
         # Load extra_dirs: merge global (all projects) + project-specific
         try:
@@ -206,7 +246,10 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
                 logger.warning(f"Extra dir not found: {extra_dir}")
                 continue
             try:
-                extra_files = await _enumerate_files(extra_path, include_ignored=include_ignored)
+                extra_files, extra_truncated = await _enumerate_files(
+                    extra_path, include_ignored=include_ignored
+                )
+                walk_truncated = walk_truncated or extra_truncated
                 for f in extra_files:
                     files.append(str(extra_path / f))
             except Exception as e:
@@ -223,12 +266,22 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
         except PermissionError:
             pass
 
+        if walk_truncated:
+            logger.warning(
+                f"File enumeration hit its cap under {p} — returning a partial list"
+            )
+
         return {
             "cwd": str(p),
             "files": sorted(files)[:20000],  # 20k files ≈ 1MB JSON
             "directories": sorted(dirs),
             "total": len(files),
-            "truncated": len(files) > 20000
+            # Either cap counts: the 20k response budget, or the walk's own
+            # 50k/15s ceiling. The latter used to cut the list off with no
+            # signal at all, so the client rendered a partial project as a
+            # complete one and an @-mention that found nothing looked like
+            # a missing file.
+            "truncated": len(files) > 20000 or walk_truncated,
         }
 
     except PermissionError:
@@ -283,19 +336,71 @@ class WriteFileRequest(BaseModel):
     content: str
 
 
+# How much of an existing file to sniff for its line-ending style. A file's
+# convention is established in its first few hundred lines or not at all.
+_EOL_SNIFF_BYTES = 65536
+
+
+def _file_is_crlf(p: Path) -> bool:
+    """Is this existing file written entirely with CRLF line endings?
+
+    True only when the sniffed prefix has at least one `\\r\\n` and no bare
+    `\\n` at all. Deliberately strict: see `write_file`.
+    """
+    try:
+        with open(p, "rb") as fh:
+            head = fh.read(_EOL_SNIFF_BYTES)
+    except OSError:
+        return False
+    # A cut exactly between CR and LF would otherwise read as a bare CR
+    # followed (in the next chunk we never see) by a bare LF.
+    if head.endswith(b"\r"):
+        head = head[:-1]
+    lf = head.count(b"\n")
+    return lf > 0 and head.count(b"\r\n") == lf
+
+
 @router.post("/api/file/write")
 async def write_file(request: WriteFileRequest):
-    """Write content to a file (for scratch Save As)."""
+    """Write content to a file (for scratch Save As, and every editor save).
+
+    Line endings: GET /api/file reads with universal newlines, which turns
+    a CRLF file into `\\n` before the client ever sees it, and this write
+    used `newline=""`, which suppresses the translation that would put them
+    back. So on a Windows bridge every save silently rewrote a CRLF file to
+    LF — and with `core.autocrlf=true`, git then reported the whole file as
+    modified after a one-character edit.
+
+    `newline=""` is still right (the content must go out byte-for-byte, and
+    on a Linux bridge editing a checked-out CRLF file the platform default
+    wouldn't help anyway); what was missing is that the endpoint has to
+    supply the endings itself. It takes them from the file already on disk,
+    which is the only place the information survives — the client's editor
+    normalizes to `\\n` in its document model regardless of what we send it.
+
+    A file that is *purely* CRLF gets CRLF back. Everything else — LF,
+    genuinely mixed, lone-CR, and any new file — is written verbatim. Mixed
+    is the interesting case and it is left alone on purpose: there is no
+    ending that is "the file's", so either choice rewrites lines the user
+    never touched, and silently normalizing a mixed file is a bigger
+    surprise (a whole-file diff) than leaving it as the editor produced it.
+    """
     try:
         p = safe_resolve(request.path)
         if not is_path_allowed(p):
             raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
 
+        content = request.content
+        if p.is_file() and _file_is_crlf(p):
+            # Normalize first so a client that already sent CRLF doesn't
+            # come out with CRCRLF.
+            content = content.replace("\r\n", "\n").replace("\n", "\r\n")
+
         # Create parent directories if needed
         p.parent.mkdir(parents=True, exist_ok=True)
 
         # Write the file
-        p.write_text(request.content, encoding="utf-8", newline="")
+        p.write_text(content, encoding="utf-8", newline="")
 
         return {
             "path": str(p),
