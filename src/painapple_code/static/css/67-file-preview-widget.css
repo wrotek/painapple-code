@@ -1629,10 +1629,13 @@
     border-radius: var(--radius-sm);
 }
 
-/* :not(.inline-editing) matters. This selector is (0,4,0) and the edit-state rule
-   below is (0,3,0), so while you edit with the pointer resting on the block, hover
-   used to win and quietly downgrade the solid edit border to the dashed hover one
-   — the state you were IN looked like the state you were merely pointing at. */
+/* :not(.inline-editing) matters. This selector is (0,5,0) — :not() contributes its
+   argument's specificity — and the edit-state rule below is (0,4,0), so while you
+   edit with the pointer resting on the block, hover would otherwise win and quietly
+   downgrade the solid edit border to the dashed hover one — the state you were IN
+   would look like the state you were merely pointing at.
+   Note the nested-selectable rule just below is ALSO (0,5,0) and beats this one on
+   source order alone; keep it after this rule. */
 .preview-rendered.inline-edit-mode [data-selectable]:not(.inline-editing):hover {
     background: rgba(var(--accent-rgb), 0.08);
     outline: 1px dashed rgba(var(--accent-rgb), 0.25);
@@ -1651,9 +1654,15 @@
     display: none !important;
 }
 
-/* Selectable blocks in edit mode need positioning context for the trash button */
+/* Selectable blocks in edit mode need positioning context for the trash button.
+   The button's footprint is declared here, once: every consumer (the button's own
+   box, and the right-hand clearance the edit textarea has to leave for it) derives
+   from these, so they cannot drift apart the way a hardcoded 34px did. */
 .preview-rendered.inline-edit-mode [data-selectable] {
     position: relative;
+    --inline-edit-trash-size: 24px;
+    --inline-edit-trash-inset: 2px;
+    --inline-edit-trash-gutter: calc(var(--inline-edit-trash-size) + var(--inline-edit-trash-inset));
 }
 
 /* Element being edited — has to read as unmistakably live.
@@ -1665,9 +1674,13 @@
    That distinction is the whole point. Real padding here (the original 6px/8px
    on the textarea) buys the same look by pushing the text you were mid-sentence
    on, so the act of starting an edit moved the thing you were reading.
-   Deliberately still sets no padding/margin: the block keeps the exact box it had
-   while rendered (.markdown-content [data-selectable] padding-right, li's
-   narrower variant, its own margins), so flipping modes moves no character. */
+   Sets no padding/margin of its own — the block keeps the exact box it had while
+   rendered (.markdown-content [data-selectable] padding-right, li's narrower
+   variant, its own margins), so flipping modes moves no character.
+   list-style is the one exception: an editing <li> shows its raw source, which
+   already begins with the literal "- " / "1. " marker, so leaving the CSS ::marker
+   on would render it twice ("• - item"). Suppressing it moves nothing, because
+   list-style-position is outside — the marker never occupied the content box. */
 .preview-rendered.inline-edit-mode [data-selectable].inline-editing {
     --inline-edit-halo: var(--sp-6);
     background: rgba(var(--accent-rgb), 0.11);
@@ -1675,23 +1688,24 @@
     outline: 1px solid rgba(var(--accent-rgb), 0.6);
     outline-offset: var(--inline-edit-halo);
     border-radius: var(--radius-sm);
+    list-style: none;
 }
 
 /* Trash button — persistent on each selectable, hidden until hover (in edit mode). */
 .inline-edit-trash-btn {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: var(--inline-edit-trash-inset, 2px);
+    right: var(--inline-edit-trash-inset, 2px);
     z-index: 20;
     display: none;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    background: var(--bg-tertiary, rgba(30, 30, 40, 0.92));
-    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    width: var(--inline-edit-trash-size, 24px);
+    height: var(--inline-edit-trash-size, 24px);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: var(--radius-sm);
-    color: var(--text-muted, #888);
+    color: var(--text-muted);
     cursor: pointer;
     padding: 0;
     opacity: 0;
@@ -1765,20 +1779,26 @@
    its own metrics — no per-element rules needed. Height is JS-driven off
    scrollHeight (autoResize), so any font-size/line-height/padding deviation here
    compounds into a visible vertical jump: keep this list inheriting.
-   Padding is 0 on purpose. Clearance for the absolutely-positioned trash button
-   comes from the *block's* rendered padding-right (--sp-24, or --sp-20 on li),
-   the same gutter the button already occupies on hover in rendered mode. That
-   replaces the old hardcoded 34px right padding, which bought the same clearance
-   at the cost of shifting text sideways on entry. */
+   Padding is 0 on three sides — top/left padding is exactly what shifts glyphs,
+   and the original 6px/8px was the shift this rule exists to remove. The right
+   side still has to be reserved: the trash button is force-shown while editing
+   and is opaque, and the block's own padding-right (--sp-24, --sp-20 on li, 0 on
+   a table row) is SMALLER than the button's footprint in every density — 24px vs
+   26px at normal, 15px vs 26px at compact — so relying on it buries the tail of
+   the first line under the button, where a click deletes the block instead of
+   placing the caret. Reserve only the SHORTFALL, not the whole footprint: over-
+   reserving would wrap the raw markdown earlier than the rendered prose and cost
+   a whole extra line on long paragraphs, which is the same layout jump by another
+   route. padding-RIGHT displaces no character, so this costs width and nothing
+   else. (Yes, this couples to the padding-right tokens in 30-markdown.css — that
+   coupling is real either way; naming it beats hiding it behind a bare 34px.) */
 .inline-edit-textarea {
     display: block;
     width: 100%;
-    min-height: 1.4em;
-    padding: 0;
+    padding: 0 max(0px, calc(var(--inline-edit-trash-gutter, 26px) - var(--sp-24))) 0 0;
     margin: 0;
     background: transparent;
     border: none;
-    border-radius: var(--radius-sm);
     color: inherit;
     font: inherit;
     letter-spacing: inherit;
@@ -1792,6 +1812,12 @@
     box-sizing: border-box;
 }
 
+/* A list item carries a narrower gutter than everything else, so it needs a
+   correspondingly wider reservation. Same arithmetic, different token. */
+.preview-rendered.inline-edit-mode li[data-selectable] > .inline-edit-textarea {
+    padding-right: max(0px, calc(var(--inline-edit-trash-gutter, 26px) - var(--sp-20)));
+}
+
 /* No :focus ring on the textarea — the block's own .inline-editing outline already
    marks what's being edited, and a second ring hugging zero-padding text doubled up. */
 
@@ -1799,29 +1825,49 @@
    Taken out of flow (absolute, pinned just under the block) so showing it reflows
    nothing: previously an in-flow ::before with order:2 pushed every following
    paragraph down the moment an edit started. pointer-events:none keeps it from
-   swallowing clicks on whatever it overlays. */
-.preview-rendered [data-selectable].inline-editing::before {
-    content: 'Enter \2192 save \00b7 Esc \2192 cancel \00b7 Shift+Enter \2192 newline';
+   swallowing clicks on whatever it overlays.
+   Scoped to .inline-edit-mode like every other rule in this state set — it reads
+   --inline-edit-halo, which only the edit-state rule declares, so matching a wider
+   set of elements would only ever render the chip detached from the halo it is
+   meant to straddle. */
+.preview-rendered.inline-edit-mode [data-selectable].inline-editing::before {
+    /* Literal glyphs, not \2192 / \00b7 escapes: CSS consumes the whitespace that
+       terminates a hex escape, so `\2192 save` rendered as "→save". */
+    content: 'Enter → save · Esc → cancel · Shift+Enter → newline';
     position: absolute;
     /* Straddle the halo's bottom edge, flush right. Centring it on that edge parks
-       most of the chip in the halo + the block's own bottom margin — dead space —
-       instead of dropping it a full line lower where it would sit squarely across
-       the following paragraph's text. */
-    top: calc(100% + var(--inline-edit-halo, 6px));
-    right: calc(-1 * var(--inline-edit-halo, 6px));
-    transform: translateY(-50%);
-    z-index: 21;
+       as much of the chip as will fit in the halo + the block's own bottom margin
+       — dead space — rather than dropping it a full line lower. It still clips the
+       top of the following line; that is the accepted cost of not displacing it.
+       The offset is half of a ONE-line chip, not -50% of the actual box: once the
+       chip wraps in a narrow pane, -50% would grow half the extra height UPWARD,
+       over the caret line of the very block you are typing in. Anchored this way,
+       wrapped lines only ever extend downward, into space the design already
+       accepts covering. */
+    --inline-edit-hint-line: calc(1.4 * var(--font-size-xs) + 2 * var(--sp-2) + 2px);
+    top: calc(100% + var(--inline-edit-halo, var(--sp-6)));
+    right: calc(-1 * var(--inline-edit-halo, var(--sp-6)));
+    transform: translateY(calc(-0.5 * var(--inline-edit-hint-line)));
+    /* Above the following block's prose (which is z-index: auto) so the chip
+       occludes rather than overprints, but BELOW the trash buttons at 20 — the
+       chip shares their x-column, and a hint must never hide the control the user
+       is reaching for. */
+    z-index: var(--z-internal);
     font-size: var(--font-size-xs);
     line-height: 1.4;
-    color: var(--text-muted, #888);
+    color: var(--text-muted);
     /* Opaque chip, right-aligned: since it floats over the following paragraph
        instead of displacing it, it has to occlude that text rather than blend
        into it — a translucent hint here renders as two strings of prose
-       overprinted on each other. */
-    background: var(--bg-tertiary, rgba(30, 30, 40, 0.96));
-    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+       overprinted on each other.
+       It wraps rather than running off: the chip is anchored by its RIGHT edge, so
+       a nowrap chip grows leftward, and left overflow is not scrollable overflow in
+       LTR — in a narrow pane the "Enter -> save" half was clipped away permanently,
+       hiding the one key that commits. */
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: var(--radius-sm);
     padding: var(--sp-2) var(--sp-6);
     pointer-events: none;
-    white-space: nowrap;
+    max-width: calc(100% + 2 * var(--inline-edit-halo, var(--sp-6)));
 }

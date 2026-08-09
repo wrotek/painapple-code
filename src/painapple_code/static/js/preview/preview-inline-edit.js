@@ -208,6 +208,12 @@ function startEdit(element, _rendered, visualOffset = null) {
     // Create textarea with raw markdown
     const textarea = document.createElement('textarea');
     textarea.className = 'inline-edit-textarea';
+    // rows defaults to 2, and autoResize measures scrollHeight after setting
+    // height:auto — i.e. against the intrinsic 2-row box — so without this every
+    // single-line block grew by a full line on entering edit (a heading by its own
+    // larger line-height). rows=1 makes the floor one line; scrollHeight still
+    // reports the true height for anything taller.
+    textarea.rows = 1;
     // Block only the keys the textarea handles itself (Enter/Escape/Tab) —
     // global shortcuts like Ctrl+/ (focus chat input) must still fire.
     textarea.dataset.shortcutsDisabled = 'enter,escape,tab';
