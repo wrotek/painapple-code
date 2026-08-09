@@ -287,6 +287,8 @@ export const initUiMethods = {
                 staticBuild: data.static_build,
                 diskVersion: data.disk_version,
                 restartNeeded: data.restart_needed,
+                license: data.license,
+                urls: data.urls,
             });
             // Anchor the file explorer to the explicit workspace when set
             // (the project base), falling back to the OS home otherwise.

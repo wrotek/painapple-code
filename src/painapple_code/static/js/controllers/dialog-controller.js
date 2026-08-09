@@ -6,6 +6,9 @@
 
 import { CONFIG } from '../config.js';
 import { extractApiError } from '../utils.js';
+// Opened by id through the manager rather than importing the widget module,
+// which would pull the widget graph into the controller layer for one call.
+import { WidgetManager } from '../widget-system/index.js';
 
 export class DialogController {
     constructor(ctx) {
@@ -22,8 +25,31 @@ export class DialogController {
         // Render dynamic help content from shortcut registry
         if (this.ctx.els.modalBody && this.ctx.shortcutManager) {
             this.ctx.els.modalBody.innerHTML = this.ctx.shortcutManager.renderHelp();
+            this._bindAboutLink();
         }
         this.ctx.els.modalOverlay.classList.add('visible');
+    }
+
+    /**
+     * Wire the About section's "About painapple-code" button.
+     *
+     * Bound per-render because the body is replaced wholesale on every
+     * showHelp(), which throws away any listener attached to the old nodes.
+     * Delegating from modalBody survives that — one listener, guarded so
+     * repeated opens don't stack duplicates.
+     */
+    _bindAboutLink() {
+        const body = this.ctx.els.modalBody;
+        if (!body || body.dataset.aboutBound === '1') return;
+        body.dataset.aboutBound = '1';
+        body.addEventListener('click', (e) => {
+            if (!e.target.closest('[data-action="open-about"]')) return;
+            // Order matters: the widget layer (--z-widget, ≤1700) renders
+            // below this modal (--z-modal, 3000), so opening first would
+            // hide About behind the help overlay.
+            this.hideModal();
+            WidgetManager.open('about');
+        });
     }
 
     hideModal() {

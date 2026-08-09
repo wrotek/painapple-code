@@ -32,6 +32,7 @@ import { registerDiffViewerWidget, DiffViewerWidget } from './diff-viewer-widget
 import { registerZenWidget, openZen, closeZen, toggleZen, isZenOpen } from './zen-widget.js';
 import { registerHelpersInstallWidget, HelpersInstallWidget } from './helpers-install-widget.js';
 import { registerBrowserWidget, BrowserWidget } from './browser-widget.js';
+import { registerAboutWidget, AboutWidget } from './about-widget.js';
 import { initQuickActionsMenu, quickActionsMenu } from '../quick-actions-menu.js';
 import { debug } from '../config.js';
 
@@ -68,6 +69,7 @@ export function initWidgets() {
     registerZenWidget();
     registerHelpersInstallWidget();
     registerBrowserWidget();
+    registerAboutWidget();
 
     // Initialize quick actions menu (radial FAB, replaces old debug FAB)
     initQuickActionsMenu();
@@ -118,6 +120,9 @@ export const DiscussionWidget = {
 
 // Debug widget API (also exposed as window.debugLog)
 export { DebugWidget };
+
+// About widget API (opened from the help modal and the quick-actions palette)
+export { AboutWidget };
 
 // Prompt Explorer widget API
 export { PromptExplorerWidget };

@@ -23,6 +23,10 @@ let serverStaticBuild = null;
 // serving older code than what's on disk, so it needs a restart (not a reload).
 let serverDiskVersion = null;
 let serverRestartNeeded = false;
+// License expression + project URLs from the installed distribution, shown in
+// the About widget. Server-supplied so a fork advertises its own source.
+let serverLicense = null;
+let serverUrls = {};
 
 // The frontend build THIS page actually loaded: /app rewrites every asset URL
 // with `?v=<newest static mtime>`, so our own module URL carries it. Reading it
@@ -137,11 +141,13 @@ export function setServerWorkspace(workspace) {
 // Called with the /api/info payload. Unlike home/workspace these are allowed
 // to be re-set: a reconnect after a server upgrade should report the new
 // version rather than the one this tab booted against.
-export function setServerVersionInfo({ version, staticBuild, diskVersion, restartNeeded } = {}) {
+export function setServerVersionInfo({ version, staticBuild, diskVersion, restartNeeded, license, urls } = {}) {
     if (version) serverVersion = version;
     if (staticBuild) serverStaticBuild = String(staticBuild);
     serverDiskVersion = diskVersion || null;
     serverRestartNeeded = Boolean(restartNeeded);
+    if (license) serverLicense = license;
+    if (urls && typeof urls === 'object') serverUrls = urls;
 }
 
 /**
@@ -159,6 +165,8 @@ export function getVersionInfo() {
         ),
         diskVersion: serverDiskVersion,
         restartNeeded: serverRestartNeeded,
+        license: serverLicense,
+        urls: serverUrls,
     };
 }
 
