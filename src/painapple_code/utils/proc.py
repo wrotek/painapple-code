@@ -12,6 +12,7 @@ zombie-counts-as-alive semantics the POSIX idiom had.
 """
 
 import logging
+import shlex
 import shutil
 import signal
 import subprocess
@@ -118,6 +119,20 @@ def resolve_binary(name: str) -> str:
     if sys.platform != "win32":
         return name
     return shutil.which(name) or name
+
+
+def shell_join(argv: list[str]) -> str:
+    """Render argv as a command the user can paste into THEIR shell.
+
+    shlex.join quotes for POSIX sh, where a backslash is an escape — so a
+    Windows path comes back single-quoted (``'C:\\Users\\me\\claude.cmd'
+    auth login``). PowerShell reads a leading ``'...'`` as a string
+    expression, not a command, so the "run this to log in" hint the UI
+    shows was not runnable. list2cmdline applies Windows' own rules.
+    """
+    if sys.platform == "win32":
+        return subprocess.list2cmdline(argv)
+    return shlex.join(argv)
 
 
 def force_utf8_stdio() -> None:

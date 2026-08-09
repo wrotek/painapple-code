@@ -295,7 +295,7 @@ async def update_command(scope: str, name: str, cwd: str, payload: UpdateCommand
         raise HTTPException(status_code=400, detail="No content provided")
 
     tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(new_text, encoding="utf-8")
+    tmp.write_text(new_text, encoding="utf-8", newline="")
     os.replace(tmp, path)
 
     return {
@@ -350,7 +350,7 @@ async def upgrade_to_skill(scope: str, name: str, cwd: str):
     fm.setdefault("name", name)
 
     target_dir.mkdir(parents=True, exist_ok=False)
-    (target_dir / "SKILL.md").write_text(_serialize(fm, body), encoding="utf-8")
+    (target_dir / "SKILL.md").write_text(_serialize(fm, body), encoding="utf-8", newline="")
 
     try:
         src_file.unlink()

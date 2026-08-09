@@ -169,7 +169,9 @@ async def _search_ripgrep(work_dir: Path, q, regex, case_sensitive, whole_word,
                 continue
 
             data = event.get("data", {})
-            path = _event_text(data.get("path"))
+            # ripgrep emits OS-native separators; normalize so the client
+            # and the Python fallback engine agree on the shape.
+            path = _event_text(data.get("path")).replace("\\", "/")
             lines_obj = data.get("lines", {})
             raw = _event_text(lines_obj).rstrip("\r\n")
 
@@ -277,7 +279,11 @@ def _search_python(work_dir: Path, q, regex, case_sensitive, whole_word,
             if not include_ignored and fname.startswith("."):
                 continue
             fpath = Path(root) / fname
-            rel = str(fpath.relative_to(work_dir))
+            # as_posix, not str: on Windows str() yields "sub\\dir\\f.py",
+            # which (a) reaches the client with backslashes and (b) can never
+            # match an include/exclude glob like "src/**" — so user filters
+            # were silently ignored rather than failing loudly.
+            rel = fpath.relative_to(work_dir).as_posix()
             if include and not any(_glob_match(rel, fname, g) for g in include):
                 continue
             if any(_glob_match(rel, fname, g) for g in exclude):

@@ -294,7 +294,7 @@ async def write_file(request: WriteFileRequest):
         p.parent.mkdir(parents=True, exist_ok=True)
 
         # Write the file
-        p.write_text(request.content, encoding="utf-8")
+        p.write_text(request.content, encoding="utf-8", newline="")
 
         return {
             "path": str(p),

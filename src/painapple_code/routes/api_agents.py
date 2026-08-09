@@ -242,7 +242,7 @@ async def update_agent(scope: str, name: str, cwd: str, payload: UpdateAgentBody
         raise HTTPException(status_code=400, detail="No content provided")
 
     tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(new_text, encoding="utf-8")
+    tmp.write_text(new_text, encoding="utf-8", newline="")
     os.replace(tmp, path)
 
     return {
@@ -357,7 +357,7 @@ async def create_agent(scope: str, name: str, cwd: str, payload: CreateAgentBody
     base.mkdir(parents=True, exist_ok=True)
     text = _serialize_agent(fm, body)
     tmp = target.with_suffix(target.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8", newline="")
     os.replace(tmp, target)
 
     return {
@@ -428,7 +428,7 @@ async def duplicate_agent(scope: str, name: str, cwd: str, payload: DuplicateBod
     target_base.mkdir(parents=True, exist_ok=True)
     new_text = _serialize_agent(fm, body)
     tmp = target.with_suffix(target.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(new_text, encoding="utf-8")
+    tmp.write_text(new_text, encoding="utf-8", newline="")
     os.replace(tmp, target)
 
     return {

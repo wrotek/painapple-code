@@ -163,7 +163,8 @@ def save(name, mode, data, root=None):
         f"# Profile '{name}' — written by `painapple setup {name}`, editable by hand.\n"
         "# mode: host (local server; this dir is its data home) or docker (container).\n"
         + body, encoding="utf-8")
-    path.chmod(0o600)
+    from painapple_code.bridge_paths import lock_mode
+    lock_mode(path, 0o600)  # icacls on win32; chmod is a no-op there
     return path
 
 

@@ -337,6 +337,42 @@ def _inject_head(html: str, *fragments: str) -> str:
     return inject + html
 
 
+def _asset_base_url(directory: Path) -> str:
+    """`<base href>` for a previewed local HTML file's relative assets.
+
+    This used to be an f-string: ``f"/api/browser/asset{p.parent}/"``,
+    which only works because a POSIX path's own leading slash supplies
+    the separator. On Windows it produced
+    ``/api/browser/assetC:\\Users\\me\\proj/`` — no separator, backslashes,
+    and a URL that doesn't even match the asset route, so every relative
+    stylesheet, script and image in a previewed page 404'd.
+
+    Encoding: forward slashes via as_posix(), drive letter kept as the
+    first segment (``/api/browser/asset/C:/Users/me/proj/``), and
+    percent-encoded so spaces and '#' in a path survive — the old form
+    didn't escape either.
+    """
+    posix = directory.as_posix()
+    if posix.startswith("//"):
+        # UNC. Kept lossless here for symmetry; is_path_allowed_for_read
+        # rejects UNC on win32 before anything gets served.
+        return "/api/browser/asset/" + quote("//" + posix.lstrip("/")) + "/"
+    return "/api/browser/asset/" + quote(posix.lstrip("/")) + "/"
+
+
+def _asset_path_from_url(path: str) -> Path:
+    """Inverse of _asset_base_url: URL tail -> absolute filesystem path."""
+    if not path:
+        raise ValueError("empty asset path")
+    if path.startswith("//"):
+        return Path(path.replace("/", "\\")).resolve()      # UNC
+    # A drive-qualified path ("C:/Users/...") is already absolute; a
+    # rootless one is POSIX and needs its leading slash back.
+    if re.match(r"^[A-Za-z]:/", path):
+        return Path(path).resolve()
+    return Path("/" + path).resolve()
+
+
 def _serve_local_file(p: Path) -> Response:
     """Shared serve path for both /render and /asset."""
     if not is_path_allowed_for_read(p):
@@ -353,7 +389,7 @@ def _serve_local_file(p: Path) -> Response:
             content = p.read_text(encoding="utf-8", errors='replace')
         except PermissionError:
             raise HTTPException(status_code=403, detail="Permission denied")
-        base_url = f"/api/browser/asset{p.parent}/"
+        base_url = _asset_base_url(p.parent)
         # Guard script first so it neuters window.open before any inline
         # script in the file can run. Even user-owned HTML shouldn't pop
         # Safari tabs from inside the browser-widget viewer on iOS.
@@ -400,12 +436,13 @@ async def browser_render(path: str):
 async def browser_asset(path: str):
     """Serve a relative resource referenced from a rendered HTML file.
 
-    `{path:path}` captures the URL tail minus the leading slash; we add
-    it back to recover the original absolute filesystem path.
+    `{path:path}` captures the URL tail minus the leading slash;
+    _asset_path_from_url recovers the original absolute filesystem path
+    (see _asset_base_url for the encoding).
     """
     try:
-        p = Path('/' + path).resolve()
-    except (OSError, RuntimeError) as e:
+        p = _asset_path_from_url(path)
+    except (OSError, RuntimeError, ValueError) as e:
         raise HTTPException(status_code=400, detail=f"Bad path: {e}")
     return _serve_local_file(p)
 

@@ -163,36 +163,58 @@ def _follow_file(path, last_lines=50, poll=0.5):
     exec-replace semantics either (execvp there spawns a NEW process and
     returns, so the parent would fall through to die() below while a
     detached tail scribbled over the same console). -F semantics are kept
-    — reopen when the file is rotated or truncated.
+    — pick up rotation and truncation.
+
+    The file is opened per poll rather than held open, which matters on
+    Windows: Python's open() doesn't request FILE_SHARE_DELETE, so a held
+    handle makes RotatingFileHandler's os.rename() fail with WinError 32.
+    The handler would then retry on EVERY subsequent record (the file is
+    still over maxBytes) and flood crash.log — i.e. running `painapple
+    logs` would break the server's logging for as long as it was open.
     """
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
-        # Seek back far enough to hold N lines without reading the whole file.
-        f.seek(0, os.SEEK_END)
-        size = f.tell()
-        f.seek(max(0, size - 64 * 1024))
-        tail = f.read().splitlines()[-last_lines:]
-        for line in tail:
-            print(line, flush=True)
-        inode = os.fstat(f.fileno()).st_ino
-        while True:
-            chunk = f.read()
-            if chunk:
-                print(chunk, end="", flush=True)
-                continue
-            time.sleep(poll)
-            try:
-                st = os.stat(path)
-            except OSError:
-                continue  # rotated away; wait for it to come back
-            # Rotation (new file) or truncation (log reset) — reopen.
-            if st.st_ino != inode or st.st_size < f.tell():
-                try:
-                    new = open(path, "r", encoding="utf-8", errors="replace")
-                except OSError:
-                    continue
-                f.close()
-                f = new
-                inode = os.fstat(f.fileno()).st_ino
+    pos, ident = 0, None
+
+    def _identity(st):
+        # st_ino is 0 on some Windows filesystems; the creation time
+        # distinguishes a rotated-in replacement there.
+        return (st.st_ino, getattr(st, "st_ctime", None))
+
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            f.seek(max(0, size - 64 * 1024))
+            for line in f.read().splitlines()[-last_lines:]:
+                print(line, flush=True)
+            pos = f.tell()
+        ident = _identity(os.stat(path))
+    except OSError:
+        pass
+
+    while True:
+        time.sleep(poll)
+        try:
+            st = os.stat(path)
+        except OSError:
+            continue                      # rotated away; wait for it back
+        new_ident = _identity(st)
+        if ident is not None and new_ident != ident:
+            pos, ident = 0, new_ident     # replaced by rotation
+        elif st.st_size < pos:
+            pos = 0                       # truncated in place
+        else:
+            ident = new_ident
+        if st.st_size == pos:
+            continue
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                f.seek(pos)
+                chunk = f.read()
+                pos = f.tell()
+        except OSError:
+            continue
+        if chunk:
+            print(chunk, end="", flush=True)
 
 
 def _host_logs(home):

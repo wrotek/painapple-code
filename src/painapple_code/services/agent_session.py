@@ -2022,7 +2022,7 @@ class AgentBridge:
         client's re-login card says "Log in to Codex" and opens the right CLI
         — not a hardcoded `claude auth login`.
         """
-        import shlex
+        from painapple_code.utils.proc import shell_join
         from painapple_code import bridge_paths
 
         p = session.provider
@@ -2043,7 +2043,7 @@ class AgentBridge:
             configured = config.get(p.path_config_key) if p.path_config_key else None
             binary = configured or p.default_binary
             if binary:
-                frame["login_command"] = shlex.join([binary, *p.auth_login_args])
+                frame["login_command"] = shell_join([binary, *p.auth_login_args])
         return frame
 
     async def _cleanup_process(self, session: AgentSession):

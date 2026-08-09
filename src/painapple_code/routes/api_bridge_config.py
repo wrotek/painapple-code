@@ -233,7 +233,7 @@ async def get_engine_auth(provider_name: str):
     terminal tab. `logged_in: null` = probe couldn't run (binary missing,
     timeout); `supported: false` = the provider describes no auth probe.
     """
-    import shlex
+    from painapple_code.utils.proc import shell_join
 
     p = _provider_or_404(provider_name)
     if not p.auth_status_args:
@@ -244,7 +244,7 @@ async def get_engine_auth(provider_name: str):
     current = configured or p.default_binary
     resolved = current if Path(current).is_absolute() else shutil.which(current)
     login_command = (
-        shlex.join([current, *p.auth_login_args]) if p.auth_login_args else None
+        shell_join([current, *p.auth_login_args]) if p.auth_login_args else None
     )
 
     logged_in, detail = None, ""

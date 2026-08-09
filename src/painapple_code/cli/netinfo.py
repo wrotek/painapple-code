@@ -4,6 +4,7 @@ container launch path. Import-cheap (stdlib only)."""
 import re
 import shutil
 import subprocess
+import sys
 
 
 def detect_local_ips():
@@ -75,7 +76,17 @@ def port_taken(host, port):
         return f"cannot resolve host {host!r} ({e})"
     family, socktype, proto, _canon, sockaddr = infos[0]
     with socket.socket(family, socktype, proto) as sock:
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # SO_REUSEADDR means opposite things on the two platforms. On POSIX
+        # it only skips the TIME_WAIT guard, which is what we want here. On
+        # Windows it permits binding a port another socket is ACTIVELY
+        # listening on (Microsoft's documented port-hijacking behavior) —
+        # so this probe would report "free" while a server was running, and
+        # every caller (boot pre-flight, `painapple start`, the container
+        # launcher) would happily start a second instance on the same port,
+        # after which Windows routes new connections to whichever bound
+        # last. Setting nothing on win32 gives the strict bind we need.
+        if sys.platform != "win32":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(sockaddr)
         except OSError as e:

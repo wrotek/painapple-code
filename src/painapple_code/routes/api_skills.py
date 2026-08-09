@@ -122,7 +122,7 @@ def _list_supporting(skill_dir: Path) -> list[dict[str, Any]]:
                 size = entry.stat().st_size
             except OSError:
                 size = 0
-            out.append({"path": str(rel), "size": size})
+            out.append({"path": rel.as_posix(), "size": size})
     return out
 
 
@@ -364,7 +364,7 @@ async def update_skill(scope: str, name: str, cwd: str, payload: UpdateSkillBody
 
     # Atomic write
     tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(new_text, encoding="utf-8")
+    tmp.write_text(new_text, encoding="utf-8", newline="")
     os.replace(tmp, path)
 
     return {
@@ -450,7 +450,7 @@ def _write_skill_dir(target_dir: Path, frontmatter: dict[str, Any], body: str) -
     text = _serialize_skill(frontmatter, body)
     # Atomic write
     tmp = skill_path.with_suffix(skill_path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8", newline="")
     os.replace(tmp, skill_path)
     return skill_path
 
@@ -597,7 +597,7 @@ async def duplicate_skill(scope: str, name: str, cwd: str, payload: DuplicateBod
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Copy failed: {e}")
     new_skill = target_dir / "SKILL.md"
-    new_skill.write_text(_serialize_skill(fm, body), encoding="utf-8")
+    new_skill.write_text(_serialize_skill(fm, body), encoding="utf-8", newline="")
 
     return {
         "ok": True,

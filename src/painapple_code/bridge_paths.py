@@ -426,6 +426,26 @@ def list_projects(include_unreachable: bool = False) -> list[dict]:
 # means by "workspace folder" and would surface huge noisy lists.
 _WORKSPACE_ROOT_DENYLIST = {"/", "/home", "/Users", "/root", "/mnt", "/srv"}
 
+# Windows equivalents. The exact-string set above can't cover these: a
+# drive root is "C:\\" (any letter) and the user container is
+# "C:\\Users" — so a `--workspace C:\` would have enumerated every
+# top-level directory into the welcome screen, exactly what this guard
+# exists to prevent.
+_WIN_DENY_NAMES = {"users", "windows", "program files", "program files (x86)",
+                   "programdata"}
+
+
+def _is_denied_workspace_root(root_path: Path) -> bool:
+    if str(root_path) in _WORKSPACE_ROOT_DENYLIST:
+        return True
+    if sys.platform != "win32":
+        return False
+    # A drive or UNC root is its own parent.
+    if root_path.parent == root_path:
+        return True
+    return (root_path.parent == Path(root_path.anchor)
+            and root_path.name.lower() in _WIN_DENY_NAMES)
+
 
 _PROJECT_MARKERS = (
     ".git", "package.json", "pyproject.toml", "Cargo.toml", "go.mod",
@@ -474,7 +494,7 @@ def list_workspace_dirs(root: str, exclude_paths: Optional[list[str]] = None,
     except (OSError, RuntimeError):
         return []
 
-    if not root_path.is_dir() or str(root_path) in _WORKSPACE_ROOT_DENYLIST:
+    if not root_path.is_dir() or _is_denied_workspace_root(root_path):
         return []
 
     exclude_set: set[str] = set()
