@@ -9,20 +9,13 @@ These endpoints provide:
 """
 
 import asyncio
-import errno
-import fcntl
 import json
 import logging
-import os
-import pty
 import re
-import select
-import signal
-import struct
-import termios
 import time
 
 from painapple_code.utils.proc import pid_alive
+from painapple_code.utils.pty_backend import spawn_pty
 from datetime import datetime
 from pathlib import Path
 
@@ -55,12 +48,6 @@ TERMINAL_SCROLLBACK_SIZE = 100 * 1024  # 100KB
 # Both terminators are matched (BEL and ESC \). The payload is base64 plus
 # ';' plus Ps, so it can contain neither, which also keeps this bounded.
 _OSC52_RE = re.compile(rb'\x1b\]52;[^\x07\x1b]*(?:\x07|\x1b\\)')
-
-
-def set_terminal_size(fd: int, rows: int, cols: int):
-    """Set the terminal size using ioctl."""
-    size = struct.pack('HHHH', rows, cols, 0, 0)
-    fcntl.ioctl(fd, termios.TIOCSWINSZ, size)
 
 
 @router.websocket("/ws/terminal")
@@ -114,8 +101,8 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
     term_session = terminal_sessions.get(session_id)
 
     if term_session:
-        master_fd = term_session["master_fd"]
-        pid = term_session["pid"]
+        term = term_session["pty"]
+        pid = term.pid
 
         try:
             if not pid_alive(pid):
@@ -141,67 +128,25 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
             term_session["active"] = True
         except OSError:
             logger.info(f"Terminal process {pid} died, creating new one")
-            try:
-                os.close(master_fd)
-            except OSError:
-                pass
+            term.close()
             del terminal_sessions[session_id]
             term_session = None
 
     if not term_session:
-        master_fd, slave_fd = pty.openpty()
-
-        set_terminal_size(master_fd, 24, 80)
-
-        pid = os.fork()
-
-        if pid == 0:
-            # Child process
-            os.close(master_fd)
-            os.setsid()
-
-            try:
-                fcntl.ioctl(slave_fd, termios.TIOCSCTTY, 0)
-            except (OSError, AttributeError):
-                pass
-
-            os.dup2(slave_fd, 0)
-            os.dup2(slave_fd, 1)
-            os.dup2(slave_fd, 2)
-
-            if slave_fd > 2:
-                os.close(slave_fd)
-
-            try:
-                os.chdir(resolved_cwd)
-            except OSError:
-                pass
-
-            os.environ['TERM'] = 'xterm-256color'
-            os.environ['COLORTERM'] = 'truecolor'
-
-            shell = os.environ.get('SHELL', '/bin/bash')
-            os.execvp(shell, [shell, '-i'])
-
-        # Parent process
-        os.close(slave_fd)
-
-        flags = fcntl.fcntl(master_fd, fcntl.F_GETFL)
-        fcntl.fcntl(master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+        term = spawn_pty(resolved_cwd, rows=24, cols=80)
 
         term_session = {
-            "master_fd": master_fd,
-            "pid": pid,
+            "pty": term,
             "cwd": resolved_cwd,
             "active": True,
             "scrollback": bytearray(),
         }
         terminal_sessions[session_id] = term_session
 
-        logger.info(f"Created new terminal: pid={pid}, cwd={resolved_cwd}")
+        logger.info(f"Created new terminal: pid={term.pid}, cwd={resolved_cwd}")
 
-    master_fd = term_session["master_fd"]
-    pid = term_session["pid"]
+    term = term_session["pty"]
+    pid = term.pid
     scrollback = term_session.get("scrollback", bytearray())
 
     await websocket.send_json({
@@ -227,58 +172,39 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
         ws_disconnected = False
         try:
             while True:
-                try:
-                    result_pid, status = os.waitpid(pid, os.WNOHANG)
-                    if result_pid == pid:
-                        if os.WIFEXITED(status):
-                            exit_code = os.WEXITSTATUS(status)
-                        elif os.WIFSIGNALED(status):
-                            exit_code = -os.WTERMSIG(status)
-                        else:
-                            exit_code = -1
-                        break
-                except ChildProcessError:
-                    exit_code = 0
+                # Reap first: a shell that exits without closing the pty
+                # (or was killed) is noticed here rather than hanging the
+                # loop on a read that will never return.
+                exit_code = term.poll()
+                if exit_code is not None:
                     break
 
-                try:
-                    readable, _, _ = await loop.run_in_executor(
-                        None, lambda: select.select([master_fd], [], [], 0.1)
-                    )
+                # Backend contract: None = nothing yet, b"" = pty closed.
+                # The blocking wait (select on POSIX, queue on Windows)
+                # runs off-loop so the event loop stays responsive.
+                data = await loop.run_in_executor(None, term.read, 0.1)
+                if data is None:
+                    continue
+                if data == b"":
+                    # Give the child a moment to be reapable, then take
+                    # whatever poll() reports (0 if it was already reaped).
+                    exit_code = term.poll()
+                    if exit_code is None:
+                        await asyncio.sleep(0.05)
+                        exit_code = term.poll()
+                    if exit_code is None:
+                        exit_code = -1
+                    break
 
-                    if master_fd in readable:
-                        data = os.read(master_fd, 4096)
-                        if not data:
-                            try:
-                                _, status = os.waitpid(pid, 0)
-                                if os.WIFEXITED(status):
-                                    exit_code = os.WEXITSTATUS(status)
-                                else:
-                                    exit_code = -1
-                            except ChildProcessError:
-                                exit_code = 0
-                            break
-                        scrollback.extend(data)
-                        if len(scrollback) > TERMINAL_SCROLLBACK_SIZE:
-                            scrollback[:] = scrollback[-TERMINAL_SCROLLBACK_SIZE:]
-                        try:
-                            await websocket.send_text(data.decode('utf-8', errors='replace'))
-                        except Exception as ws_err:
-                            logger.info(f"Terminal WebSocket disconnected (session={session_id}): {ws_err}")
-                            ws_disconnected = True
-                            break
-                except OSError as e:
-                    if e.errno == errno.EIO:
-                        try:
-                            _, status = os.waitpid(pid, 0)
-                            if os.WIFEXITED(status):
-                                exit_code = os.WEXITSTATUS(status)
-                            else:
-                                exit_code = -1
-                        except ChildProcessError:
-                            exit_code = 0
-                        break
-                    raise
+                scrollback.extend(data)
+                if len(scrollback) > TERMINAL_SCROLLBACK_SIZE:
+                    scrollback[:] = scrollback[-TERMINAL_SCROLLBACK_SIZE:]
+                try:
+                    await websocket.send_text(data.decode('utf-8', errors='replace'))
+                except Exception as ws_err:
+                    logger.info(f"Terminal WebSocket disconnected (session={session_id}): {ws_err}")
+                    ws_disconnected = True
+                    break
         except asyncio.CancelledError:
             pass
         except Exception as e:
@@ -293,10 +219,7 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
                 pass
             if session_id in terminal_sessions:
                 term_session["active"] = False
-                try:
-                    os.close(master_fd)
-                except OSError:
-                    pass
+                term.close()
                 del terminal_sessions[session_id]
         elif ws_disconnected:
             logger.info(f"Terminal WebSocket gone, PTY kept alive for reconnect: session={session_id}, pid={pid}")
@@ -344,8 +267,10 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
                             if msg_type == "resize":
                                 rows = msg.get("rows", 24)
                                 cols = msg.get("cols", 80)
-                                set_terminal_size(master_fd, rows, cols)
-                                os.kill(pid, signal.SIGWINCH)
+                                try:
+                                    term.set_size(rows, cols)
+                                except (OSError, ValueError) as e:
+                                    logger.debug(f"Terminal resize failed: {e}")
                                 continue
 
                             if msg_type == "ping":
@@ -356,16 +281,14 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
                             pass
 
                     try:
-                        os.write(master_fd, text.encode('utf-8'))
-                    except OSError as e:
-                        if e.errno == errno.EIO:
-                            break
-                        raise
+                        term.write(text.encode('utf-8'))
+                    except EOFError:
+                        break
 
                 elif "bytes" in data:
                     try:
-                        os.write(master_fd, data["bytes"])
-                    except OSError:
+                        term.write(data["bytes"])
+                    except (EOFError, OSError):
                         break
 
     except WebSocketDisconnect:
@@ -394,25 +317,13 @@ async def kill_terminal(session_id: str):
     if not term_session:
         raise HTTPException(status_code=404, detail="Terminal session not found")
 
-    pid = term_session.get("pid")
-    master_fd = term_session.get("master_fd")
+    term = term_session.get("pty")
 
-    if pid:
-        try:
-            os.kill(pid, signal.SIGTERM)
-            await asyncio.sleep(0.5)
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except OSError:
-                pass
-        except OSError:
-            pass
-
-    if master_fd:
-        try:
-            os.close(master_fd)
-        except OSError:
-            pass
+    if term:
+        term.terminate()
+        await asyncio.sleep(0.5)
+        term.terminate(force=True)
+        term.close()
 
     del terminal_sessions[session_id]
     logger.info(f"Killed terminal session: {session_id}")
@@ -424,22 +335,20 @@ async def kill_terminal(session_id: str):
 async def get_terminal_cwd(session: str):
     """Live working directory of a terminal's shell process.
 
-    Reads /proc/<pid>/cwd so the result tracks the user's `cd`s in real
-    time; falls back to the spawn cwd where /proc isn't available (macOS)
-    or the shell has exited. Query param instead of a path param because
-    terminal session IDs contain slashes (`session:<id>:/path/to/cwd`).
+    Asks the backend where the shell process actually is, so the result
+    tracks the user's `cd`s in real time; falls back to the spawn cwd
+    where that isn't available (macOS has no /proc, the shell exited,
+    or — on Windows — PowerShell's `cd` moves only its provider location
+    and never the process CWD). Query param instead of a path param
+    because terminal session IDs contain slashes
+    (`session:<id>:/path/to/cwd`).
     """
     term_session = terminal_sessions.get(session)
     if not term_session:
         raise HTTPException(status_code=404, detail="Terminal session not found")
 
-    pid = term_session.get("pid")
-    live_cwd = None
-    if pid:
-        try:
-            live_cwd = os.readlink(f"/proc/{pid}/cwd")
-        except OSError:
-            pass
+    term = term_session.get("pty")
+    live_cwd = term.live_cwd() if term else None
 
     return {"cwd": live_cwd or term_session.get("cwd"), "live": bool(live_cwd)}
 
@@ -448,14 +357,15 @@ async def get_terminal_cwd(session: str):
 async def list_terminals():
     """List active terminal sessions."""
     result = []
-    for session_id, term in terminal_sessions.items():
-        pid = term.get("pid")
+    for session_id, term_session in terminal_sessions.items():
+        term = term_session.get("pty")
+        pid = term.pid if term else None
         alive = pid_alive(pid) if pid else False
 
         result.append({
             "session": session_id,
             "pid": pid,
-            "cwd": term.get("cwd"),
+            "cwd": term_session.get("cwd"),
             "alive": alive,
         })
     return {"terminals": result}

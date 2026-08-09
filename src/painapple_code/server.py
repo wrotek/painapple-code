@@ -334,21 +334,21 @@ from painapple_code.routes.api_session_stash import router as session_stash_rout
 from painapple_code.routes.api_session_welcome import router as session_welcome_router
 from painapple_code.routes.api_logs import router as logs_router
 
-# The PTY terminal is POSIX-only (pty/fcntl/termios at module top). On
-# native Windows the import fails — degrade to "no terminal widget"
-# instead of taking the whole server down. TERMINAL_AVAILABLE feeds the
-# client via INSTANCE_CONFIG so the UI can hide the widget/shortcut.
-# Phase 3 of docs-ai/plans/2026-08-08-windows-native-port.md replaces
-# this with a ConPTY backend.
-try:
+# The terminal needs a pseudo-terminal backend: pty/fcntl/termios on
+# POSIX, pywinpty (ConPTY) on Windows. Both are declared dependencies for
+# their platform, so this normally succeeds everywhere — but a Windows
+# install that skipped the optional pywinpty should lose only the
+# terminal tab, not the server. TERMINAL_AVAILABLE feeds the client via
+# INSTANCE_CONFIG so the UI hides the widget/shortcut instead of offering
+# a button that 404s.
+from painapple_code.utils.pty_backend import PTY_AVAILABLE, PTY_UNAVAILABLE_REASON
+
+TERMINAL_AVAILABLE = PTY_AVAILABLE
+if PTY_AVAILABLE:
     from painapple_code.routes.api_terminal import router as terminal_router
-    TERMINAL_AVAILABLE = True
-except ImportError as _terminal_err:
+else:
     terminal_router = None
-    TERMINAL_AVAILABLE = False
-    logger.warning(
-        f"Terminal disabled: PTY support unavailable on this platform ({_terminal_err})"
-    )
+    logger.warning(f"Terminal disabled: {PTY_UNAVAILABLE_REASON}")
 
 from painapple_code.routes.api_upload import router as upload_router
 from painapple_code.routes.api_exec import router as exec_router
@@ -1448,8 +1448,8 @@ def main(argv=None):
     app.state.renderers_enabled = renderers_enabled
     instance_config["renderers_enabled"] = renderers_enabled
 
-    # PTY terminal availability (False on native Windows until the ConPTY
-    # backend lands) — client hides the terminal widget/shortcut on it.
+    # PTY terminal availability — client hides the terminal widget and
+    # shortcut when no backend could be loaded (see PTY_UNAVAILABLE_REASON).
     instance_config["terminal_available"] = TERMINAL_AVAILABLE
 
     # Resolve the trusted-origin set now that host/port/--public-origin are
