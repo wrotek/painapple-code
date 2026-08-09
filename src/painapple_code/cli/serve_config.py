@@ -151,7 +151,7 @@ def load(path=None, recognized=None):
         return {}, []
     import yaml
     try:
-        data = yaml.safe_load(path.read_text())
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as e:
         return {}, [f"unreadable ({e}) — using built-in defaults"]
     if data is None:
@@ -191,7 +191,7 @@ def save(values):
         "# Global serve defaults written by `painapple setup` — editable by hand.\n"
         "# A bare `painapple` starts with these; explicit flags override.\n"
         "# Named deployments live in profiles/NAME/profile.yaml (painapple setup NAME).\n"
-        + body)
+        + body, encoding="utf-8")
     return path
 
 

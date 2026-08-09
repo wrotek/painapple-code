@@ -121,7 +121,7 @@ def setup_logging(
     # Redirect stderr to crash.log — captures uvicorn errors, unhandled
     # exceptions, and signal info that otherwise vanish
     crash_log = log_dir / "crash.log"
-    crash_file = open(crash_log, 'a', buffering=1)  # line-buffered
+    crash_file = open(crash_log, 'a', buffering=1, encoding="utf-8")  # line-buffered
     sys.stderr = crash_file
 
     # …but never at the cost of the console. With stderr pointed at a

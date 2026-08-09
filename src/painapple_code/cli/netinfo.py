@@ -12,13 +12,13 @@ def detect_local_ips():
     results = []
     if shutil.which("ip"):
         out = subprocess.run(["ip", "-4", "-o", "addr", "show"],
-                             capture_output=True, text=True).stdout
+                             capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
         for line in out.splitlines():
             parts = line.split()
             if len(parts) >= 4 and parts[1] != "lo":
                 results.append((parts[3].split("/")[0], parts[1]))
     elif shutil.which("ifconfig"):
-        out = subprocess.run(["ifconfig"], capture_output=True, text=True).stdout
+        out = subprocess.run(["ifconfig"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
         iface = ""
         for line in out.splitlines():
             if line and not line[0].isspace():
@@ -73,7 +73,7 @@ def port_holder(port):
         probes.append(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"])
     for cmd in probes:
         try:
-            out = subprocess.run(cmd, capture_output=True, text=True,
+            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
                                  timeout=3).stdout
         except Exception:
             continue

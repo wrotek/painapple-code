@@ -60,7 +60,7 @@ async def get_session_logs_overview(session_id: str):
     def count_lines(path):
         if not path.exists():
             return 0
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return sum(1 for line in f if line.strip())
 
     def count_user_lines(path):
@@ -68,7 +68,7 @@ async def get_session_logs_overview(session_id: str):
         if not path.exists():
             return 0
         count = 0
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line and ('"role": "user"' in line or '"role":"user"' in line):
@@ -137,7 +137,7 @@ async def get_session_messages(
 
     all_messages = []
     line_number = 0
-    with open(messages_path, 'r') as f:
+    with open(messages_path, 'r', encoding="utf-8") as f:
         for line in f:
             line_number += 1
             line = line.strip()
@@ -204,7 +204,7 @@ async def get_session_raw_log(
         return {"entries": [], "total": 0, "offset": offset, "limit": limit}
 
     all_entries = []
-    with open(raw_path, 'r') as f:
+    with open(raw_path, 'r', encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -281,7 +281,7 @@ async def get_session_tool_output(session_id: str, filename: str, store: Session
         raise HTTPException(status_code=404, detail="File not found")
 
     try:
-        content = file_path.read_text(errors='replace')
+        content = file_path.read_text(encoding="utf-8", errors='replace')
         return {
             "filename": filename,
             "size": len(content),
@@ -432,14 +432,14 @@ def compute_session_changes(store, session_id: str) -> dict:
             file_path = tools_dir / ref_file
             if file_path.exists():
                 try:
-                    return file_path.read_text()
+                    return file_path.read_text(encoding="utf-8")
                 except Exception:
                     pass
         if tool_output_file:
             file_path = tools_dir / tool_output_file
             if file_path.exists():
                 try:
-                    return file_path.read_text()
+                    return file_path.read_text(encoding="utf-8")
                 except Exception:
                     pass
         return tool_output or ''
@@ -523,7 +523,7 @@ def compute_session_changes(store, session_id: str) -> dict:
             file_entry['status'] = 'created'
 
     # Read messages and extract changes
-    with open(messages_path, 'r') as f:
+    with open(messages_path, 'r', encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -620,7 +620,7 @@ def compute_session_read_files(store, session_id: str) -> dict:
             if timestamp:
                 entry['lastRead'] = timestamp
 
-    with open(messages_path, 'r') as f:
+    with open(messages_path, 'r', encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:

@@ -57,7 +57,7 @@ def _describe_checkout() -> str | None:
             # Same tag filter as [tool.setuptools_scm] in pyproject.toml,
             # so this agrees with what a rebuild would produce.
             ["git", "describe", "--dirty", "--tags", "--long", "--match", "v[0-9]*"],
-            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=2,
+            cwd=str(REPO_ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=2,
         )
     except Exception:
         return None
@@ -253,7 +253,7 @@ async def install_helpers():
         result = await asyncio.to_thread(
             subprocess.run,
             ["bash", str(script), "--update"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
         )
         # install-helpers.sh cp -f's the bundled agent file (model: sonnet
         # default); re-apply the user's persisted subagent-model choice on top.

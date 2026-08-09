@@ -130,7 +130,7 @@ async def get_task_output(task_id: str, offset: int = 0):
     content = ""
     new_offset = offset
     try:
-        with open(real_path, 'r', errors='replace') as f:
+        with open(real_path, 'r', errors='replace', encoding="utf-8") as f:
             if offset > 0:
                 f.seek(min(offset, stat.st_size))
             content = f.read()

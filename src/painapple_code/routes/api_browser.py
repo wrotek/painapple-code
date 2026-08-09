@@ -350,7 +350,7 @@ def _serve_local_file(p: Path) -> Response:
 
     if suffix in {'.html', '.htm'}:
         try:
-            content = p.read_text(errors='replace')
+            content = p.read_text(encoding="utf-8", errors='replace')
         except PermissionError:
             raise HTTPException(status_code=403, detail="Permission denied")
         base_url = f"/api/browser/asset{p.parent}/"

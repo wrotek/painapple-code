@@ -462,7 +462,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
                 git_branch = _sp.run(
                     ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                     cwd=agent_session.cwd, capture_output=True,
-                    text=True, timeout=2
+                    text=True, encoding="utf-8", errors="replace", timeout=2
                 ).stdout.strip() or None
             except Exception:
                 pass

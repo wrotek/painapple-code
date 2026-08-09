@@ -27,9 +27,9 @@ def seed_claude_json(src, dst):
     """Write a minimal .claude.json (dst) from the allowlisted fields of
     the host file (src). Returns False on any parse/write problem."""
     try:
-        data = json.loads(Path(src).read_text())
+        data = json.loads(Path(src).read_text(encoding="utf-8"))
         subset = {k: data[k] for k in CLAUDE_JSON_ALLOW if k in data}
-        Path(dst).write_text(json.dumps(subset, indent=2))
+        Path(dst).write_text(json.dumps(subset, indent=2), encoding="utf-8")
         Path(dst).chmod(0o600)
         return True
     except (OSError, ValueError):

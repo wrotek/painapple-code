@@ -200,7 +200,7 @@ class SessionStoreV2:
         if not meta_path.exists():
             return None
         try:
-            text = meta_path.read_text()
+            text = meta_path.read_text(encoding="utf-8")
             if not text.strip():
                 raise ValueError("empty meta.json")
             meta = json.loads(text)
@@ -275,7 +275,7 @@ class SessionStoreV2:
             last_ts = None
             msg_count = 0
 
-            with open(raw_path) as f:
+            with open(raw_path, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -384,7 +384,7 @@ class SessionStoreV2:
             return
 
         try:
-            with open(messages_path, 'r') as f:
+            with open(messages_path, 'r', encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     line = line.strip()
                     if line:
@@ -399,7 +399,7 @@ class SessionStoreV2:
         """Append a single message to JSONL file. Returns new message count."""
         messages_path = self._messages_path(session_id)
         try:
-            with open(messages_path, 'a') as f:
+            with open(messages_path, 'a', encoding="utf-8") as f:
                 f.write(json.dumps(message) + '\n')
 
             # Update message count in meta
@@ -475,7 +475,7 @@ class SessionStoreV2:
             entry["data"] = data
 
         try:
-            with open(raw_path, 'a') as f:
+            with open(raw_path, 'a', encoding="utf-8") as f:
                 f.write(json.dumps(entry) + '\n')
         except Exception as e:
             logger.error(f"Failed to write raw log for {session_id}: {e}")
@@ -495,7 +495,7 @@ class SessionStoreV2:
             entry["context"] = context[:1000]  # Truncate context
 
         try:
-            with open(raw_path, 'a') as f:
+            with open(raw_path, 'a', encoding="utf-8") as f:
                 f.write(json.dumps(entry) + '\n')
         except Exception as e:
             logger.error(f"Failed to write raw error log for {session_id}: {e}")
@@ -516,7 +516,7 @@ class SessionStoreV2:
         filepath = tools_dir / filename
 
         try:
-            filepath.write_text(output)
+            filepath.write_text(output, encoding="utf-8")
             logger.debug(f"Saved tool output: {filename} ({len(output)} chars)")
         except Exception as e:
             logger.error(f"Failed to save tool output {filename}: {e}")
@@ -528,7 +528,7 @@ class SessionStoreV2:
         filepath = self._tools_dir(session_id) / filename
         if filepath.exists():
             try:
-                return filepath.read_text()
+                return filepath.read_text(encoding="utf-8")
             except Exception as e:
                 logger.error(f"Failed to load tool output {filename}: {e}")
         return None
@@ -606,7 +606,7 @@ class SessionStoreV2:
         """Rewrite all messages (used for updates/imports)."""
         messages_path = self._messages_path(session_id)
         try:
-            with open(messages_path, 'w') as f:
+            with open(messages_path, 'w', encoding="utf-8") as f:
                 for msg in messages:
                     f.write(json.dumps(msg) + '\n')
 
@@ -696,7 +696,7 @@ class SessionStoreV2:
         # Clear messages file
         messages_path = self._messages_path(session_id)
         if messages_path.exists():
-            messages_path.write_text("")
+            messages_path.write_text("", encoding="utf-8")
 
         # Clear tools directory
         tools_dir = self._tools_dir(session_id)
@@ -733,7 +733,7 @@ class SessionStoreV2:
         path = self._project_data_path(cwd)
         if path.exists():
             try:
-                return json.loads(path.read_text())
+                return json.loads(path.read_text(encoding="utf-8"))
             except Exception as e:
                 logger.error(f"Failed to load project data: {e}")
         return {}
@@ -743,7 +743,7 @@ class SessionStoreV2:
         path = self._project_data_path(cwd)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, indent=2))
+            path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except Exception as e:
             logger.error(f"Failed to save project data: {e}")
 
@@ -770,7 +770,7 @@ class SessionStoreV2:
         if not stash_path.exists():
             return []
         try:
-            data = json.loads(stash_path.read_text())
+            data = json.loads(stash_path.read_text(encoding="utf-8"))
             return data.get("items", [])
         except Exception as e:
             logger.warning(f"Error reading stash for {session_id}: {e}")
@@ -782,7 +782,7 @@ class SessionStoreV2:
         try:
             # Ensure session directory exists (may not if session is pending or different user)
             stash_path.parent.mkdir(parents=True, exist_ok=True)
-            stash_path.write_text(json.dumps({"items": items}, indent=2))
+            stash_path.write_text(json.dumps({"items": items}, indent=2), encoding="utf-8")
             return True
         except Exception as e:
             logger.error(f"Error saving stash for {session_id}: {e}")

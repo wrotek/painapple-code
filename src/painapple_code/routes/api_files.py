@@ -161,7 +161,7 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
         try:
             project_config_path = bridge_paths.get_project_config_path(str(p))
             if project_config_path.exists():
-                project_config = json.loads(project_config_path.read_text())
+                project_config = json.loads(project_config_path.read_text(encoding="utf-8"))
                 project_extra = project_config.get("extra_dirs", [])
             else:
                 project_extra = []
@@ -236,7 +236,7 @@ async def read_file(path: str):
         if p.stat().st_size > 1_000_000:  # 1MB limit
             raise HTTPException(status_code=400, detail="File too large")
 
-        return {"path": str(p), "content": p.read_text(errors='replace'), "mtime": p.stat().st_mtime}
+        return {"path": str(p), "content": p.read_text(encoding="utf-8", errors='replace'), "mtime": p.stat().st_mtime}
     except PermissionError:
         raise HTTPException(status_code=403, detail="Permission denied")
 
@@ -273,7 +273,7 @@ async def write_file(request: WriteFileRequest):
         p.parent.mkdir(parents=True, exist_ok=True)
 
         # Write the file
-        p.write_text(request.content)
+        p.write_text(request.content, encoding="utf-8")
 
         return {
             "path": str(p),

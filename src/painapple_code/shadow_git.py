@@ -212,7 +212,7 @@ class ShadowGit(_SummaryMixin):
         try:
             exclude_file = self.git_dir / "info" / "exclude"
             exclude_file.parent.mkdir(parents=True, exist_ok=True)
-            existing = exclude_file.read_text() if exclude_file.exists() else ""
+            existing = exclude_file.read_text(encoding="utf-8") if exclude_file.exists() else ""
             default_lines = set(DEFAULT_EXCLUDES.splitlines())
             extras = [
                 line for line in existing.splitlines()
@@ -224,7 +224,7 @@ class ShadowGit(_SummaryMixin):
             if extras:
                 content += "\n# Auto-excluded / project-specific\n" + "\n".join(extras) + "\n"
             if content != existing:
-                exclude_file.write_text(content)
+                exclude_file.write_text(content, encoding="utf-8")
         except OSError as e:
             logger.warning(f"Failed to sync shadow git excludes: {e}")
 
@@ -233,7 +233,7 @@ class ShadowGit(_SummaryMixin):
         try:
             exclude_file = self.git_dir / "info" / "exclude"
             exclude_file.parent.mkdir(parents=True, exist_ok=True)
-            existing = exclude_file.read_text() if exclude_file.exists() else ""
+            existing = exclude_file.read_text(encoding="utf-8") if exclude_file.exists() else ""
             existing_lines = set(existing.splitlines())
             new_lines = [
                 pattern for pattern in
@@ -246,7 +246,7 @@ class ShadowGit(_SummaryMixin):
             if reason:
                 block += f"# Auto-excluded ({reason})\n"
             block += "\n".join(new_lines) + "\n"
-            exclude_file.write_text(existing + block)
+            exclude_file.write_text(existing + block, encoding="utf-8")
         except OSError as e:
             logger.warning(f"Failed to update shadow git excludes: {e}")
 
@@ -376,7 +376,7 @@ class ShadowGit(_SummaryMixin):
             # Write exclude patterns
             exclude_file = self.git_dir / "info" / "exclude"
             exclude_file.parent.mkdir(parents=True, exist_ok=True)
-            exclude_file.write_text(DEFAULT_EXCLUDES)
+            exclude_file.write_text(DEFAULT_EXCLUDES, encoding="utf-8")
 
             # Configure git
             await self._run(["config", "user.email", "shadow-git@painapple-code"])
@@ -403,7 +403,7 @@ class ShadowGit(_SummaryMixin):
         """Load active-modifications.json."""
         if self.tracking_file.exists():
             try:
-                return json.loads(self.tracking_file.read_text())
+                return json.loads(self.tracking_file.read_text(encoding="utf-8"))
             except Exception as e:
                 logger.warning(f"Failed to load tracking file: {e}")
         return {}
@@ -411,7 +411,7 @@ class ShadowGit(_SummaryMixin):
     def _save_tracking(self, data: dict):
         """Save active-modifications.json atomically."""
         temp = self.tracking_file.with_suffix(".tmp")
-        temp.write_text(json.dumps(data, indent=2))
+        temp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         # os.replace, not rename: rename over an existing dest raises
         # FileExistsError on Windows — every save after the first.
         os.replace(temp, self.tracking_file)
@@ -785,7 +785,7 @@ class ShadowGit(_SummaryMixin):
                             } if summary_cost else None,
                             "structured_data": structured_data,
                         }
-                        with open(summary_file, "a") as f:
+                        with open(summary_file, "a", encoding="utf-8") as f:
                             f.write(json.dumps(summary_record) + "\n")
                     except Exception as e:
                         logger.warning(f"Failed to save summary.jsonl: {e}")
@@ -929,7 +929,7 @@ class ShadowGit(_SummaryMixin):
             return False
 
         try:
-            meta = json.loads(meta_file.read_text())
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
             shadow = meta.get("shadow", {})
 
             if not shadow or shadow.get("archived"):
@@ -961,7 +961,7 @@ Files: {', '.join(shadow.get('files_touched', [])[:10])}
             # Mark as archived in meta
             meta["shadow"]["archived"] = True
             meta["shadow"]["archive_tag"] = f"sessions/{session_id}"
-            meta_file.write_text(json.dumps(meta, indent=2))
+            meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
             logger.info(f"Archived session: {session_id}")
             return True

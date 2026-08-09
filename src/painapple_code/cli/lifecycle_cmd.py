@@ -179,7 +179,7 @@ def _print_login_url(*logs):
     that logged it as an INFO line instead."""
     for log in logs:
         try:
-            text = log.read_text(errors="replace")[-8000:]
+            text = log.read_text(encoding="utf-8", errors="replace")[-8000:]
         except OSError:
             continue
         for line in reversed(text.splitlines()):
@@ -191,7 +191,7 @@ def _print_login_url(*logs):
 
 def _tail(path, n=15):
     try:
-        lines = path.read_text(errors="replace").splitlines()[-n:]
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()[-n:]
     except OSError:
         return
     for line in lines:

@@ -79,7 +79,7 @@ def get_password(cfg, rt):
     if cfg.config_is_bind():
         f = Path(cfg.config_volume) / "config.yaml"
         try:
-            return _password_from_yaml(f.read_text()) if f.is_file() else ""
+            return _password_from_yaml(f.read_text(encoding="utf-8")) if f.is_file() else ""
         except OSError:
             return ""
     if rt.container_running(cfg.container):
@@ -399,7 +399,7 @@ def _container_trouble(cfg, rt):
 
 def _tail_container_logs(cfg, rt, n=20):
     proc = rt.run("logs", "--tail", str(n), cfg.container,
-                  capture_output=True, text=True)
+                  capture_output=True, text=True, encoding="utf-8", errors="replace")
     for line in (proc.stdout + proc.stderr).splitlines()[-n:]:
         say(f"  {DIM}{line}{RESET}")
 

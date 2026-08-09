@@ -118,3 +118,25 @@ def resolve_binary(name: str) -> str:
     if sys.platform != "win32":
         return name
     return shutil.which(name) or name
+
+
+def force_utf8_stdio() -> None:
+    """Reconfigure stdout/stderr to UTF-8 on win32; no-op on POSIX.
+
+    Windows consoles default to a legacy codepage (cp1252/OEM), so the
+    first ``→`` in ``--help`` or box-drawing char in the boot banner
+    raises ``UnicodeEncodeError``. Call at process entry points (CLI
+    main, SDK driver main). Works on redirected streams too, which is
+    what makes the detached ``painapple start`` child safe. Streams
+    without ``reconfigure`` (test doubles, pythonw) are left alone —
+    ``errors="replace"`` keeps even OEM-codepage consoles from crashing,
+    they just render mojibake instead.
+    """
+    if sys.platform != "win32":
+        return
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass

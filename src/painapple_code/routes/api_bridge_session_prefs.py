@@ -38,7 +38,7 @@ async def get_tab_state():
     tab_state_file = bridge_paths.get_tab_state_path()
     if tab_state_file.exists():
         try:
-            return json.loads(tab_state_file.read_text())
+            return json.loads(tab_state_file.read_text(encoding="utf-8"))
         except Exception:
             pass
     return {"sessions": [], "activeStoreId": None}
@@ -73,7 +73,7 @@ async def save_tab_state(payload: TabStatePayload):
     if payload.activeTab is not None:
         data["activeTab"] = payload.activeTab
     try:
-        bridge_paths.get_tab_state_path().write_text(json.dumps(data, indent=2))
+        bridge_paths.get_tab_state_path().write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save tab state: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -93,7 +93,7 @@ async def get_shortcut_overrides():
     shortcuts_file = bridge_paths.get_shortcuts_path()
     if shortcuts_file.exists():
         try:
-            return json.loads(shortcuts_file.read_text())
+            return json.loads(shortcuts_file.read_text(encoding="utf-8"))
         except Exception:
             pass
     return {"shortcuts": {}}
@@ -113,7 +113,7 @@ async def save_shortcut_overrides(payload: ShortcutsPayload):
         "savedAt": datetime.now(timezone.utc).isoformat(),
     }
     try:
-        bridge_paths.get_shortcuts_path().write_text(json.dumps(data, indent=2))
+        bridge_paths.get_shortcuts_path().write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save shortcut overrides: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -136,7 +136,7 @@ def get_git_repo_hash(project_path: str) -> Optional[str]:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--git-common-dir"],
-            capture_output=True, text=True, cwd=str(project_path), timeout=5
+            capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(project_path), timeout=5
         )
         if result.returncode != 0:
             return None
@@ -240,7 +240,7 @@ def _load_default_presets() -> dict:
     """Load default presets from presets.defaults.json (ships with the project)."""
     defaults_file = PACKAGE_DIR / "data" / "presets.defaults.json"
     try:
-        return json.loads(defaults_file.read_text())
+        return json.loads(defaults_file.read_text(encoding="utf-8"))
     except Exception as e:
         logger.error(f"Failed to load {defaults_file}: {e}")
         return {}
@@ -256,7 +256,7 @@ def ensure_presets_dir() -> Path:
     for preset_id, preset in defaults.items():
         path = presets_dir / f"{preset_id}.json"
         if not path.exists():
-            path.write_text(json.dumps(preset, indent=2) + "\n")
+            path.write_text(json.dumps(preset, indent=2) + "\n", encoding="utf-8")
             seeded += 1
     if seeded:
         logger.info(f"Seeded {seeded} new default presets in {presets_dir}")
@@ -269,7 +269,7 @@ def load_all_presets() -> dict:
     presets = {}
     for path in sorted(presets_dir.glob("*.json")):
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
             preset_id = path.stem
             presets[preset_id] = data
         except Exception as e:
@@ -281,7 +281,7 @@ def save_preset(preset_id: str, data: dict):
     """Save a single preset to ~/.painapple-code/presets/{id}.json"""
     presets_dir = ensure_presets_dir()
     path = presets_dir / f"{preset_id}.json"
-    path.write_text(json.dumps(data, indent=2) + "\n")
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def delete_preset(preset_id: str) -> bool:
@@ -322,12 +322,12 @@ def ensure_project_dir(project_path: str) -> Path:
     abs_path = str(Path(project_path).resolve())
 
     if not path_file.exists():
-        path_file.write_text(abs_path)
+        path_file.write_text(abs_path, encoding="utf-8")
         logger.debug(f"Created project dir: {project_dir} -> {abs_path}")
-    elif path_file.read_text().strip() != abs_path:
+    elif path_file.read_text(encoding="utf-8").strip() != abs_path:
         # Path changed (shouldn't happen with hash, but handle gracefully)
-        logger.warning(f"Project path mismatch: {path_file.read_text().strip()} vs {abs_path}")
-        path_file.write_text(abs_path)
+        logger.warning(f"Project path mismatch: {path_file.read_text(encoding="utf-8").strip()} vs {abs_path}")
+        path_file.write_text(abs_path, encoding="utf-8")
 
     return project_dir
 
@@ -344,7 +344,7 @@ def get_project_path_from_hash(project_hash: str) -> Optional[str]:
     """
     path_file = BRIDGE_HOME / "projects" / project_hash / "path"
     if path_file.exists():
-        return path_file.read_text().strip()
+        return path_file.read_text(encoding="utf-8").strip()
     return None
 
 
@@ -378,7 +378,7 @@ def list_projects(include_unreachable: bool = False) -> list[dict]:
         if not path_file.exists():
             continue
 
-        project_path = path_file.read_text().strip()
+        project_path = path_file.read_text(encoding="utf-8").strip()
         reachable = Path(project_path).is_dir()
 
         if not reachable and not include_unreachable:
@@ -399,7 +399,7 @@ def list_projects(include_unreachable: bool = False) -> list[dict]:
         cfg_file = hash_dir / "config.json"
         if cfg_file.exists():
             try:
-                cfg = json.loads(cfg_file.read_text())
+                cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
                 custom_color = _normalize_project_color(
                     cfg.get("display", {}).get("color")
                 )
@@ -527,7 +527,7 @@ def load_global_config() -> dict:
     config_path = get_global_config_path()
     if config_path.exists():
         try:
-            return json.loads(config_path.read_text())
+            return json.loads(config_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load global config: {e}")
     return {}
@@ -543,7 +543,7 @@ def save_global_config(config: dict):
     ensure_bridge_home()
     config_path = get_global_config_path()
     try:
-        config_path.write_text(json.dumps(config, indent=2))
+        config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save global config: {e}")
 
@@ -612,7 +612,7 @@ def load_models_config() -> dict:
     if mtime == _models_mtime and _models_cache:
         return _models_cache
     import yaml
-    with open(yaml_path) as f:
+    with open(yaml_path, encoding="utf-8") as f:
         _models_cache = yaml.safe_load(f) or {}
     _models_mtime = mtime
     return _models_cache
@@ -636,7 +636,7 @@ def get_default_models_config() -> dict:
     if not yaml_path.exists():
         return {"selectable": [], "summary_model": "claude-haiku-4-5"}
     import yaml
-    with open(yaml_path) as f:
+    with open(yaml_path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -651,7 +651,7 @@ def save_models_config(config: dict) -> None:
         "# Edit via Settings → Engines (Claude tab), or by hand (both work).\n\n"
     )
     body = yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
-    yaml_path.write_text(header + body)
+    yaml_path.write_text(header + body, encoding="utf-8")
     # Invalidate cache so next read picks up the change
     _models_cache = {}
     _models_mtime = 0.0
@@ -774,7 +774,7 @@ def load_project_config(project_path: str) -> dict:
     project_config_path = get_project_config_path(project_path)
     if project_config_path.exists():
         try:
-            project_config = json.loads(project_config_path.read_text())
+            project_config = json.loads(project_config_path.read_text(encoding="utf-8"))
 
             # Deep merge shadow_git if present
             if "shadow_git" in project_config:
@@ -802,7 +802,7 @@ def save_project_config(project_path: str, config: dict):
     ensure_project_dir(project_path)
     config_path = get_project_config_path(project_path)
     try:
-        config_path.write_text(json.dumps(config, indent=2))
+        config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save project config: {e}")
 
@@ -840,7 +840,7 @@ def set_project_display_name(project_path: str, name: str):
     existing = {}
     if config_path.exists():
         try:
-            existing = json.loads(config_path.read_text())
+            existing = json.loads(config_path.read_text(encoding="utf-8"))
         except Exception:
             pass
 
@@ -898,7 +898,7 @@ def set_project_color(project_path: str, color: str) -> Optional[str]:
     existing = {}
     if config_path.exists():
         try:
-            existing = json.loads(config_path.read_text())
+            existing = json.loads(config_path.read_text(encoding="utf-8"))
         except Exception:
             pass
 
@@ -967,7 +967,7 @@ def load_drafts() -> dict:
     drafts_path = get_drafts_path()
     if drafts_path.exists():
         try:
-            return json.loads(drafts_path.read_text())
+            return json.loads(drafts_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load drafts: {e}")
     return {"version": 1, "drafts": []}
@@ -986,7 +986,7 @@ def save_drafts(data: dict) -> bool:
     ensure_bridge_home()
     drafts_path = get_drafts_path()
     try:
-        drafts_path.write_text(json.dumps(data, indent=2))
+        drafts_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return True
     except Exception as e:
         logger.error(f"Failed to save drafts: {e}")
@@ -1003,7 +1003,7 @@ def load_favorites() -> dict:
     fav_path = get_favorites_path()
     if fav_path.exists():
         try:
-            return json.loads(fav_path.read_text())
+            return json.loads(fav_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load favorites: {e}")
     return {"version": 1, "favorites": []}
@@ -1019,7 +1019,7 @@ def save_favorites(data: dict):
     ensure_bridge_home()
     fav_path = get_favorites_path()
     try:
-        fav_path.write_text(json.dumps(data, indent=2))
+        fav_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save favorites: {e}")
 
@@ -1168,7 +1168,7 @@ def load_prompt_favorites() -> dict:
     fav_path = get_prompt_favorites_path()
     if fav_path.exists():
         try:
-            return json.loads(fav_path.read_text())
+            return json.loads(fav_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load prompt favorites: {e}")
     return {"version": 1, "prompts": {}}
@@ -1184,7 +1184,7 @@ def save_prompt_favorites(data: dict):
     ensure_bridge_home()
     fav_path = get_prompt_favorites_path()
     try:
-        fav_path.write_text(json.dumps(data, indent=2))
+        fav_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save prompt favorites: {e}")
 

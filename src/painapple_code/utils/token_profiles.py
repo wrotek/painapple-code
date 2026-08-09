@@ -46,7 +46,7 @@ def read_token(profile_name: str) -> Optional[str]:
         logger.warning(f"Token profile not found: {profile_name}")
         return None
     try:
-        return token_path.read_text().strip()
+        return token_path.read_text(encoding="utf-8").strip()
     except Exception as e:
         logger.error(f"Failed to read token profile {profile_name}: {e}")
         return None

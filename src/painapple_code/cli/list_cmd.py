@@ -33,7 +33,7 @@ def _iter_processes():
     import subprocess
     try:
         out = subprocess.run(["ps", "ax", "-o", "pid=,command="],
-                             capture_output=True, text=True, timeout=10).stdout
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout
     except (OSError, subprocess.TimeoutExpired):
         return
     for line in out.splitlines():

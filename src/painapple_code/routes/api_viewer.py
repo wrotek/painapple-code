@@ -174,11 +174,11 @@ async def file_viewer(path: str = None):
 
         # Markdown viewer
         if suffix == '.md':
-            content = p.read_text(errors='replace')
+            content = p.read_text(encoding="utf-8", errors='replace')
             return markdown_viewer(p.name, str(p), content)
 
         # Code/text viewer
-        content = p.read_text(errors='replace')
+        content = p.read_text(encoding="utf-8", errors='replace')
         lang = get_language(suffix)
         return code_viewer(p.name, str(p), content, lang)
 

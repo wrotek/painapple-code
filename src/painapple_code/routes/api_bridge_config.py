@@ -92,7 +92,7 @@ async def _engine_path_payload(p) -> dict:
                 # path shutil.which returned is.
                 [resolved, "--version"],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=5,
             )
             if result.returncode == 0:
@@ -257,7 +257,7 @@ async def get_engine_auth(provider_name: str):
                 # bare .cmd shim names aren't spawnable on win32.
                 [resolved, *p.auth_status_args],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=10,
             )
             parsed = p.parse_auth_status(

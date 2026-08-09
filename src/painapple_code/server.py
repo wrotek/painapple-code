@@ -435,7 +435,7 @@ async def upload_perf_snapshot(request: Request):
             messages_content = ""
             messages_count = 0
             if messages_path.exists():
-                messages_content = messages_path.read_text()
+                messages_content = messages_path.read_text(encoding="utf-8")
                 messages_count = sum(1 for line in messages_content.splitlines() if line.strip())
 
             msg_bytes = len(messages_content.encode("utf-8"))
@@ -502,7 +502,7 @@ async def serve_concatenated_css(v: str = None):
     parts = []
     for f in css_files:
         parts.append(f"/* === {f.name} === */")
-        parts.append(f.read_text())
+        parts.append(f.read_text(encoding="utf-8"))
 
     content = "\n".join(parts)
 
@@ -548,7 +548,7 @@ def _get_js_cache_bust() -> str:
 def _process_js_file(filename: str, cache_bust: str) -> str:
     """Read and process JS file with cache-busted imports. Cached by filename+version."""
     js_path = PACKAGE_DIR / "static" / "js" / filename
-    content = js_path.read_text()
+    content = js_path.read_text(encoding="utf-8")
     # Match static imports: from './foo.js' or from '../foo.js'
     content = re.sub(r"from\s+['\"]((\.\.?/)+[^'\"]+\.js)['\"]", rf"from '\1{cache_bust}'", content)
     # Match dynamic imports: import('./foo.js') or import('../foo.js')
@@ -560,7 +560,7 @@ def _process_js_file(filename: str, cache_bust: str) -> str:
 def _load_strings_yaml(mtime: float) -> str:
     """Read strings.yaml and convert to ES module. Cached by file mtime."""
     yaml_path = PACKAGE_DIR / "data" / "strings.yaml"
-    with open(yaml_path) as f:
+    with open(yaml_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return f"// Auto-generated from strings.yaml — do not edit\nexport default {json.dumps(data, ensure_ascii=False)};\n"
 
@@ -704,7 +704,7 @@ async def login_page(request: Request):
     reveal_cmd = os.environ.get("PAINAPPLE_REVEAL_CMD", "").strip()
     if reveal_cmd:
         login_config["revealCmd"] = reveal_cmd
-    html = html_path.read_text().replace(
+    html = html_path.read_text(encoding="utf-8").replace(
         "</head>",
         f"    <script>window.LOGIN_CONFIG={json.dumps(login_config)};</script>\n</head>",
     )
@@ -862,7 +862,7 @@ async def triage_page():
     """Serve the feature triage tool."""
     html_path = PACKAGE_DIR / "static" / "feature-triage.html"
     if html_path.exists():
-        return html_path.read_text()
+        return html_path.read_text(encoding="utf-8")
     return _missing_asset_page(
         "Triage tool not found",
         f"Expected at <code>{html_path}</code>.",
@@ -875,7 +875,7 @@ async def get_triage_state():
     index_path = _FEATURES_DIR / "_index.yaml"
     if not index_path.exists():
         return JSONResponse({"decisions": {}, "notes": {}})
-    with open(index_path) as f:
+    with open(index_path, encoding="utf-8") as f:
         index = yaml.safe_load(f)
     decisions = {}
     notes = {}
@@ -900,7 +900,7 @@ async def save_triage_state(request: Request):
     if not index_path.exists():
         return JSONResponse({"error": "index not found"}, status_code=404)
 
-    lines = index_path.read_text().splitlines()
+    lines = index_path.read_text(encoding="utf-8").splitlines()
     result = []
     i = 0
     while i < len(lines):
@@ -962,7 +962,7 @@ async def save_triage_state(request: Request):
                 continue  # don't increment, already at next block
         i += 1
 
-    index_path.write_text('\n'.join(result) + '\n')
+    index_path.write_text('\n'.join(result) + '\n', encoding="utf-8")
     _features_cache["data"] = None  # invalidate
     return JSONResponse({"ok": True})
 
@@ -1067,7 +1067,7 @@ async def get_features():
     if _features_cache["data"] and _features_cache["mtime"] == mtime:
         return JSONResponse(_features_cache["data"])
 
-    with open(index_path) as f:
+    with open(index_path, encoding="utf-8") as f:
         index = yaml.safe_load(f)
 
     groups = index.get('groups', [])
@@ -1077,7 +1077,7 @@ async def get_features():
         spec = {}
         if spec_file.exists():
             try:
-                spec = _parse_spec(spec_file.read_text())
+                spec = _parse_spec(spec_file.read_text(encoding="utf-8"))
             except Exception:
                 spec = {}
         features.append({
@@ -1118,7 +1118,7 @@ async def web_client():
     """Serve the full web client with cache-busting for static assets."""
     html_path = PACKAGE_DIR / "static" / "web-client.html"
     if html_path.exists():
-        html = html_path.read_text()
+        html = html_path.read_text(encoding="utf-8")
         cache_bust = f"?v={_get_static_mtime()}"
         # Add cache bust to /static/*.css and /static/*.js URLs
         html = re.sub(r'(/static/[^"]+\.css)"', rf'\1{cache_bust}"', html)
@@ -1167,7 +1167,7 @@ async def service_worker():
     if sw_path.exists():
         version = str(_get_static_mtime("sw.js"))
         # Inject version into SW
-        content = sw_path.read_text().replace("__CACHE_VERSION__", version)
+        content = sw_path.read_text(encoding="utf-8").replace("__CACHE_VERSION__", version)
         return Response(
             content=content,
             media_type="application/javascript",
@@ -1200,7 +1200,7 @@ async def manifest():
     if not manifest_path.exists():
         return JSONResponse(content={}, status_code=404)
 
-    data = json.loads(manifest_path.read_text())
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     if instance_config.get("name"):
         name = instance_config["name"]
@@ -1376,6 +1376,9 @@ def _preflight_port(host: str, port: int) -> None:
 
 
 def main(argv=None):
+    if sys.platform == "win32":  # idempotent; direct-entry safety (cli.main already did it)
+        from painapple_code.utils.proc import force_utf8_stdio
+        force_utf8_stdio()
     # Parser lives in cli/serve_args.py (import-light) so cli.main() can
     # fast-fail on bad flags / -v / --help without importing this module.
     # By the time we run, cli.main() has already gate-parsed argv — this
@@ -1471,7 +1474,7 @@ def main(argv=None):
     from painapple_code.server_logging import DEFAULT_LOG_DIR
     pid_log_dir = Path(args.log_dir).expanduser() if args.log_dir else DEFAULT_LOG_DIR
     pid_file = pid_log_dir / "server.pid"
-    pid_file.write_text(str(os.getpid()))
+    pid_file.write_text(str(os.getpid()), encoding="utf-8")
     atexit.register(lambda: pid_file.unlink(missing_ok=True))
 
     if args.default_provider:

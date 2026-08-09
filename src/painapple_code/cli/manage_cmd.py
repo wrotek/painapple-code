@@ -111,7 +111,7 @@ def _auth_config_path():
 def _host_password_value():
     path = _auth_config_path()
     try:
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             if line.startswith("password:"):
                 return line.split(":", 1)[1].strip()
     except OSError:

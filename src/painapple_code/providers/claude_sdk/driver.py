@@ -375,6 +375,11 @@ async def _amain(args: argparse.Namespace) -> int:
 
 
 def main() -> None:
+    if sys.platform == "win32":
+        # stdout is the wire to the bridge and emit() uses ensure_ascii=False —
+        # a cp1252 pipe would corrupt the first non-ASCII assistant token.
+        from painapple_code.utils.proc import force_utf8_stdio
+        force_utf8_stdio()
     parser = argparse.ArgumentParser(description="painapple-code Agent SDK driver")
     parser.add_argument("--cli-path", default="claude")
     parser.add_argument("--model", default=None)

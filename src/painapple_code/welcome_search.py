@@ -243,7 +243,7 @@ class WelcomeSearcher:
         if not messages_file.exists():
             return None
         try:
-            with open(messages_file) as f:
+            with open(messages_file, encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
                     if not line:
@@ -445,7 +445,7 @@ class WelcomeSearcher:
                 continue
 
             try:
-                meta = json.loads(meta_file.read_text())
+                meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
                 # Check if matches query
                 name = meta.get("name", "")
@@ -620,7 +620,7 @@ class WelcomeSearcher:
             meta_file = sessions_dir / session_id / "meta.json"
             if meta_file.exists():
                 try:
-                    meta = json.loads(meta_file.read_text())
+                    meta = json.loads(meta_file.read_text(encoding="utf-8"))
                 except Exception:
                     pass
 

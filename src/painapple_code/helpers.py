@@ -71,7 +71,7 @@ def _set_model_line(text: str, model: str) -> str:
 def read_installed_agent_model() -> str | None:
     """Return the `model:` value parsed from the installed agent file, or None."""
     try:
-        text = AGENT_TARGET.read_text()
+        text = AGENT_TARGET.read_text(encoding="utf-8")
     except Exception:
         return None
     m = _FRONTMATTER_RE.match(text)
@@ -94,7 +94,7 @@ def _normalized_hash(path: Path) -> str | None:
     """sha256 of file text with the frontmatter `model:` line removed, so the
     user's model choice does not read as a freshness mismatch."""
     try:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
     except Exception as e:
         logger.debug(f"read failed for {path}: {e}")
         return None
@@ -219,14 +219,14 @@ def apply_agent_model(model: str) -> bool:
     if not AGENT_TARGET.exists():
         return False
     try:
-        text = AGENT_TARGET.read_text()
+        text = AGENT_TARGET.read_text(encoding="utf-8")
     except Exception as e:
         logger.warning(f"apply_agent_model: read failed: {e}")
         return False
     new_text = _set_model_line(text, model)
     if new_text != text:
         try:
-            AGENT_TARGET.write_text(new_text)
+            AGENT_TARGET.write_text(new_text, encoding="utf-8")
         except Exception as e:
             logger.warning(f"apply_agent_model: write failed: {e}")
             return False

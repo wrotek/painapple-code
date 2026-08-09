@@ -70,7 +70,7 @@ async def patch_project_config(cwd: str, request: Request):
     existing = {}
     if config_path.exists():
         try:
-            existing = json.loads(config_path.read_text())
+            existing = json.loads(config_path.read_text(encoding="utf-8"))
         except Exception:
             pass
 
@@ -182,7 +182,7 @@ def _cli_command_descriptions() -> dict[str, str]:
             real_path = Path(claude_bin).resolve()
             result = subprocess.run(
                 ["strings", str(real_path)],
-                capture_output=True, text=True, timeout=10,
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
             )
             if result.returncode == 0:
                 for m in pattern.finditer(result.stdout):
@@ -217,7 +217,7 @@ def _get_command_descriptions(cwd: str) -> dict[str, str]:
             for f in d.iterdir():
                 if f.is_file() and f.suffix == ".md":
                     try:
-                        text = f.read_text(errors="replace")
+                        text = f.read_text(encoding="utf-8", errors="replace")
                         # Parse YAML frontmatter: --- ... description: ... ---
                         if text.startswith("---"):
                             end = text.find("---", 3)

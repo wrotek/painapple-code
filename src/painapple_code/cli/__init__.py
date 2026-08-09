@@ -115,6 +115,9 @@ profile-aware command (painapple list).{RESET}""")
 
 
 def main(argv=None):
+    if sys.platform == "win32":  # cp1252 console would crash on → / ╔ in help & banner
+        from painapple_code.utils.proc import force_utf8_stdio
+        force_utf8_stdio()
     argv = list(sys.argv[1:] if argv is None else argv)
 
     if argv and argv[0] in ("help", "-h", "--help"):

@@ -388,7 +388,7 @@ class _SummaryMixin:
             return
 
         try:
-            meta = json.loads(meta_file.read_text())
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
             # Update session title if provided (from the summary fork)
             # Skip if user manually renamed the session (manual_name flag)

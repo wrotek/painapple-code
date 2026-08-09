@@ -15,6 +15,7 @@ import logging
 import os
 import re
 import signal
+import sys
 import time
 import traceback
 from datetime import datetime, timezone
@@ -747,6 +748,15 @@ class AgentBridge:
 
             # Build subprocess environment with token profile if configured
             subprocess_env = build_token_env(resolve_profile(session.token_profile, session.provider))
+            if sys.platform == "win32":
+                # Python children (claude_sdk driver + the SDK inside it) must
+                # do UTF-8 file/pipe IO regardless of the console codepage;
+                # inert for non-Python providers (claude/codex are node).
+                # build_token_env returns None for "inherit parent env" —
+                # materialize a copy so the setdefault has something to land on.
+                if subprocess_env is None:
+                    subprocess_env = os.environ.copy()
+                subprocess_env.setdefault("PYTHONUTF8", "1")
 
             logger.info(f"Starting {session.provider.display_name} in {session.cwd}" +
                         (f" (token: {session.token_profile})" if session.token_profile else ""))

@@ -70,7 +70,7 @@ def ensure_config_file(path: Path) -> tuple[str, bool]:
 
     if path.exists():
         lock_mode(path, 0o600)
-        config = yaml.safe_load(path.read_text()) or {}
+        config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if not isinstance(config, dict):
             raise ValueError(
                 f"{path}: expected a YAML mapping, got {type(config).__name__}"
@@ -91,7 +91,7 @@ def ensure_config_file(path: Path) -> tuple[str, bool]:
 
 def _write_config(path: Path, config: dict) -> None:
     """Write the config dict as YAML and lock perms to 0600."""
-    path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False))
+    path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False), encoding="utf-8")
     lock_mode(path, 0o600)
 
 
