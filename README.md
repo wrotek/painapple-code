@@ -60,6 +60,7 @@ Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURI
 ## Requirements
 
 - **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image ships Python and Node, and installs the agent CLIs itself on first start.)
+- **Optional:** Docker or Podman, if you want the sandboxed `--in-docker` run mode and the named container instances.
 - **Optional:** the [OpenAI Codex CLI](https://github.com/openai/codex), if you want the Codex engine.
 - **Client:** any modern browser with network access to the server.
 
@@ -72,22 +73,15 @@ pipx install painapple-code
 painapple --workspace /path/to/your/projects
 # …or cd into the project and run it bare — it serves the current directory:
 painapple
+# …or sandbox it in a container (see above):
+painapple --in-docker
 ```
 
-Open `http://localhost:8765/`. The first run prints a bootstrap URL with the password embedded as `?tkn=…` — open it once and a cookie keeps you logged in.
+The console prints the app URL with a generated password embedded — open it once and a cookie keeps you logged in.
 
 Plain `pip install painapple-code` into a venv works too — see the [pip/pipx guide](https://painapple.ai/getting-started/install-pip/).
 
-### Containers: `painapple --in-docker`
-
-If you have Docker or Podman installed, add the `--in-docker` flag and the same invocation runs sandboxed in a container instead — on a prebuilt image that already has the basic development tools, the Claude Code CLI, and pAInapple Code itself:
-
-```bash
-pipx install painapple-code
-painapple --in-docker       # serve the current directory, containerized
-```
-
-The image is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted. Docker and Podman are auto-detected. For a durable named sandbox, `painapple setup myapp` (pick "Docker" as the run mode) then `painapple start myapp`. Raw `docker run` / compose / Podman recipes and source builds: [Docker install guide](https://painapple.ai/getting-started/install-docker/).
+In container mode the image is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted. Raw `docker run` / compose / Podman recipes and source builds: [Docker install guide](https://painapple.ai/getting-started/install-docker/).
 
 ### Desktop & mobile apps (in development)
 
@@ -165,6 +159,8 @@ Context usage, token delta, files changed with diff stats, tool counts, duration
 ### Comments stash
 
 Click the bubble next to any paragraph, add a note, and it attaches — quote included — to your next prompt.
+
+Screenshots ride the same mechanism. Paste an image and the annotation editor opens (pen, arrow, box, text) — drop a numbered marker anywhere on it, type a note, and that note lands in the same stash as *"Marker 2 on screenshot.png"*. The badge pins the spot on the picture, the comment travels as prompt text, and the annotated image is attached to the same message, so the model can connect the two.
 
 ![Selecting a paragraph, adding a note, and the stash attaching itself to the next prompt](docs-site/assets/comments-stash.gif)
 
