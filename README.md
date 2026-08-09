@@ -25,6 +25,8 @@ The server binds `127.0.0.1` over plain HTTP by default; non-loopback binds auto
 
 It is single-user, not multi-tenant. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead. → [Security notes](https://painapple.ai/getting-started/security/)
 
+Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURITY.md).
+
 ### Simple isolation with the built-in Docker/Podman instance manager
 
 If you have Docker or Podman installed, add the `--in-docker` flag: it automatically creates and runs a container from an image that already has the basic development tools, the Claude Code CLI, and pAInapple Code itself.
@@ -46,8 +48,6 @@ painapple stop myapp
 ```
 
 Full reference: [Docker & container mode](https://painapple.ai/getting-started/install-docker/).
-
-Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
 ## What it is, and what it isn't
 
@@ -138,17 +138,11 @@ A selection — the full list is in the [feature docs](https://painapple.ai/feat
 
 ### Auto Journal (shadow git)
 
-After each turn, the session forks itself in the background to a fast summarizer model (Haiku by default) that reads the whole turn, not just the diff. Its structured write-up — work done, decisions, learnings, problems solved — becomes the commit message for a per-project shadow git repo holding that turn's file changes (respecting `.gitignore`), and the same fields land in a local DuckDB, so the project's own history is queryable: from the Journal widget, over a SQL endpoint, or by future sessions. The optional `shadow-git-helper` agent covers that last case — write *"consult shadow-git-helper about X"* and a sub-agent digs through past turns without loading them into your main context. It's not a backup mechanism; it's a searchable record of what was done and why.
+After each turn, the session forks itself in the background to a fast summarizer model (Haiku by default) that reads the whole turn, not just the diff. Its structured write-up — work done, decisions, learnings, problems solved — becomes the commit message for a per-project shadow git repo holding that turn's file changes (respecting `.gitignore`), and the same fields land in a local DuckDB, so the project's own history is queryable: from the Journal widget, over a SQL endpoint, or by future sessions.
+
+That last case is what the optional **`shadow-git-helper`** agent is for — write **"consult shadow-git-helper about X"** and a sub-agent digs through past turns without loading them into your main context. It's not a backup mechanism; it's a searchable record of what was done and why.
 
 <img src="docs-site/assets/shadow-journal.png" alt="Journal widget showing per-turn Haiku summaries, files changed and cost, grouped by session" width="500">
-
-### Interactive permissions
-
-Every tool call can pause on an approve/deny card with a human-readable preview — Write shows the file and content, Edit an old→new diff, Bash the command. Deny with a typed reason and it's fed back to the model as guidance. Cards surface the engine's own "always allow" suggestions, and permission mode + model switch **live**, mid-turn, over the Agent SDK control plane — no session restart. The Stop button interrupts gracefully and keeps the process warm. → [Permissions guide](https://painapple.ai/guides/permissions-and-thinking/)
-
-### AI engines — Claude and Codex, per session
-
-pAInapple Code drives Claude Code by default and can run the **OpenAI Codex CLI** as a second engine — picked *per session*, so a Claude tab and a Codex tab sit side by side. Each engine brings its own model catalog, permission vocabulary (Codex maps to its sandbox tiers), and effort scale; a setup panel on every fresh session makes the choice one tap. Settings has a per-engine panel with model show/hide, per-engine defaults, and an in-app **Log in** flow for the CLI itself. → [Engines guide](https://painapple.ai/guides/engines/)
 
 ### Per-turn summary bar
 
@@ -178,7 +172,7 @@ Search every prompt you've ever sent, across all sessions and projects, with phr
 
 ### And more
 
-Multi-session tabs, git widget, cost analytics, file explorer with rendered previews and in-place markdown editing, a sandboxed browser widget, `#` snippets and agent triggers, paste-to-annotate screenshot editor, discussion threads forked from any text selection, and switchable density modes. → [All features](https://painapple.ai/features/)
+→ [All features](https://painapple.ai/features/)
 
 ## Optional helpers
 
