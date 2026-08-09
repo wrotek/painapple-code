@@ -1,6 +1,8 @@
 # pAInapple Code
 
-A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server).
+A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
+
+The distinguishing feature is the **Auto Journal**: after every turn the session forks itself in the background to a fast summarizer model (Haiku by default), and the structured summary it writes — work done, decisions, learnings — becomes both the shadow-git commit message for that turn's file changes and a queryable row in a local DuckDB.
 
 The image bundles Python 3.13, Node 20, and `@anthropic-ai/claude-code`. Multi-arch (`linux/amd64`, `linux/arm64`).
 
@@ -169,10 +171,10 @@ docker buildx imagetools inspect wrotek/painapple-code:latest
 
 Full list on [GitHub](https://github.com/wrotek/painapple-code):
 
-- **Shadow Git auto-journal** — after each turn, a Haiku background fork summarizes the work and commits all file changes to a per-project shadow git repo. Queryable via DuckDB.
+- **Shadow Git auto-journal** — after each turn the session forks itself to a fast summarizer model (Haiku by default); its structured write-up becomes the commit message for a per-project shadow git repo holding that turn's file changes, and a queryable DuckDB row.
 - **Multi-session tabs**, real PTY terminal, cost analytics, prompt history search, comments stash, discussion threads.
 - **PWA** — installable on iPad / Android / desktop, offline fallback.
-- **Permission modes** per session: `Plan` (read-only), `Accept-Edits`, `Don't Ask`, `Auto` (Claude's AI classifier), `YOLO`.
+- **Permission modes** per session: `Ask` (the default — every edit/command waits on an approval card), `Plan` (read-only), `Accept-Edits`, `Don't Ask`, `Auto` (Claude's AI classifier), `YOLO`.
 
 ## Source & support
 
