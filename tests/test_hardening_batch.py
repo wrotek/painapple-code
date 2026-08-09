@@ -398,3 +398,24 @@ def test_is_path_allowed_for_read_denies_unc_before_resolving(monkeypatch):
             AssertionError("resolved a UNC path before denying it")))
 
     assert not fp.is_path_allowed_for_read(Path(r"\\attacker\share\x"))
+
+
+# ---------------------------------------------------------------------------
+# T15 — sanitize_filename must not vary with the host OS
+# ---------------------------------------------------------------------------
+#
+# It used to open with `Path(filename).name`, which is whichever flavor the
+# server runs on. WindowsPath("a:b.txt").name is "b.txt" (it reads "a:" as a
+# drive); PosixPath's is "a:b.txt". Same upload, different stored name — and
+# the ':' rule below it only ever ran on the POSIX side. Caught by uploading
+# to the Windows VM and getting "b.txt" where the unit test said "a_b.txt".
+
+@pytest.mark.parametrize("raw,expected", [
+    ("a:b.txt", "a_b.txt"),               # drive-looking prefix, not a drive
+    ("C:evil.txt", "C_evil.txt"),
+    (r"C:\Users\x\evil.txt", "evil.txt"),  # backslash traversal
+    ("../../etc/passwd", "passwd"),        # slash traversal
+    (r"..\..\windows\system32\x.dll", "x.dll"),
+])
+def test_sanitize_filename_is_platform_independent(raw, expected):
+    assert sanitize_filename(raw) == expected

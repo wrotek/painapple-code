@@ -11,7 +11,7 @@ import io
 import logging
 import secrets
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from PIL import Image
@@ -166,9 +166,15 @@ def sanitize_filename(filename: str) -> str:
     if not filename:
         raise ValueError("Empty filename")
 
-    filename = Path(filename).name
+    # Basename under BOTH path flavors, not whichever one the host happens to
+    # be. `Path(filename).name` was platform-dependent in a way that changed
+    # the result: WindowsPath("a:b.txt").name is "b.txt" — it reads "a:" as a
+    # drive — while PosixPath's is "a:b.txt". So the same upload landed under
+    # a different name depending on the server's OS, and the colon rule below
+    # only ran on one of them. Splitting on both separators here makes every
+    # platform agree (and "a:b.txt" reaches the ':' rule everywhere).
+    filename = filename.replace('\\', '/').rsplit('/', 1)[-1]
     filename = "".join(c for c in filename if c.isprintable() and c not in '\x00')
-    filename = filename.replace('/', '_').replace('\\', '_')
 
     # NTFS forbids these outright; without stripping them the write fails
     # with an opaque OSError instead of a clean rejection.
@@ -186,7 +192,11 @@ def sanitize_filename(filename: str) -> str:
         filename = "_" + filename
 
     if len(filename) > 200:
-        name, ext = Path(filename).stem, Path(filename).suffix
+        # PurePosixPath, not Path, for the same reason as the basename above:
+        # nothing here should vary with the host OS. (No separators or colons
+        # survive to this point, so the two flavors agree — but pinning it
+        # keeps that true if the rules above ever change.)
+        name, ext = PurePosixPath(filename).stem, PurePosixPath(filename).suffix
         filename = name[:200 - len(ext)] + ext
         filename = filename.rstrip(". ")
 
