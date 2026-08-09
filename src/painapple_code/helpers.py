@@ -10,7 +10,11 @@ GET /api/bridge/helpers/status endpoint to drive the install-prompt UI.
 
 import hashlib
 import logging
+import os
 import re
+import shutil
+import stat as stat_mod
+import sys
 from pathlib import Path
 
 from painapple_code import PACKAGE_DIR
@@ -33,6 +37,17 @@ LEGACY_TARGETS = [
     Path.home() / ".claude" / "agents" / "shadow-git-researcher.md",
     Path.home() / ".local" / "bin" / "dbq",
 ]
+
+# These two helpers are bash scripts. Copying them onto a Windows box
+# would put an unrunnable file on disk and report success, so they're
+# skipped there and reported as unsupported instead. The agent .md is
+# platform-neutral and still installs — it's the part that shows up in
+# `#` autocomplete.
+POSIX_ONLY_SOURCES = {"tools/shadow-git", "tools/shadow-query"}
+
+
+def _supported_here(src_rel: str) -> bool:
+    return not (sys.platform == "win32" and src_rel in POSIX_ONLY_SOURCES)
 
 # The shadow-git-helper agent's model is user-selectable (see
 # bridge_paths.get_helper_agent_model). Its `model:` frontmatter line is kept
@@ -127,6 +142,21 @@ def helpers_status() -> dict:
         installed = target.exists()
         up_to_date = False
 
+        if not _supported_here(src_rel):
+            # Don't let a helper we deliberately never install drag
+            # all_installed/all_current to False forever — that would
+            # show a permanent "helpers outdated" nag on Windows.
+            files.append({
+                "name": target.name,
+                "src": src_rel,
+                "target": str(target),
+                "installed": False,
+                "up_to_date": False,
+                "unsupported": True,
+                "unsupported_reason": "shell script — not usable on Windows",
+            })
+            continue
+
         if installed:
             if src_rel == AGENT_SRC_REL:
                 # Model choice is orthogonal to freshness — compare content
@@ -168,8 +198,64 @@ def helpers_status() -> dict:
 
 
 def install_helpers_script_path() -> Path:
-    """Return the path to tools/install-helpers.sh — the script the API endpoint shells out to."""
+    """Return the path to tools/install-helpers.sh — the equivalent shell
+    script users can run by hand. install_helpers() below does the same
+    work in-process; this stays for docs and manual installs."""
     return PACKAGE_DIR / "tools" / "install-helpers.sh"
+
+
+def install_helpers(force: bool = True) -> dict:
+    """Copy the bundled helpers to their user-level targets.
+
+    A Python port of tools/install-helpers.sh --update (mkdir -p, cp -f,
+    chmod 755 when the source is executable). The endpoint used to shell
+    out to `bash`, which simply isn't there on a stock Windows box — and
+    uninstall was already pure Python, so the two halves now match.
+
+    Returns the same {ok, exit_code, stdout, stderr} shape the route
+    reports, so the frontend is unchanged.
+    """
+    lines = [f"painapple-code helpers — install (pkg: {PACKAGE_DIR})", ""]
+    errors = []
+
+    for src_rel, target in HELPER_FILES:
+        if not _supported_here(src_rel):
+            lines.append(f"  skip   {target}  (POSIX-only helper, not usable on Windows)")
+            continue
+        src_abs = PACKAGE_DIR / src_rel
+        if not src_abs.is_file():
+            errors.append(f"source missing: {src_abs}")
+            continue
+        existed = target.exists()
+        if existed and not force:
+            lines.append(f"  skip   {target}  (exists — use --update to overwrite)")
+            continue
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            # copyfile, not copy2: we deliberately do not carry over source
+            # mtimes (the freshness check hashes content instead).
+            shutil.copyfile(src_abs, target)
+            if os.access(src_abs, os.X_OK):
+                target.chmod(0o755)  # mirrors the script's `chmod 755`
+            lines.append(f"  {'update' if existed else 'install'} {target}")
+        except OSError as e:
+            logger.warning(f"install: failed to write {target}: {e}")
+            errors.append(f"{target}: {e}")
+
+    for legacy in LEGACY_TARGETS:
+        if legacy.exists():
+            try:
+                legacy.unlink()
+                lines.append(f"  remove {legacy}  (legacy)")
+            except OSError as e:
+                errors.append(f"{legacy}: {e}")
+
+    return {
+        "ok": not errors,
+        "exit_code": 0 if not errors else 1,
+        "stdout": "\n".join(lines) + "\n",
+        "stderr": "\n".join(errors),
+    }
 
 
 def uninstall_helpers() -> dict:

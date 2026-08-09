@@ -1281,6 +1281,12 @@ def _generate_instance_icons(name: str, accent_hex: str):
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
         "/Library/Fonts/Arial Bold.ttf",
+        # Windows: %WINDIR% rather than a hardcoded C:\, since Windows can
+        # legitimately live on another drive. Cosmetic only — the
+        # load_default() fallback below already keeps boot working.
+        str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "arialbd.ttf"),
+        str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "segoeuib.ttf"),
+        str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "calibrib.ttf"),
     ]
     font_path = next((p for p in font_candidates if Path(p).exists()), None)
     hex_clean = accent_hex.lstrip('#')[:6]
