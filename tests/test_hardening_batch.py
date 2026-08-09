@@ -183,3 +183,86 @@ def test_windows_denied_paths(path):
 ])
 def test_windows_allowed_paths(path):
     assert _is_windows_path_allowed(PureWindowsPath(path)), path
+
+
+# ---------------------------------------------------------------------------
+# T12 — lock_mode is not a silent no-op on Windows
+# ---------------------------------------------------------------------------
+#
+# os.chmod on Windows only toggles FILE_ATTRIBUTE_READONLY and returns
+# SUCCESS, so `lock_mode(config, 0o600)` protected nothing while looking
+# like it had — and the `except OSError` warning could never fire to say
+# so. The replacement shells icacls; these tests pin the argv, because
+# dropping /inheritance:r is the difference between "owner only" and
+# "still whatever the parent directory grants".
+
+def test_lock_mode_windows_builds_owner_only_icacls(monkeypatch, tmp_path):
+    from painapple_code import bridge_paths
+
+    seen = {}
+
+    class _Result:
+        returncode = 0
+        stdout = "processed file: x"
+        stderr = ""
+
+    def _fake_run(argv, **kwargs):
+        seen["argv"] = argv
+        return _Result()
+
+    monkeypatch.setattr(bridge_paths.subprocess, "run", _fake_run)
+    monkeypatch.setenv("USERNAME", "alice")
+    monkeypatch.setenv("USERDOMAIN", "WORKGROUP")
+
+    target = tmp_path / "config.yaml"
+    target.write_text("password: x")
+    bridge_paths._lock_mode_windows(target, 0o600)
+
+    argv = seen["argv"]
+    assert argv[0] == "icacls"
+    assert str(target) in argv
+    # Without this, inherited ACEs survive and the "restriction" is a lie.
+    assert "/inheritance:r" in argv
+    # /grant:r (replace), not /grant (add) — and full control for the owner.
+    assert "/grant:r" in argv
+    assert "WORKGROUP\\alice:F" in argv
+
+
+def test_lock_mode_windows_skips_group_readable_modes(monkeypatch, tmp_path):
+    """0o644 isn't owner-only; tightening it to owner-only would be wrong."""
+    from painapple_code import bridge_paths
+
+    called = []
+    monkeypatch.setattr(bridge_paths.subprocess, "run",
+                        lambda *a, **k: called.append(a) or None)
+    target = tmp_path / "public.txt"
+    target.write_text("x")
+    bridge_paths._lock_mode_windows(target, 0o644)
+    assert not called
+
+
+def test_lock_mode_windows_warns_once_on_failure(monkeypatch, tmp_path, caplog):
+    """A failed restriction must be LOUD (once), never silent."""
+    import logging
+
+    from painapple_code import bridge_paths
+
+    class _Fail:
+        returncode = 1
+        stdout = ""
+        stderr = "Access is denied."
+
+    monkeypatch.setattr(bridge_paths.subprocess, "run", lambda *a, **k: _Fail())
+    monkeypatch.setenv("USERNAME", "alice")
+    bridge_paths._ACL_WARNED.clear()
+
+    target = tmp_path / "config.yaml"
+    target.write_text("password: x")
+    with caplog.at_level(logging.WARNING):
+        bridge_paths._lock_mode_windows(target, 0o600)
+        bridge_paths._lock_mode_windows(target, 0o600)  # repeat call
+
+    warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert len(warnings) == 1, "should warn exactly once per path"
+    assert "Access is denied." in warnings[0].message
+    bridge_paths._ACL_WARNED.clear()

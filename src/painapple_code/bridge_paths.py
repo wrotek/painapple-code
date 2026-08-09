@@ -24,6 +24,7 @@ import logging
 import os
 import stat
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -1281,6 +1282,65 @@ def get_all_prompt_favorites() -> dict:
     return data.get("prompts", {})
 
 
+# One warning per path per process — a failed ACL tightening is worth
+# saying loudly once, not on every ensure_config_file() call.
+_ACL_WARNED: set = set()
+
+
+def _lock_mode_windows(path: Path, mode: int) -> None:
+    """Owner-only DACL via icacls — the NTFS stand-in for chmod 0600/0700.
+
+    On Windows `os.chmod` only toggles FILE_ATTRIBUTE_READONLY and
+    RETURNS SUCCESS, so the POSIX path here was a silent no-op: the
+    bridge password and the TLS private key were protected by nothing but
+    whatever the user's profile happened to inherit, and the `except
+    OSError` warning could never fire to say so. (Perversely, chmod 0600
+    on an already-read-only file LOOSENS it by clearing that attribute.)
+
+    icacls ships in every Windows install, so this needs no pywin32:
+      /inheritance:r   drop inherited ACEs (the whole point — otherwise
+                       a permissive parent keeps granting access)
+      /grant:r USER:F  full control for just this user, replacing any
+                       existing grant for them
+    Modes with any group/other bits set (0o644) aren't "owner only" and
+    are left alone rather than silently over-tightened.
+    """
+    if mode & 0o077:
+        return
+    key = str(path)
+    user = os.environ.get("USERNAME")
+    if not user:
+        if key not in _ACL_WARNED:
+            _ACL_WARNED.add(key)
+            logger.warning(
+                f"Cannot restrict {path}: USERNAME is unset, so no owner-only "
+                "ACL was applied. This file is readable by any account that "
+                "inherits access to its parent directory."
+            )
+        return
+    domain = os.environ.get("USERDOMAIN")
+    principal = f"{domain}\\{user}" if domain else user
+    try:
+        result = subprocess.run(
+            ["icacls", str(path), "/inheritance:r", "/grant:r", f"{principal}:F"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        result = None
+        detail = f"{type(e).__name__}: {e}"
+    else:
+        detail = (result.stderr or result.stdout or "").strip()[:200]
+    if result is None or result.returncode != 0:
+        if key not in _ACL_WARNED:
+            _ACL_WARNED.add(key)
+            logger.warning(
+                f"Could not restrict {path} to {principal} only ({detail}). "
+                "Continuing — check it isn't readable by other accounts on "
+                "this machine."
+            )
+
+
 def lock_mode(path, mode: int) -> None:
     """Tighten `path` to `mode`, tolerating a filesystem that won't have it.
 
@@ -1294,8 +1354,15 @@ def lock_mode(path, mode: int) -> None:
     can chmod themselves, so a refusal is worth a loud warning rather
     than a dead bridge. The no-op case (already correct, by far the most
     common) doesn't call chmod at all, so it can't fail there either.
+
+    On Windows the POSIX bits are meaningless, so this delegates to an
+    icacls DACL — see _lock_mode_windows for why a no-op there was worse
+    than it looks.
     """
     path = Path(path)
+    if sys.platform == "win32":
+        _lock_mode_windows(path, mode)
+        return
     try:
         current = stat.S_IMODE(path.stat().st_mode)
     except OSError:
