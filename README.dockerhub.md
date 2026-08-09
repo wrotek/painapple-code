@@ -2,7 +2,7 @@
 
 A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
 
-Thanks to the [**Auto Journal**](https://painapple.ai/guides/shadow-git/), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn.
+Thanks to the [**Auto Journal**](https://painapple.ai/guides/shadow-git/), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. It's not just for you: the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
 
 The image ships Python 3.13 and Node 20; the agent CLIs (`@anthropic-ai/claude-code`, `@openai/codex`) are installed from npm on first start into the `/data` volume. Multi-arch (`linux/amd64`, `linux/arm64`).
 

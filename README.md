@@ -2,7 +2,7 @@
 
 A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code). The server runs on your machine and drives the CLI through the official Agent SDK; you connect from any browser — or install it as an app on a phone or iPad. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) (experimental).
 
-Thanks to the [**Auto Journal**](#auto-journal-shadow-git), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn.
+Thanks to the [**Auto Journal**](#auto-journal-shadow-git), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. It's not just for you: the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
 
 The goal is native apps for every platform; desktop and mobile apps are in development. Today the client is a web app that installs as a PWA on iOS, Android, and desktop — a workable setup in practice: much of this project was written from a phone and an iPad through this same UI.
 
