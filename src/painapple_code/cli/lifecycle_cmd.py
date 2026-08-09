@@ -299,8 +299,11 @@ def _cli_flag(args, name):
 def _respawn_spec(row):
     """(argv, cwd, env) to faithfully relaunch this running server, or
     None. Linux reads the live process's own /proc cmdline/cwd/environ —
-    an exact respawn. Elsewhere fall back to shlex-splitting the ps
-    command line (cwd/env inherit ours — lossy but workable)."""
+    an exact respawn. Elsewhere use the argv list the process scan
+    captured (cwd/env inherit ours — lossy but workable), and only fall
+    back to shlex-splitting a command STRING if there's nothing better:
+    shlex uses POSIX quoting rules, so on Windows it eats the backslashes
+    in every path it splits."""
     pid = row["pid"]
     if sys.platform.startswith("linux"):
         try:
@@ -317,6 +320,9 @@ def _respawn_spec(row):
                 return argv, cwd, env
         except OSError:
             pass  # other-user process — the kill will refuse anyway
+    argv = row.get("argv")
+    if argv:
+        return list(argv), None, None
     command = row.get("command")
     if command:
         import shlex
