@@ -20,7 +20,8 @@
 
 import { WidgetManager, getIcon } from '../widget-system/index.js';
 import { getVersionInfo } from '../config.js';
-import { escapeHtml } from '../utils.js';
+import { escapeHtml, escapeAttr } from '../utils.js';
+import { MarkdownRenderer } from '../components.js';
 import { showToast } from '../context-menu.js';
 import S from '../strings.js';
 
@@ -49,11 +50,28 @@ function pickUrl(urls, aliases) {
     return null;
 }
 
-/** External link row. rel=noopener because target=_blank without it leaks window.opener. */
+/**
+ * External link row. rel=noopener because target=_blank without it leaks
+ * window.opener.
+ *
+ * The href goes through escapeAttr(sanitizeHref(...)), the pattern
+ * tests/test_no_unsafe_sinks.py enforces repo-wide: escapeHtml alone leaves
+ * quotes intact (attribute breakout) and does no scheme check, so a bare
+ * escapeHtml href is a policy violation even where the input is trusted.
+ * These URLs come from installed distribution metadata rather than anything
+ * user-supplied, so this is defense in depth, not a live hole — but the gate
+ * is only worth keeping if it has no exceptions.
+ *
+ * sanitizeHref collapses anything outside its scheme allowlist to '#'. A dead
+ * '#' row is worse than no row — a decoy "Source code" link would be a FALSE
+ * AGPL §13 offer — so drop the row instead of rendering one.
+ */
 function linkRow(url, label, desc) {
     if (!url) return '';
+    const href = escapeAttr(MarkdownRenderer.sanitizeHref(url));
+    if (href === '#') return '';
     return `
-        <a class="about-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+        <a class="about-link" href="${href}" target="_blank" rel="noopener noreferrer">
             <div class="about-link-text">
                 <span class="about-link-label">${escapeHtml(label)}</span>
                 <span class="about-link-desc">${escapeHtml(desc)}</span>
