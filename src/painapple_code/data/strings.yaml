@@ -208,7 +208,7 @@ toast:
 # ============================================================
 ui:
   app:
-    title: "Claude Code"
+    title: "pAInapple Code"
     description: "A powerful AI assistant for software development. Connect to start a session."
   # Static tooltips for the chrome rendered in web-client.html. Applied at
   # init by applyStaticTooltips() via data-tooltip-key="ui.tooltips.<key>".

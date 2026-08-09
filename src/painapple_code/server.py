@@ -1110,14 +1110,14 @@ async def web_client():
         # Update HTML meta tags for instance
         if instance_config.get("name"):
             name = instance_config["name"]
-            html = html.replace('<title>Claude Code</title>',
-                                f'<title>{name} | Claude Code</title>')
+            html = html.replace('<title>pAInapple Code</title>',
+                                f'<title>{name} | pAInapple Code</title>')
             html = html.replace(
-                '"apple-mobile-web-app-title" content="Claude Code"',
-                f'"apple-mobile-web-app-title" content="Claude {name}"')
+                '"apple-mobile-web-app-title" content="pAInapple Code"',
+                f'"apple-mobile-web-app-title" content="pAInapple {name}"')
             html = html.replace(
-                '"application-name" content="Claude Code"',
-                f'"application-name" content="Claude {name}"')
+                '"application-name" content="pAInapple Code"',
+                f'"application-name" content="pAInapple {name}"')
 
         # Redirect icon links to instance icons
         if _instance_icons_dir:
