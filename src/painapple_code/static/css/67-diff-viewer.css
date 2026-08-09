@@ -133,6 +133,14 @@
     border-color: var(--border-secondary);
 }
 
+/* Latched state for pivots that toggle a sticky preference (e.g. wrap lines) —
+   same accent language as .preview-wrap-toggle.active in the preview toolbar. */
+.dv-pivot.dv-pivot-active {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 /* From/To picker pair (preview history bar) */
 .dv-picker-from,
 .dv-picker-to {

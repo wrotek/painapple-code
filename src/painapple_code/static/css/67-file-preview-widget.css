@@ -1468,6 +1468,51 @@
     text-align: center;
 }
 
+/* Wrap-toggle button in the history bar — icon-only */
+.dv-pivot.ph-wrap-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-4) var(--sp-6);
+}
+
+.dv-pivot.ph-wrap-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ── History wrap mode ──────────────────────────────────────────────────────
+   The History tab renders through the shared diff helpers, so it inherits the
+   nowrap defaults from two other features: `.sbs-text` (67-diff-viewer.css) in
+   split mode and `.diff-text` (22-edit-diff.css) in unified. Both files already
+   ship wrap overrides, but gated on ancestors this DOM never has
+   (`.diff-viewer-content.wrap-lines`, `.edit-diff.wrapped`) — so the rules are
+   restated here against our own container rather than retrofitting those
+   selectors onto a widget that doesn't own them. */
+
+/* Split mode */
+.preview-history-content.wrap-lines .sbs-hunk { overflow-x: hidden; }
+.preview-history-content.wrap-lines .sbs-diff-grid {
+    grid-template-columns: 40px minmax(0, 1fr) 4px 40px minmax(0, 1fr);
+}
+.preview-history-content.wrap-lines .sbs-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* Unified mode — `.diff-line` is a flexbox, so the text cell also needs to be
+   allowed to shrink below its content width for wrapping to take effect. */
+.preview-history-content.wrap-lines .diff-hunk { overflow-x: hidden; }
+.preview-history-content.wrap-lines .diff-hunk-inner { min-width: 0; }
+.preview-history-content.wrap-lines .diff-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
+}
+
 /* Textarea fallback when CodeMirror fails to load */
 .preview-edit-fallback {
     width: 100%;

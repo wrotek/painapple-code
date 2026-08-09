@@ -19,6 +19,7 @@ import { DiffViewerWidget } from '../widgets/diff-viewer-widget.js';
 import S from '../strings.js';
 
 const PREF_KEY_VIEW_MODE = 'preview-history-view-mode';
+const PREF_KEY_WRAP_LINES = 'preview-history-wrap-lines';
 
 function loadDiffViewMode() {
     try {
@@ -28,6 +29,21 @@ function loadDiffViewMode() {
 }
 function saveDiffViewMode(v) {
     try { localStorage.setItem(PREF_KEY_VIEW_MODE, v); } catch {}
+}
+
+// Wrap defaults to ON — long diff lines otherwise clip off the right edge with
+// only a per-hunk scrollbar to reach them. '0' is the only opt-out value, same
+// convention as the chat-side `code-block-wrap` preference.
+function loadWrapLines() {
+    try {
+        const v = localStorage.getItem(PREF_KEY_WRAP_LINES);
+        if (v === '0') return false;
+        if (v === '1') return true;
+        return null;
+    } catch { return null; }
+}
+function saveWrapLines(v) {
+    try { localStorage.setItem(PREF_KEY_WRAP_LINES, v ? '1' : '0'); } catch {}
 }
 
 function getCwd() {
@@ -292,6 +308,13 @@ function effectiveDiffMode() {
     return w >= 600 ? 'split' : 'unified';
 }
 
+function effectiveWrapLines() {
+    if (state.historyWrapLines !== null) return state.historyWrapLines;
+    const saved = loadWrapLines();
+    if (saved !== null) return saved;
+    return true;
+}
+
 function buildHistoryBarHtml() {
     const HB = S.widgets.diff_viewer.history_bar;
     const commits = state.historyCommits;
@@ -338,7 +361,8 @@ function buildHistoryBarHtml() {
         <div class="dv-divider"></div>
         <button class="dv-pivot ph-mode-toggle" data-action="ph-toggle-mode" data-tooltip="${S.widgets.diff_viewer.toggle_view}">
             ${effectiveDiffMode() === 'split' ? S.widgets.diff_viewer.unified_view : S.widgets.diff_viewer.split_view}
-        </button>`;
+        </button>
+        <button class="dv-pivot ph-wrap-toggle${effectiveWrapLines() ? ' dv-pivot-active' : ''}" data-action="ph-toggle-wrap" data-tooltip="${S.widgets.diff_viewer.toggle_wrap}">${ICONS.wrapText}</button>`;
 }
 
 /**
@@ -399,7 +423,7 @@ export function renderHistoryBody() {
             : `<div class="changes-diff">${renderSmartDiff(entries)}</div>`;
 
         bodyHtml = `
-            <div class="preview-history-content">
+            <div class="preview-history-content${effectiveWrapLines() ? ' wrap-lines' : ''}">
                 ${headerHtml}
                 ${diffHtml}
             </div>`;
@@ -442,6 +466,15 @@ export function wireHistoryEvents(container) {
         state.historyDiffMode = next;
         saveDiffViewMode(next);
         fns.rerenderContent();
+    });
+    // Wrap is pure CSS — toggle it live instead of re-rendering, so the reading
+    // position and any expanded collapse rows survive the flip.
+    bar.querySelector('[data-action="ph-toggle-wrap"]')?.addEventListener('click', (e) => {
+        const next = !effectiveWrapLines();
+        state.historyWrapLines = next;
+        saveWrapLines(next);
+        e.currentTarget.classList.toggle('dv-pivot-active', next);
+        container.querySelector('.preview-history-content')?.classList.toggle('wrap-lines', next);
     });
 
     // Wire collapse-section expand (re-render with all context shown)
