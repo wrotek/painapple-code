@@ -9,7 +9,8 @@ deploy time, no runtime CDN dependency.
 
 | File | Source package | Used by |
 |------|----------------|---------|
-| `codemirror.js`                       | 20 `@codemirror/*` packages, esbuild-bundled | `static/js/editor-view.js` |
+| `codemirror.js`                       | 20 `@codemirror/*` packages (39 with transitive `@lezer/*` etc.), esbuild-bundled | `static/js/editor-view.js` |
+| `codemirror.js.LEGAL.txt`             | generated license notice for everything in that bundle | nothing at runtime — it's a legal artifact |
 | `xterm.js`                            | `xterm@5` (UMD)                              | `static/js/widgets/terminal-widget.js` |
 | `xterm.css`                           | `xterm@5`                                    | `static/js/widgets/terminal-widget.js` |
 | `xterm-addon-fit.js`                  | `xterm-addon-fit@0.8` (UMD)                  | `static/js/widgets/terminal-widget.js` |
@@ -28,6 +29,24 @@ parallel cross-origin module imports for CodeMirror would intermittently
 fail, surfacing as `TypeError: Importing a module script failed.` Vendoring
 turns that into a single same-origin request that's cached by the browser
 and the SW.
+
+## Licenses
+
+Every file here is third-party code we redistribute, so its license travels
+with it. The single-file assets (`xterm*`, `marked`, `purify`, `highlight*`,
+`github-markdown-*`) are copied verbatim and keep whatever notices upstream
+put in them.
+
+`codemirror.js` is the exception: it's a bundle, and the `@codemirror/*` and
+`@lezer/*` packages carry no inline `/*! */` banners — they ship a `LICENSE`
+file per package, which bundling drops on the floor. MIT requires that notice
+to accompany the code, so `build:codemirror` regenerates
+`codemirror.js.LEGAL.txt` alongside the bundle via `gen-vendor-legal.mjs`,
+reading the package set from esbuild's `--metafile` (so transitive deps are
+covered, not just the 20 declared ones). Don't hand-edit it, and don't delete
+it when pruning — it's shipped in the wheel on purpose.
+
+Project-wide inventory: [`THIRD_PARTY_NOTICES.md`](../../../../THIRD_PARTY_NOTICES.md).
 
 ## Integrity
 
