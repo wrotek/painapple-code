@@ -113,6 +113,8 @@ preview:
   tab_history: "History"
   editor_search: "Search (Ctrl+F)"
   editor_replace: "Search & replace"
+  search_open: "Search (Ctrl+F)"
+  search_focus: "Focus search (Ctrl+F)"
   breadcrumb:
     filter_placeholder: "Filter…"
     parent_dir: "Parent directory"

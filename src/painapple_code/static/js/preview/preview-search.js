@@ -118,6 +118,17 @@ export function openSearch() {
             return;
         }
     }
+    // Already open → re-focus the live query instead of blanking it. The search
+    // button stays visible in the toolbar while the bar is open, and Ctrl+F is
+    // a reflex, so the reset below would otherwise throw away a query mid-hunt.
+    if (state.search.active) {
+        const input = fns.findPreviewContainer()?.querySelector('.preview-search-input');
+        if (input) {
+            input.focus();
+            input.select();
+            return;
+        }
+    }
     state.search.active = true;
     state.search.query = '';
     state.search.matches = [];

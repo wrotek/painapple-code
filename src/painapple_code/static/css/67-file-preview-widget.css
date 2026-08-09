@@ -568,6 +568,18 @@
     color: var(--text-primary, #e0e0e0);
 }
 
+/* Lit while the search bar is open — the button stays in the toolbar and
+   re-focuses the live query rather than reopening a blank search. */
+.preview-search-btn.active {
+    background: rgba(var(--accent-rgb), 0.25);
+    border-color: rgba(var(--accent-rgb), 0.6);
+    color: var(--accent);
+}
+
+.preview-search-btn.active:hover {
+    background: rgba(var(--accent-rgb), 0.35);
+}
+
 .preview-search-btn svg {
     width: 16px;
     height: 16px;
