@@ -1218,9 +1218,9 @@ function renderFileCommitCard(commit) {
                             data-session="${escapeHtml(sessionId)}"
                             data-tooltip="${escapeHtml(TA.go_to_session)}">${ICONS.openInTab}</button>
                     <button class="he-icon-btn"
-                            data-action="fh-session-log"
+                            data-action="fh-go-session-bg"
                             data-session="${escapeHtml(sessionId)}"
-                            data-tooltip="${escapeHtml(TA.view_session_log)}">${ICONS.logs}</button>
+                            data-tooltip="${escapeHtml(TA.open_session_new_tab)}">${ICONS.external}</button>
                 ` : ''}
                 <button class="he-icon-btn"
                         data-action="fh-turn-menu"
@@ -1423,8 +1423,8 @@ function handleClick(e) {
         case 'fh-go-session':
             goToSession(target.dataset.session);
             break;
-        case 'fh-session-log':
-            openSessionLog(target.dataset.session);
+        case 'fh-go-session-bg':
+            goToSession(target.dataset.session, { background: true });
             break;
         case 'fh-turn-menu': {
             const card = target.closest('.he-file-commit-card');
