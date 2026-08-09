@@ -290,7 +290,11 @@ def init_auth_state(app_: FastAPI, config_file: Optional[Path] = None) -> None:
     Repeat calls just refresh state — middleware is already registered at
     module-load time and reads state dynamically via scope["app"].state.
     """
-    cfg_path = config_file or (Path.home() / ".config" / "painapple-code" / "config.yaml")
+    # CONFIG_HOME, not a hand-built default: it honors PAINAPPLE_CODE_CONFIG,
+    # which the Windows smoke workflow (and any isolated test run) sets
+    # expecting the auth file to follow — previously only the data home
+    # moved and the password file still landed in the real user profile.
+    cfg_path = config_file or (bridge_paths.CONFIG_HOME / "config.yaml")
     password, newly_created = ensure_config_file(cfg_path)
     app_.state.auth_password = password
     app_.state.auth_cookie_token = derive_cookie_token(password)
