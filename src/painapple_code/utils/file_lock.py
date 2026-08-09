@@ -13,9 +13,13 @@ One context manager, exclusive + blocking, replacing the direct
 
 POSIX backs it with ``fcntl.flock``; Windows with ``msvcrt.locking`` on
 the first byte (region locks may extend past EOF, so an empty lock file
-is fine). ``msvcrt.LK_LOCK`` only retries for ~10s before raising, so the
-win32 branch loops to match flock's block-forever semantics — but ONLY
-for the contention errno, and only up to ``LOCK_TIMEOUT``.
+is fine). The win32 branch polls ``LK_NBLCK`` with backoff rather than
+calling ``LK_LOCK``: LK_LOCK blocks ~10s inside the CRT (one attempt per
+second) before raising, so a caller-requested 2s timeout actually waited
+9-10s and the 5s slow-lock warning could never fire on time (measured on
+winvm 2026-08-09 — 9.2s to a ``timeout=2`` TimeoutError). The
+non-blocking probe returns immediately, putting the deadline and warn
+schedule under our own loop's control.
 
 Why that matters: ``FileLock`` is entered synchronously from
 ``ShadowGit.track_modification``, which ``AgentBridge`` calls on the
@@ -50,11 +54,11 @@ if sys.platform == "win32":
     import errno
     import msvcrt
 
-    # MS CRT `_locking` failure codes (docs: "_locking"): EDEADLOCK is the
-    # documented "LK_LOCK gave up after 10 attempts" code, i.e. genuine
-    # contention — the only one worth retrying. EACCES is the locking
-    # violation LK_NBLCK reports and is also treated as contention for
-    # safety; EBADF/EINVAL are programming errors and must propagate.
+    # MS CRT `_locking` failure codes (docs: "_locking"): EACCES is the
+    # locking violation LK_NBLCK reports on contention — the retry case.
+    # EDEADLOCK (LK_LOCK's give-up code) is kept for safety should the
+    # mode ever change; EBADF/EINVAL are programming errors and must
+    # propagate.
     _RETRYABLE = {
         getattr(errno, "EDEADLOCK", None),
         getattr(errno, "EDEADLK", None),
@@ -91,7 +95,7 @@ if sys.platform == "win32":
             while True:
                 try:
                     fh.seek(0)
-                    msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
                     return
                 except OSError as e:
                     if e.errno not in _RETRYABLE:
@@ -108,9 +112,9 @@ if sys.platform == "win32":
                             f"still waiting on {self._path} after "
                             f"{waited:.0f}s — another process is holding it"
                         )
-                # Bounded backoff: LK_LOCK's own retries only throttle the
-                # EDEADLOCK path, so the sleep is what keeps every other
-                # retryable case off the CPU.
+                # Bounded backoff — LK_NBLCK returns immediately, so this
+                # sleep is the only thing between attempts and the only
+                # thing keeping the loop off the CPU.
                 time.sleep(min(backoff, max(0.0, deadline - time.monotonic())))
                 backoff = min(backoff * 2, _BACKOFF_MAX)
 
