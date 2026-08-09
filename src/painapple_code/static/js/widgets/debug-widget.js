@@ -13,7 +13,6 @@
 import S from '../strings.js';
 import { escapeHtml, formatTimePrecise } from '../utils.js';
 import { WidgetManager, WidgetBus } from '../widget-system/index.js';
-import { joinPath } from '../path-utils.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Console Capture - Must happen FIRST
@@ -360,7 +359,7 @@ function renderContent() {
     } else {
         const total = state.entries.length;
         const visible = entries.length;
-        const countText = visible === total ? `${total} logs` : joinPath(visible, total);
+        const countText = visible === total ? `${total} logs` : `${visible}/${total}`;
         footerHtml = `
             <div class="debug-footer debug-footer--left-aligned">
                 <button class="debug-btn" data-toggle-select="1">${ICON.checkSquare} Select</button>
