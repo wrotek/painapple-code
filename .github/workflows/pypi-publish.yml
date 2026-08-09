@@ -50,10 +50,39 @@ jobs:
                   echo "tag=$expected built=$built"
                   test "$expected" = "$built"
 
+            # Licensing gate. painapple-code is AGPL-3.0-or-later, and
+            # requirements.txt pins only lower bounds — so the resolved
+            # dependency set drifts between releases without any file
+            # changing. Install the wheel we just built into a CLEAN venv
+            # (not the job's Python, which has build tooling on it) so
+            # importlib.metadata sees exactly what a user gets, then fail
+            # on any license outside the allowlist in the script.
+            - name: Verify dependency licenses
+              run: |
+                  python -m venv /tmp/licvenv
+                  /tmp/licvenv/bin/pip install --quiet --upgrade pip
+                  /tmp/licvenv/bin/pip install --quiet dist/*.whl
+                  /tmp/licvenv/bin/python tools/check_licenses.py
+
+            # The table for THIRD_PARTY_NOTICES.md, generated from that same
+            # clean install. Attached to the run so a release always has an
+            # accurate record of what shipped, even though the checked-in
+            # notices file is a point-in-time snapshot.
+            - name: Generate third-party license table
+              run: |
+                  /tmp/licvenv/bin/python tools/check_licenses.py --table \
+                      > third-party-licenses.md
+                  cat third-party-licenses.md >> "$GITHUB_STEP_SUMMARY"
+
             - uses: actions/upload-artifact@v4
               with:
                   name: dist
                   path: dist/
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: third-party-licenses
+                  path: third-party-licenses.md
 
     publish-pypi:
         needs: build
