@@ -6,8 +6,12 @@
 FROM docker.io/library/python:3.13-slim-bookworm
 
 # OCI image metadata — surfaces on Docker Hub / GHCR as the image's title,
-# description, license, and "Source" link. The CI workflow overrides
-# `revision` / `created` / `version` per build via --label.
+# description, license, and "Source" link. These are the values a local
+# `docker build` produces. CI overrides several of them via --label
+# (docker/metadata-action): `version` / `revision` / `created`, plus
+# `description` / `licenses`, which it would otherwise auto-derive from the
+# GitHub repo's About field — so keep those two in sync with the `labels:`
+# block in .github/workflows/docker-publish.yml, which is what ships.
 LABEL org.opencontainers.image.title="painapple-code" \
       org.opencontainers.image.description="Self-hosted web client and PWA for Claude Code sessions" \
       org.opencontainers.image.source="https://github.com/wrotek/painapple-code" \
