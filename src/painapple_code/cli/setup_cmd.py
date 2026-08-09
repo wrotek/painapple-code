@@ -495,8 +495,13 @@ def _apply_docker_side_effects(cfg, pending, name):
     dst_creds = claude_home / ".credentials.json"
     if pending.get("seed_creds"):
         src = Path("~/.claude/.credentials.json").expanduser()
+        from painapple_code.bridge_paths import lock_mode
+
         _shutil.copy(src, dst_creds)
-        dst_creds.chmod(0o600)
+        # These are OAuth credentials. chmod on Windows only toggles the
+        # read-only attribute and still returns success, so this needs the
+        # icacls path or the copy lands readable by every local user.
+        lock_mode(dst_creds, 0o600)
         ok(f"Credentials copied to {dst_creds}")
     if pending.get("seed_json"):
         if seed_claude_json(Path("~/.claude.json").expanduser(), effective_json):
