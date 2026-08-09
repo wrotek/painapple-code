@@ -1584,9 +1584,14 @@
     border-radius: var(--radius-sm);
 }
 
-.preview-rendered.inline-edit-mode [data-selectable]:hover {
+/* :not(.inline-editing) matters. This selector is (0,4,0) and the edit-state rule
+   below is (0,3,0), so while you edit with the pointer resting on the block, hover
+   used to win and quietly downgrade the solid edit border to the dashed hover one
+   — the state you were IN looked like the state you were merely pointing at. */
+.preview-rendered.inline-edit-mode [data-selectable]:not(.inline-editing):hover {
     background: rgba(var(--accent-rgb), 0.08);
     outline: 1px dashed rgba(var(--accent-rgb), 0.25);
+    outline-offset: var(--sp-3);
 }
 
 /* Nested selectables (e.g. sentence span inside a marked paragraph) are inert.
@@ -1606,14 +1611,24 @@
     position: relative;
 }
 
-/* Element being edited.
-   Deliberately does NOT set padding/margin: the block keeps the exact box it had
-   while rendered (.markdown-content [data-selectable] padding-right, li's narrower
-   variant, the block's own margins) so flipping into edit mode moves no text.
-   Highlight is outline + background only — both are layout-neutral. */
-.preview-rendered [data-selectable].inline-editing {
-    background: rgba(var(--accent-rgb), 0.06);
-    outline: 1px solid rgba(var(--accent-rgb), 0.35);
+/* Element being edited — has to read as unmistakably live.
+   The breathing room around the highlight is padded OUTWARD, never inward: a
+   spread box-shadow in the same colour as the background paints a ring outside
+   the border box, and outline-offset pushes the border out to meet it. Visually
+   identical to a padded box; structurally free, because box-shadow and
+   outline-offset both paint outside the layout box and displace nothing.
+   That distinction is the whole point. Real padding here (the original 6px/8px
+   on the textarea) buys the same look by pushing the text you were mid-sentence
+   on, so the act of starting an edit moved the thing you were reading.
+   Deliberately still sets no padding/margin: the block keeps the exact box it had
+   while rendered (.markdown-content [data-selectable] padding-right, li's
+   narrower variant, its own margins), so flipping modes moves no character. */
+.preview-rendered.inline-edit-mode [data-selectable].inline-editing {
+    --inline-edit-halo: var(--sp-6);
+    background: rgba(var(--accent-rgb), 0.11);
+    box-shadow: 0 0 0 var(--inline-edit-halo) rgba(var(--accent-rgb), 0.11);
+    outline: 1px solid rgba(var(--accent-rgb), 0.6);
+    outline-offset: var(--inline-edit-halo);
     border-radius: var(--radius-sm);
 }
 
@@ -1722,6 +1737,10 @@
     color: inherit;
     font: inherit;
     letter-spacing: inherit;
+    /* Accent caret: with the typography now identical to the rendered prose, the
+       blinking caret is the clearest signal that this block is text you can type
+       into rather than text you are looking at. */
+    caret-color: var(--accent);
     resize: none;
     overflow: hidden;
     outline: none;
@@ -1739,8 +1758,13 @@
 .preview-rendered [data-selectable].inline-editing::before {
     content: 'Enter \2192 save \00b7 Esc \2192 cancel \00b7 Shift+Enter \2192 newline';
     position: absolute;
-    top: calc(100% + 2px);
-    right: 0;
+    /* Straddle the halo's bottom edge, flush right. Centring it on that edge parks
+       most of the chip in the halo + the block's own bottom margin — dead space —
+       instead of dropping it a full line lower where it would sit squarely across
+       the following paragraph's text. */
+    top: calc(100% + var(--inline-edit-halo, 6px));
+    right: calc(-1 * var(--inline-edit-halo, 6px));
+    transform: translateY(-50%);
     z-index: 21;
     font-size: var(--font-size-xs);
     line-height: 1.4;
