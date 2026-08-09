@@ -8,7 +8,39 @@ import subprocess
 
 def detect_local_ips():
     """[(ip, interface)] for every non-loopback IPv4 the host has.
-    Prefers iproute2, falls back to ifconfig; [] if neither exists."""
+
+    psutil rather than parsing `ip`/`ifconfig`: neither exists on Windows,
+    and ipconfig's output is localized (and OEM-encoded), so scraping it
+    would break on any non-English install. Falls back to the old command
+    scrape only if psutil is somehow unavailable.
+    """
+    import socket
+    try:
+        import psutil
+    except ImportError:
+        return _detect_local_ips_legacy()
+
+    results = []
+    try:
+        stats = psutil.net_if_stats()
+        for iface, addrs in psutil.net_if_addrs().items():
+            st = stats.get(iface)
+            if st is not None and not st.isup:
+                continue
+            for addr in addrs:
+                if addr.family != socket.AF_INET:
+                    continue
+                ip = addr.address
+                if ip.startswith("127.") or iface in ("lo", "lo0"):
+                    continue
+                results.append((ip, iface))
+    except Exception:
+        return _detect_local_ips_legacy()
+    return results
+
+
+def _detect_local_ips_legacy():
+    """The pre-psutil iproute2/ifconfig scrape, kept as a safety net."""
     results = []
     if shutil.which("ip"):
         out = subprocess.run(["ip", "-4", "-o", "addr", "show"],
@@ -65,6 +97,21 @@ def port_holder(port):
                     f"workspace {row.get('workspace') or '?'})")
     except Exception:
         pass
+
+    # psutil first: works on all three platforms and needs no ss/lsof.
+    # (On Windows neither exists, so the holder was always reported as
+    # unknown — the user got "port in use" with no way to tell what by.)
+    try:
+        import psutil
+        for conn in psutil.net_connections(kind="inet"):
+            if (conn.status == psutil.CONN_LISTEN and conn.laddr
+                    and conn.laddr.port == int(port) and conn.pid):
+                try:
+                    return f"{psutil.Process(conn.pid).name()} (pid {conn.pid})"
+                except psutil.Error:
+                    return f"pid {conn.pid}"
+    except Exception:
+        pass  # AccessDenied for other users' sockets — fall through
 
     probes = []
     if shutil.which("ss"):

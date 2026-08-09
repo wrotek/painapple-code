@@ -18,6 +18,7 @@ the same validation the wizard applies.
 
 import os
 import sys
+import time
 from pathlib import Path
 
 from painapple_code.cli import profiles, serve_config
@@ -155,12 +156,56 @@ def _host_running_pid(name, home):
     return _match(local_servers(), _resolve(name))
 
 
+def _follow_file(path, last_lines=50, poll=0.5):
+    """`tail -n N -F` in pure Python.
+
+    Replaces os.execvp("tail", …): there's no tail on Windows and no
+    exec-replace semantics either (execvp there spawns a NEW process and
+    returns, so the parent would fall through to die() below while a
+    detached tail scribbled over the same console). -F semantics are kept
+    — reopen when the file is rotated or truncated.
+    """
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        # Seek back far enough to hold N lines without reading the whole file.
+        f.seek(0, os.SEEK_END)
+        size = f.tell()
+        f.seek(max(0, size - 64 * 1024))
+        tail = f.read().splitlines()[-last_lines:]
+        for line in tail:
+            print(line, flush=True)
+        inode = os.fstat(f.fileno()).st_ino
+        while True:
+            chunk = f.read()
+            if chunk:
+                print(chunk, end="", flush=True)
+                continue
+            time.sleep(poll)
+            try:
+                st = os.stat(path)
+            except OSError:
+                continue  # rotated away; wait for it to come back
+            # Rotation (new file) or truncation (log reset) — reopen.
+            if st.st_ino != inode or st.st_size < f.tell():
+                try:
+                    new = open(path, "r", encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
+                f.close()
+                f = new
+                inode = os.fstat(f.fileno()).st_ino
+
+
 def _host_logs(home):
     logs = Path(home) / "logs"
     for candidate in (logs / "server.log", logs / "console.log"):
         if candidate.is_file():
             say(f"{DIM}Following {candidate} — Ctrl-C to stop{RESET}")
-            os.execvp("tail", ["tail", "-n", "50", "-F", str(candidate)])
+            try:
+                _follow_file(candidate)
+            except KeyboardInterrupt:
+                return 0
+            except OSError as e:
+                die(f"Cannot read {candidate}: {e}")
     die(f"No logs yet under {logs} — has this deployment ever started?")
 
 
