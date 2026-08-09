@@ -196,9 +196,8 @@ def test_windows_allowed_paths(path):
 # dropping /inheritance:r is the difference between "owner only" and
 # "still whatever the parent directory grants".
 
-def test_lock_mode_windows_builds_owner_only_icacls(monkeypatch, tmp_path):
-    from painapple_code import bridge_paths
-
+def _capture_icacls(monkeypatch, bridge_paths):
+    """Stub subprocess.run and hand back the dict that records argv."""
     seen = {}
 
     class _Result:
@@ -211,8 +210,15 @@ def test_lock_mode_windows_builds_owner_only_icacls(monkeypatch, tmp_path):
         return _Result()
 
     monkeypatch.setattr(bridge_paths.subprocess, "run", _fake_run)
-    monkeypatch.setenv("USERNAME", "alice")
-    monkeypatch.setenv("USERDOMAIN", "WORKGROUP")
+    return seen
+
+
+def test_lock_mode_windows_builds_owner_only_icacls(monkeypatch, tmp_path):
+    from painapple_code import bridge_paths
+
+    seen = _capture_icacls(monkeypatch, bridge_paths)
+    monkeypatch.setattr(bridge_paths, "_current_user_sid",
+                        lambda: "S-1-5-21-1-2-3-1002")
 
     target = tmp_path / "config.yaml"
     target.write_text("password: x")
@@ -225,7 +231,32 @@ def test_lock_mode_windows_builds_owner_only_icacls(monkeypatch, tmp_path):
     assert "/inheritance:r" in argv
     # /grant:r (replace), not /grant (add) — and full control for the owner.
     assert "/grant:r" in argv
-    assert "WORKGROUP\\alice:F" in argv
+    # SID form, `*`-prefixed — see the regression test below for why.
+    assert "*S-1-5-21-1-2-3-1002:F" in argv
+
+
+def test_lock_mode_windows_never_uses_userdomain(monkeypatch, tmp_path):
+    """Regression: %USERDOMAIN%\\%USERNAME% is unresolvable on a workgroup box.
+
+    USERDOMAIN there is the literal "WORKGROUP", which maps to no SID, so
+    icacls fails 1332 and the file keeps whatever its parent granted. Seen
+    live on the Windows test VM against the config holding the auth password.
+    """
+    from painapple_code import bridge_paths
+
+    seen = _capture_icacls(monkeypatch, bridge_paths)
+    monkeypatch.setattr(bridge_paths, "_current_user_sid", lambda: None)
+    monkeypatch.setenv("USERNAME", "alice")
+    monkeypatch.setenv("USERDOMAIN", "WORKGROUP")
+
+    target = tmp_path / "config.yaml"
+    target.write_text("password: x")
+    bridge_paths._lock_mode_windows(target, 0o600)
+
+    argv = seen["argv"]
+    assert "WORKGROUP\\alice:F" not in argv
+    # Falls back to the bare name, which does resolve against the local machine.
+    assert "alice:F" in argv
 
 
 def test_lock_mode_windows_skips_group_readable_modes(monkeypatch, tmp_path):

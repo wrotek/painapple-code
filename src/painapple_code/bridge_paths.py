@@ -1307,6 +1307,92 @@ def get_all_prompt_favorites() -> dict:
 _ACL_WARNED: set = set()
 
 
+def _current_user_sid() -> Optional[str]:
+    """The calling process's user SID (``S-1-5-21-…``), or None if unreadable.
+
+    icacls names a principal either by account name or, with a ``*`` prefix,
+    by SID. Account names are the wrong currency here. The obvious spelling,
+    ``%USERDOMAIN%\\%USERNAME%``, is actively wrong on a workgroup machine:
+    USERDOMAIN is the literal string "WORKGROUP", which maps to no SID at
+    all, so icacls fails with 1332 ("No mapping between account names and
+    security IDs was done") and the hardening silently degrades to a warning.
+    A bare username usually resolves, but not on a localized install where
+    the account was renamed, and it can be ambiguous when a local and a
+    domain account share a name.
+
+    The SID sidesteps all of it: we read it straight off our own process
+    token, so there is no name to resolve and no locale to get wrong.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    TOKEN_QUERY = 0x0008
+    TOKEN_USER_CLASS = 1
+
+    try:
+        advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+        # Declare signatures explicitly: ctypes defaults every return type to
+        # C int, which truncates HANDLEs and pointers on 64-bit Windows.
+        advapi32.OpenProcessToken.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+        advapi32.OpenProcessToken.restype = wintypes.BOOL
+        advapi32.GetTokenInformation.argtypes = [
+            wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD)]
+        advapi32.GetTokenInformation.restype = wintypes.BOOL
+        advapi32.ConvertSidToStringSidW.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(ctypes.c_wchar_p)]
+        advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        token = wintypes.HANDLE()
+        if not advapi32.OpenProcessToken(
+                kernel32.GetCurrentProcess(), TOKEN_QUERY, ctypes.byref(token)):
+            return None
+        try:
+            # First call sizes the buffer; it's expected to "fail" with
+            # ERROR_INSUFFICIENT_BUFFER, so only the second return matters.
+            size = wintypes.DWORD()
+            advapi32.GetTokenInformation(
+                token, TOKEN_USER_CLASS, None, 0, ctypes.byref(size))
+            if not size.value:
+                return None
+            buf = ctypes.create_string_buffer(size.value)
+            if not advapi32.GetTokenInformation(
+                    token, TOKEN_USER_CLASS, buf, size, ctypes.byref(size)):
+                return None
+            # TOKEN_USER is a SID_AND_ATTRIBUTES, whose first pointer-sized
+            # field is the PSID itself (the SID lives past the struct).
+            sid = ctypes.cast(buf, ctypes.POINTER(ctypes.c_void_p)).contents
+            out = ctypes.c_wchar_p()
+            if not advapi32.ConvertSidToStringSidW(sid, ctypes.byref(out)):
+                return None
+            try:
+                return out.value
+            finally:
+                kernel32.LocalFree(out)
+        finally:
+            kernel32.CloseHandle(token)
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
+def _acl_principal() -> Optional[str]:
+    """The icacls principal for the current user — SID first, name as backstop."""
+    sid = _current_user_sid()
+    if sid:
+        return f"*{sid}"
+    # Deliberately the BARE username, never %USERDOMAIN%\%USERNAME%: on a
+    # workgroup machine that domain part is unresolvable (see above).
+    return os.environ.get("USERNAME") or None
+
+
 def _lock_mode_windows(path: Path, mode: int) -> None:
     """Owner-only DACL via icacls — the NTFS stand-in for chmod 0600/0700.
 
@@ -1328,18 +1414,17 @@ def _lock_mode_windows(path: Path, mode: int) -> None:
     if mode & 0o077:
         return
     key = str(path)
-    user = os.environ.get("USERNAME")
-    if not user:
+    principal = _acl_principal()
+    if not principal:
         if key not in _ACL_WARNED:
             _ACL_WARNED.add(key)
             logger.warning(
-                f"Cannot restrict {path}: USERNAME is unset, so no owner-only "
-                "ACL was applied. This file is readable by any account that "
-                "inherits access to its parent directory."
+                f"Cannot restrict {path}: the current user's SID and USERNAME "
+                "are both unreadable, so no owner-only ACL was applied. This "
+                "file is readable by any account that inherits access to its "
+                "parent directory."
             )
         return
-    domain = os.environ.get("USERDOMAIN")
-    principal = f"{domain}\\{user}" if domain else user
     try:
         result = subprocess.run(
             ["icacls", str(path), "/inheritance:r", "/grant:r", f"{principal}:F"],
