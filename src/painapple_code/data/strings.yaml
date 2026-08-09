@@ -111,10 +111,10 @@ errors:
 preview:
   tab_edit: "Edit"
   tab_history: "History"
-  editor_search: "Search (Ctrl+F)"
+  editor_search: "Search ({key:Ctrl+F})"
   editor_replace: "Search & replace"
-  search_open: "Search (Ctrl+F)"
-  search_focus: "Focus search (Ctrl+F)"
+  search_open: "Search ({key:Ctrl+F})"
+  search_focus: "Focus search ({key:Ctrl+F})"
   breadcrumb:
     filter_placeholder: "Filter…"
     parent_dir: "Parent directory"
@@ -265,7 +265,7 @@ ui:
     status_branch: "Git branch"
     selection_close: "Close (Esc)"
     selection_quote_toggle: "Show full text"
-    selection_discuss: "Start discussion (Ctrl+Enter)"
+    selection_discuss: "Start discussion ({modkey:Ctrl+Enter})"
     selection_stash: "Add to stash"
   input:
     placeholder: "Message Claude...  ·  # agents/snippets  ·  / commands  ·  @ files  ·  $ skills"
@@ -522,8 +522,8 @@ widgets:
     stroke_small: "Thin stroke"
     stroke_medium: "Medium stroke"
     stroke_large: "Thick stroke"
-    undo: "Undo (Ctrl+Z)"
-    redo: "Redo (Ctrl+Shift+Z)"
+    undo: "Undo ({modkey:Ctrl+Z})"
+    redo: "Redo ({modkey:Ctrl+Shift+Z})"
     done: "Attach annotated"
     skip: "Attach original"
     cancel: "Cancel"
@@ -1961,7 +1961,7 @@ turn_bar:
 grid_switcher:
   title: "All Sessions"
   count: "{n} open"
-  empty: "No sessions open. Press Ctrl+T to start one."
+  empty: "No sessions open. Press {key:Ctrl+T} to start one."
   close_tooltip: "Close switcher (Esc)"
   close_session_tooltip: "Close session"
   no_messages: "No messages yet"

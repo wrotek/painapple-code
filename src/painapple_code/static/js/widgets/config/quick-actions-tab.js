@@ -436,7 +436,7 @@ function renderActionPickerList(currentSlots, searchTerm = '') {
                         <span class="qa-action-label">${action.label}</span>
                         <span class="qa-action-desc">${action.description}</span>
                     </span>
-                    ${action.shortcut ? `<span class="qa-action-shortcut">${action.shortcut}</span>` : ''}
+                    ${action.shortcut ? `<span class="qa-action-shortcut">${action.shortcutDisplay}</span>` : ''}
                 </div>
             `;
         }

@@ -8,6 +8,7 @@ import { BaseProvider } from './base-provider.js';
 import { WidgetManager } from '../../widget-system/index.js';
 import { WidgetBus } from '../../widget-system/event-bus.js';
 import { scoreFuzzy } from '../fuzzy-scorer.js';
+import { formatLiteralChord } from '../../shortcuts.js';
 import S from '../../strings.js';
 
 const MAX_RESULTS = 30;
@@ -89,7 +90,8 @@ export class PanelProvider extends BaseProvider {
             label: config.title || config.id,
             description: '',
             icon: config.icon || 'sidebar',
-            meta: open ? 'open' : (config.shortcut || ''),
+            // Widget `shortcut:` fields are hardcoded in their Ctrl form.
+            meta: open ? 'open' : (formatLiteralChord(config.shortcut) || ''),
             data: { widgetId: config.id },
             matches,
             group,

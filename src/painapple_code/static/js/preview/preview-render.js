@@ -12,6 +12,7 @@ import { detectLanguage } from '../file-tabs.js';
 import { downloadBtnHtml } from '../preview-plugins/plugin-helpers.js';
 import { highlightCodeToLines } from '../editor-view.js';
 import { renderHistoryBody } from './preview-history.js';
+import { withChords } from '../shortcuts.js';
 import S from '../strings.js';
 
 /**
@@ -172,7 +173,7 @@ export function renderBody() {
     // Stays visible while the search bar is open — lit, and re-focusing the
     // existing query rather than reopening a blank search.
     const searchButton = (isEditable() && !isHistoryMode()) ? `
-        <button class="preview-search-btn ${state.search.active ? 'active' : ''}" data-action="search" data-tooltip="${state.search.active ? (S.preview?.search_focus || 'Focus search (Ctrl+F)') : (S.preview?.search_open || 'Search (Ctrl+F)')}">
+        <button class="preview-search-btn ${state.search.active ? 'active' : ''}" data-action="search" data-tooltip="${withChords(state.search.active ? (S.preview?.search_focus || 'Focus search ({key:Ctrl+F})') : (S.preview?.search_open || 'Search ({key:Ctrl+F})'))}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -193,7 +194,7 @@ export function renderBody() {
     // view's own search bar doesn't exist in edit mode). Two entry points:
     // plain search, and search & replace (opens with the replace row expanded).
     const editorSearchButtons = isEditMode() ? `
-        <button class="preview-search-btn" data-action="editor-search" data-tooltip="${S.preview?.editor_search || 'Search (Ctrl+F)'}">
+        <button class="preview-search-btn" data-action="editor-search" data-tooltip="${withChords(S.preview?.editor_search || 'Search ({key:Ctrl+F})')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>

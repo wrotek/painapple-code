@@ -23,6 +23,7 @@
 
 import { WidgetManager } from '../widget-system/index.js';
 import { isAnnotateOnPasteEnabled, state as configState } from './config/state.js';
+import { withChords } from '../shortcuts.js';
 import S from '../strings.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -744,8 +745,8 @@ function toolbarHtml() {
             <div class="ia-tool-group">${strokes}</div>
             <span class="ia-sep"></span>
             <div class="ia-tool-group">
-                <button class="ia-tool-btn ia-undo" data-tooltip="${T.undo}">${UNDO_ICON}</button>
-                <button class="ia-tool-btn ia-redo" data-tooltip="${T.redo}">${REDO_ICON}</button>
+                <button class="ia-tool-btn ia-undo" data-tooltip="${withChords(T.undo)}">${UNDO_ICON}</button>
+                <button class="ia-tool-btn ia-redo" data-tooltip="${withChords(T.redo)}">${REDO_ICON}</button>
             </div>
             <span class="ia-spacer"></span>
             <label class="ia-paste-toggle" data-tooltip="${T.paste_toggle_tip}">

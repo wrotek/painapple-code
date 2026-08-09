@@ -44,7 +44,7 @@ export class CommandProvider extends BaseProvider {
             label: action.label,
             description: action.description !== action.label ? action.description : '',
             icon: action.icon,
-            meta: action.shortcut || '',
+            meta: action.shortcutDisplay || '',
             data: { actionId: action.id },
             matches,
         };

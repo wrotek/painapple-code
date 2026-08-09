@@ -11,7 +11,9 @@
  * - label: Short display name
  * - description: Tooltip/help text
  * - category: Grouping for settings UI
- * - shortcut: Optional keyboard shortcut display
+ * - shortcut: Optional keyboard chord, written as its Ctrl/Alt form. NEVER
+ *   render this raw — read `shortcutDisplay`, which resolves it against the
+ *   real shortcut registry so Mac shows the ⌘ binding that actually fires.
  * - execute: Function to run the action
  * - isEnabled: Optional function returning boolean
  * - isVisible: Optional function returning boolean
@@ -27,6 +29,7 @@ import { OpenDialog } from './open-dialog.js';
 import S from './strings.js';
 import { debug } from './config.js';
 import { engineInfo } from './status-bar.js';
+import { formatLiteralChord } from './shortcuts.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Registry Class
@@ -48,6 +51,8 @@ class QuickActionsRegistryClass {
             label: config.label,
             description: config.description || config.label,
             shortcut: config.shortcut || null,
+            // Lazy so user rebinds land without re-registering every action.
+            get shortcutDisplay() { return formatLiteralChord(this.shortcut); },
             category: config.category,
             keywords: config.keywords || [],
             execute: config.execute,

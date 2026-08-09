@@ -935,7 +935,7 @@ class QuickActionsMenu {
                                 <div class="qa-result-label">${this.highlightMatch(result.action.label, query)}</div>
                                 <div class="qa-result-desc">${result.action.description}</div>
                             </div>
-                            ${result.action.shortcut ? `<div class="qa-result-shortcut">${result.action.shortcut}</div>` : ''}
+                            ${result.action.shortcut ? `<div class="qa-result-shortcut">${result.action.shortcutDisplay}</div>` : ''}
                         </button>
                         <button class="qa-result-add-btn${isInSlots ? ' in-menu' : ''}"
                                 data-action-id="${result.action.id}"
@@ -1088,8 +1088,10 @@ class QuickActionsMenu {
         // Category contains
         if (action.category.toLowerCase().includes(q)) score += 10;
 
-        // Shortcut exact match
+        // Shortcut exact match — check both the declared chord and the one
+        // shown here, so a Mac user typing "cmd" hits it too.
         if (action.shortcut?.toLowerCase().includes(q)) score += 30;
+        else if (action.shortcutDisplay?.toLowerCase().includes(q)) score += 30;
 
         return score;
     }
@@ -1589,12 +1591,12 @@ class QuickActionsMenu {
                         data-action-id="${actionId}"
                         data-slot="${slotKey}"
                         data-slot-index="${index}"
-                        data-tooltip="${action.label}${action.shortcut ? ` (${action.shortcut})` : ''}"
+                        data-tooltip="${action.label}${action.shortcut ? ` (${action.shortcutDisplay})` : ''}"
                         data-tooltip-position="${tooltipPosition}"
                         style="--item-x: ${x}px; --item-y: ${y}px; --item-delay: ${index * 30}ms"
                         ${isEnabled ? '' : 'disabled'}
                         role="menuitem"
-                        aria-label="${action.label}${action.shortcut ? ` (${action.shortcut})` : ''} - Press ${slotKey}">
+                        aria-label="${action.label}${action.shortcut ? ` (${action.shortcutDisplay})` : ''} - Press ${slotKey}">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         ${iconSvg}
                     </svg>
