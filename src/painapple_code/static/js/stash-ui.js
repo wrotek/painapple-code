@@ -14,6 +14,7 @@ import { editStashById } from './selection/selection-handler.js';
 import { ContextMenu } from './context-menu.js';
 import S from './strings.js';
 import { debug } from './config.js';
+import { basename } from './path-utils.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DOM ELEMENTS
@@ -354,7 +355,7 @@ function renderStashItem(item) {
  */
 function formatAnchor(item) {
     if (item.type === 'file') {
-        const fileName = item.filePath?.split('/').pop() || 'file';
+        const fileName = basename(item.filePath) || 'file';
         if (item.startLine == null) {
             // No line numbers (e.g., rendered markdown)
             return fileName;
@@ -366,7 +367,7 @@ function formatAnchor(item) {
     }
     // Numbered marker on an annotated screenshot
     if (item.type === 'image') {
-        const fileName = item.filePath?.split('/').pop() || 'image';
+        const fileName = basename(item.filePath) || 'image';
         if (item.markerIndex != null) {
             return (S.ui?.stash?.anchor_marker || '{file} · marker {n}')
                 .replace('{file}', fileName)
@@ -404,7 +405,7 @@ function getOtherSessions() {
     const currentStoreId = Stash.getSessionId();
     const sessions = sm.sessions
         .filter(s => s.storeId && s.storeId !== currentStoreId)
-        .map(s => ({ storeId: s.storeId, name: s.name || s.cwd?.split('/').pop() || 'Session' }));
+        .map(s => ({ storeId: s.storeId, name: s.name || basename(s.cwd) || 'Session' }));
 
     const counts = new Map();
     sessions.forEach(s => counts.set(s.name, (counts.get(s.name) || 0) + 1));

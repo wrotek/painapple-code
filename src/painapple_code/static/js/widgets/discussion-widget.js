@@ -15,6 +15,7 @@ import { CONFIG, debug } from '../config.js';
 import { WidgetManager, WidgetBus, ICONS } from '../widget-system/index.js';
 import { isThinkingKeywordsHighlightingEnabled } from './config-widget.js';
 import { MarkdownRenderer } from '../components.js';
+import { basename } from '../path-utils.js';
 
 // Markdown renderer instance (lazy init)
 let mdRenderer = null;
@@ -265,7 +266,7 @@ function renderThreadCard(thread) {
 
 function formatAnchor(anchor) {
     if (anchor.type === 'file') {
-        const fileName = anchor.filePath?.split('/').pop() || 'file';
+        const fileName = basename(anchor.filePath) || 'file';
         if (anchor.startLine == null) {
             // No line numbers (e.g., rendered markdown)
             return fileName;

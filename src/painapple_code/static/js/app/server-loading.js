@@ -9,6 +9,7 @@
 import { CONFIG } from '../config.js';
 import { genId } from '../utils.js';
 import { Session } from '../session.js';
+import { basename } from '../path-utils.js';
 
 export const serverLoadingMethods = {
     // Transform server messages (snake_case) to client format (camelCase)
@@ -153,7 +154,7 @@ export const serverLoadingMethods = {
                     for (let i = tools.length - 1; i >= 0; i--) {
                         const t = tools[i];
                         if (t.toolName === 'Write' && t.toolInput?.file_path) {
-                            const fname = t.toolInput.file_path.split('/').pop().toLowerCase();
+                            const fname = basename(t.toolInput.file_path).toLowerCase();
                             if (fname.includes('plan') || t.toolInput.file_path.includes('.claude/plans/')) {
                                 planFile = t.toolInput.file_path;
                                 break;

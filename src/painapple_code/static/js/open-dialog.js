@@ -23,10 +23,7 @@ import S from './strings.js';
 import { CONFIG } from './config.js';
 import { ICONS } from './widget-system/index.js';
 import { escapeHtml, extractApiError } from './utils.js';
-import {
-    isAbsolutePath, isUnder, joinPath, parentOf, pathRoot, pathSep, resolvePath,
-    stripTrailingSep,
-} from './path-utils.js';
+import { basename, isAbsolutePath, isUnder, joinPath, parentOf, pathRoot, pathSep, resolvePath, stripTrailingSep } from './path-utils.js';
 import { ContextMenu, copyToClipboard, showToast } from './context-menu.js';
 
 const DEBOUNCE_MS = 80;
@@ -615,7 +612,7 @@ class OpenDialogClass {
     }
 
     _joinAbs(cwd, rel) {
-        if (rel.startsWith('/')) return rel;
+        if (isAbsolutePath(rel)) return rel;
         const base = (cwd || '').replace(/\/$/, '');
         return base + '/' + rel;
     }
@@ -797,7 +794,7 @@ class OpenDialogClass {
     _openSessionAt(cwd) {
         const app = window.app;
         if (!app?.sessionManager) return;
-        const name = cwd.split('/').pop() || 'New Session';
+        const name = basename(cwd) || 'New Session';
         const session = app.sessionManager.create({ name });
         if (!session) return;
         session.cwd = cwd;

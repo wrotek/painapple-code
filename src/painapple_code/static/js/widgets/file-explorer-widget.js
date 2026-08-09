@@ -15,6 +15,7 @@
 
 import S from '../strings.js';
 import { escapeHtml, formatDate } from '../utils.js';
+import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
 import { CONFIG } from '../config.js';
 import { WidgetManager, WidgetBus, ICONS } from '../widget-system/index.js';
 import { BrowserWidget } from './browser-widget.js';
@@ -306,7 +307,7 @@ function getKindLabel(file) {
 // *label* so HTML rows cluster with HTML, JSON with JSON, etc., instead of
 // the previous coarse "all code together" behavior.
 function getKindSortKey(file) {
-    if (file.is_dir) return ' folder'; // sort dirs first within same kind
+    if (file.is_dir) return '\0folder'; // sort dirs first within same kind
     return getKindLabel(file).toLowerCase();
 }
 
@@ -468,7 +469,7 @@ async function ensureTreeIndex() {
         // `files` entries are either relative to cwd or already absolute (from extra_dirs)
         const base = (data.cwd || cwd).replace(/\/$/, '');
         state.treeIndex = (data.files || []).map(f =>
-            f.startsWith('/') ? f : `${base}/${f}`
+            isAbsolutePath(f) ? f : joinPath(base, f)
         );
         state.treeIndexTruncated = !!data.truncated;
     } catch (err) {
@@ -745,7 +746,7 @@ function commitPath(raw) {
             ? CONFIG.HOME
             : (state.cwd ? state.cwd.split('/').slice(0, 3).join('/') : '/');
         resolved = home + resolved.slice(1);
-    } else if (!resolved.startsWith('/')) {
+    } else if (!isAbsolutePath(resolved)) {
         // Treat bare input as relative to the current directory.
         const base = state.currentPath || state.cwd || '/';
         resolved = `${base.replace(/\/$/, '')}/${resolved}`;
@@ -809,7 +810,7 @@ function branchMatches(file, absPath, query) {
     if (!state.expanded.has(absPath)) return false;
     const children = state.childrenCache.get(absPath) || [];
     for (const c of children) {
-        const childPath = c.path || `${absPath}/${c.name}`;
+        const childPath = c.path || joinPath(absPath, c.name);
         if (branchMatches(c, childPath, query)) return true;
     }
     return false;
@@ -940,7 +941,7 @@ function renderHeaderRow(list) {
 
 function renderTreeNode(list, file, depth) {
     const state = getState();
-    const absPath = file.path || `${state.currentPath}/${file.name}`;
+    const absPath = file.path || joinPath(state.currentPath, file.name);
     const query = state.filterBarOpen ? state.filterQuery : '';
     if (query && !branchMatches(file, absPath, query)) return;
 
@@ -977,7 +978,7 @@ function renderTreeNode(list, file, depth) {
     }
     const rendered = sortFiles(filterFiles(children));
     const anyMatching = query
-        ? rendered.filter(c => branchMatches(c, c.path || `${absPath}/${c.name}`, query))
+        ? rendered.filter(c => branchMatches(c, c.path || joinPath(absPath, c.name), query))
         : rendered;
     if (anyMatching.length === 0 && !query) {
         const empty = document.createElement('div');
@@ -1123,7 +1124,7 @@ function renderFileItem(file, depth = 0) {
     const state = getState();
     const item = document.createElement('div');
     item.className = `fe-item ${file.is_dir ? 'fe-dir' : ''}`;
-    item.dataset.path = file.path || `${state.currentPath}/${file.name}`;
+    item.dataset.path = file.path || joinPath(state.currentPath, file.name);
     item.dataset.depth = depth;
 
     const fileType = file.is_dir ? { icon: 'folder', color: 'var(--accent-yellow)' } : getFileType(file.name);
@@ -1362,7 +1363,7 @@ function renderContent() {
     // Update widget summary
     if (state.widget) {
         const count = state.files.length;
-        const path = state.currentPath?.split('/').pop() || 'Files';
+        const path = basename(state.currentPath) || 'Files';
         state.widget.setSummary?.(`${path} (${count})`);
     }
 }
@@ -1482,29 +1483,6 @@ async function refreshInPlace({ force = false } = {}) {
         _refreshing = null;
         _lastRefreshAt = Date.now();
     }
-}
-
-/**
- * Resolve a path against the session's CWD if relative
- * @param {string} path - The path (might be relative or absolute)
- * @returns {string} - Absolute path
- */
-function resolvePath(path) {
-    if (!path) return path;
-
-    // Already absolute
-    if (path.startsWith('/')) return path;
-
-    // Get CWD from state or active session (activeSession is a property, not a method)
-    const state = getState();
-    const cwd = state.cwd || window.app?.activeSession?.cwd;
-    if (!cwd) return path; // Can't resolve without CWD
-
-    // Remove leading ./ if present
-    const cleanPath = path.replace(/^\.\//, '');
-
-    // Join with CWD
-    return `${cwd.replace(/\/$/, '')}/${cleanPath}`;
 }
 
 function showContextMenu(e, file, path) {
@@ -1631,7 +1609,7 @@ function openContextMenuForSelection() {
         preventDefault() {}
     };
     const absPath = el.dataset.path;
-    const file = { name: absPath.split('/').pop(), is_dir: el.classList.contains('fe-dir'), path: absPath };
+    const file = { name: basename(absPath), is_dir: el.classList.contains('fe-dir'), path: absPath };
     showContextMenu(pseudoEvent, file, absPath);
 }
 

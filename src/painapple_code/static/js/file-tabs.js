@@ -2,6 +2,8 @@
  * File utility functions - language detection, file type checks, path helpers
  */
 
+import { basename } from './path-utils.js';
+
 /**
  * Image file extensions that should be opened in image preview
  */
@@ -67,7 +69,7 @@ export function detectLanguage(path) {
     };
 
     // Check for special filenames
-    const filename = path.split('/').pop().toLowerCase();
+    const filename = basename(path).toLowerCase();
     if (filename === 'dockerfile') return 'dockerfile';
     if (filename === 'makefile' || filename === 'gnumakefile') return 'makefile';
     if (filename.startsWith('.env')) return 'env';  // .env, .env.local, .env.production…
@@ -116,5 +118,5 @@ export function getLanguageIcon(lang) {
  * Get just the filename from a path
  */
 export function getFileName(path) {
-    return path.split('/').pop();
+    return basename(path);
 }

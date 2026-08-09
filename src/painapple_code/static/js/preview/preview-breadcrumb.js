@@ -12,6 +12,7 @@
 
 import { state, fns } from './preview-state.js';
 import S from '../strings.js';
+import { basename, dirname } from '../path-utils.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SVG icons (static, safe to inject)
@@ -27,15 +28,6 @@ const MAX_ITEMS = 300;
 // ─────────────────────────────────────────────────────────────────────────────
 // Path helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-function dirname(p) {
-    const i = p.lastIndexOf('/');
-    return i <= 0 ? '/' : p.slice(0, i);
-}
-
-function basename(p) {
-    return p.split('/').filter(Boolean).pop() || '/';
-}
 
 /**
  * Build the ordered list of breadcrumb segments for the current file.

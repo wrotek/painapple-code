@@ -15,6 +15,7 @@ import S from '../strings.js';
 import { escapeHtml } from '../utils.js';
 import { CONFIG, debug } from '../config.js';
 import { WidgetManager, ICONS } from '../widget-system/index.js';
+import { basename, isAbsolutePath } from '../path-utils.js';
 
 const MIN_QUERY = 2;
 const DEBOUNCE_MS = 300;
@@ -257,7 +258,7 @@ function renderBody(state) {
 
     let idx = 0;
     const groups = r.files.map(f => {
-        const name = f.path.split('/').pop();
+        const name = basename(f.path);
         const dir = f.path.slice(0, f.path.length - name.length).replace(/\/$/, '');
         const isCollapsed = state.collapsed.has(f.path);
         const rows = isCollapsed ? '' : f.matches.map(m => {
@@ -433,7 +434,7 @@ function updateSelection(state) {
 
 function openMatch(state, relPath, line) {
     const base = state.cwd || window.app?.activeSession?.cwd || '';
-    const abs = relPath.startsWith('/')
+    const abs = isAbsolutePath(relPath)
         ? relPath
         : `${base.replace(/\/$/, '')}/${relPath}`;
     window.app?.previewFile(abs, { line });

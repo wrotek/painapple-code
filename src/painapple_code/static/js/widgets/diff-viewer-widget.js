@@ -17,6 +17,7 @@ import { CONFIG } from '../config.js';
 import { WidgetManager, ICONS } from '../widget-system/index.js';
 import { generateSmartDiff, renderSmartDiff, renderSideBySideDiff } from '../diff-utils.js';
 import { showToast, ContextMenu } from '../context-menu.js';
+import { basename, isAbsolutePath, joinPath, relativeTo } from '../path-utils.js';
 
 const PREF_KEY_VIEW_MODE = 'diff-viewer-view-mode';
 const PREF_KEY_WRAP_LINES = 'diff-viewer-wrap-lines';
@@ -195,7 +196,7 @@ async function wizardSelectSource(state, sourceId, sessionId) {
     const cwd = state.wizardCwd || WidgetManager.currentCwd || '';
     const filePath = state.wizardFilePath;
     // Relative path for API calls
-    const relPath = filePath.startsWith(cwd + '/') ? filePath.slice(cwd.length + 1) : filePath;
+    const relPath = relativeTo(filePath, cwd);
 
     try {
         if (sourceId === 'shadow') {
@@ -412,7 +413,7 @@ async function wizardPickItem(state, sessionId, dataset) {
 
     const cwd = state.wizardCwd || WidgetManager.currentCwd || '';
     const filePath = state.wizardFilePath;
-    const relPath = filePath.startsWith(cwd + '/') ? filePath.slice(cwd.length + 1) : filePath;
+    const relPath = relativeTo(filePath, cwd);
     const step = state.wizardStep;
 
     // Show loading in the diff viewer
@@ -466,7 +467,7 @@ async function wizardPickItem(state, sessionId, dataset) {
 async function wizardPickWorking(state, sessionId, staged) {
     const cwd = state.wizardCwd || WidgetManager.currentCwd || '';
     const filePath = state.wizardFilePath;
-    const relPath = filePath.startsWith(cwd + '/') ? filePath.slice(cwd.length + 1) : filePath;
+    const relPath = relativeTo(filePath, cwd);
 
     state.wizardActive = false;
     state.loading = true;
@@ -511,7 +512,7 @@ async function wizardPickFile(state, sessionId, otherPath) {
     renderContent(sessionId);
 
     try {
-        const fullOtherPath = otherPath.startsWith('/') ? otherPath : `${cwd}/${otherPath}`;
+        const fullOtherPath = isAbsolutePath(otherPath) ? otherPath : joinPath(cwd, otherPath);
         const resp = await fetch(`${CONFIG.API_BASE}/api/file?path=${encodeURIComponent(fullOtherPath)}&cwd=${encodeURIComponent(cwd)}`);
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
@@ -546,7 +547,7 @@ async function wizardPickFile(state, sessionId, otherPath) {
 // ═══════════════════════════════════════════════════════════════
 
 function _relPath(filePath, cwd) {
-    return filePath.startsWith(cwd + '/') ? filePath.slice(cwd.length + 1) : filePath;
+    return relativeTo(filePath, cwd);
 }
 
 async function _shadowContent(relPath, ref, cwd) {
@@ -1241,10 +1242,6 @@ function toggleWrapLines(state, btn) {
 // ═══════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════
-
-function basename(path) {
-    return path ? path.split('/').pop() : '';
-}
 
 function timeAgo(timestamp) {
     const now = Math.floor(Date.now() / 1000);

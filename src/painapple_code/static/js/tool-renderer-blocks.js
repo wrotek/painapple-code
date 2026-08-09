@@ -12,6 +12,7 @@ import { generateSmartDiff, renderSmartDiff } from './diff-utils.js';
 import { parseBackgroundTaskOutput } from './background-tasks.js';
 import { cleanToolError, ansiToHtml, colorizeBashLine, getLangForExt } from './tool-renderer.js';
 import { MarkdownRenderer } from './components.js';
+import { basename, isAbsolutePath } from './path-utils.js';
 
 /**
  * Line-wrap toggle button for monospace tool previews (Read / Write blocks).
@@ -41,7 +42,7 @@ export const blockMethods = {
             return null; // Fall back to default rendering
         }
 
-        const filename = file_path.split('/').pop();
+        const filename = basename(file_path);
         const oldLines = old_string.split('\n');
         const newLines = new_string.split('\n');
 
@@ -119,7 +120,7 @@ ${expandBtn}
      */
     renderReadImageBlock(msg) {
         const filePath = msg.toolInput?.file_path || '';
-        const filename = filePath.split('/').pop() || '(unknown)';
+        const filename = basename(filePath) || '(unknown)';
         const hasOutput = msg.toolOutput || msg.toolError;
         const isCompleted = msg.toolCompleted || hasOutput;
         const imgUrl = `/api/file-raw?path=${encodeURIComponent(filePath)}`;
@@ -156,7 +157,7 @@ ${expandBtn}
      */
     renderReadBlock(msg, { defaultExpanded = false } = {}) {
         const filePath = msg.toolInput?.file_path || '';
-        const filename = filePath.split('/').pop() || '(unknown)';
+        const filename = basename(filePath) || '(unknown)';
         const hasOutput = msg.toolOutput || msg.toolError;
         const isCompleted = msg.toolCompleted || hasOutput;
 
@@ -641,7 +642,7 @@ ${outputHtml}
             const fileLineMatch = line.match(/^([^:]+):(\d+):(.*)$/);
             if (fileLineMatch) {
                 const [, file, lineNum, content] = fileLineMatch;
-                const displayName = file.split('/').pop();
+                const displayName = basename(file);
                 return `<div class="grep-result${hidden}">
                     <span class="grep-file">${makeFileLink(file, displayName, parseInt(lineNum))}</span>
                     <span class="grep-linenum">:${lineNum}</span>
@@ -653,7 +654,7 @@ ${outputHtml}
             const fileContextMatch = line.match(/^([^:]+):(\d+)-(.*)$/);
             if (fileContextMatch) {
                 const [, file, lineNum, content] = fileContextMatch;
-                const displayName = file.split('/').pop();
+                const displayName = basename(file);
                 return `<div class="grep-result grep-context${hidden}">
                     <span class="grep-file">${makeFileLink(file, displayName, parseInt(lineNum))}</span>
                     <span class="grep-linenum">:${lineNum}</span>
@@ -763,9 +764,9 @@ ${totalMatches > 0 ? `<div class="grep-results">${resultsHtml}${expandBtn}</div>
         // Convert absolute paths to relative paths for display
         let files = [...originalFiles];
         let commonPrefix = '';
-        if (files.length > 0 && files[0].startsWith('/')) {
+        if (files.length > 0 && isAbsolutePath(files[0])) {
             // Use basePath if it's absolute
-            if (basePath && basePath.startsWith('/')) {
+            if (basePath && isAbsolutePath(basePath)) {
                 commonPrefix = basePath.endsWith('/') ? basePath : basePath + '/';
             } else {
                 // Find common directory prefix among all files
@@ -851,7 +852,7 @@ ${totalFiles > 0 ? `<div class="glob-files">${filesHtml}${expandBtn}</div>` : `<
      */
     renderWriteBlock(msg, { defaultExpanded = false } = {}) {
         const filePath = msg.toolInput?.file_path || '';
-        const filename = filePath.split('/').pop() || '(unknown)';
+        const filename = basename(filePath) || '(unknown)';
         const content = msg.toolInput.content || '';
         const hasOutput = msg.toolOutput || msg.toolError;
         const isCompleted = msg.toolCompleted || hasOutput;

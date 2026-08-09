@@ -13,6 +13,7 @@ import { parseBackgroundTaskOutput, bgTaskTracker } from './background-tasks.js'
 import { getToolCollapseMode, getToolCategory } from './widgets/config-widget.js';
 import { blockMethods } from './tool-renderer-blocks.js';
 import { thinkingMethods } from './tool-renderer-thinking.js';
+import { basename } from './path-utils.js';
 
 /**
  * Clean tool_use_error XML wrappers from error/output text.
@@ -439,10 +440,10 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
                 break;
             case 'Read':
                 // Show just filename
-                preview = input.file_path?.split('/').pop() || '';
+                preview = basename(input.file_path) || '';
                 break;
             case 'Write':
-                preview = input.file_path?.split('/').pop() || '';
+                preview = basename(input.file_path) || '';
                 break;
             case 'Grep':
                 preview = `/${input.pattern || ''}/`;
@@ -464,7 +465,7 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
                 break;
             default:
                 // Try common field names
-                preview = input.description || input.command || input.path || input.file_path?.split('/').pop() || '';
+                preview = input.description || input.command || input.path || basename(input.file_path) || '';
         }
 
         // Truncate and escape
@@ -560,13 +561,13 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
             return `<code>$ ${escapeHtml(input.command.slice(0, 60))}${input.command.length > 60 ? '...' : ''}</code>`;
         }
         if (toolName === 'Read' && input.file_path) {
-            return `<code>${escapeHtml(input.file_path.split('/').pop())}</code>`;
+            return `<code>${escapeHtml(basename(input.file_path))}</code>`;
         }
         if (toolName === 'Write' && input.file_path) {
-            return `<code>${escapeHtml(input.file_path.split('/').pop())}</code>`;
+            return `<code>${escapeHtml(basename(input.file_path))}</code>`;
         }
         if (toolName === 'Edit' && input.file_path) {
-            return `<code>${escapeHtml(input.file_path.split('/').pop())}</code>`;
+            return `<code>${escapeHtml(basename(input.file_path))}</code>`;
         }
         if (toolName === 'Grep' && input.pattern) {
             return `<code>/${escapeHtml(input.pattern.slice(0, 30))}${input.pattern.length > 30 ? '...' : ''}/</code>`;

@@ -17,6 +17,7 @@ import { debug, setServerHome, setServerWorkspace } from '../config.js';
 import { genId } from '../utils.js';
 import { refreshAgentsForCwd } from '../snippets-autocomplete.js';
 import { WidgetBus } from '../widget-system/event-bus.js';
+import { basename } from '../path-utils.js';
 
 const getApp = () => window.app;
 
@@ -41,7 +42,7 @@ export const wsHandlerMethods = {
                 }
                 if (msg.cwd) {
                     this.cwd = msg.cwd;
-                    this.name = this.cwd.split('/').pop() || 'Session';
+                    this.name = basename(this.cwd) || 'Session';
                     this.updateTab();
                     // Fetch Claude commands for this project
                     if (app.fetchAgentCommands) {

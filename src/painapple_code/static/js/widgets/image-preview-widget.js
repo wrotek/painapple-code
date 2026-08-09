@@ -11,6 +11,7 @@ import S from '../strings.js';
 import { escapeHtml } from '../utils.js';
 import { panzoomToolbarHtml, setupPanZoom, panzoomFitToView } from '../preview-plugins/plugin-helpers.js';
 import { ContextMenu, copyToClipboard, copyImageToClipboard, showToast, filePathFromSrc, lastInputWasTouch } from '../context-menu.js';
+import { basename } from '../path-utils.js';
 
 // Shared context menu for the main image + thumb strip
 const contextMenu = new ContextMenu();
@@ -194,13 +195,13 @@ function collectImages() {
             const filePath = el.dataset.filePath;
             if (!filePath || !IMAGE_EXT_RE.test(filePath)) continue;
             src = `/api/file-raw?path=${encodeURIComponent(filePath)}`;
-            label = filePath.split('/').pop();
+            label = basename(filePath);
         } else if (el.classList.contains('file-path-link')) {
             // Linkified file path in message text — include if resolved to an image
             const filePath = el.dataset.resolved;
             if (!filePath || !IMAGE_EXT_RE.test(filePath)) continue;
             src = `/api/file-raw?path=${encodeURIComponent(filePath)}`;
-            label = filePath.split('/').pop();
+            label = basename(filePath);
         } else {
             // Read/Write/thinking tool <img> — alt carries the filename
             src = el.src;
@@ -235,7 +236,7 @@ function basenameFromSrc(src) {
     try {
         const u = new URL(src, location.origin);
         const p = u.searchParams.get('path');
-        if (p) return p.split('/').pop();
+        if (p) return basename(p);
         const name = decodeURIComponent(u.pathname.split('/').pop() || '');
         return IMAGE_EXT_RE.test(name) ? name : null;
     } catch { return null; }
@@ -662,7 +663,7 @@ export async function showImagePreviewForFile(path) {
     if (state.currentIndex >= 0) {
         state.images = images;
     } else {
-        state.images = [{ src, turnIndex: 0, label: path.split('/').pop() }];
+        state.images = [{ src, turnIndex: 0, label: basename(path) }];
         state.currentIndex = 0;
     }
 

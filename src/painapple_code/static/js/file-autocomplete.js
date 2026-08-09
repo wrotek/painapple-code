@@ -6,6 +6,7 @@
 import { CONFIG } from './config.js';
 import { escapeHtml } from './utils.js';
 import { anchorAbove } from './caret-position.js';
+import { isAbsolutePath } from './path-utils.js';
 
 /**
  * Get file extension for display
@@ -224,7 +225,7 @@ export class FileAutocomplete {
 
                 // Extra-dirs files come back as absolute paths; rank them
                 // strictly below project files regardless of score.
-                const isExtra = path.startsWith('/');
+                const isExtra = isAbsolutePath(path);
 
                 return { path, score, isDir: false, isRecent: changedSet.has(path), isExtra };
             })

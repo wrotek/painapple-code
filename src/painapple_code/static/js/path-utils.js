@@ -106,6 +106,29 @@ export function stripTrailingSep(p) {
     return trimmed.length >= root.length && trimmed ? trimmed : (root || p);
 }
 
+/**
+ * `path` expressed relative to `base`, or `path` unchanged when it isn't
+ * under `base`. Replaces the `p.startsWith(cwd + '/') ? p.slice(cwd.length + 1) : p`
+ * idiom, which on Windows never matched — so shadow-git/history endpoints
+ * that require a repo-relative pathspec were handed absolute paths and
+ * silently returned nothing.
+ *
+ * Always emits forward slashes: the consumers are git pathspecs and API
+ * keys, which are '/' on every platform.
+ */
+export function relativeTo(path, base) {
+    if (!path || !base) return path;
+    if (!isUnder(path, base)) return path;
+    const rest = path.slice(stripTrailingSep(base).length);
+    return rest.replace(/^[\\/]+/, '').replace(/\\/g, '/');
+}
+
+/** Directory part of a path — '' when there's no separator. */
+export function dirname(p) {
+    const parent = parentOf(p);
+    return parent === null ? '' : parent;
+}
+
 /** Is `child` inside `dir` (or equal to it)? Separator-insensitive. */
 export function isUnder(child, dir) {
     if (!child || !dir) return false;

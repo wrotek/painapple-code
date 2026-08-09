@@ -14,6 +14,7 @@
  */
 
 import { genId } from '../utils.js';
+import { basename } from '../path-utils.js';
 
 export function restoreMessages(savedMessages, options) {
     const allMsgs = savedMessages || [];
@@ -74,7 +75,7 @@ export function restoreMessages(savedMessages, options) {
                     for (let i = tools.length - 1; i >= 0; i--) {
                         const t = tools[i];
                         if (t.toolName === 'Write' && t.toolInput?.file_path) {
-                            const fname = t.toolInput.file_path.split('/').pop().toLowerCase();
+                            const fname = basename(t.toolInput.file_path).toLowerCase();
                             if (fname.includes('plan') || t.toolInput.file_path.includes('.claude/plans/')) {
                                 planFile = t.toolInput.file_path;
                                 break;

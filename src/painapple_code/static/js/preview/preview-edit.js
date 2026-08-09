@@ -10,6 +10,7 @@ import { getEffectiveLanguage, detectContentLanguage, showToast } from './previe
 import { CONFIG } from '../config.js';
 import { WidgetBus } from '../widget-system/index.js';
 import S from '../strings.js';
+import { basename } from '../path-utils.js';
 
 let CodeEditorClass = null;
 async function getCodeEditor() {
@@ -128,7 +129,7 @@ export async function switchToEditView(targetContainer) {
                     WidgetBus.emit('widget:file-changed', {
                         widgetId: 'file-preview',
                         filePath: s.currentPath,
-                        fileName: (s.modified ? '\u2022 ' : '') + s.currentPath.split('/').pop()
+                        fileName: (s.modified ? '\u2022 ' : '') + basename(s.currentPath)
                     });
                 }
             }
@@ -185,7 +186,7 @@ function mountFallbackTextarea(cmContainer, widgetContainer, s = state) {
             WidgetBus.emit('widget:file-changed', {
                 widgetId: 'file-preview',
                 filePath: s.currentPath,
-                fileName: (s.modified ? '\u2022 ' : '') + s.currentPath.split('/').pop()
+                fileName: (s.modified ? '\u2022 ' : '') + basename(s.currentPath)
             });
         }
     });
@@ -221,7 +222,7 @@ export function leaveEditView(targetMode = 'code') {
     WidgetBus.emit('widget:file-changed', {
         widgetId: 'file-preview',
         filePath: state.currentPath,
-        fileName: (state.modified ? '\u2022 ' : '') + state.currentPath?.split('/').pop()
+        fileName: (state.modified ? '\u2022 ' : '') + basename(state.currentPath)
     });
 
     fns.rerenderContent();
@@ -236,7 +237,7 @@ export function discardEdits() {
     WidgetBus.emit('widget:file-changed', {
         widgetId: 'file-preview',
         filePath: state.currentPath,
-        fileName: state.currentPath?.split('/').pop()
+        fileName: basename(state.currentPath)
     });
 }
 
@@ -281,7 +282,7 @@ export async function saveFile() {
         WidgetBus.emit('widget:file-changed', {
             widgetId: 'file-preview',
             filePath: state.currentPath,
-            fileName: state.currentPath.split('/').pop()
+            fileName: basename(state.currentPath)
         });
 
         showToast(S.toast.file_saved);
@@ -352,11 +353,11 @@ export async function saveAsFile() {
         WidgetBus.emit('widget:file-changed', {
             widgetId: 'file-preview',
             filePath: savePath,
-            fileName: savePath.split('/').pop(),
+            fileName: basename(savePath),
             convertScratch: true
         });
 
-        showToast(`Saved to ${savePath.split('/').pop()}`);
+        showToast(`Saved to ${basename(savePath)}`);
     } catch (err) {
         console.error('[FilePreview] Save As failed:', err);
         showToast(`Save failed: ${err.message}`);

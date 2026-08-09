@@ -16,6 +16,7 @@ import { scoreFuzzy } from '../fuzzy-scorer.js';
 import { copyToClipboard, showToast } from '../../context-menu.js';
 import { getRecentOpens } from '../../recent-opens.js';
 import S from '../../strings.js';
+import { basename, isAbsolutePath } from '../../path-utils.js';
 
 const CACHE_TTL = 60_000;
 const RECENT_TTL = 30_000;
@@ -53,7 +54,7 @@ export class FileProvider extends BaseProvider {
     }
 
     _absPath(path, cwd) {
-        return path.startsWith('/') ? path : cwd.replace(/\/$/, '') + '/' + path;
+        return isAbsolutePath(path) ? path : cwd.replace(/\/$/, '') + '/' + path;
     }
 
     async _load(cwd) {
@@ -276,7 +277,7 @@ export class FileProvider extends BaseProvider {
 
     getContextMenuItems(item) {
         const { path, cwd, absPath } = item.data;
-        const filename = absPath.split('/').pop();
+        const filename = basename(absPath);
         const tabCtrl = window.app?.tabCtrl;
         const M = S.context_menus.file;
         const QM = S.quick_switcher.context_menu.file;

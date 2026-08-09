@@ -11,6 +11,7 @@ import S from '../strings.js';
 import { escapeHtml, formatRelativeTime } from '../utils.js';
 import { CONFIG } from '../config.js';
 import { WidgetManager, WidgetBus, ICONS } from '../widget-system/index.js';
+import { basename } from '../path-utils.js';
 
 // File status icons with colors
 const STATUS_ICONS = {
@@ -382,7 +383,7 @@ async function showFileDiff(filePath, staged = false) {
 
 function renderDiffView(container, filePath, file, staged) {
     const state = getState();
-    const filename = filePath.split('/').pop();
+    const filename = basename(filePath);
     const statsHtml = file ? `
         <span class="git-diff-stats">
             <span class="added">+${file.additions}</span>

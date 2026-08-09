@@ -8,6 +8,7 @@ import { CONFIG } from '../config.js';
 import { recordOpen as recordRecentOpen } from '../recent-opens.js';
 import { FilePreviewWidget, HistoryExplorerWidget } from '../widget-system/init.js';
 import { ImagePreviewWidget } from '../widgets/index.js';
+import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
 
 export const filePreviewMethods = {
     /**
@@ -16,7 +17,7 @@ export const filePreviewMethods = {
      */
     async openFileInEditor(path, cwd, options = {}) {
         cwd = cwd || this.activeSession?.cwd || CONFIG.HOME;
-        let fullPath = (path.startsWith('/') || path.startsWith('~')) ? path : `${cwd}/${path}`.replace(/\/+/g, '/');
+        let fullPath = (isAbsolutePath(path) || path.startsWith('~')) ? path : joinPath(cwd, path);
 
         // Resolve bare filenames
         if (!path.includes('/')) {
@@ -27,7 +28,7 @@ export const filePreviewMethods = {
         FilePreviewWidget.setCwd(cwd);
 
         // Open as background tab via tab controller
-        this.tabCtrl?.openFilePreviewTab(fullPath, fullPath.split('/').pop(), { background: true });
+        this.tabCtrl?.openFilePreviewTab(fullPath, basename(fullPath), { background: true });
     },
 
     /**
@@ -41,7 +42,7 @@ export const filePreviewMethods = {
      */
     async previewFile(path, options = {}) {
         const cwd = this.activeSession?.cwd || CONFIG.HOME;
-        let fullPath = (path.startsWith('/') || path.startsWith('~')) ? path : `${cwd}/${path}`.replace(/\/+/g, '/');
+        let fullPath = (isAbsolutePath(path) || path.startsWith('~')) ? path : joinPath(cwd, path);
 
         // For bare filenames (no '/'), try fuzzy resolution
         if (!path.includes('/')) {
@@ -91,7 +92,7 @@ export const filePreviewMethods = {
 
         // Resolve to an absolute path before opening as a tab.
         const cwd = this.activeSession?.cwd || CONFIG.HOME;
-        let fullPath = (path.startsWith('/') || path.startsWith('~')) ? path : `${cwd}/${path}`.replace(/\/+/g, '/');
+        let fullPath = (isAbsolutePath(path) || path.startsWith('~')) ? path : joinPath(cwd, path);
         if (!path.includes('/')) {
             const resolved = await this._resolveFile(path, cwd);
             if (resolved) fullPath = resolved;
@@ -119,7 +120,7 @@ export const filePreviewMethods = {
      */
     async previewFileWithHistory(path, opts = {}) {
         const cwd = opts.cwd || this.activeSession?.cwd || CONFIG.HOME;
-        let fullPath = (path.startsWith('/') || path.startsWith('~')) ? path : `${cwd}/${path}`.replace(/\/+/g, '/');
+        let fullPath = (isAbsolutePath(path) || path.startsWith('~')) ? path : joinPath(cwd, path);
 
         if (!path.includes('/')) {
             const resolved = await this._resolveFile(path, cwd);

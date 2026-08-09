@@ -8,6 +8,7 @@
 import S from './strings.js';
 import { escapeHtml, escapeAttr } from './utils.js';
 import { cleanToolError, getLangForExt } from './tool-renderer.js';
+import { basename, isAbsolutePath } from './path-utils.js';
 
 export const thinkingMethods = {
     /**
@@ -83,7 +84,7 @@ export const thinkingMethods = {
                 icon = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>';
                 colorClass = 'ta-blue';
                 const filePath = toolInput?.file_path || '';
-                const filename = filePath.split('/').pop() || '';
+                const filename = basename(filePath) || '';
                 const previewOpts = JSON.stringify({}).replace(/"/g, '&quot;');
                 desc = `<span class="ta-file">${escapeHtml(filename)}</span>`;
                 if (output) {
@@ -100,7 +101,7 @@ export const thinkingMethods = {
             case 'Write': {
                 icon = '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>';
                 colorClass = 'ta-green';
-                const filename = toolInput?.file_path?.split('/').pop() || '';
+                const filename = toolInput?.basename(file_path) || '';
                 const lineCount = (toolInput?.content || '').split('\n').length;
                 desc = `<span class="ta-file">${escapeHtml(filename)}</span>`;
                 result = isComplete
@@ -178,7 +179,7 @@ export const thinkingMethods = {
                 icon = '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>';
                 colorClass = 'ta-blue';
                 const op = toolInput?.operation || 'query';
-                const file = toolInput?.filePath?.split('/').pop() || '';
+                const file = toolInput?.basename(filePath) || '';
                 desc = `<span class="ta-op">${escapeHtml(op)}</span>${file ? ` <span class="ta-file">${escapeHtml(file)}</span>` : ''}`;
                 result = isComplete ? '<span class="ta-success">✓</span>' : '<span class="ta-pending">...</span>';
                 break;
@@ -290,7 +291,7 @@ export const thinkingMethods = {
             case 'NotebookEdit': {
                 icon = '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/>';
                 colorClass = 'ta-orange';
-                const notebook = toolInput?.notebook_path?.split('/').pop() || '';
+                const notebook = toolInput?.basename(notebook_path) || '';
                 const mode = toolInput?.edit_mode || 'edit';
                 desc = `<span class="ta-file">${escapeHtml(notebook)}</span> <span class="ta-op">${mode}</span>`;
                 result = isComplete ? '<span class="ta-success">✓</span>' : '<span class="ta-pending">...</span>';
@@ -329,7 +330,7 @@ export const thinkingMethods = {
     /** Read - file icon with filename, line range, language, and code preview */
     _renderThinkingRead(tool) {
         const filePath = tool.toolInput?.file_path || '';
-        const filename = filePath.split('/').pop();
+        const filename = basename(filePath);
         const output = tool.toolOutput || '';
         const isComplete = tool.toolCompleted || !!output;
 
@@ -423,7 +424,7 @@ export const thinkingMethods = {
     /** Write - new file icon with content preview */
     _renderThinkingWrite(tool) {
         const filePath = tool.toolInput?.file_path || '';
-        const filename = filePath.split('/').pop();
+        const filename = basename(filePath);
         const content = tool.toolInput?.content || '';
         const isComplete = tool.toolCompleted || !!tool.toolOutput;
 
@@ -492,7 +493,7 @@ export const thinkingMethods = {
     /** Edit - pencil icon with diff stats */
     _renderThinkingEdit(tool) {
         const filePath = tool.toolInput?.file_path || '';
-        const filename = filePath.split('/').pop();
+        const filename = basename(filePath);
         const oldStr = tool.toolInput?.old_string || '';
         const newStr = tool.toolInput?.new_string || '';
         const isComplete = tool.toolCompleted || !!tool.toolOutput;
@@ -548,7 +549,7 @@ export const thinkingMethods = {
             const previewLines = lines.slice(0, 6).map(line => {
                 // Try to parse as file:line:content or just file path
                 const match = line.match(/^([^:]+):(\d+):(.*)$/) || line.match(/^([^:]+):(\d+)$/) || [null, line];
-                const file = match[1]?.split('/').pop() || line;
+                const file = basename(match[1]) || line;
                 const lineNum = match[2] || '';
                 const content = match[3] || '';
 
@@ -591,9 +592,9 @@ export const thinkingMethods = {
         let files = output ? output.split('\n').filter(l => l.trim()) : [];
 
         // Convert absolute paths to relative paths
-        if (files.length > 0 && files[0].startsWith('/')) {
+        if (files.length > 0 && isAbsolutePath(files[0])) {
             let commonPrefix = '';
-            if (basePath && basePath.startsWith('/')) {
+            if (basePath && isAbsolutePath(basePath)) {
                 commonPrefix = basePath.endsWith('/') ? basePath : basePath + '/';
             } else {
                 const firstFile = files[0];
@@ -750,7 +751,7 @@ export const thinkingMethods = {
     /** LSP - code icon with operation */
     _renderThinkingLSP(tool) {
         const op = tool.toolInput?.operation || 'query';
-        const file = tool.toolInput?.filePath?.split('/').pop() || '';
+        const file = tool.toolInput?.basename(filePath) || '';
         const isComplete = tool.toolCompleted || !!tool.toolOutput;
 
         const statusIcon = isComplete
