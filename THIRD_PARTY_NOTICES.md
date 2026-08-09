@@ -115,10 +115,50 @@ enforces.
 | wcwidth | 0.8.2 | MIT |
 | websockets | 17.0.1 | BSD-3-Clause |
 
-> Claude Code itself and any other CLI agent the bridge drives are **not**
-> redistributed by this project — they are installed separately by the user or
-> pulled at container build time under their own vendor terms. See `SECURITY.md`
-> and the docs for the distribution/authentication model.
+## Agent CLIs the bridge drives
+
+painapple-code drives an agent CLI as a subprocess; it does not link against
+one. Whether that CLI is redistributed depends on **which artifact** you took,
+and the two differ:
+
+| Artifact | Contains an agent CLI? |
+|----------|------------------------|
+| PyPI wheel / sdist (`pip install painapple-code`) | **No.** The user installs Claude Code, Codex, or another CLI separately, under that vendor's own terms. |
+| Container image (`wrotek/painapple-code`) | **Yes.** The image bundles `@anthropic-ai/claude-code` (see below). |
+
+`@anthropic-ai/claude-code` is **proprietary software, not open source**: its
+`LICENSE.md` reads "© Anthropic PBC. All rights reserved," and use is governed
+by Anthropic's [Commercial Terms](https://www.anthropic.com/legal/commercial-terms)
+or [Consumer Terms of Service](https://www.anthropic.com/legal/consumer-terms)
+depending on the plan, plus the [Usage Policy](https://www.anthropic.com/legal/aup).
+It is **not** licensed under this project's AGPL, and this project claims no
+rights in it — running it requires the user's own Anthropic account and their
+own acceptance of those terms.
+
+Note that Anthropic's terms distinguish ordinary personal use from operating a
+service for others: OAuth/subscription credentials are intended for the
+plan-holder's own use, while developers offering a product to third parties are
+directed to API-key authentication. painapple-code is self-hosted and
+single-tenant by design — you run it against your own account — but if you
+expose an instance to other people, that distinction is yours to honour. See
+[`SECURITY.md`](SECURITY.md) for the single-user threat model.
+
+## Container image
+
+The published container image is a separate distribution artifact from the
+Python package, and carries considerably more third-party software than the
+wheel does. Beyond the bundled agent CLI above, it is built `FROM
+docker.io/library/python:3.13-slim-bookworm` and installs Node.js 20 plus a set
+of Debian packages for the in-container terminal (editors, `ripgrep`, `fd`,
+`jq`, `git`, `tmux`, and similar). Those components remain under their own
+upstream licenses — predominantly GPL, LGPL, MIT, and BSD as shipped by Debian
+and NodeSource — and are neither modified nor relicensed by this project. Run
+`dpkg-query -W -f='${Package} ${Version}\n'` inside the image for the exact
+manifest of a given tag.
+
+The image's `org.opencontainers.image.licenses` label (`AGPL-3.0-or-later`)
+describes painapple-code's own source, not the aggregate of everything the
+image contains.
 
 ---
 
