@@ -1,6 +1,6 @@
 {
     "id": "painapple-code",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "name": "pAInapple Code",
     "description": "Installs pAInapple Code, a self-hosted web client for Claude Code. Exposes a password-gated web/PWA UI (default port 8765) that any browser — including iPad — can use to drive `claude` inside the container.",
     "documentationURL": "https://github.com/wrotek/painapple-code",

@@ -2,8 +2,8 @@
 """
 pAInapple Code Server
 
-A WebSocket bridge that allows remote clients (like an iPad app) to interact
-with Claude Code running on this machine.
+An HTTP + WebSocket server that lets remote clients (a browser, an iPad PWA)
+interact with Claude Code running on this machine.
 
 Usage:
     python server.py [--port 8765] [--host 127.0.0.1] [--cwd /path/to/project]

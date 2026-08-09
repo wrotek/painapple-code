@@ -1,4 +1,4 @@
-"""painapple-code: WebSocket bridge server for remote Claude Code clients.
+"""painapple-code: self-hosted web client and server for Claude Code.
 
 Internal modules use absolute imports rooted at this package, e.g.
 ``from painapple_code.session_store import SessionStore``.

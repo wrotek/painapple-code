@@ -1,6 +1,6 @@
 # pAInapple Code (Dev Container Feature)
 
-Installs the [pAInapple Code](https://github.com/wrotek/painapple-code) bridge
+Installs [pAInapple Code](https://github.com/wrotek/painapple-code)
 inside any Dev Container or GitHub Codespace, so you can drive `claude` from
 a browser (including iPad PWA) on a remote VM.
 
@@ -78,7 +78,7 @@ Caveats:
 | `port` | `8765` | Listen port. Match this in `forwardPorts`. |
 | `instanceName` | `CODESPACE` | Label in the PWA header. |
 | `accent` | `blue` | Accent color: `blue`, `green`, `red`, `orange`, `purple`, `cyan`. |
-| `autostart` | `true` | Start the bridge on first interactive shell. Disable to launch manually with `painapple-code-start`. |
+| `autostart` | `true` | Start the server on first interactive shell. Disable to launch manually with `painapple-code-start`. |
 | `installHelpers` | `true` | Install `shadow-git`, `shadow-query`, and the `shadow-git-helper` agent. |
 
 Example with options:
@@ -104,7 +104,7 @@ The in-container `claude` CLI needs to talk to Anthropic. Two paths:
    open a terminal and run `claude login` once; the credential is stored
    under `$HOME/.claude/` and persists for the life of the codespace.
 
-The bridge's own password (separate from Claude auth) is generated on
+pAInapple Code's own password (separate from Claude auth) is generated on
 first start. Codespaces stores it at
 `/workspaces/.painapple-code/auth.yaml` (so it survives "Rebuild
 Container"); other environments use `~/.config/painapple-code/config.yaml`.
@@ -126,7 +126,7 @@ codespace, `http://localhost:<port>/?tkn=<password>` elsewhere.
 | Path | Purpose |
 |---|---|
 | `/opt/painapple-code/` | Cloned source + Python venv |
-| State dir † | Bridge state (sessions, logs, shadow DB, launcher PID + log) |
+| State dir † | Server state (sessions, logs, shadow DB, launcher PID + log) |
 | Auth config † | Password file the server reads / writes |
 | `/usr/local/bin/painapple-code-start` | Idempotent launcher script |
 | `/etc/profile.d/painapple-code.sh` | Bash/sh autostart hook (when `autostart=true`) |
@@ -139,7 +139,7 @@ codespace, `http://localhost:<port>/?tkn=<password>` elsewhere.
 under `/workspaces/.painapple-code/` (state) and
 `/workspaces/.painapple-code/auth.yaml` (auth). `/workspaces` is the
 only path that survives a "Rebuild Container" — `$HOME` gets wiped —
-so sessions, shadow DB, and the bridge password all carry across
+so sessions, shadow DB, and the server password all carry across
 rebuilds. **Elsewhere** (plain Docker, host install) the conventional
 `$HOME/.painapple-code/` + `$HOME/.config/painapple-code/config.yaml`
 layout is used. Override with `PAINAPPLE_CODE_HOME` and
@@ -150,7 +150,7 @@ want a particular shell (fish, zsh) in your devcontainer, configure that
 in `devcontainer.json` — e.g. via `postCreateCommand` or a community shell
 Feature like `ghcr.io/meaningful-ooo/devcontainer-features/fish:1`.
 
-## Managing the bridge
+## Managing the server
 
 ```bash
 # Start (idempotent — no-op if already running, but always prints the login URL)
@@ -171,7 +171,7 @@ tail -f /workspaces/.painapple-code/launcher.log
 - **`claude` exits with auth error:** set `ANTHROPIC_API_KEY` or run
   `claude login` in the container terminal.
 - **Workspace path:** the launcher uses `/workspaces` (the Codespaces
-  default — the bridge shows each subdirectory as a separate project).
+  default — pAInapple Code shows each subdirectory as a separate project).
   Override with `PAINAPPLE_WORKSPACE=/path/to/root` before calling
   `painapple-code-start`.
 - **Want to update painapple-code:** rebuild the dev container
