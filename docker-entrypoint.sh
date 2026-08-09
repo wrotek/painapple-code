@@ -58,6 +58,120 @@ seed_agent() {
     return 0
 }
 
+# ── Agent CLIs, installed on first run ──────────────────────────────────
+#
+# The image ships WITHOUT the agent CLIs on purpose.
+# @anthropic-ai/claude-code is proprietary software — "© Anthropic PBC.
+# All rights reserved", use governed by Anthropic's Commercial/Consumer
+# terms — so baking a copy into a published image is redistribution, and
+# nothing in those terms grants it. Pulling it here instead makes the
+# download the user's own, under their own agreement with Anthropic,
+# exactly as `npm i -g` on a host would be.
+#
+# @openai/codex is Apache-2.0, so THAT one we could legally ship. It goes
+# through the same path anyway: one mechanism beats two, and both engines
+# then upgrade the same way without a rebuild.
+#
+# They install into $AGENT_CLI_PREFIX, which lives on the /data volume, so
+# only the very first boot pays for it — restarts and image upgrades find
+# them already there. Ways to opt out, in the order they're checked:
+#
+#   PAINAPPLE_SKIP_AGENT_CLI=1   — install nothing (bring your own, or run
+#                                  a UI/terminal-only instance)
+#   the binary is already on PATH — a derived image that baked one in, or a
+#                                  bind-mounted install. Air-gapped hosts
+#                                  want this. Checked per CLI, so a baked
+#                                  `claude` doesn't suppress `codex`.
+#   PAINAPPLE_AGENT_CLIS=<list>  — override the set entirely, as
+#                                  space-separated `binary=npm-spec` pairs.
+#                                  Drop one to skip it; pin a version; add
+#                                  your own.
+#
+# Version pins differ because the projects do: claude-code is on a stable
+# 2.x, so `@2` is a real breaking-change ceiling. codex is pre-1.0, where
+# SemVer puts breaking changes in the minor — `@0` would buy nothing, so
+# it tracks latest and you pin explicitly via PAINAPPLE_AGENT_CLIS if you
+# need reproducibility.
+#
+# Failure here is NOT fatal. No network, a down registry, a read-only
+# /data: the bridge still starts and still serves the UI, terminal, git
+# panel and history. Only sending a prompt to that engine breaks, and it
+# says so. Dying on boot instead would turn a degraded instance into no
+# instance.
+AGENT_CLIS=${PAINAPPLE_AGENT_CLIS:-"claude=@anthropic-ai/claude-code@2 codex=@openai/codex@latest"}
+AGENT_CLI_PREFIX=${PAINAPPLE_AGENT_CLI_PREFIX:-/data/npm-global}
+PATH="$AGENT_CLI_PREFIX/bin:$PATH"
+export PATH
+
+# Set per branch below (empty when we're already unprivileged). Initialized
+# here so the function is never at the mercy of its call site.
+RUNAS=''
+
+# $RUNAS, when set, is the "setpriv …" prefix that runs npm as the target
+# user — a root-owned tree under /data would be unwritable by the bridge
+# on the next upgrade. Deliberately unquoted so it word-splits into argv;
+# the values are numeric ids, so there's nothing to quote around.
+#
+# $1, when given, is the uid:gid the prefix dir should belong to.
+install_agent_clis() {
+    [ "${PAINAPPLE_SKIP_AGENT_CLI:-0}" = "1" ] && return 0
+
+    # Resolve the whole set first, then install what's missing in ONE npm
+    # call: first boot is a user staring at a container that isn't serving
+    # yet, and two sequential installs are two registry sessions.
+    specs=''
+    names=''
+    for entry in $AGENT_CLIS; do
+        # Both MUST stay quoted. dash mis-parses the unquoted form of a
+        # ${var#pattern} whose pattern contains `=` inside an assignment
+        # word, and hands back the string unstripped — so `spec` would come
+        # out as the whole `claude=@anthropic-ai/claude-code@2` pair and npm
+        # would be asked to install a package literally named "claude=...".
+        # bash strips it correctly either way, which is what makes this the
+        # kind of thing that only shows up in the container.
+        bin="${entry%%=*}"
+        spec="${entry#*=}"
+        [ -x "$AGENT_CLI_PREFIX/bin/$bin" ] && continue
+        command -v "$bin" >/dev/null 2>&1 && continue
+        specs="$specs $spec"
+        names="$names $bin"
+    done
+    [ -z "$specs" ] && return 0
+
+    echo "painapple: installing$names into $AGENT_CLI_PREFIX (first run, one time)…" >&2
+    mkdir -p "$AGENT_CLI_PREFIX" 2>/dev/null || true
+    [ -n "$1" ] && chown "$1" "$AGENT_CLI_PREFIX" 2>/dev/null
+
+    # --no-fund/--no-audit: nothing here is actionable in a container boot
+    # log, and audit adds a second registry round-trip to first start.
+    if $RUNAS npm install -g --prefix "$AGENT_CLI_PREFIX" \
+            --no-fund --no-audit $specs >&2; then
+        for bin in $names; do
+            echo "painapple: $bin ready ($("$AGENT_CLI_PREFIX/bin/$bin" --version 2>/dev/null || echo 'version unknown'))" >&2
+        done
+    else
+        cat <<EOF >&2
+
+painapple: could not install$names.
+
+  The bridge will start, but sending a prompt to those engines will fail
+  until their binaries are on PATH. This is usually no network access
+  from the container, or a read-only /data.
+
+  Fix it from the container's own terminal:
+    npm install -g --prefix $AGENT_CLI_PREFIX$specs
+
+  Or bake them into a derived image (air-gapped hosts):
+    FROM wrotek/painapple-code
+    RUN npm install -g$specs
+
+  Or set PAINAPPLE_SKIP_AGENT_CLI=1 to stop trying.
+
+EOF
+    fi
+    return 0
+}
+
 # ── Align the container user with whoever owns the mounts ───────────────
 #
 # The image bakes `app` at a fixed UID (1000 unless built with
@@ -137,8 +251,16 @@ if [ "$(id -u)" = "0" ]; then
     done
 
     seed_agent "$want_uid:$want_gid"
+
+    # npm runs as the unprivileged user, not as root — /data is the
+    # bridge's own volume and it has to be able to upgrade the CLIs later.
+    RUNAS="setpriv --reuid=$want_uid --regid=$want_gid --init-groups"
+    install_agent_clis "$want_uid:$want_gid"
+
     exec setpriv --reuid="$want_uid" --regid="$want_gid" --init-groups "$@"
 fi
 
 seed_agent
+RUNAS=''
+install_agent_clis
 exec "$@"

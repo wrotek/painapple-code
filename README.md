@@ -45,7 +45,7 @@ Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURI
 
 ## Requirements
 
-- **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image bundles both.)
+- **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image ships Python and Node, and installs the agent CLIs itself on first start.)
 - **Optional:** the [OpenAI Codex CLI](https://github.com/openai/codex), if you want the Codex engine.
 - **Client:** any modern browser with network access to the server.
 

@@ -124,7 +124,20 @@ and the two differ:
 | Artifact | Contains an agent CLI? |
 |----------|------------------------|
 | PyPI wheel / sdist (`pip install painapple-code`) | **No.** The user installs Claude Code, Codex, or another CLI separately, under that vendor's own terms. |
-| Container image (`wrotek/painapple-code`) | **Yes.** The image bundles `@anthropic-ai/claude-code` (see below). |
+| Container image (`wrotek/painapple-code`) | **No.** `docker-entrypoint.sh` installs them from npm on first boot, into the user's own `/data` volume. |
+
+Neither artifact redistributes an agent CLI. The image did bundle
+`@anthropic-ai/claude-code` up to and including `v1.0.0-rc16`; it no longer
+does, because that would have been redistribution of proprietary software
+without a written grant (see below). The first container start now runs
+`npm install -g` for `@anthropic-ai/claude-code@2` and `@openai/codex@latest`,
+which makes the download the user's own — the same act as `npm i -g` on a
+host, under the same terms. `PAINAPPLE_SKIP_AGENT_CLI=1` disables it, and
+`PAINAPPLE_AGENT_CLIS` overrides the set.
+
+`@openai/codex` is **Apache-2.0** ([openai/codex](https://github.com/openai/codex)),
+so bundling it would have been permitted. It goes through the same first-run
+install anyway, to keep one mechanism rather than two.
 
 `@anthropic-ai/claude-code` is **proprietary software, not open source**: its
 `LICENSE.md` reads "© Anthropic PBC. All rights reserved," and use is governed
@@ -147,7 +160,7 @@ expose an instance to other people, that distinction is yours to honour. See
 
 The published container image is a separate distribution artifact from the
 Python package, and carries considerably more third-party software than the
-wheel does. Beyond the bundled agent CLI above, it is built `FROM
+wheel does. It is built `FROM
 docker.io/library/python:3.13-slim-bookworm` and installs Node.js 20 plus a set
 of Debian packages for the in-container terminal (editors, `ripgrep`, `fd`,
 `jq`, `git`, `tmux`, and similar). Those components remain under their own

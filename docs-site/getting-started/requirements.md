@@ -12,7 +12,7 @@ Running the bridge directly on a host (pip / pipx / source checkout):
 - *Optional:* the **[OpenAI Codex CLI](https://github.com/openai/codex)** if you want sessions on the Codex [engine](../guides/engines.md) — you can even log it in from inside the app
 
 !!! tip "Docker skips most of this"
-    The [Docker / Podman path](install-docker.md) is the recommended install. The image bundles Python 3.13, Node 20, and the `@anthropic-ai/claude-code` CLI, so the only host requirement is a container runtime.
+    The [Docker / Podman path](install-docker.md) is the recommended install. The image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start — so the only host requirement is a container runtime.
 
 ### Client devices
 

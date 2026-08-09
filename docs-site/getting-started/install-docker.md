@@ -2,7 +2,7 @@
 
 The recommended way to run pAInapple Code is in a container — it gives you the isolation the [security notes](security.md) call for, and the image bundles everything it needs.
 
-The image ships Python 3.13, Node 20, the `@anthropic-ai/claude-code` CLI, `git`, and a baseline dev toolkit (ripgrep, fd, jq, tmux, vim, and more). Application state persists in named volumes; your project and an isolated Claude CLI home are bind-mounted from the host. The Dockerfile is OCI-compliant, so it works with Docker, Podman, nerdctl, or any other OCI runtime.
+The image ships Python 3.13, Node 20, `git`, and a baseline dev toolkit (ripgrep, fd, jq, tmux, vim, and more). The agent CLIs — `@anthropic-ai/claude-code` and `@openai/codex` — are **not** baked into the image; the entrypoint installs them from npm into the `/data` volume on first start, so the download happens under your own agreement with the vendor. That costs a few seconds once and needs npm-registry access on that first boot; see [Agent CLIs](#agent-clis) below to change or skip it. Application state persists in named volumes; your project and an isolated Claude CLI home are bind-mounted from the host. The Dockerfile is OCI-compliant, so it works with Docker, Podman, nerdctl, or any other OCI runtime.
 
 ## Option A — built-in container mode (pipx, no clone needed)
 
@@ -134,6 +134,30 @@ Open `http://localhost:8765/` in a browser. The first run logs a bootstrap URL w
 
 !!! warning "The workspace mount is mandatory"
     The entrypoint checks that a real host directory is mounted at `/workspace` and exits with a configuration error (exit code 78) if it isn't. Compose refuses to start with `WORKSPACE` unset. This catches the common "I forgot to mount my project" mistake.
+
+## Agent CLIs
+
+The image deliberately ships **no** agent CLI. `@anthropic-ai/claude-code` is proprietary — its licence reads "© Anthropic PBC. All rights reserved" — and nothing in Anthropic's terms grants the right to redistribute it inside a published image. So the entrypoint installs it on first boot instead, which makes the download yours under your own agreement with Anthropic, exactly as `npm i -g` on your laptop would be. `@openai/codex` is Apache-2.0 and could legally have been baked in; it takes the same path so there's one mechanism rather than two.
+
+They land in `/data/npm-global`, on the persistent volume, owned by the unprivileged `app` user — so only the very first start pays for it. This also means **pulling a newer image no longer updates the CLIs**; to upgrade one, run `npm install -g --prefix /data/npm-global @anthropic-ai/claude-code@2` from the container's terminal.
+
+| Variable | Effect |
+|---|---|
+| `PAINAPPLE_SKIP_AGENT_CLI=1` | Install nothing — for a UI/terminal-only instance, or when you bring your own. |
+| `PAINAPPLE_AGENT_CLIS` | Override the set: space-separated `binary=npm-spec` pairs. Default `claude=@anthropic-ai/claude-code@2 codex=@openai/codex@latest`. Drop one to skip it, or pin an exact version. |
+| `PAINAPPLE_AGENT_CLI_PREFIX` | Install location. Default `/data/npm-global`. |
+
+A CLI already on `PATH` is left alone, checked per binary — so a baked-in `claude` doesn't suppress the `codex` install. A failed install is **not** fatal: the bridge still starts and serves the UI, terminal, git panel and history; only prompting that engine fails, with an explanation in the container log.
+
+!!! tip "Air-gapped hosts"
+    Bake the CLIs into a derived image — the already-on-`PATH` check then leaves them alone:
+
+    ```dockerfile
+    FROM wrotek/painapple-code
+    RUN npm install -g @anthropic-ai/claude-code@2 @openai/codex@latest
+    ```
+
+    Don't end a derived image with `USER app`: the entrypoint needs root to align UIDs before it drops privileges.
 
 ## Authenticating the in-container Claude CLI
 
