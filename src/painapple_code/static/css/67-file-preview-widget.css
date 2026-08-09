@@ -1527,25 +1527,22 @@
    INLINE EDIT MODE (rendered markdown)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Toggle button — floats in top-right of rendered wrapper */
+/* Toggle button — sits in the preview toolbar beside search/download, so it
+ * matches those buttons' metrics rather than floating over the content. */
 .inline-edit-toggle {
-    position: sticky;
-    top: 0;
-    float: right;
-    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: var(--bg-tertiary, #2d2d44);
-    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
     border-radius: var(--radius-md);
-    color: var(--text-secondary, #a0a0b0);
+    color: var(--text-secondary, #888);
     cursor: pointer;
-    transition: all 0.15s;
-    margin-left: var(--sp-8);
-    margin-bottom: var(--sp-4);
+    transition: all 0.15s ease;
+    flex-shrink: 0;
 }
 
 .inline-edit-toggle svg {
@@ -1554,9 +1551,8 @@
 }
 
 .inline-edit-toggle:hover {
-    background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+    background: var(--surface-hover, #2a2a2a);
     color: var(--text-primary, #e0e0e0);
-    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .inline-edit-toggle.active {
@@ -1606,9 +1602,7 @@
     padding: 0;
 }
 
-/* Trash button — persistent on each selectable, hidden until hover (in edit mode).
- * z-index must beat the sticky .inline-edit-toggle (z:10) so the first heading's
- * trash isn't occluded by it. */
+/* Trash button — persistent on each selectable, hidden until hover (in edit mode). */
 .inline-edit-trash-btn {
     position: absolute;
     top: 2px;

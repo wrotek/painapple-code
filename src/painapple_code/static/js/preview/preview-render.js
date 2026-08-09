@@ -181,6 +181,12 @@ export function renderBody() {
     // Download link button
     const downloadButton = state.currentPath ? downloadBtnHtml() : '';
 
+    // Plugin-contributed toolbar controls (e.g. markdown's inline-edit toggle).
+    // The plugin decides per viewMode; history view never gets them.
+    const pluginControls = (!isHistoryMode() && state.plugin?.renderToolbarControls)
+        ? (state.plugin.renderToolbarControls(state, pluginHelpers) || '')
+        : '';
+
     // Edit-mode search buttons — open the CodeMirror search panel (the code
     // view's own search bar doesn't exist in edit mode). Two entry points:
     // plain search, and search & replace (opens with the replace row expanded).
@@ -261,6 +267,7 @@ export function renderBody() {
     } else {
         rightControls = `
             ${languageSelector}
+            ${pluginControls}
             ${searchButton}
             ${downloadButton}
             ${wrapToggle}
