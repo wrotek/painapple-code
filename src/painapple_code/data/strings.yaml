@@ -1856,8 +1856,7 @@ helpers:
     body_missing: |
       The helpers above are not installed yet. Installing copies the
       files into your home directory — no sudo, no PATH changes. The
-      install runs on the bridge server's filesystem, not your
-      iPad/laptop.
+      install runs on the server's filesystem, not your iPad/laptop.
     body_outdated: |
       Your installed helpers are out of date with the bundled versions.
       Update to keep the installed copies in sync.

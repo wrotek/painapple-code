@@ -9,7 +9,7 @@ FROM docker.io/library/python:3.13-slim-bookworm
 # description, license, and "Source" link. The CI workflow overrides
 # `revision` / `created` / `version` per build via --label.
 LABEL org.opencontainers.image.title="painapple-code" \
-      org.opencontainers.image.description="WebSocket bridge that serves a vanilla-JS PWA for Claude Code sessions" \
+      org.opencontainers.image.description="Self-hosted web client and PWA for Claude Code sessions" \
       org.opencontainers.image.source="https://github.com/wrotek/painapple-code" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.vendor="wrotek"
