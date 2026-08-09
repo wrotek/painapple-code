@@ -1,6 +1,6 @@
 # pAInapple Code
 
-A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server runs on your machine and drives Claude Code through the official Agent SDK. [OpenAI Codex CLI](https://painapple.ai/guides/engines/) support is experimental.
+A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server runs on your machine and drives Claude Code through the official Agent SDK, using your own Claude subscription. [OpenAI Codex CLI](https://painapple.ai/guides/engines/) support is experimental.
 Inspired by [code-server](https://github.com/coder/code-server).
 
 Thanks to the [**Auto Journal**](#auto-journal-shadow-git), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. It's not just for you: the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
@@ -13,22 +13,41 @@ Right now it's a PWA, but desktop and mobile apps are in development.
 
 ## Before you start
 
-**Network defaults are conservative.** The server binds `127.0.0.1` over plain HTTP; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network; for anything public, put your own reverse proxy in front and use VPN. → [Security notes](https://painapple.ai/getting-started/security/)
-
-**This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I can't guarantee the security model — one more reason to take the isolation advice above seriously. A rewrite to a more rigorous standard is planned; for now the priority is implementing and testing ideas.
+**This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I try to keep the security hygiene tight, but I can't promise there isn't an RCE hiding somewhere — one more reason to take the isolation advice in [Security model](#security-model) seriously. A rewrite to a more rigorous standard is planned; for now there are plenty of ideas I want to implement and test first.
 
 ## Security model
 
 **Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** pAInapple Code exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user. Treat the password like an SSH key.
 
-The embedded terminal is a real PTY, and anything Claude is approved to run executes as the user who started the server — prompt injection and poisoned packages are real risks for *any* coding agent. Approval cards cover the interactive modes; for autonomous use, run pAInapple Code in a container or VM. `painapple --in-docker` (below) is the built-in way to do that.
+The embedded terminal is a real PTY, and anything Claude is approved to run executes as the user who started the server — prompt injection and poisoned packages are real risks for *any* coding agent.
+
+**Network defaults are conservative.** The server binds `127.0.0.1` over plain HTTP; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or behind a personal VPN. I strongly discourage exposing it on a public interface. → [Security notes](https://painapple.ai/getting-started/security/)
 
 What that means in practice:
 
 - **Loopback by default.** The server binds `127.0.0.1`. Keep it there for local use.
-- **Remote access goes through a tunnel.** Reach it over a VPN, an SSH tunnel, or an authenticating reverse proxy — don't expose the port directly to the internet or a shared LAN.
 - **Single-user, not multi-tenant.** It is not hardened for untrusted multi-user hosting. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead.
-- **Isolate autonomous modes** in a container or VM — `painapple --in-docker` is the built-in way.
+
+### Simple isolation with the built-in Docker/Podman instance manager
+
+The safest way to hand an agent the autonomous permission modes is to give it a container instead of your user account. That's built in — you never have to write a `docker run` line. `--in-docker` takes the invocation you would have run on the host and runs it inside the prebuilt image instead, with only the workspace you point it at mounted in:
+
+```bash
+pipx install painapple-code
+painapple --in-docker          # sandbox the current directory, foreground
+```
+
+For a sandbox you come back to, create a named instance. The wizard asks for the workspace, port, and container settings; after that the usual verbs manage it:
+
+```bash
+painapple setup myapp          # wizard — pick "Docker" as the run mode
+painapple start myapp          # detached, comes back up with the runtime
+painapple list                 # every instance, host or container, running or not
+painapple password myapp       # print its login URL
+painapple stop myapp
+```
+
+Docker and Podman are both auto-detected (or point at a custom binary in `painapple setup`). The image is pulled on first use and `painapple pull` updates it, instance state lives in its own named volume, and the in-container Claude CLI gets its own login — seed it from the host once, or run `painapple claude-login myapp`. Full reference: [Docker & container mode](https://painapple.ai/getting-started/install-docker/).
 
 Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
