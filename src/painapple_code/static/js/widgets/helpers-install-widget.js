@@ -200,18 +200,30 @@ function renderHelpersSection(status) {
     const overallText = overallState === 'missing'  ? M.helpers_status_missing
                       : overallState === 'outdated' ? M.helpers_status_outdated
                       :                               M.helpers_status_current;
+    // `unsupported` is its own state, not a flavour of missing: the server
+    // deliberately never installs these (the two shell-script helpers on
+    // Windows), so "Not installed" read as a broken install the user could
+    // fix by clicking Install again — and no click ever would.
     const fileRows = (status.files || []).map(f => {
-        const fState = !f.installed ? 'missing'
+        const fState = f.unsupported ? 'unsupported'
+            : !f.installed ? 'missing'
             : !f.up_to_date ? 'outdated' : 'current';
-        const fLabel = fState === 'missing'  ? M.helpers_status_missing
+        const fLabel = fState === 'unsupported' ? M.helpers_status_unsupported
+                     : fState === 'missing'  ? M.helpers_status_missing
                      : fState === 'outdated' ? M.helpers_status_outdated
                      :                         M.helpers_status_current;
+        const reason = f.unsupported_reason
+            ? ` data-tooltip="${escapeHtml(f.unsupported_reason)}"` : '';
         return `
-            <li class="helpers-file-row">
+            <li class="helpers-file-row${f.unsupported ? ' unsupported' : ''}">
                 <code class="helpers-file-target">${escapeHtml(f.target)}</code>
-                <span class="helpers-file-state ${fState}">${escapeHtml(fLabel)}</span>
+                <span class="helpers-file-state ${fState}"${reason}>${escapeHtml(fLabel)}</span>
             </li>`;
     }).join('');
+    // Don't tell someone to run a helper we just told them isn't available.
+    const anyUnsupported = (status.files || []).some(f => f.unsupported);
+    const usageExample = anyUnsupported
+        ? M.helpers_usage_example_agent_only : M.helpers_usage_example;
     // Subagent model selector — same picks as the main model selector (full
     // model IDs from models.yaml) plus "Inherit". Styled buttons (no native
     // select); labels come from formatModelLabel so they match the main selector.
@@ -234,7 +246,7 @@ function renderHelpersSection(status) {
                 <span class="helpers-section-tag tag-${overallState}">${escapeHtml(overallText)}</span>
             </div>
             <p class="helpers-section-hint">${escapeHtml(M.section_helpers_hint)}</p>
-            <p class="helpers-usage-example">${M.helpers_usage_example}</p>
+            <p class="helpers-usage-example">${usageExample}</p>
             <ul class="helpers-file-list">${fileRows}</ul>
             <div class="helpers-model-row">
                 <span class="helpers-model-label">${escapeHtml(M.agent_model_label)}</span>

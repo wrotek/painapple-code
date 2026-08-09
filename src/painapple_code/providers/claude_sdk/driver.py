@@ -391,7 +391,21 @@ def main() -> None:
     parser.add_argument("--resume", default=None)
     parser.add_argument("--fork-session", action="store_true")
     args = parser.parse_args()
-    sys.exit(asyncio.run(_amain(args)))
+    code = asyncio.run(_amain(args))
+    if sys.platform == "win32":
+        # The win32 stdin pump is a daemon thread parked in a blocking
+        # readline(), so it owns the <stdin> BufferedReader lock at exit.
+        # Normal interpreter finalization waits for that lock and instead
+        # aborts with "Fatal Python error: _enter_buffered_busy" on stderr —
+        # which the bridge forwards verbatim, painting three red error
+        # bubbles into the chat on every AskUserQuestion auto-stop.
+        # _amain's finally already disconnected the CLI child and cancelled
+        # the loop tasks, so finalization has nothing left to do; skip it
+        # rather than lose a race it cannot win. os._exit does not flush.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(code)
+    sys.exit(code)
 
 
 if __name__ == "__main__":

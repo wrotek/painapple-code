@@ -386,7 +386,16 @@ class ShadowGit(_SummaryMixin):
             # This ensures shadow git tracks the full project state, not just Claude's changes
             await self._run(["add", "-A"])
             await self._quarantine_oversized()
-            await self._run(["commit", "-m", "Initial project snapshot"])
+            # check=False: an empty project directory stages nothing, so this
+            # exits 1 with "nothing to commit" on STDOUT and an empty stderr.
+            # That used to raise RuntimeError("Git command failed: ") — a
+            # blank, unactionable error that aborted init for every brand-new
+            # project. The bare repo is already usable either way; the first
+            # real turn writes the first commit.
+            out, err, rc = await self._run(
+                ["commit", "-m", "Initial project snapshot"], check=False)
+            if rc != 0:
+                logger.debug(f"Baseline snapshot skipped (rc={rc}): {out or err}")
 
             logger.info(f"Initialized shadow git: {self.git_dir}")
             return True
