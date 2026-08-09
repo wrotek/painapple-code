@@ -69,14 +69,39 @@ def port_taken(host, port):
     return ""
 
 
+def _listener_pid(port):
+    """PID of whatever holds the listening socket on `port`, or None.
+    Never raises — every caller is decoration."""
+    try:
+        import psutil
+        for conn in psutil.net_connections(kind="inet"):
+            if (conn.status == psutil.CONN_LISTEN and conn.laddr
+                    and conn.laddr.port == int(port) and conn.pid):
+                return conn.pid
+    except Exception:
+        pass  # AccessDenied for other users' sockets
+    return None
+
+
 def port_holder(port):
     """Best-effort description of what already listens on `port` — the
     painapple instance if it's one of ours, else whatever ss/lsof names.
     '' when nothing can be determined. Never raises (decoration only)."""
     try:
         from painapple_code.cli.list_cmd import local_servers
-        row = next((r for r in local_servers()
-                    if str(r["port"]) == str(port)), None)
+        rows = [r for r in local_servers() if str(r["port"]) == str(port)]
+        # One server can present as SEVERAL rows on Windows: the pipx
+        # console-script launcher (painapple.exe), the python.exe it
+        # spawns, and uvicorn's reload child all carry the same argv, so
+        # all three match. Picking the first gave whichever the process
+        # scan happened to list first — usually the launcher shim, whose
+        # cwd is %TEMP%, so the error blamed a real port conflict on a
+        # workspace the user had never heard of. Prefer the row that
+        # actually owns the listening socket.
+        listener = _listener_pid(port)
+        row = next((r for r in rows if r["pid"] == listener), None)
+        if row is None and rows:
+            row = rows[0]
         if row:
             label = row.get("name") or "unnamed instance"
             return (f"painapple '{label}' (pid {row['pid']}, "
@@ -90,15 +115,11 @@ def port_holder(port):
     # lsof scrape that used to follow this was unreachable-by-design
     # fallback: psutil is a hard dependency, so it only ever ran when
     # psutil ALSO failed, in which case ss wouldn't have known better.
-    try:
-        import psutil
-        for conn in psutil.net_connections(kind="inet"):
-            if (conn.status == psutil.CONN_LISTEN and conn.laddr
-                    and conn.laddr.port == int(port) and conn.pid):
-                try:
-                    return f"{psutil.Process(conn.pid).name()} (pid {conn.pid})"
-                except psutil.Error:
-                    return f"pid {conn.pid}"
-    except Exception:
-        pass  # AccessDenied for other users' sockets — decoration only
+    holder = _listener_pid(port)
+    if holder is not None:
+        try:
+            import psutil
+            return f"{psutil.Process(holder).name()} (pid {holder})"
+        except Exception:
+            return f"pid {holder}"
     return ""
