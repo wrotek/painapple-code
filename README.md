@@ -1,8 +1,8 @@
 # pAInapple Code
 
-A self-hosted server that runs the [Claude Code](https://github.com/anthropics/claude-code) CLI on your machine; remote clients connect to it — streaming chat, interactive permission cards, an embedded terminal, git tools, multi-session tabs. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
+A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code). The server runs on your machine and drives the CLI through the official Agent SDK; you connect from any browser — or install it as an app on a phone or iPad. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) (experimental).
 
-The distinguishing feature is the **Auto Journal**. After every turn, the session forks itself in the background to a fast summarizer model (Haiku by default), so the summarizer reads the turn's full conversation rather than just its diff. It writes one structured summary — work done, decisions, problems solved, learnings — and that summary does double duty: it becomes the commit message for a per-project shadow git repo holding the turn's file changes, and it lands as a queryable row in a local DuckDB that later sessions can search.
+The headline feature is the **Auto Journal**: after every turn, a background fork of the session writes a short structured summary of what just happened — work done, decisions, learnings. It becomes the commit message of a per-project shadow git repo holding the turn's file changes, and a searchable row in a local DuckDB — a queryable history of the work, for you and for later sessions.
 
 The goal is native apps for every platform; desktop and mobile apps are in development. Today the client is a web app that installs as a PWA on iOS, Android, and desktop — a workable setup in practice: much of this project was written from a phone and an iPad through this same UI.
 
