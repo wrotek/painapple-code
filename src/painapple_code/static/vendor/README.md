@@ -11,6 +11,7 @@ deploy time, no runtime CDN dependency.
 |------|----------------|---------|
 | `codemirror.js`                       | 20 `@codemirror/*` packages (39 with transitive `@lezer/*` etc.), esbuild-bundled | `static/js/editor-view.js` |
 | `codemirror.js.LEGAL.txt`             | generated license notice for everything in that bundle | nothing at runtime — it's a legal artifact |
+| `LICENSES.txt`                        | generated license notice for every copied file below   | nothing at runtime — it's a legal artifact |
 | `xterm.js`                            | `xterm@5` (UMD)                              | `static/js/widgets/terminal-widget.js` |
 | `xterm.css`                           | `xterm@5`                                    | `static/js/widgets/terminal-widget.js` |
 | `xterm-addon-fit.js`                  | `xterm-addon-fit@0.8` (UMD)                  | `static/js/widgets/terminal-widget.js` |
@@ -32,19 +33,39 @@ and the SW.
 
 ## Licenses
 
-Every file here is third-party code we redistribute, so its license travels
-with it. The single-file assets (`xterm*`, `marked`, `purify`, `highlight*`,
-`github-markdown-*`) are copied verbatim and keep whatever notices upstream
-put in them.
+Every file here is third-party code we redistribute, so its license has to
+travel with it. Two generated notices cover that, and between them they
+account for every file in this directory:
 
-`codemirror.js` is the exception: it's a bundle, and the `@codemirror/*` and
-`@lezer/*` packages carry no inline `/*! */` banners — they ship a `LICENSE`
-file per package, which bundling drops on the floor. MIT requires that notice
-to accompany the code, so `build:codemirror` regenerates
-`codemirror.js.LEGAL.txt` alongside the bundle via `gen-vendor-legal.mjs`,
-reading the package set from esbuild's `--metafile` (so transitive deps are
-covered, not just the 20 declared ones). Don't hand-edit it, and don't delete
-it when pruning — it's shipped in the wheel on purpose.
+| Notice | Covers |
+|---|---|
+| `codemirror.js.LEGAL.txt` | the 39 packages inside the esbuild bundle |
+| `LICENSES.txt`            | the 12 files copied verbatim out of `node_modules` |
+
+Neither is hand-written, and neither should be deleted when pruning — both
+ship in the wheel on purpose.
+
+**The bundle.** `@codemirror/*` and `@lezer/*` carry no inline `/*! */`
+banners; they ship a `LICENSE` file per package, which bundling drops on the
+floor. MIT requires that notice to accompany the code, so `build:codemirror`
+regenerates `codemirror.js.LEGAL.txt` via `gen-vendor-legal.mjs`, reading the
+package set from esbuild's `--metafile` — so transitive deps are covered, not
+just the 20 declared ones.
+
+**The copies.** It's tempting to assume `cp` is safe because the file arrives
+"verbatim", but verbatim is the problem: 9 of these 12 files contain no
+copyright notice anywhere in them (`xterm.js`, `xterm-addon-fit.js`, all the
+`highlight*` files, `github-markdown-dark.min.css`), because their packages
+also express the grant as a separate `LICENSE` file — which `cp` leaves
+behind exactly the way bundling did. Same defect, quieter. `build:legal` runs
+`gen-copied-legal.mjs` last in the build to emit `LICENSES.txt` from the
+package list it declares.
+
+That script also **fails on any file in this directory it doesn't recognise**,
+so a new `cp` in `package.json` can't silently land an unlicensed asset, and
+it **warns when a vendored file has drifted from `node_modules`** — the
+version numbers in the notice are read from `node_modules`, so a hand-reverted
+copy would make the notice describe something other than what ships.
 
 Project-wide inventory: [`THIRD_PARTY_NOTICES.md`](../../../../THIRD_PARTY_NOTICES.md).
 

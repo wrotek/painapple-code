@@ -39,9 +39,14 @@ file. Its per-package copyright notices are therefore reproduced verbatim in
 [`src/painapple_code/static/vendor/codemirror.js.LEGAL.txt`](src/painapple_code/static/vendor/codemirror.js.LEGAL.txt),
 generated at build time by `tools/gen-vendor-legal.mjs` from esbuild's
 `--metafile` (the set of inputs actually bundled, which is why it lists 39
-packages rather than the 20 direct `@codemirror/*` dependencies). The other
-vendored files are shipped unmodified and keep whatever notices upstream
-included.
+packages rather than the 20 direct `@codemirror/*` dependencies).
+
+The remaining vendored files are copied verbatim out of `node_modules`, which
+loses the per-package `LICENSE` the same way bundling does — and 9 of the 12
+carry no inline copyright banner of their own. Their notices are reproduced in
+[`src/painapple_code/static/vendor/LICENSES.txt`](src/painapple_code/static/vendor/LICENSES.txt),
+generated at build time by `tools/gen-copied-legal.mjs`. Both notice files
+ship inside the wheel alongside the assets they describe.
 
 ## Node.js render helpers (optional, not redistributed)
 
