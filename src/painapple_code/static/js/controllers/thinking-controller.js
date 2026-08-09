@@ -126,12 +126,22 @@ export class ThinkingController {
             ? `<div class="thinking-step-content">${this._renderMarkdown(content)}</div>`
             : '';
 
+        // The API hands us signature-only thinking blocks (thinking: "") often
+        // enough that a permanently-empty clickable bar is a real artifact, so
+        // drop the header when there is nothing to preview or expand. The step
+        // itself always stays — it is the DOM anchor updateThinkingMessageTool()
+        // looks up by data-msg-id when tools stream in afterwards. CSS keeps a
+        // header-less, tool-less step hidden until a tool card actually lands.
+        const headerHtml = hasContent
+            ? `<div class="thinking-step-header" onclick="app.toggleThinkingStep('${sectionId}', ${stepNum})">
+                    ${previewHtml}
+                    <span class="thinking-step-expand">›</span>
+                </div>`
+            : '';
+
         return `
             <div class="thinking-step" data-step="${stepNum}" data-msg-id="${msg.id}">
-                <div class="thinking-step-header" onclick="app.toggleThinkingStep('${sectionId}', ${stepNum})">
-                    ${previewHtml}
-                    ${hasContent ? '<span class="thinking-step-expand">›</span>' : ''}
-                </div>
+                ${headerHtml}
                 ${fullContentHtml}
                 <div class="thinking-step-tools">
                     ${toolsHtml}
