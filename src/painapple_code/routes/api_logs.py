@@ -15,6 +15,7 @@ import json
 import logging
 import re
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -467,8 +468,8 @@ def compute_session_changes(store, session_id: str) -> dict:
         if file_path not in changes_by_file:
             changes_by_file[file_path] = {
                 'filePath': file_path,
-                'fileName': file_path.split('/')[-1],
-                'fileType': file_path.split('.')[-1] if '.' in file_path.split('/')[-1] else '',
+                'fileName': Path(file_path).name,
+                'fileType': Path(file_path).suffix.lstrip('.'),
                 'status': 'created' if tool_name == 'Write' else 'modified',
                 'edits': [],
                 'firstChange': timestamp,
@@ -609,8 +610,8 @@ def compute_session_read_files(store, session_id: str) -> dict:
         if entry is None:
             reads_by_file[file_path] = {
                 'filePath': file_path,
-                'fileName': file_path.split('/')[-1],
-                'fileType': file_path.split('.')[-1] if '.' in file_path.split('/')[-1] else '',
+                'fileName': Path(file_path).name,
+                'fileType': Path(file_path).suffix.lstrip('.'),
                 'readCount': 1,
                 'firstRead': timestamp,
                 'lastRead': timestamp,

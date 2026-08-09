@@ -4,6 +4,7 @@ Covers:
   T2  — uploaded files are served inert (attachment + nosniff + private cache)
   T3  — server-side renderers are OFF by default (503, no Node subprocess)
   T10 — the /static/js cache-bust route cannot escape its root
+  T11 — Windows UNC / device / reserved-name paths are refused
 
 All tests use the tmp_path-backed `app`/`client` fixtures from conftest.py —
 nothing touches the real ~/.painapple-code or ~/.config data.
@@ -135,3 +136,50 @@ def test_static_js_traversal_blocked(client):
     resp = client.get("/static/js/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd")
     assert resp.status_code == 404
     assert "root:x:0:0" not in resp.text
+
+
+# ---------------------------------------------------------------------------
+# T11 — Windows path namespaces the POSIX deny-list never covered
+# ---------------------------------------------------------------------------
+#
+# On win32, /proc,/sys,/dev don't exist, so the read/write gate degraded to
+# "allow everything". Two of the things it then allowed are not merely
+# exotic — a UNC path makes Windows authenticate OUTBOUND to an arbitrary
+# host, turning "open this file" into an NTLM-hash exfiltration primitive,
+# and the device namespaces do something other than read a file.
+#
+# _is_windows_path_allowed is pure string/parts work over PureWindowsPath,
+# so this runs (and fails) on Linux CI too — the point is that the rule
+# can't silently rot on the platform nobody's test box runs.
+
+from pathlib import PureWindowsPath
+
+from painapple_code.utils.file_paths import _is_windows_path_allowed
+
+
+@pytest.mark.parametrize("path", [
+    r"\\attacker.example.com\share\payload",   # outbound SMB -> NTLM leak
+    r"\\192.168.1.5\c$\Windows",
+    r"\\.\PhysicalDrive0",                     # device namespace
+    r"\\?\C:\Users\me\x",                      # extended-length namespace
+    r"C:\tmp\nul",                             # reserved names, any directory
+    r"C:\tmp\NUL.txt",                         # ...with or without extension
+    r"C:\tmp\con.log",
+    r"C:\tmp\COM1",
+    r"C:\tmp\lpt9.dat",
+    "C:\\tmp\\nul. ",                          # NTFS strips trailing dot/space
+])
+def test_windows_denied_paths(path):
+    assert not _is_windows_path_allowed(PureWindowsPath(path)), path
+
+
+@pytest.mark.parametrize("path", [
+    r"C:\Users\me\proj\app.js",
+    r"D:\data\notes.md",
+    r"C:\tmp\console.js",      # reserved name as a PREFIX is fine
+    r"C:\tmp\nullable.py",
+    r"C:\tmp\lpt10.txt",       # only LPT1-9 are reserved
+    r"C:\tmp\communicate.md",
+])
+def test_windows_allowed_paths(path):
+    assert _is_windows_path_allowed(PureWindowsPath(path)), path

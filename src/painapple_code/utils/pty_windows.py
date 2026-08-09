@@ -75,7 +75,10 @@ class WindowsPty:
     # ── output ────────────────────────────────────────────────────────
     def read(self, timeout: float = 0.1) -> bytes | None:
         """None = nothing yet, b"" = EOF/child gone, bytes = output."""
-        if self._eof:
+        # Short-circuit once closed so a chunk still sitting in the queue
+        # can't be handed out after teardown — PosixPty does the same with
+        # its _closed flag, and the WS read loop relies on b"" being final.
+        if self._eof or self._closed:
             return b""
         try:
             item = self._q.get(timeout=timeout)

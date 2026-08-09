@@ -92,10 +92,10 @@ class DockerSettings:
         return "off" if self.listen_host in ("127.0.0.1", "::1", "localhost") else "on"
 
     def data_is_bind(self):
-        return self.data_volume.startswith("/")
+        return Path(self.data_volume).is_absolute()
 
     def config_is_bind(self):
-        return self.config_volume.startswith("/")
+        return Path(self.config_volume).is_absolute()
 
     def container_workspace(self):
         """In-container mount path — the path hash keys project identity."""
@@ -120,7 +120,7 @@ class DockerSettings:
             if value and value not in ("docker", "podman"):
                 # Custom binary: an explicit path must exist + be a file.
                 expanded = _expand(value)
-                if not (expanded.startswith("/") and Path(expanded).is_file()):
+                if not (Path(expanded).is_absolute() and Path(expanded).is_file()):
                     raise ConfigError(
                         "RUNTIME must be 'docker', 'podman', an absolute path "
                         f"to a runtime binary, or empty to auto-detect: {value}")

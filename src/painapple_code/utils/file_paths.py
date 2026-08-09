@@ -7,7 +7,18 @@ that they exist on disk. Used for server-side linkification.
 
 import os
 import re
+import sys
 from pathlib import Path
+
+
+def _is_rooted(name: str) -> bool:
+    """Does this name already say where it lives (no cwd needed)?
+
+    `startswith('/')` was the old test and misses every Windows absolute
+    path (`C:\\...`, `\\\\server\\share`), which made rooted names fall
+    through to the relative-resolution tiers.
+    """
+    return name.startswith('~') or Path(name).is_absolute()
 
 
 # Known file extensions for linkification
@@ -170,7 +181,7 @@ def _normalize_hint_dirs(hints, base: Path) -> list:
         hint = hint.strip().rstrip('/')
         if not hint or hint in ('.', '..', '~') or len(hint) > MAX_PATH_LEN:
             continue
-        hint_dir = Path(hint).expanduser() if hint.startswith(('~', '/')) else base / hint
+        hint_dir = Path(hint).expanduser() if _is_rooted(hint) else base / hint
         try:
             if not hint_dir.is_dir():
                 continue
@@ -189,7 +200,7 @@ def _normalize_hint_dirs(hints, base: Path) -> list:
 def _resolve_direct(name: str, base: Path, hint_dirs: list):
     """Direct (no-walk) resolution tiers: absolute/~ paths, exact
     base/name, hint dirs, then COMMON_SUBDIRS for bare filenames."""
-    if name.startswith('~') or name.startswith('/'):
+    if _is_rooted(name):
         check_path = Path(name).expanduser()
         return str(check_path) if check_path.is_file() else None
 
@@ -340,7 +351,7 @@ def resolve_project_dir(name: str, cwd: str, hints=()):
     if not name or len(name) > MAX_PATH_LEN:
         return None
     try:
-        if name.startswith('~') or name.startswith('/'):
+        if _is_rooted(name):
             check_path = Path(name).expanduser()
             return str(check_path) if check_path.is_dir() else None
         if not cwd:
@@ -466,8 +477,42 @@ _DENY_ROOTS = (
     Path("/dev"),
 )
 
-PATH_DENIED_DETAIL = ("Path not allowed — /proc, /sys and /dev are off limits "
-                      "(kernel-special files, not a security boundary)")
+# Windows equivalents of the kernel-special trees — plus one case that is
+# a genuine security concern rather than a practical one. A UNC path
+# (\\host\share) makes Windows authenticate OUTBOUND to an arbitrary host,
+# so a single "read this file" with a \\attacker\share path turns the
+# bridge into an NTLM-hash exfiltration primitive. Device namespaces
+# (\\.\PhysicalDrive0, \\?\) and the reserved DOS names are the /dev
+# analogue: opening them does something other than read a file.
+_WIN_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{i}" for i in range(1, 10)}
+    | {f"LPT{i}" for i in range(1, 10)}
+)
+
+PATH_DENIED_DETAIL = (
+    ("Path not allowed — UNC shares (\\\\host\\share), device paths "
+     "(\\\\.\\, \\\\?\\) and reserved DOS names are off limits")
+    if sys.platform == "win32" else
+    ("Path not allowed — /proc, /sys and /dev are off limits "
+     "(kernel-special files, not a security boundary)")
+)
+
+
+def _is_windows_path_allowed(resolved: Path) -> bool:
+    """UNC/device/reserved-name rejection for win32."""
+    text = str(resolved)
+    # Both UNC shares and the device namespaces start with two separators.
+    # Path.resolve() normalizes / to \, so one check covers \\ and //.
+    if text.startswith("\\\\"):
+        return False
+    # A reserved name is reserved in EVERY directory, with or without an
+    # extension: C:\tmp\nul and C:\tmp\nul.txt both open the null device.
+    for part in resolved.parts:
+        stem = part.split(".")[0].rstrip(". ").upper()
+        if stem in _WIN_RESERVED_NAMES:
+            return False
+    return True
 
 
 def is_path_allowed_for_read(path: Path) -> bool:
@@ -479,6 +524,8 @@ def is_path_allowed_for_read(path: Path) -> bool:
     the user already has via their shell.
     """
     resolved = path.resolve()
+    if sys.platform == "win32":
+        return _is_windows_path_allowed(resolved)
     return not any(
         resolved == deny or deny in resolved.parents
         for deny in _DENY_ROOTS

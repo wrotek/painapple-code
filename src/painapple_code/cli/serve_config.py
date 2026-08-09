@@ -131,7 +131,7 @@ def _check(key, value):
                          f"color like #f87171, got {value!r}")
     if key == "runtime" and value not in ("docker", "podman"):
         expanded = str(Path(value).expanduser())
-        if not (expanded.startswith("/") and Path(expanded).is_file()):
+        if not (Path(expanded).is_absolute() and Path(expanded).is_file()):
             raise ValueError(
                 "runtime must be 'docker', 'podman', or an absolute path "
                 f"to a runtime binary, got {value!r}")

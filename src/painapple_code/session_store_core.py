@@ -102,7 +102,7 @@ class SessionStoreV2:
 
         meta = {
             "id": session_id,
-            "name": name or cwd.split("/")[-1] or "New Session",
+            "name": name or (Path(cwd).name if cwd else "") or "New Session",
             "cwd": cwd,
             "provider": None,  # None → resolved to the box-wide default at launch
             "provider_session_id": None,
@@ -161,7 +161,7 @@ class SessionStoreV2:
         now = datetime.now(timezone.utc).isoformat()
         meta = {
             "id": session_id,
-            "name": name or cwd.split("/")[-1] or "New Session",
+            "name": name or (Path(cwd).name if cwd else "") or "New Session",
             "cwd": cwd,
             "provider_session_id": None,
             "model": None,
@@ -312,7 +312,7 @@ class SessionStoreV2:
             now = datetime.now(timezone.utc).isoformat()
             meta = {
                 "id": session_id,
-                "name": cwd.split("/")[-1] or "Recovered Session",
+                "name": (Path(cwd).name if cwd else "") or "Recovered Session",
                 "cwd": cwd,
                 "provider_session_id": provider_session_id,
                 "model": model,

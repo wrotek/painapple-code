@@ -160,8 +160,8 @@ def step_runtime(cfg, back, n=2):
     if picked == "custom":
         path = ui.text(
             "Runtime binary path (docker/podman-compatible)",
-            default=current if current.startswith("/") else "",
-            validate=lambda v: None if v.startswith("/")
+            default=current if Path(current).is_absolute() else "",
+            validate=lambda v: None if Path(v).expanduser().is_absolute()
             and Path(v).expanduser().is_file()
             else "Need an absolute path to an existing binary.")
         if path is BACK:
@@ -355,7 +355,7 @@ def step_storage(cfg, back):
     _section(6, "Data storage",
              "Where the container stores sessions, logs, and DuckDB")
     current = cfg.get("data_volume") or ""
-    is_bind = current.startswith("/")
+    is_bind = Path(current).is_absolute()
     if current:
         default = "bind" if is_bind else "named"
     else:
@@ -482,7 +482,7 @@ def _profile_summary(name, cfg):
         say(f"  Claude    : {cfg.get('claude_home')}")
         dv = cfg.get("data_volume") or ""
         say(f"  Data      : {dv} "
-            f"{DIM}({'bind' if dv.startswith('/') else 'named volume'}){RESET}")
+            f"{DIM}({'bind' if Path(dv).is_absolute() else 'named volume'}){RESET}")
 
 
 def _apply_docker_side_effects(cfg, pending, name):
