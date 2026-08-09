@@ -1543,9 +1543,13 @@ def main(argv=None):
     if use_tls:
         tls_line = f"\n║  TLS Cert:   {tls_cert_path} (self-signed, unverified by clients)"
 
+    # The login URL is THE line users need — paint it bold green so it
+    # stands out from the rest of the box (TTY-only; cli.ui's constants
+    # are empty strings when piped or NO_COLOR is set).
+    from painapple_code.cli.ui import BOLD, GREEN, RESET as _ANSI_RESET
     auth_lines = (
         f"\n║  Password:   {app.state.auth_password}"
-        f"\n║  Log in:     {login_url}"
+        f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
     )
 
     print(f"""

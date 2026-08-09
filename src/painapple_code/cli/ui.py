@@ -27,6 +27,12 @@ class _Back:
 
 BACK = _Back()
 
+# Legacy Windows conhost ignores ANSI escapes until VT processing is
+# switched on; the empty os.system() call does exactly that (Windows
+# Terminal and every unix terminal don't need it, and it's a no-op there).
+if os.name == "nt" and sys.stdout.isatty():
+    os.system("")
+
 _COLOR = sys.stdout.isatty() and not os.environ.get("NO_COLOR")
 
 BOLD = "\033[1m" if _COLOR else ""
