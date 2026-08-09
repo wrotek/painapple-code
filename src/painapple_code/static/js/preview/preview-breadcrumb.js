@@ -12,7 +12,7 @@
 
 import { state, fns } from './preview-state.js';
 import S from '../strings.js';
-import { basename, dirname } from '../path-utils.js';
+import { dirname, isUnder, joinPath, pathRoot, relativeTo, splitPath, stripTrailingSep } from '../path-utils.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SVG icons (static, safe to inject)
@@ -38,15 +38,18 @@ function buildSegments() {
     const abs = state.currentPath;
     if (!abs) return null;
 
-    const cwd = (state.cwd && abs.startsWith(state.cwd + '/')) ? state.cwd : null;
-    const rel = cwd ? abs.slice(cwd.length + 1) : abs;
-    const parts = rel.split('/').filter(Boolean);
+    // The root ('/' or 'C:\') is the home crumb, not a segment — splitting it
+    // in with the rest is what turned a Windows drive letter into a folder.
+    const root = pathRoot(abs);
+    const cwd = (state.cwd && isUnder(abs, state.cwd) && abs !== state.cwd) ? state.cwd : null;
+    const rel = cwd ? relativeTo(abs, cwd) : abs.slice(root.length);
+    const parts = splitPath(rel, abs);
     if (!parts.length) return null;
 
-    const rootPath = cwd || '/';
-    let acc = cwd || '';
+    const rootPath = cwd || root || '/';
+    let acc = cwd || stripTrailingSep(root) || '';
     const segs = parts.map((name, i) => {
-        acc = (acc + '/' + name).replace(/\/+/g, '/');
+        acc = joinPath(acc, name);
         return { name, path: acc, isFile: i === parts.length - 1 };
     });
     return { rootPath, segs };

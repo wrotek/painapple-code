@@ -15,7 +15,7 @@
 
 import S from '../strings.js';
 import { escapeHtml, formatDate } from '../utils.js';
-import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
+import { basename, dirname, isUnder, joinPath, parentOf, pathRoot, pathSep, relativeTo, resolvePath, splitPath, stripTrailingSep } from '../path-utils.js';
 import { CONFIG } from '../config.js';
 import { WidgetManager, WidgetBus, ICONS } from '../widget-system/index.js';
 import { BrowserWidget } from './browser-widget.js';
@@ -307,7 +307,7 @@ function getKindLabel(file) {
 // *label* so HTML rows cluster with HTML, JSON with JSON, etc., instead of
 // the previous coarse "all code together" behavior.
 function getKindSortKey(file) {
-    if (file.is_dir) return '\0folder'; // sort dirs first within same kind
+    if (file.is_dir) return 'folder';
     return getKindLabel(file).toLowerCase();
 }
 
@@ -415,7 +415,11 @@ async function refreshGitStatus(force = false) {
     if (!data) return;
     state.gitBranch = data.branch || null;
     const root = data.root || state.cwd;
-    const join = (rel) => `${root.replace(/\/$/, '')}/${rel}`;
+    // git always reports '/'-separated paths; resolvePath re-emits them with
+    // the server's own separator so these keys match the tree's, which are
+    // built the same way. A raw concat left 'C:\proj\src/app.js' — a key
+    // nothing ever looked up, so every file showed as unmodified.
+    const join = (rel) => resolvePath(root, rel);
     // Precedence: staged > modified > untracked (staged+modified both flagged as 'M' is fine)
     (data.untracked || []).forEach(f => state.gitStatus.set(join(f.path), 'U'));
     (data.modified || []).forEach(f => state.gitStatus.set(join(f.path), f.status === 'deleted' ? 'D' : 'M'));
@@ -433,10 +437,9 @@ async function refreshGitStatus(force = false) {
 function dirHasGitChanges(dirPath) {
     const state = getState();
     if (state.gitStatus.size === 0) return null;
-    const prefix = dirPath.replace(/\/$/, '') + '/';
     let sawAny = false;
     for (const [p, s] of state.gitStatus) {
-        if (!p.startsWith(prefix)) continue;
+        if (p === dirPath || !isUnder(p, dirPath)) continue;
         if (s !== 'U') return 'M';
         sawAny = true;
     }
@@ -467,10 +470,7 @@ async function ensureTreeIndex() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         // `files` entries are either relative to cwd or already absolute (from extra_dirs)
-        const base = (data.cwd || cwd).replace(/\/$/, '');
-        state.treeIndex = (data.files || []).map(f =>
-            isAbsolutePath(f) ? f : joinPath(base, f)
-        );
+        state.treeIndex = (data.files || []).map(f => resolvePath(data.cwd || cwd, f));
         state.treeIndexTruncated = !!data.truncated;
     } catch (err) {
         console.error('Failed to fetch tree index:', err);
@@ -496,11 +496,10 @@ const FLAT_MATCH_LIMIT = 300;
 // Score a path against the lowercased query. Higher is better.
 // Combines: filename-vs-path bucket, exact/stem/prefix bonuses, and a depth
 // penalty so root-level files outrank equivalents buried deep in the tree.
-// `cwdPrefix` lets us measure depth relative to the project root, not the FS root.
-function scoreMatch(path, q, cwdPrefix) {
+// `cwd` lets us measure depth relative to the project root, not the FS root.
+function scoreMatch(path, q, cwd) {
     const lower = path.toLowerCase();
-    const lastSlash = lower.lastIndexOf('/');
-    const name = lastSlash >= 0 ? lower.slice(lastSlash + 1) : lower;
+    const name = basename(lower);
     // Stem = filename without extension (e.g. "readme" from "readme.md").
     const dot = name.lastIndexOf('.');
     const stem = dot > 0 ? name.slice(0, dot) : name;
@@ -514,8 +513,11 @@ function scoreMatch(path, q, cwdPrefix) {
 
     // Depth penalty — count slashes in the *relative* path (so paths inside
     // the project root are favored over paths from extra_dirs / nested deep).
-    const rel = cwdPrefix && lower.startsWith(cwdPrefix) ? lower.slice(cwdPrefix.length) : lower;
-    const depth = (rel.match(/\//g) || []).length;
+    // relativeTo hands back an unchanged (absolute) path when it isn't under
+    // cwd, and that extra leading segment is exactly the penalty that keeps
+    // extra_dirs hits below in-project ones.
+    const rel = cwd ? relativeTo(lower, cwd) : lower;
+    const depth = splitPath(rel, path).length - 1;
     score -= depth * 10;
 
     return score;
@@ -526,7 +528,6 @@ function filterTreeIndex(query) {
     if (!state.treeIndex) return null;
     const q = query.toLowerCase();
     const cwd = (state.cwd || state.currentPath || '').toLowerCase();
-    const cwdPrefix = cwd.endsWith('/') ? cwd : cwd + '/';
     const subdirsOff = !state.searchSubdirs;
 
     const matches = [];
@@ -534,15 +535,15 @@ function filterTreeIndex(query) {
         const lower = p.toLowerCase();
         if (!lower.includes(q)) continue;
         if (subdirsOff) {
-            // Only direct children of cwd: relative path must contain no '/'
-            const rel = lower.startsWith(cwdPrefix) ? lower.slice(cwdPrefix.length) : null;
-            if (rel === null || rel.includes('/')) continue;
+            // Only direct children of cwd: one segment below it, no deeper.
+            if (!cwd || !isUnder(lower, cwd)) continue;
+            if (splitPath(relativeTo(lower, cwd), lower).length !== 1) continue;
         }
         matches.push(p);
     }
     matches.sort((a, b) => {
-        const sa = scoreMatch(a, q, cwdPrefix);
-        const sb = scoreMatch(b, q, cwdPrefix);
+        const sa = scoreMatch(a, q, cwd);
+        const sb = scoreMatch(b, q, cwd);
         if (sa !== sb) return sb - sa;          // higher score first
         if (a.length !== b.length) return a.length - b.length;  // shorter path wins ties
         return a.localeCompare(b);
@@ -638,8 +639,12 @@ function renderPathSegments(parent) {
     pathContainer.className = 'fe-path';
 
     if (state.currentPath) {
-        const parts = state.currentPath.split('/').filter(Boolean);
-        let accumulated = '';
+        // Segments hang off the root ('/' or 'C:\'), which is a crumb of its
+        // own rather than a name — splitting it into a segment is what turned
+        // a Windows drive letter into a directory called "C:".
+        const root = pathRoot(state.currentPath);
+        const parts = splitPath(state.currentPath.slice(root.length), state.currentPath);
+        let accumulated = root ? stripTrailingSep(root) : '';
 
         const homeBtn = document.createElement('button');
         homeBtn.className = 'fe-path-segment fe-home';
@@ -648,13 +653,14 @@ function renderPathSegments(parent) {
         homeBtn.onclick = () => loadDirectory(state.cwd || '/');
         pathContainer.appendChild(homeBtn);
 
+        const sepChar = pathSep(state.currentPath);
         parts.forEach(part => {
-            accumulated += '/' + part;
+            accumulated = joinPath(accumulated || root, part);
             const path = accumulated;
 
             const sep = document.createElement('span');
             sep.className = 'fe-path-sep';
-            sep.textContent = '/';
+            sep.textContent = sepChar;
             pathContainer.appendChild(sep);
 
             const segment = document.createElement('button');
@@ -730,6 +736,22 @@ function cancelPathEdit() {
     state.currentContainer?.focus({ preventScroll: true });
 }
 
+/**
+ * The server-reported HOME, or a stand-in built from the session cwd while
+ * the "connected" WebSocket message hasn't landed yet. The stand-in is the
+ * first two segments below the root — /home/<user>, C:\Users\<user> — which
+ * is why it counts segments off `pathRoot` instead of slicing the string:
+ * a drive letter is a root, not a segment.
+ */
+function homeGuess() {
+    const state = getState();
+    if (CONFIG.HOME && CONFIG.HOME !== '/home') return CONFIG.HOME;
+    if (!state.cwd) return '/';
+    const root = pathRoot(state.cwd);
+    const parts = splitPath(state.cwd.slice(root.length), state.cwd).slice(0, 2);
+    return parts.reduce((acc, part) => joinPath(acc, part), stripTrailingSep(root) || root || '');
+}
+
 function commitPath(raw) {
     const state = getState();
     state.pathEditing = false;
@@ -742,19 +764,13 @@ function commitPath(raw) {
         // arrives with the "connected" WebSocket message. Falls back to the
         // first two segments of the session cwd (/home/<user>) if HOME
         // hasn't been populated yet.
-        const home = CONFIG.HOME && CONFIG.HOME !== '/home'
-            ? CONFIG.HOME
-            : (state.cwd ? state.cwd.split('/').slice(0, 3).join('/') : '/');
-        resolved = home + resolved.slice(1);
-    } else if (!isAbsolutePath(resolved)) {
-        // Treat bare input as relative to the current directory.
-        const base = state.currentPath || state.cwd || '/';
-        resolved = `${base.replace(/\/$/, '')}/${resolved}`;
+        resolved = homeGuess() + resolved.slice(1);
     }
-    // Trim trailing slash unless it's the root.
-    if (resolved.length > 1 && resolved.endsWith('/')) {
-        resolved = resolved.replace(/\/+$/, '');
-    }
+    // Relative input hangs off the current directory; an absolute path (or
+    // the ~-expansion above) just passes through. Either way resolvePath
+    // re-emits with the server's separator and drops any trailing one, so a
+    // typed '/' still lands on a Windows bridge.
+    resolved = resolvePath(state.currentPath || state.cwd || pathRoot(state.cwd) || '/', resolved);
 
     loadDirectory(resolved);
 }
@@ -781,7 +797,13 @@ function sortFiles(files) {
                 cmp = (a.size || 0) - (b.size || 0);
                 break;
             case 'kind':
-                cmp = getKindSortKey(a).localeCompare(getKindSortKey(b));
+                // Dirs bucket ahead of every file kind, and that has to be
+                // its own comparison rather than a magic prefix on the sort
+                // key: localeCompare ignores the characters you'd reach for
+                // (a leading NUL collates to literally nothing, so '\0folder'
+                // and 'folder' compare equal).
+                cmp = (a.is_dir ? 0 : 1) - (b.is_dir ? 0 : 1) ||
+                      getKindSortKey(a).localeCompare(getKindSortKey(b));
                 break;
             default:
                 cmp = a.name.localeCompare(b.name);
@@ -1023,7 +1045,7 @@ function renderFileList(container) {
 
     // Parent directory (always visible, never filtered)
     if (state.currentPath && state.currentPath !== '/' && state.currentPath !== state.cwd) {
-        const parentPath = state.currentPath.split('/').slice(0, -1).join('/') || '/';
+        const parentPath = parentOf(state.currentPath) || pathRoot(state.currentPath) || '/';
         const parent = document.createElement('div');
         parent.className = 'fe-item fe-parent';
         parent.innerHTML = `
@@ -1085,16 +1107,14 @@ function renderErrorBlock(list, errInfo) {
         previewBtn.className = 'fe-error-btn fe-error-btn-primary';
         previewBtn.textContent = 'Preview file';
         previewBtn.onclick = () => {
-            const parent = errInfo.path.split('/').slice(0, -1).join('/') || '/';
+            const parent = parentOf(errInfo.path) || pathRoot(errInfo.path) || '/';
             loadDirectory(parent);
             window.app?.previewFile(errInfo.path, { imageGallery: 'dir' });
         };
         actions.appendChild(previewBtn);
     }
 
-    const parentPath = errInfo.path
-        ? errInfo.path.split('/').slice(0, -1).join('/')
-        : '';
+    const parentPath = (errInfo.path && parentOf(errInfo.path)) || '';
     if (parentPath && parentPath !== errInfo.path && parentPath !== '') {
         const parentBtn = document.createElement('button');
         parentBtn.className = 'fe-error-btn';
@@ -1258,11 +1278,10 @@ function renderFlatMatches(container, matches) {
     }
 
     const cwd = state.cwd || state.currentPath || '';
-    const cwdPrefix = cwd.endsWith('/') ? cwd : cwd + '/';
     const query = state.filterQuery;
 
     const visible = (matches || []).filter(p => {
-        const name = p.slice(p.lastIndexOf('/') + 1);
+        const name = basename(p);
         if (!state.showHidden && name.startsWith('.')) return false;
         return matchesFilter({ name, is_dir: false }, state.filter);
     });
@@ -1283,10 +1302,9 @@ function renderFlatMatches(container, matches) {
         item.className = 'fe-item fe-flat-match';
         item.dataset.path = path;
 
-        const name = path.slice(path.lastIndexOf('/') + 1);
+        const name = basename(path);
         const fileType = getFileType(name);
-        const relative = path.startsWith(cwdPrefix) ? path.slice(cwdPrefix.length) : path;
-        const parent = relative.slice(0, relative.length - name.length).replace(/\/$/, '');
+        const parent = dirname(relativeTo(path, cwd));
 
         if (state.selectedPath === path) item.classList.add('selected');
 
@@ -1925,7 +1943,7 @@ function handleArrowLeft() {
         toggleExpanded(state.selectedPath);
         return;
     }
-    const parent = state.selectedPath.split('/').slice(0, -1).join('/');
+    const parent = parentOf(state.selectedPath);
     if (!parent) return;
     const parentEl = container?.querySelector(`.fe-item[data-path="${CSS.escape(parent)}"]`);
     if (parentEl) setSelection(parent);
@@ -2008,7 +2026,7 @@ function setupKeyboardNavigation() {
                     renderList();
                     break;
                 }
-                const parentPath = state.currentPath.split('/').slice(0, -1).join('/') || '/';
+                const parentPath = parentOf(state.currentPath) || pathRoot(state.currentPath) || '/';
                 if (parentPath !== state.currentPath) {
                     loadDirectory(parentPath);
                 }
@@ -2111,7 +2129,7 @@ export const FileExplorerWidget = {
      */
     async revealFile(path) {
         if (!path) return;
-        const parentDir = path.substring(0, path.lastIndexOf('/')) || '/';
+        const parentDir = parentOf(path) || pathRoot(path) || '/';
 
         // Open the widget first so state.currentContainer is set before
         // loadDirectory's renderContent runs. Wait one frame for the render

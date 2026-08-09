@@ -14,7 +14,7 @@
 import { FileProvider } from './file-provider.js';
 import { CONFIG } from '../../config.js';
 import { scoreFuzzy } from '../fuzzy-scorer.js';
-import { basename, isAbsolutePath } from '../../path-utils.js';
+import { basename, dirname, relativeTo, resolvePath } from '../../path-utils.js';
 
 const CACHE_TTL = 20_000;
 const MAX_RESULTS = 30;
@@ -51,20 +51,16 @@ export class ReadFilesProvider extends FileProvider {
 
     _toReadItem(f, cwd, matches) {
         const path = f.filePath;
-        const slash = path.lastIndexOf('/');
-        const name = slash >= 0 ? path.slice(slash + 1) : path;
-        const dir = slash >= 0 ? path.slice(0, slash) : '';
+        const name = basename(path);
         // read-files paths are already absolute (from tool_input.file_path);
         // keep both so FileProvider.execute / context-menu work unchanged.
-        const absPath = isAbsolutePath(path) ? path : this._absPath(path, cwd || '');
-        const rel = cwd && absPath.startsWith(cwd)
-            ? absPath.slice(cwd.replace(/\/$/, '').length + 1)
-            : path;
+        const absPath = resolvePath(cwd || '', path);
+        const rel = cwd ? relativeTo(absPath, cwd) : path;
         return {
             id: `read-file:${absPath}`,
             type: 'read-file',
             label: name,
-            description: dir,
+            description: dirname(path),
             icon: 'file',
             meta: f.readCount > 1 ? `${f.readCount}×` : null,
             data: { path: rel, cwd: cwd || '', absPath },

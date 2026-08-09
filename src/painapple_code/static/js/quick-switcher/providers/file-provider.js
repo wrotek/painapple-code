@@ -16,7 +16,7 @@ import { scoreFuzzy } from '../fuzzy-scorer.js';
 import { copyToClipboard, showToast } from '../../context-menu.js';
 import { getRecentOpens } from '../../recent-opens.js';
 import S from '../../strings.js';
-import { basename, isAbsolutePath } from '../../path-utils.js';
+import { basename, dirname, relativeTo, resolvePath, splitPath } from '../../path-utils.js';
 
 const CACHE_TTL = 60_000;
 const RECENT_TTL = 30_000;
@@ -51,10 +51,6 @@ export class FileProvider extends BaseProvider {
         return window.app?.activeSession?.cwd
             || window.app?.lastCwd
             || null;
-    }
-
-    _absPath(path, cwd) {
-        return isAbsolutePath(path) ? path : cwd.replace(/\/$/, '') + '/' + path;
     }
 
     async _load(cwd) {
@@ -102,7 +98,7 @@ export class FileProvider extends BaseProvider {
                 const data = await r.json();
                 (data.files || []).forEach(f => {
                     list.push({
-                        abs: this._absPath(f.path, cwd),
+                        abs: resolvePath(cwd, f.path),
                         touchCount: f.touch_count,
                         lastTouched: f.last_touched_at,
                         ts: parseTs(f.last_touched_at),
@@ -128,7 +124,7 @@ export class FileProvider extends BaseProvider {
         }
         for (const o of getRecentOpens()) {
             if (!o || !o.path) continue;
-            const abs = this._absPath(o.path, cwd);
+            const abs = resolvePath(cwd, o.path);
             const ex = map.get(abs);
             if (ex) {
                 ex.opened = true;
@@ -164,24 +160,24 @@ export class FileProvider extends BaseProvider {
             // etc. are commonly edited despite being .gitignore'd). Fill-rows
             // stay tracked-only — avoids flooding the empty state with
             // gitignored junk like *.log / *.duckdb.
-            const fileSet = new Set([...tracked, ...ignored].map(p => this._absPath(p, cwd)));
+            const fileSet = new Set([...tracked, ...ignored].map(p => resolvePath(cwd, p)));
             const lookup = (abs) =>
-                tracked.find(p => this._absPath(p, cwd) === abs)
-                ?? ignored.find(p => this._absPath(p, cwd) === abs);
+                tracked.find(p => resolvePath(cwd, p) === abs)
+                ?? ignored.find(p => resolvePath(cwd, p) === abs);
             const out = [];
             const used = new Set();
             for (const [abs, info] of recent) {
                 if (!fileSet.has(abs)) continue;
-                const rel = abs.startsWith(cwd) ? abs.slice(cwd.replace(/\/$/, '').length + 1) : abs;
+                const rel = relativeTo(abs, cwd);
                 out.push(this._toItem(lookup(abs) || rel, cwd, null, info));
                 used.add(abs);
                 if (out.length >= EMPTY_QUERY_LIMIT) break;
             }
             for (const p of tracked) {
                 if (out.length >= EMPTY_QUERY_LIMIT) break;
-                const abs = this._absPath(p, cwd);
+                const abs = resolvePath(cwd, p);
                 if (used.has(abs)) continue;
-                if ((p.match(/\//g) || []).length > 1) continue;
+                if (splitPath(p, cwd).length > 2) continue;   // top two levels only
                 out.push(this._toItem(p, cwd, null, null));
             }
             return out;
@@ -189,8 +185,7 @@ export class FileProvider extends BaseProvider {
 
         const qLower = q.toLowerCase();
         const scoreFile = (path, isIgnored) => {
-            const slash = path.lastIndexOf('/');
-            const filename = slash >= 0 ? path.slice(slash + 1) : path;
+            const filename = basename(path);
             const fnLower = filename.toLowerCase();
 
             // .gitignore'd files only count when the user is clearly aiming at
@@ -220,8 +215,8 @@ export class FileProvider extends BaseProvider {
             // Filename prefix match → strong boost (covers `clau`, `read`, etc.)
             else if (fnLower.startsWith(qLower)) score += 100;
 
-            const depth = (path.match(/\//g) || []).length;
-            const info = recent.get(this._absPath(path, cwd)) || null;
+            const depth = splitPath(path, cwd).length - 1;
+            const info = recent.get(resolvePath(cwd, path)) || null;
             const boost = this._recentBoost(info?.rank);
             return { path, score: score - depth * 2 + boost, matches: nameMatches, info };
         };
@@ -240,10 +235,9 @@ export class FileProvider extends BaseProvider {
     }
 
     _toItem(path, cwd, nameMatches, recentInfo) {
-        const slash = path.lastIndexOf('/');
-        const name = slash >= 0 ? path.slice(slash + 1) : path;
-        const dir = slash >= 0 ? path.slice(0, slash) : '';
-        const absPath = this._absPath(path, cwd);
+        const name = basename(path);
+        const dir = dirname(path);
+        const absPath = resolvePath(cwd, path);
         return {
             id: `file:${absPath}`,
             type: 'file',
