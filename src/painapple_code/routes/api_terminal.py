@@ -24,6 +24,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 from painapple_code.auth_middleware import check_websocket_auth, check_websocket_origin
 from painapple_code.session_store import SessionStore
 from painapple_code.subprocess_registry import agent_subprocesses
+from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
             resolved_cwd = store_data.get("cwd")
 
     if not resolved_cwd and cwd:
-        resolved_cwd = str(Path(cwd).expanduser().resolve())
+        resolved_cwd = str(safe_resolve(cwd))
 
     if not resolved_cwd:
         # Fall back to the bridge's --workspace (stashed on app.state by main()).
@@ -89,7 +90,7 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
         ws = getattr(state, "workspace", None)
         if ws:
             try:
-                resolved_cwd = str(Path(ws).expanduser().resolve())
+                resolved_cwd = str(safe_resolve(ws))
             except Exception:
                 resolved_cwd = ws
         else:

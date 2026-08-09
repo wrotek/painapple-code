@@ -11,13 +11,13 @@ These endpoints manage:
 import json
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from painapple_code import bridge_paths
 from painapple_code.session_store import SessionStore
+from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ async def create_session(request: Request, cwd: str, name: str = None, provider:
             status_code=400,
             detail=f"Unknown provider: {provider}. Valid: {provider_names()}",
         )
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     session_data = SessionStore.create(resolved_cwd, name)
     bridge = getattr(request.app.state, "bridge", None)
     provider_name = (provider

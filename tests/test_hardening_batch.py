@@ -334,3 +334,67 @@ def test_sanitize_filename(raw, expected):
 def test_sanitize_filename_rejects_empty_shapes(raw):
     with pytest.raises(ValueError):
         sanitize_filename(raw)
+
+
+# ---------------------------------------------------------------------------
+# T14 — the allow-check must not phone home before it says "no"
+# ---------------------------------------------------------------------------
+#
+# Every route resolved the path BEFORE consulting the allow-list. On Windows
+# that ordering is the bug the UNC rule exists to prevent: canonicalizing
+# \\attacker\share makes the OS contact `attacker` and offer the logged-in
+# user's credentials. Measured on the Windows VM, /api/file with a UNC path
+# stalled ~3s in resolve() — and then died with
+#   OSError: [WinError 64] The specified network name is no longer available
+# because ntpath doesn't swallow that one, so the route returned 500 (stack
+# trace) instead of 403.
+
+from pathlib import Path
+
+
+def test_safe_resolve_denies_unc_without_touching_the_filesystem(monkeypatch):
+    """The denial has to cost zero I/O — that's the entire point.
+
+    Asserted by making resolve() fatal: if the screen runs first, nothing
+    calls it. (We can't also assert the result still looks like a UNC path,
+    because the lexical fallback runs through POSIX abspath on this box and
+    backslashes aren't separators here.)
+    """
+    import painapple_code.utils.file_paths as fp
+
+    monkeypatch.setattr(fp.sys, "platform", "win32")
+
+    def _explode(*a, **k):
+        raise AssertionError("resolve() was called on a denied UNC path")
+
+    monkeypatch.setattr(Path, "resolve", _explode)
+
+    assert isinstance(fp.safe_resolve(r"\\attacker.example.com\share\payload"), Path)
+
+
+def test_safe_resolve_survives_oserror_from_resolve(monkeypatch, tmp_path):
+    """WinError 64 out of resolve() must not escape as a 500."""
+    import painapple_code.utils.file_paths as fp
+
+    def _boom(*a, **k):
+        raise OSError(64, "The specified network name is no longer available")
+
+    monkeypatch.setattr(Path, "resolve", _boom)
+
+    out = fp.safe_resolve(str(tmp_path / "sub" / ".." / "file.txt"))
+    assert isinstance(out, Path)
+    # Lexically normalized even though the filesystem was never consulted,
+    # so a containment check on the result is still meaningful.
+    assert ".." not in out.parts
+
+
+def test_is_path_allowed_for_read_denies_unc_before_resolving(monkeypatch):
+    import painapple_code.utils.file_paths as fp
+
+    monkeypatch.setattr(fp.sys, "platform", "win32")
+    monkeypatch.setattr(
+        Path, "resolve",
+        lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("resolved a UNC path before denying it")))
+
+    assert not fp.is_path_allowed_for_read(Path(r"\\attacker\share\x"))

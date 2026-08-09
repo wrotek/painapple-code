@@ -21,6 +21,7 @@ from painapple_code.utils.file_paths import (
     is_path_allowed_for_read,
     resolve_project_dir,
     resolve_project_files,
+    safe_resolve,
     verify_file_paths,
 )
 
@@ -37,7 +38,7 @@ router = APIRouter(tags=["files"])
 async def list_files(path: str = "."):
     """List files in a directory (for file browser)."""
     try:
-        p = Path(path).expanduser().resolve()
+        p = safe_resolve(path)
         if not is_path_allowed_for_read(p):
             raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
         if not p.exists():
@@ -165,7 +166,7 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
     (used by the file explorer's "Include ignored" search toggle).
     """
     try:
-        p = Path(cwd).expanduser().resolve()
+        p = safe_resolve(cwd)
         if not p.exists() or not p.is_dir():
             raise HTTPException(status_code=404, detail="Directory not found")
 
@@ -193,14 +194,14 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
         seen = set()
         extra_dirs = []
         for d in global_extra + project_extra:
-            resolved = str(Path(d).expanduser().resolve())
+            resolved = str(safe_resolve(d))
             if resolved not in seen:
                 seen.add(resolved)
                 extra_dirs.append(d)
 
         # Enumerate files from each extra directory (absolute paths)
         for extra_dir in extra_dirs:
-            extra_path = Path(extra_dir).expanduser().resolve()
+            extra_path = safe_resolve(extra_dir)
             if not extra_path.is_dir():
                 logger.warning(f"Extra dir not found: {extra_dir}")
                 continue
@@ -247,7 +248,7 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
 async def read_file(path: str):
     """Read a file's contents (for file viewer)."""
     try:
-        p = Path(path).expanduser().resolve()
+        p = safe_resolve(path)
         if not is_path_allowed_for_read(p):
             raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
         if not p.exists():
@@ -266,7 +267,7 @@ async def read_file(path: str):
 async def file_stat(path: str):
     """Lightweight file stat (mtime + size) without reading content."""
     try:
-        p = Path(path).expanduser().resolve()
+        p = safe_resolve(path)
         if not is_path_allowed_for_read(p):
             raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
         if not p.exists():
@@ -286,7 +287,7 @@ class WriteFileRequest(BaseModel):
 async def write_file(request: WriteFileRequest):
     """Write content to a file (for scratch Save As)."""
     try:
-        p = Path(request.path).expanduser().resolve()
+        p = safe_resolve(request.path)
         if not is_path_allowed(p):
             raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
 
@@ -317,7 +318,7 @@ async def write_file(request: WriteFileRequest):
 async def check_directory(path: str):
     """Check if a directory exists."""
     try:
-        p = Path(path).expanduser().resolve()
+        p = safe_resolve(path)
         return {
             "path": str(p),
             "exists": p.exists(),
@@ -341,7 +342,7 @@ async def create_directory(req: MkdirRequest):
     """
     path = req.path
     try:
-        p = Path(path).expanduser().resolve()
+        p = safe_resolve(path)
         if not is_path_allowed(p):
             raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
         if p.exists():

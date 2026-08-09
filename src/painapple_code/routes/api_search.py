@@ -27,7 +27,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from painapple_code.utils.file_paths import is_path_allowed_for_read
+from painapple_code.utils.file_paths import is_path_allowed_for_read, safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -365,7 +365,7 @@ async def search_in_files(
         raise HTTPException(status_code=400, detail="Search query too long")
     limit = max(1, min(limit, MAX_LIMIT))
 
-    work_dir = Path(cwd).expanduser().resolve()
+    work_dir = safe_resolve(cwd)
     if not is_path_allowed_for_read(work_dir):
         raise HTTPException(status_code=403, detail="Path not allowed")
     if not work_dir.exists() or not work_dir.is_dir():

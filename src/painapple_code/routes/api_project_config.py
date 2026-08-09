@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 from painapple_code import bridge_paths
 from painapple_code.session_store import SessionStore
+from painapple_code.utils.file_paths import safe_resolve
 
 router = APIRouter(tags=["bridge:project-config"])
 
@@ -32,7 +33,7 @@ router = APIRouter(tags=["bridge:project-config"])
 @router.get("/api/project/config")
 async def get_project_config(cwd: str):
     """Get project-specific configuration (merged with global)."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     config = bridge_paths.load_project_config(resolved_cwd)
 
     project_hash = bridge_paths.get_project_hash(resolved_cwd)
@@ -53,7 +54,7 @@ async def get_project_config(cwd: str):
 @router.put("/api/project/config")
 async def update_project_config(cwd: str, request: Request):
     """Update project-specific configuration."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     body = await request.json()
 
     bridge_paths.save_project_config(resolved_cwd, body)
@@ -64,7 +65,7 @@ async def update_project_config(cwd: str, request: Request):
 @router.patch("/api/project/config")
 async def patch_project_config(cwd: str, request: Request):
     """Partially update project configuration (merge with existing)."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     body = await request.json()
 
     config_path = bridge_paths.get_project_config_path(resolved_cwd)
@@ -97,7 +98,7 @@ class ProjectRenameRequest(BaseModel):
 @router.post("/api/project/rename")
 async def rename_project(cwd: str, request: ProjectRenameRequest):
     """Set a human-friendly display name for a project."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     bridge_paths.set_project_display_name(resolved_cwd, request.name)
 
     return {
@@ -130,7 +131,7 @@ async def set_project_color(cwd: str, request: ProjectColorRequest):
 
     Stored under `display.color`; an empty/invalid color clears the override.
     """
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     stored = bridge_paths.set_project_color(resolved_cwd, request.color)
 
     return {
@@ -332,7 +333,7 @@ async def get_project_commands(cwd: str):
     are surfaced through the `~` skills picker instead, so `/` autocomplete
     only shows true slash commands.
     """
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     commands = SessionStore.get_project_commands(resolved_cwd)
     user_commands = _get_user_command_names(resolved_cwd)
     descriptions = _get_command_descriptions(resolved_cwd)

@@ -27,6 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from painapple_code import bridge_paths
 from painapple_code import helpers as helpers_module
+from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,7 @@ async def get_server_info(request: Request):
     workspace = None
     if raw_ws:
         try:
-            workspace = str(Path(raw_ws).expanduser().resolve())
+            workspace = str(safe_resolve(raw_ws))
         except Exception:
             workspace = raw_ws
 

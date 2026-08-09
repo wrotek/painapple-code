@@ -8,10 +8,10 @@ with output capture and timeout handling.
 import asyncio
 import logging
 import sys
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ async def execute_command(req: ExecRequest):
     command = req.command
     cwd = req.cwd
     try:
-        p = Path(cwd).expanduser().resolve()
+        p = safe_resolve(cwd)
         if not p.exists() or not p.is_dir():
             raise HTTPException(status_code=400, detail="Invalid working directory")
 

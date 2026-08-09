@@ -30,7 +30,7 @@ from painapple_code.routes.dependencies import provider_is_locked
 from painapple_code.server_logging import log_websocket_event
 from painapple_code.session_store import SessionStore
 from painapple_code.utils.agent_cli import get_max_thinking_tokens
-from painapple_code.utils.file_paths import extract_file_links
+from painapple_code.utils.file_paths import extract_file_links, safe_resolve
 
 logger = logging.getLogger(__name__)
 # Grab the singleton only — setup_logging() in main() attaches the file handler.
@@ -120,7 +120,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
         # Create pending session (not persisted to disk yet)
         resolved_cwd = bridge.default_cwd
         if cwd:
-            resolved_cwd = str(Path(cwd).expanduser().resolve())
+            resolved_cwd = str(safe_resolve(cwd))
         store_data = SessionStore.create_pending(resolved_cwd)
         provider_session_id = None
         fork_from_session_id = None
@@ -213,7 +213,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
             status_msg = "Ready"  # New session, Claude will start on first message
 
         try:
-            workspace_path = str(Path(bridge.default_cwd).expanduser().resolve())
+            workspace_path = str(safe_resolve(bridge.default_cwd))
         except Exception:
             workspace_path = bridge.default_cwd
         # The session's engine identity + capabilities ride the connected

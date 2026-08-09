@@ -23,6 +23,7 @@ from typing import Any, Optional
 import yaml
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from painapple_code.utils.file_paths import safe_resolve
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -135,7 +136,7 @@ def _all_names_in_scope(scope: str, cwd: str) -> set[str]:
 @router.get("")
 async def list_agents(cwd: Optional[str] = None):
     """List every agent across scopes, with rich metadata for the gallery."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve()) if cwd else str(Path.cwd())
+    resolved_cwd = str(safe_resolve(cwd)) if cwd else str(Path.cwd())
     agents = []
     by_name: dict[str, list[tuple[str, str]]] = {}
     counts = {"project": 0, "personal": 0}
@@ -188,7 +189,7 @@ async def list_agents(cwd: Optional[str] = None):
 @router.get("/{scope}/{name}")
 async def get_agent(scope: str, name: str, cwd: str):
     """Return full agent metadata + body for viewing or editing."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     path = _resolve_path(scope, name, resolved_cwd)
     text = path.read_text(encoding="utf-8", errors="replace")
     fm, body = _parse_frontmatter(text)
@@ -216,7 +217,7 @@ class UpdateAgentBody(BaseModel):
 @router.put("/{scope}/{name}")
 async def update_agent(scope: str, name: str, cwd: str, payload: UpdateAgentBody):
     """Update an existing agent file."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     path = _resolve_path(scope, name, resolved_cwd)
 
     if payload.expected_mtime is not None:
@@ -335,7 +336,7 @@ class CreateAgentBody(BaseModel):
 async def create_agent(scope: str, name: str, cwd: str, payload: CreateAgentBody):
     """Create a new agent .md from a template."""
     _validate_name(name)
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
 
     base = _scope_root(scope, resolved_cwd)
     target = base / f"{name}.md"
@@ -373,7 +374,7 @@ async def create_agent(scope: str, name: str, cwd: str, payload: CreateAgentBody
 @router.delete("/{scope}/{name}")
 async def delete_agent(scope: str, name: str, cwd: str):
     """Delete an agent .md file."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     path = _resolve_path(scope, name, resolved_cwd)
 
     parts = path.resolve().parts
@@ -397,7 +398,7 @@ class DuplicateBody(BaseModel):
 @router.post("/{scope}/{name}/duplicate")
 async def duplicate_agent(scope: str, name: str, cwd: str, payload: DuplicateBody):
     """Copy an agent into a new name/scope."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     src = _resolve_path(scope, name, resolved_cwd)
 
     target_scope = payload.target_scope or scope

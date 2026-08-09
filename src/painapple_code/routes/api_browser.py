@@ -31,7 +31,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, Response
 
-from painapple_code.utils.file_paths import is_path_allowed_for_read
+from painapple_code.utils.file_paths import is_path_allowed_for_read, safe_resolve
 from painapple_code.routes.api_viewer import MIME_TYPES
 
 logger = logging.getLogger(__name__)
@@ -426,7 +426,7 @@ async def browser_render(path: str):
     """Render a local file by user-supplied path (handles ~ and file://)."""
     raw = path[7:] if path.startswith('file://') else path
     try:
-        p = Path(raw).expanduser().resolve()
+        p = safe_resolve(raw)
     except (OSError, RuntimeError) as e:
         raise HTTPException(status_code=400, detail=f"Bad path: {e}")
     return _serve_local_file(p)
