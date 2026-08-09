@@ -68,6 +68,35 @@ def popen_kwargs_detached(fully_detached: bool = False) -> dict:
     return {"start_new_session": True}
 
 
+def _shares_our_console(pid) -> bool:
+    """win32: is `pid` attached to OUR console? (CTRL_BREAK's real reach.)
+
+    ``GenerateConsoleCtrlEvent`` only delivers to process groups attached
+    to the caller's console. Sent anywhere else it does NOT error — it
+    returns success and nothing happens (measured on winvm 2026-08-09: a
+    ``DETACHED_PROCESS`` child survived CTRL_BREAK with no exception
+    raised, while a same-console group child died with
+    STATUS_CONTROL_C_EXIT). So "unsendable" cannot be detected by
+    catching exceptions after the fact; it has to be decided BEFORE
+    sending, from console membership. ``GetConsoleProcessList`` is that
+    answer: the set of pids on our console. Returns 0 when we have no
+    console at all (the ``painapple start`` detached-bridge case) —
+    nothing can share it, so every interrupt escalates to terminate().
+    """
+    import ctypes
+
+    kernel32 = ctypes.windll.kernel32
+    count = 64
+    while True:
+        arr = (ctypes.c_uint32 * count)()
+        n = kernel32.GetConsoleProcessList(arr, count)
+        if n == 0:          # no console attached to this process
+            return False
+        if n <= count:
+            return pid in arr[:n]
+        count = n           # buffer too small; retry at the reported size
+
+
 def interrupt_process(process) -> None:
     """Politely interrupt a child's current work (turn abort).
 
@@ -79,24 +108,28 @@ def interrupt_process(process) -> None:
     Raises ProcessLookupError for an already-dead child, like the direct
     call did — callers keep their existing handling.
 
-    On win32 an unsendable CTRL_BREAK escalates to ``terminate()``, and
-    "unsendable" is BOTH shapes, not just ValueError:
-
-    * ``ValueError`` — Python refusing the signal number outright.
-    * ``OSError`` — ``GenerateConsoleCtrlEvent`` failing, which is the
-      realistic case: a bridge launched by ``painapple start NAME`` is
-      spawned with ``popen_kwargs_detached(fully_detached=True)``, i.e.
-      ``DETACHED_PROCESS`` — it has no console at all, so the call comes
-      back ``[WinError 6] The handle is invalid``. Catching only
-      ValueError meant the documented terminate() escalation never fired;
-      callers swallow OSError, so Stop was a silent no-op with the UI
-      stuck on "stopping".
+    win32 delivery is gated on console membership (see
+    ``_shares_our_console``): CTRL_BREAK to a group outside our console
+    is a SILENT no-op — no OSError, no effect — so an exception-based
+    fallback never fires and Stop wedges with the UI stuck on
+    "stopping". A child that can't hear CTRL_BREAK (``DETACHED_PROCESS``
+    grandchildren of ``painapple start``, or any child once the bridge
+    itself is console-less) is terminated instead: blunter than an
+    interrupt, but the line-protocol callers using this path kill the
+    process on stop anyway. The except arm stays as a belt for the
+    ValueError/OSError shapes Python itself can raise.
 
     Callers therefore still never need a win32-only except arm — but the
     escalation itself can raise (a dead child, a permission problem), and
     that surfaces as the OSError/ProcessLookupError they already handle.
     """
     if sys.platform == "win32":
+        if not _shares_our_console(process.pid):
+            logger.warning(
+                f"pid {process.pid} is not on our console — CTRL_BREAK "
+                "cannot reach it; terminating instead")
+            process.terminate()
+            return
         try:
             process.send_signal(signal.CTRL_BREAK_EVENT)
         except (ValueError, OSError) as e:
