@@ -1,6 +1,6 @@
 # pAInapple Code
 
-A self-hosted server that runs the [Claude Code](https://github.com/anthropics/claude-code) CLI on your machine; remote clients connect to it — streaming chat, interactive permission cards, an embedded terminal, git tools, multi-session tabs. It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
+A self-hosted server that runs the [Claude Code](https://github.com/anthropics/claude-code) CLI on your machine; remote clients connect to it — streaming chat, interactive permission cards, an embedded terminal, git tools, multi-session tabs. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
 
 The distinguishing feature is the **Auto Journal**. After every turn, the session forks itself in the background to a fast summarizer model (Haiku by default), so the summarizer reads the turn's full conversation rather than just its diff. It writes one structured summary — work done, decisions, problems solved, learnings — and that summary does double duty: it becomes the commit message for a per-project shadow git repo holding the turn's file changes, and it lands as a queryable row in a local DuckDB that later sessions can search.
 

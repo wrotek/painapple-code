@@ -1,6 +1,6 @@
 # pAInapple Code
 
-A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server), which serves VSCode as a web app — pAInapple Code does the same for Claude Code.
+A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server).
 
 The image bundles Python 3.13, Node 20, and `@anthropic-ai/claude-code`. Multi-arch (`linux/amd64`, `linux/arm64`).
 
