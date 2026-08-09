@@ -36,16 +36,41 @@ function formatBuild(stamp) {
 }
 
 /**
+ * Last-resort identity, used only when /api/info supplies nothing.
+ *
+ * The server normally owns these (read from installed distribution metadata,
+ * so a fork advertises its own). But an older server process serving newer
+ * static assets returns no `urls` at all, and the failure mode was silent and
+ * bad: every link vanished, including the source offer AGPL §13 requires, and
+ * the panel still looked complete. A compliance surface must not depend on a
+ * process restart to exist. Server values always win when present.
+ */
+const FALLBACK = {
+    license: 'AGPL-3.0-or-later',
+    author: 'Michał Booth-Wrotkowski',
+    urls: {
+        Source: 'https://github.com/wrotek/painapple-code',
+        Issues: 'https://github.com/wrotek/painapple-code/issues',
+        Homepage: 'https://painapple.ai',
+    },
+};
+
+/**
  * Pick a URL by label, tolerating however the dist spelled it.
  * pyproject labels are free-form ("Source", "Repository", "Source Code"), so
  * match case-insensitively against a list of aliases rather than one key.
  */
 function pickUrl(urls, aliases) {
-    if (!urls) return null;
-    const entries = Object.entries(urls);
+    const entries = Object.entries(urls || {});
     for (const alias of aliases) {
         const hit = entries.find(([k]) => k.toLowerCase() === alias.toLowerCase());
         if (hit && hit[1]) return hit[1];
+    }
+    // Same lookup against the built-in map, so a server that reports no URLs
+    // degrades to upstream's rather than to nothing.
+    for (const alias of aliases) {
+        const hit = Object.entries(FALLBACK.urls).find(([k]) => k.toLowerCase() === alias.toLowerCase());
+        if (hit) return hit[1];
     }
     return null;
 }
@@ -97,7 +122,7 @@ function versionText(info) {
         `${S.about.frontend}: ${formatBuild(info.clientBuild) || S.about.unknown}`,
     ];
     if (info.restartNeeded && info.diskVersion) lines.push(`on disk: ${info.diskVersion}`);
-    lines.push(`${S.about.license_row}: ${info.license || ''}`.trim());
+    lines.push(`${S.about.license_row}: ${info.license || FALLBACK.license}`);
     lines.push(`${navigator.userAgent}`);
     return lines.join('\n');
 }
@@ -105,6 +130,8 @@ function versionText(info) {
 function renderBody(container) {
     const info = getVersionInfo();
     const urls = info.urls || {};
+    const license = info.license || FALLBACK.license;
+    const author = info.author || FALLBACK.author;
 
     const source = pickUrl(urls, ['Source', 'Repository', 'Source Code', 'Code']);
     const issues = pickUrl(urls, ['Issues', 'Bug Tracker', 'Tracker']);
@@ -132,7 +159,7 @@ function renderBody(container) {
             <div class="about-hero">
                 <div class="about-hero-name">${escapeHtml(S.about.app_name)}</div>
                 <div class="about-hero-version">${escapeHtml(info.server || S.about.unknown)}</div>
-                <div class="about-hero-tagline">${escapeHtml(S.about.tagline)}</div>
+                ${author ? `<div class="about-hero-author">${escapeHtml(S.about.author_prefix.replace('{name}', author))}</div>` : ''}
             </div>
 
             <div class="about-section">
@@ -147,7 +174,7 @@ function renderBody(container) {
 
             <div class="about-section">
                 <h4>${escapeHtml(S.about.license_title)}</h4>
-                ${info.license ? row(S.about.license_row, info.license) : ''}
+                ${row(S.about.license_row, license)}
                 <div class="about-notice">${escapeHtml(S.about.license_notice)}</div>
                 ${linkRow(licenseUrl, S.about.license_link, '')}
                 ${linkRow(noticesUrl, S.about.third_party, '')}
@@ -198,3 +225,8 @@ export const AboutWidget = {
     open: () => WidgetManager.open('about'),
     close: () => WidgetManager.close('about'),
 };
+
+// Exported for tests: the degraded path (server reports no URLs) is the one
+// that silently dropped the AGPL source offer, and it can't be reproduced
+// from a booted page, so it gets asserted directly.
+export { pickUrl as _pickUrl, FALLBACK as _FALLBACK };

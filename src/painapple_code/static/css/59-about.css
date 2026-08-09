@@ -32,9 +32,8 @@
     color: var(--accent);
 }
 
-.about-hero-tagline {
+.about-hero-author {
     font-size: var(--font-size-base);
-    line-height: 1.5;
     color: var(--text-secondary);
     margin-top: var(--sp-4);
 }

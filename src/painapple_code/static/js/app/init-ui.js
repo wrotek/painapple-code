@@ -289,6 +289,7 @@ export const initUiMethods = {
                 restartNeeded: data.restart_needed,
                 license: data.license,
                 urls: data.urls,
+                author: data.author,
             });
             // Anchor the file explorer to the explicit workspace when set
             // (the project base), falling back to the OS home otherwise.

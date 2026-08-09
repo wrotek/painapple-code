@@ -1474,19 +1474,18 @@ help:
 about:
   title: "About"
   app_name: "painapple-code"
-  tagline: "A WebSocket bridge that puts Claude Code on your iPad, phone, or any browser."
+  author_prefix: "by {name}"
   version_title: "Version"
   server: "Server version"
   frontend: "Frontend build"
   unknown: "unknown"
   license_title: "License"
   license_row: "License"
-  # AGPL §13: anyone operating a modified version over a network must offer
-  # its users the corresponding source. This notice IS that offer.
-  license_notice: >-
-    painapple-code is free software licensed under the GNU Affero General
-    Public License. Because it is used over a network, the AGPL entitles you
-    to the complete corresponding source code of the version you are running.
+  # AGPL §13: anyone operating this over a network must offer its users the
+  # corresponding source. The Source link below IS that offer — this line
+  # exists to label it as one, which is what "prominently offer" asks for.
+  # Keep it to a sentence; the full terms are one tap away.
+  license_notice: "Free software — you're entitled to the source of the version you're running."
   license_link: "Read the license"
   third_party: "Third-party notices"
   links_title: "Links"

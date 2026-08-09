@@ -13,7 +13,7 @@ requires-python = ">=3.12"
 # version is resolved at build time by setuptools-scm from git tags;
 # dependencies are read from requirements.txt below.
 dynamic = ["version", "dependencies"]
-authors = [{name = "Michal Booth-Wrotkowski", email = "michal@boothw.com"}]
+authors = [{name = "Michał Booth-Wrotkowski", email = "michal@boothw.com"}]
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 keywords = ["claude", "claude-code", "websocket", "bridge", "pwa", "ipad", "remote", "ai"]

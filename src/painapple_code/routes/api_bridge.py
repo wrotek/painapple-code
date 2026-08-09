@@ -48,6 +48,7 @@ _package_meta: dict | None = None
 # These mirror [project] / [project.urls] in pyproject.toml.
 _META_FALLBACK = {
     "license": "AGPL-3.0-or-later",
+    "author": "Michał Booth-Wrotkowski",
     "urls": {
         "Homepage": "https://painapple.ai",
         "Source": "https://github.com/wrotek/painapple-code",
@@ -72,14 +73,21 @@ def _get_package_meta() -> dict:
     if _package_meta is not None:
         return _package_meta
 
-    meta = {"license": None, "urls": {}}
+    meta = {"license": None, "author": None, "urls": {}}
     try:
+        from email.utils import parseaddr
         from importlib.metadata import metadata
 
         md = metadata("painapple-code")
         # PEP 639 SPDX expression; older setuptools emits a Classifier
         # instead, so fall back to the plain License field.
         meta["license"] = md.get("License-Expression") or md.get("License")
+        # A pyproject `authors = [{name, email}]` entry is flattened into
+        # Author-email as "Name <addr>". Take the display name only — the
+        # address has no business being published to every client, and
+        # scraping a support inbox out of an About box is free.
+        name, _addr = parseaddr(md.get("Author-email") or "")
+        meta["author"] = (name or md.get("Author") or "").strip() or None
         # Project-URL is a multi-value field, "Label, https://…" per entry.
         for entry in md.get_all("Project-URL") or []:
             label, _, url = entry.partition(",")
@@ -90,6 +98,8 @@ def _get_package_meta() -> dict:
 
     if not meta["license"]:
         meta["license"] = _META_FALLBACK["license"]
+    if not meta["author"]:
+        meta["author"] = _META_FALLBACK["author"]
     if not meta["urls"]:
         meta["urls"] = dict(_META_FALLBACK["urls"])
 
