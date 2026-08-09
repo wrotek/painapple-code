@@ -149,6 +149,18 @@ async def upload_image(file: UploadFile = File(...), session: str = None):
     }
 
 
+# Reserved DOS device names. Applied on EVERY platform, not just win32:
+# uploads are shared (synced dirs, a repo later cloned on Windows), and a
+# Linux-hosted bridge shouldn't be able to mint a file its Windows users
+# can't open. `NUL.txt` addresses the device just like `NUL`, so the check
+# is on the stem.
+_WIN_RESERVED = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{i}" for i in range(1, 10)}
+    | {f"LPT{i}" for i in range(1, 10)}
+)
+
+
 def sanitize_filename(filename: str) -> str:
     """Sanitize a filename to prevent path traversal and other issues."""
     if not filename:
@@ -158,9 +170,25 @@ def sanitize_filename(filename: str) -> str:
     filename = "".join(c for c in filename if c.isprintable() and c not in '\x00')
     filename = filename.replace('/', '_').replace('\\', '_')
 
+    # NTFS forbids these outright; without stripping them the write fails
+    # with an opaque OSError instead of a clean rejection.
+    filename = "".join('_' if c in ':*?"<>|' else c for c in filename)
+
+    # NTFS silently strips trailing dots and spaces, so "report." and
+    # "report" become the same file — a quiet overwrite of someone else's
+    # upload, and a way to smuggle a second name past a uniqueness check.
+    filename = filename.rstrip(". ")
+
+    # An alternate-data-stream suffix is gone with ':' above; the reserved
+    # names still need their own check, before length truncation so that
+    # truncating can't create one.
+    if filename.split(".")[0].upper() in _WIN_RESERVED:
+        filename = "_" + filename
+
     if len(filename) > 200:
         name, ext = Path(filename).stem, Path(filename).suffix
         filename = name[:200 - len(ext)] + ext
+        filename = filename.rstrip(". ")
 
     if not filename or filename in ('.', '..'):
         raise ValueError("Invalid filename after sanitization")

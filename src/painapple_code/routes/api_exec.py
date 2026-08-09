@@ -7,6 +7,7 @@ with output capture and timeout handling.
 
 import asyncio
 import logging
+import sys
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -39,12 +40,27 @@ async def execute_command(req: ExecRequest):
         if not p.exists() or not p.is_dir():
             raise HTTPException(status_code=400, detail="Invalid working directory")
 
-        process = await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(p)
-        )
+        if sys.platform == "win32":
+            # create_subprocess_shell would use COMSPEC (cmd.exe), whose
+            # dialect shares almost nothing with the POSIX-shaped commands
+            # every doc and quick-action here assumes. PowerShell is both
+            # closer and what native Claude Code itself defaults to on
+            # Windows. Note for docs: bang commands are PowerShell-flavored
+            # on Windows.
+            process = await asyncio.create_subprocess_exec(
+                "powershell.exe", "-NoProfile", "-NonInteractive",
+                "-Command", command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(p),
+            )
+        else:
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(p)
+            )
 
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30.0)

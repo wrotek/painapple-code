@@ -13,6 +13,7 @@ Also exposes module-level helpers used by `routes.api_commands`:
 
 import functools
 import json
+import re
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -154,6 +155,30 @@ def _get_user_command_names(cwd: str) -> list[str]:
     return sorted(names)
 
 
+# Printable-ASCII runs — `[ -~]` is exactly 0x20..0x7e, i.e. what
+# `strings` prints. Compiled once; the scan below leans on the C engine
+# because a per-byte Python loop over a ~100MB bundle takes ~10s.
+_PRINTABLE_RUN = re.compile(rb"[ -~]{4,}")
+_MAX_SCAN_BYTES = 500 * 1024 * 1024
+
+
+def _extract_strings(path: Path) -> str:
+    """`strings`-equivalent: printable ASCII runs of >= 4 chars.
+
+    One read plus one regex pass. Peak memory is about the same as the
+    old `strings` subprocess (which materialized its entire stdout as a
+    str anyway), and the result is cached for the process lifetime.
+    Returns "" if the file is unreadable or implausibly large.
+    """
+    try:
+        if path.stat().st_size > _MAX_SCAN_BYTES:
+            return ""
+        data = path.read_bytes()
+    except OSError:
+        return ""
+    return "\n".join(m.group().decode("ascii") for m in _PRINTABLE_RUN.finditer(data))
+
+
 @functools.lru_cache(maxsize=1)
 def _cli_command_descriptions() -> dict[str, str]:
     """Extract slash command descriptions from the Claude CLI binary.
@@ -164,12 +189,10 @@ def _cli_command_descriptions() -> dict[str, str]:
     "from now on when X" in quotes).
 
     Lazily computed on first use and cached for the server's lifetime —
-    running `strings` over the ~100MB CLI bundle takes ~1s, which must not
-    happen at import time (it made every `painapple` CLI invocation slow).
+    scanning the ~100MB CLI bundle takes ~1s, which must not happen at
+    import time (it made every `painapple` CLI invocation slow).
     """
-    import re
     import shutil
-    import subprocess
     descriptions = {}
     # Match either "..." (no embedded doubles) or '...' (no embedded singles).
     # Group 2 = double-quoted body, group 3 = single-quoted body.
@@ -180,12 +203,13 @@ def _cli_command_descriptions() -> dict[str, str]:
         claude_bin = shutil.which("claude")
         if claude_bin:
             real_path = Path(claude_bin).resolve()
-            result = subprocess.run(
-                ["strings", str(real_path)],
-                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10,
-            )
-            if result.returncode == 0:
-                for m in pattern.finditer(result.stdout):
+            # Was `strings <binary>`: absent on Windows and on any Linux
+            # without binutils, and a whole subprocess to do what a byte
+            # scan does. Same output shape (printable runs >= 4 chars),
+            # no dependency, and it can't hang.
+            haystack = _extract_strings(real_path)
+            if haystack:
+                for m in pattern.finditer(haystack):
                     name = m.group(1)
                     desc = m.group(2) if m.group(2) is not None else m.group(3)
                     # Skip non-command entries (CLI args, system tools, etc.)

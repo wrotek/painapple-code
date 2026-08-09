@@ -8,6 +8,7 @@ functionality for the web client's file browser and autocomplete.
 import asyncio
 import json
 import logging
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -66,6 +67,36 @@ async def list_files(path: str = "."):
         raise HTTPException(status_code=403, detail="Permission denied")
 
 
+# Mirrors the fd --exclude list below (and the old find -not -path set).
+_WALK_SKIP_DIRS = {'node_modules', '.git', '__pycache__', 'venv', '.venv',
+                   'dist', 'build', '.next', 'coverage'}
+_WALK_SKIP_NAMES = {'.DS_Store'}
+_WALK_MAX_FILES = 50000  # same order as fd's practical ceiling; keeps a
+                         # runaway tree from pinning a worker thread
+
+
+def _walk_files(directory: Path) -> list[str]:
+    """Relative file paths under `directory`, POSIX-separated.
+
+    Runs in a worker thread (os.walk is blocking). Separators are
+    normalized so the client gets the same shape fd produces, and so
+    Windows results don't arrive with backslashes the @-autocomplete
+    can't match.
+    """
+    out = []
+    root = str(directory)
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in _WALK_SKIP_DIRS]
+        for name in filenames:
+            if name in _WALK_SKIP_NAMES or name.endswith('.pyc'):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, name), root)
+            out.append(rel.replace(os.sep, '/'))
+            if len(out) >= _WALK_MAX_FILES:
+                return out
+    return out
+
+
 async def _enumerate_files(directory: Path, include_ignored: bool = False) -> list[str]:
     """
     Enumerate files in a directory using fd (falls back to find).
@@ -109,28 +140,18 @@ async def _enumerate_files(directory: Path, include_ignored: bool = False) -> li
         raise FileNotFoundError("fd failed")
 
     except (FileNotFoundError, asyncio.TimeoutError):
-        # Fallback to find command — `find` doesn't know about .gitignore, so
-        # `include_ignored` is a no-op here (find always lists everything except
-        # the hardcoded excludes).
-        result = await asyncio.wait_for(
-            asyncio.create_subprocess_exec(
-                'find', '.', '-type', 'f',
-                '-not', '-path', '*/node_modules/*',
-                '-not', '-path', '*/.git/*',
-                '-not', '-path', '*/__pycache__/*',
-                '-not', '-path', '*/venv/*',
-                '-not', '-path', '*/.venv/*',
-                '-not', '-name', '*.pyc',
-                '-not', '-name', '.DS_Store',
-                cwd=str(directory),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            ),
-            timeout=10.0
+        # Fallback: pure-Python walk. This used to shell out to `find`,
+        # which on Windows resolves to find.exe — a COMPLETELY different
+        # tool (it greps for a string in files). It doesn't error on this
+        # argv, it just prints something else, so the @-autocomplete file
+        # list would have been silently wrong rather than empty. os.walk
+        # also drops the last non-Python dependency of this endpoint.
+        #
+        # Like `find`, this doesn't read .gitignore, so include_ignored
+        # stays a no-op on the fallback path.
+        return await asyncio.get_running_loop().run_in_executor(
+            None, _walk_files, directory
         )
-        stdout, _ = await asyncio.wait_for(result.communicate(), timeout=15.0)
-        return [f[2:] if f.startswith('./') else f
-                for f in stdout.decode().strip().split('\n') if f and f != '.']
 
 
 @router.get("/api/files/list")

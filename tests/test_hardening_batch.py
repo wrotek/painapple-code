@@ -266,3 +266,40 @@ def test_lock_mode_windows_warns_once_on_failure(monkeypatch, tmp_path, caplog):
     assert len(warnings) == 1, "should warn exactly once per path"
     assert "Access is denied." in warnings[0].message
     bridge_paths._ACL_WARNED.clear()
+
+
+# ---------------------------------------------------------------------------
+# T13 — upload filename sanitizer covers the NTFS name rules
+# ---------------------------------------------------------------------------
+#
+# Enforced on EVERY platform, not just win32: uploads land in shared and
+# synced directories, so a Linux-hosted bridge shouldn't be able to mint a
+# name its Windows users cannot open. The trailing-dot case is the sharp
+# one — NTFS silently strips it, so "report." and "report" are the same
+# file, which is both a quiet overwrite and a way past a uniqueness check.
+
+from painapple_code.routes.api_upload import sanitize_filename
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("report.txt", "report.txt"),
+    ("../../etc/passwd", "passwd"),        # traversal (pre-existing behavior)
+    ("nul", "_nul"),                       # reserved device names
+    ("NUL.txt", "_NUL.txt"),
+    ("con.log", "_con.log"),
+    ("COM1", "_COM1"),
+    ("report.", "report"),                 # NTFS strips trailing dot
+    ("report ", "report"),                 # ...and trailing space
+    ("a:b.txt", "a_b.txt"),                # alternate data stream syntax
+    ('we"ird<>.txt', "we_ird__.txt"),      # characters NTFS rejects outright
+    ("lpt10.txt", "lpt10.txt"),            # only LPT1-9 reserved
+    ("console.js", "console.js"),          # reserved name as prefix is fine
+])
+def test_sanitize_filename(raw, expected):
+    assert sanitize_filename(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", ".", "..", "...", "   "])
+def test_sanitize_filename_rejects_empty_shapes(raw):
+    with pytest.raises(ValueError):
+        sanitize_filename(raw)
