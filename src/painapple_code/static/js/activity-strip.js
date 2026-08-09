@@ -4,6 +4,8 @@
  * plus an elapsed timer. Lives inside #input-container for zero scroll impact.
  */
 
+import { basename } from './path-utils.js';
+
 // ── SVG icons (14×14, stroke-based) ────────────────────────────────
 
 const ICONS = {
@@ -22,10 +24,6 @@ const ICONS = {
 
 // ── Tool name → activity detail extraction ─────────────────────────
 
-function basename(path) {
-    if (!path) return '';
-    return path.split('/').pop();
-}
 
 /**
  * Extract human-readable activity text and icon from a tool_use block.

@@ -4,6 +4,7 @@
  */
 
 import { $, escapeHtml } from './utils.js';
+import { basename } from './path-utils.js';
 import S from './strings.js';
 import { ICONS } from './widget-system/icons.js';
 
@@ -536,7 +537,7 @@ export async function fileDownloadAction(path) {
         const url = buildFileRawUrl(path);
         const a = document.createElement('a');
         a.href = url;
-        a.download = path.split('/').pop();
+        a.download = basename(path);
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

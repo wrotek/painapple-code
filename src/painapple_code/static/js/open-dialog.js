@@ -23,6 +23,10 @@ import S from './strings.js';
 import { CONFIG } from './config.js';
 import { ICONS } from './widget-system/index.js';
 import { escapeHtml, extractApiError } from './utils.js';
+import {
+    isAbsolutePath, isUnder, joinPath, parentOf, pathRoot, pathSep, resolvePath,
+    stripTrailingSep,
+} from './path-utils.js';
 import { ContextMenu, copyToClipboard, showToast } from './context-menu.js';
 
 const DEBOUNCE_MS = 80;
@@ -271,9 +275,7 @@ class OpenDialogClass {
     }
 
     _parentOf(dir) {
-        if (!dir || dir === '/') return null;
-        const trimmed = dir.replace(/\/+$/, '');
-        return trimmed.split('/').slice(0, -1).join('/') || '/';
+        return parentOf(dir);
     }
 
     _move(delta) {
@@ -344,18 +346,19 @@ class OpenDialogClass {
         const cwd = this._getCwd();
         if (!input) return { mode: 'empty', dir: cwd, filter: '' };
 
-        const startsWithTilde = input === '~' || input.startsWith('~/');
-        const isAbsolute = input.startsWith('/');
+        const startsWithTilde = input === '~' || /^~[\\/]/.test(input);
+        const isAbsolute = isAbsolutePath(input, cwd);
         const isRelative =
             input === '.' || input === '..' ||
-            input.startsWith('./') || input.startsWith('../');
-        const hasSlash = input.includes('/');
+            /^\.\.?[\\/]/.test(input);
+        // Either separator: a Windows user types (and pastes) backslashes.
+        const hasSlash = /[\\/]/.test(input);
 
         const pathMode = startsWithTilde || isAbsolute || isRelative || hasSlash;
         if (!pathMode) return { mode: 'basename', dir: cwd, filter: input };
 
-        // Split into (head) + (filter being typed after the last '/').
-        const lastSlash = input.lastIndexOf('/');
+        // Split into (head) + (filter being typed after the last separator).
+        const lastSlash = Math.max(input.lastIndexOf('/'), input.lastIndexOf('\\'));
         let head, filter;
         if (lastSlash === -1) {
             // Input is `~`, `.`, or `..` — treat as if it had a trailing slash.
@@ -367,28 +370,16 @@ class OpenDialogClass {
         }
 
         let dir;
-        if (head.startsWith('~/')) {
-            dir = (CONFIG.HOME || '') + head.slice(1);
-        } else if (head.startsWith('/')) {
+        if (/^~[\\/]/.test(head)) {
+            dir = joinPath(CONFIG.HOME || '', head.slice(2));
+        } else if (isAbsolutePath(head, cwd)) {
             dir = head;
         } else {
             // ./foo/  ../foo/  foo/bar/  (relative to cwd)
-            dir = this._resolveRelative(cwd, head);
+            dir = resolvePath(cwd, head);
         }
-        dir = dir.replace(/\/+$/, '') || '/';
+        dir = stripTrailingSep(dir) || pathRoot(dir) || '/';
         return { mode: 'path', dir, filter };
-    }
-
-    _resolveRelative(cwd, relPath) {
-        const combined = (cwd || '') + '/' + relPath;
-        const parts = combined.split('/').filter(p => p !== '');
-        const out = [];
-        for (const p of parts) {
-            if (p === '.') continue;
-            if (p === '..') out.pop();
-            else out.push(p);
-        }
-        return '/' + out.join('/');
     }
 
     _getCwd() {
@@ -434,8 +425,8 @@ class OpenDialogClass {
             (mode === 'basename' && filter)
         );
         if (offerCreate) {
-            const target = filter ? (dir === '/' ? '/' + filter : dir + '/' + filter) : dir;
-            const pretty = this._formatPathForDisplay(target).replace(/\/$/, '') || '/';
+            const target = filter ? joinPath(dir, filter) : dir;
+            const pretty = this._formatPathForDisplay(target).replace(/[\\/]$/, '') || '/';
             items = [{
                 type: 'action',
                 is_dir: true,
@@ -651,10 +642,10 @@ class OpenDialogClass {
         if (!dir) return '';
         const home = CONFIG.HOME || '';
         let out = dir;
-        if (home && (dir === home || dir.startsWith(home + '/'))) {
+        if (home && isUnder(dir, home)) {
             out = '~' + dir.slice(home.length);
         }
-        return out.endsWith('/') ? out : out + '/';
+        return /[\\/]$/.test(out) ? out : out + pathSep(dir);
     }
 
     _renderList() {
@@ -869,20 +860,20 @@ class OpenDialogClass {
         let out;
         if (home && absPath === home) {
             out = '~';
-        } else if (original.startsWith('~/') && home && absPath.startsWith(home + '/')) {
+        } else if (/^~[\\/]/.test(original) && home && isUnder(absPath, home) && absPath !== home) {
             out = '~' + absPath.slice(home.length);
-        } else if (original.startsWith('/') || !cwd) {
+        } else if (isAbsolutePath(original, cwd) || !cwd) {
             out = absPath;
         } else if (absPath === cwd) {
             out = './';
-        } else if (absPath.startsWith(cwd + '/')) {
+        } else if (isUnder(absPath, cwd) && absPath !== cwd) {
             out = absPath.slice(cwd.length + 1);
-        } else if (home && absPath.startsWith(home + '/')) {
+        } else if (home && isUnder(absPath, home) && absPath !== home) {
             out = '~' + absPath.slice(home.length);
         } else {
             out = absPath;
         }
-        if (isDir && !out.endsWith('/')) out += '/';
+        if (isDir && !/[\\/]$/.test(out)) out += pathSep(absPath);
         return out;
     }
 }

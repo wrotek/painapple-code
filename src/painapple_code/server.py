@@ -1452,6 +1452,11 @@ def main(argv=None):
     # shortcut when no backend could be loaded (see PTY_UNAVAILABLE_REASON).
     instance_config["terminal_available"] = TERMINAL_AVAILABLE
 
+    # Path flavor of THIS server's filesystem. The client manipulates
+    # server paths (an iPad may be driving a Windows bridge), so it must
+    # be told, not sniff navigator.platform — see static/js/path-utils.js.
+    instance_config["path_style"] = "windows" if sys.platform == "win32" else "posix"
+
     # Resolve the trusted-origin set now that host/port/--public-origin are
     # known. The HTTP + WebSocket Origin checks read this.
     app.state.allowed_origins = resolve_allowed_origins(

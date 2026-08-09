@@ -8,6 +8,7 @@ import S from './strings.js';
 import { CONFIG, COMMANDS, HAS_PHYSICAL_KEYBOARD, debug, setServerHome, setServerWorkspace, INSTANCE } from './config.js';
 import { $, genId, escapeHtml, formatTime, formatRelativeTime, Storage, highlightThinkingKeywords, hasThinkingKeywords, terminalAvailable } from './utils.js';
 import { isThinkingKeywordsHighlightingEnabled } from './widgets/config-widget.js';
+import { basename, isAbsolutePath, joinPath } from './path-utils.js';
 import { Session, SessionManager } from './session.js';
 import { MarkdownRenderer, AutocompleteUI } from './components.js';
 // FileExplorer and LogExplorer are now widgets, imported via widget-system
@@ -817,7 +818,7 @@ class App {
                 menuItems.push({
                     label: S.context_menus.project.reopen,
                     submenu: recentlyClosed.slice().reverse().map(closed => ({
-                        label: closed.name || closed.cwd.split('/').pop() || 'Session',
+                        label: closed.name || basename(closed.cwd) || 'Session',
                         sublabel: closed.cwd,
                         action: () => this.reopenClosedSession(closed.storeId)
                     }))
@@ -998,9 +999,9 @@ class App {
         let expandedCwd = cwd;
         if (cwd.startsWith('~')) {
             expandedCwd = cwd.replace('~', CONFIG.HOME);
-        } else if (!cwd.startsWith('/')) {
+        } else if (!isAbsolutePath(cwd, CONFIG.HOME)) {
             // Relative path - make it relative to projects base
-            expandedCwd = CONFIG.PROJECTS_BASE + '/' + cwd;
+            expandedCwd = joinPath(CONFIG.PROJECTS_BASE, cwd);
         }
 
         // Check if directory exists
