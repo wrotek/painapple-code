@@ -1,9 +1,7 @@
 """Host network introspection shared by the setup wizards and the
-container launch path. Import-cheap (stdlib only)."""
+container launch path. Import-cheap: stdlib plus psutil, both imported
+inside the functions so importing this module stays nearly free."""
 
-import re
-import shutil
-import subprocess
 import sys
 
 
@@ -12,14 +10,13 @@ def detect_local_ips():
 
     psutil rather than parsing `ip`/`ifconfig`: neither exists on Windows,
     and ipconfig's output is localized (and OEM-encoded), so scraping it
-    would break on any non-English install. Falls back to the old command
-    scrape only if psutil is somehow unavailable.
+    would break on any non-English install. psutil is a hard dependency
+    (requirements.txt, no environment marker), so there is no fallback to
+    keep — the old scrape sat behind an ImportError that cannot fire.
     """
     import socket
-    try:
-        import psutil
-    except ImportError:
-        return _detect_local_ips_legacy()
+
+    import psutil
 
     results = []
     try:
@@ -36,29 +33,7 @@ def detect_local_ips():
                     continue
                 results.append((ip, iface))
     except Exception:
-        return _detect_local_ips_legacy()
-    return results
-
-
-def _detect_local_ips_legacy():
-    """The pre-psutil iproute2/ifconfig scrape, kept as a safety net."""
-    results = []
-    if shutil.which("ip"):
-        out = subprocess.run(["ip", "-4", "-o", "addr", "show"],
-                             capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
-        for line in out.splitlines():
-            parts = line.split()
-            if len(parts) >= 4 and parts[1] != "lo":
-                results.append((parts[3].split("/")[0], parts[1]))
-    elif shutil.which("ifconfig"):
-        out = subprocess.run(["ifconfig"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
-        iface = ""
-        for line in out.splitlines():
-            if line and not line[0].isspace():
-                iface = line.split()[0].rstrip(":")
-            m = re.search(r"inet (?:addr:)?([0-9.]+)", line)
-            if m and iface not in ("lo", "lo0") and not m.group(1).startswith("127."):
-                results.append((m.group(1), iface))
+        pass  # exotic/unsupported interface table — report what we got
     return results
 
 
@@ -109,9 +84,12 @@ def port_holder(port):
     except Exception:
         pass
 
-    # psutil first: works on all three platforms and needs no ss/lsof.
-    # (On Windows neither exists, so the holder was always reported as
-    # unknown — the user got "port in use" with no way to tell what by.)
+    # psutil: works on all three platforms and needs no ss/lsof. (On
+    # Windows neither exists, so the holder was always reported as unknown
+    # — the user got "port in use" with no way to tell what by.) The ss/
+    # lsof scrape that used to follow this was unreachable-by-design
+    # fallback: psutil is a hard dependency, so it only ever ran when
+    # psutil ALSO failed, in which case ss wouldn't have known better.
     try:
         import psutil
         for conn in psutil.net_connections(kind="inet"):
@@ -122,26 +100,5 @@ def port_holder(port):
                 except psutil.Error:
                     return f"pid {conn.pid}"
     except Exception:
-        pass  # AccessDenied for other users' sockets — fall through
-
-    probes = []
-    if shutil.which("ss"):
-        probes.append(["ss", "-ltnp", f"sport = :{port}"])
-    if shutil.which("lsof"):
-        probes.append(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"])
-    for cmd in probes:
-        try:
-            out = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                                 timeout=3).stdout
-        except Exception:
-            continue
-        # ss: users:(("python",pid=123,fd=7))
-        m = re.search(r'\("?([\w.-]+)"?,pid=(\d+)', out)
-        if m:
-            return f"{m.group(1)} (pid {m.group(2)})"
-        lines = [ln for ln in out.splitlines()[1:] if ln.strip()]
-        if lines:
-            parts = lines[0].split()
-            if len(parts) >= 2:
-                return f"{parts[0]} (pid {parts[1]})"
+        pass  # AccessDenied for other users' sockets — decoration only
     return ""

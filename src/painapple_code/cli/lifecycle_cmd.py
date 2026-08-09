@@ -19,8 +19,8 @@ target. Omitted (or ``default``) targets the flag-less root deployment.
 Profile targets restart from their saved serve.yaml. A label/pid/port
 target has no saved config — it was launched ad hoc with flags — so
 ``restart`` recaptures the live process's own command line, working
-directory, and environment (``/proc`` on Linux; a lossier ps-based
-fallback elsewhere) and respawns it verbatim.
+directory, and environment (via psutil, so on all three platforms) and
+respawns it verbatim.
 
 Extra serve flags after the name are forwarded to the spawned server
 (``painapple start work --port 9001``; on an ad-hoc restart they're
@@ -28,13 +28,12 @@ appended, and argparse last-wins makes them override) — they apply to
 THIS start only, they are not saved.
 
 Matching a profile to a running process mirrors ``list_cmd.serve_profiles``:
-exact data-home match (Linux, /proc environ) first, port match as the
-cross-platform fallback.
+exact data-home match (psutil ``environ()``) first, port match as the
+fallback for processes whose environment isn't readable.
 """
 
 import os
 import re
-import signal
 import socket
 import subprocess
 import sys
@@ -43,6 +42,7 @@ from pathlib import Path
 
 from painapple_code.cli import profiles, serve_config
 from painapple_code.cli.ui import DIM, RESET, err, info, ok, say, warn
+from painapple_code.utils.proc import pid_alive
 
 START_TIMEOUT = 20   # seconds for the port to start accepting
 STOP_TIMEOUT = 10    # seconds after SIGTERM before escalating to SIGKILL
@@ -104,21 +104,16 @@ def _row_label(row):
 
 # ──── stop ───────────────────────────────────────────────────────────────
 
-def _alive(pid):
-    # psutil, not os.kill(pid, 0): the POSIX idiom lies on Windows (sig 0
-    # is CTRL_C_EVENT and succeeds even for dead pids). Same contract:
-    # exists → True, including processes owned by someone else.
-    from painapple_code.utils.proc import pid_alive
-    return pid_alive(pid)
-
-
 def _wait_gone(pid, timeout):
+    # pid_alive is psutil, not os.kill(pid, 0): the POSIX idiom lies on
+    # Windows (sig 0 is CTRL_C_EVENT and succeeds even for dead pids).
+    # Same contract: exists → True, including other users' processes.
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if not _alive(pid):
+        if not pid_alive(pid):
             return True
         time.sleep(0.2)
-    return not _alive(pid)
+    return not pid_alive(pid)
 
 
 def _kill(label, pid):
@@ -297,37 +292,34 @@ def _cli_flag(args, name):
 # ──── Ad-hoc targets (label / pid / port of a flag-launched server) ──────
 
 def _respawn_spec(row):
-    """(argv, cwd, env) to faithfully relaunch this running server, or
-    None. Linux reads the live process's own /proc cmdline/cwd/environ —
-    an exact respawn. Elsewhere use the argv list the process scan
-    captured (cwd/env inherit ours — lossy but workable), and only fall
-    back to shlex-splitting a command STRING if there's nothing better:
-    shlex uses POSIX quoting rules, so on Windows it eats the backslashes
-    in every path it splits."""
+    """(argv, cwd, env) to faithfully relaunch this running server, or None.
+
+    psutil for all three fields — the same wrappers `painapple list`
+    already uses. The hand-rolled /proc cmdline/cwd/environ reader this
+    replaces was the PREFERRED branch and Linux-only, so the platforms
+    this branch adds fell through to `return list(argv), None, None` and
+    respawned WITHOUT the process's working directory or environment:
+    lossy on exactly the hosts nobody exercises locally.
+
+    Each field is best-effort on its own — AccessDenied reading environ()
+    must not cost us the argv — and the process-scan argv stays as the
+    fallback for cmdline().
+    """
+    import psutil
+
+    from painapple_code.cli.list_cmd import _proc_environ
+
     pid = row["pid"]
-    if sys.platform.startswith("linux"):
-        try:
-            raw = Path(f"/proc/{pid}/cmdline").read_bytes()
-            argv = [a.decode("utf-8", "replace")
-                    for a in raw.split(b"\0") if a]
-            cwd = os.readlink(f"/proc/{pid}/cwd")
-            env = {}
-            for entry in Path(f"/proc/{pid}/environ").read_bytes().split(b"\0"):
-                if b"=" in entry:
-                    k, _, v = entry.decode("utf-8", "replace").partition("=")
-                    env[k] = v
-            if argv:
-                return argv, cwd, env
-        except OSError:
-            pass  # other-user process — the kill will refuse anyway
-    argv = row.get("argv")
-    if argv:
-        return list(argv), None, None
-    command = row.get("command")
-    if command:
-        import shlex
-        return shlex.split(command), None, None
-    return None
+    argv = list(row.get("argv") or [])
+    cwd = None
+    env = _proc_environ(pid)          # None = unreadable → inherit ours
+    try:
+        proc = psutil.Process(pid)
+        argv = list(proc.cmdline()) or argv
+        cwd = proc.cwd()
+    except Exception:
+        pass  # other-user/vanished process — the kill will refuse anyway
+    return (argv, cwd, env) if argv else None
 
 
 def _restart_adhoc(row, extra):

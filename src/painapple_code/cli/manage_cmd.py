@@ -24,7 +24,7 @@ from pathlib import Path
 from painapple_code.cli import profiles, serve_config
 from painapple_code.cli.netinfo import detect_local_ips
 from painapple_code.cli.ui import (
-    BOLD, DIM, GREEN, RESET, die, err, info, ok, say, warn,
+    BOLD, DIM, GREEN, RESET, die, err, ok, say, warn,
 )
 
 DOCKER_ONLY = ("shell", "extract", "claude-login")
@@ -175,9 +175,18 @@ def _follow_file(path, last_lines=50, poll=0.5):
     pos, ident = 0, None
 
     def _identity(st):
-        # st_ino is 0 on some Windows filesystems; the creation time
-        # distinguishes a rotated-in replacement there.
-        return (st.st_ino, getattr(st, "st_ctime", None))
+        # st_ctime means DIFFERENT things per platform, and only one of
+        # them is a rotation token:
+        #   win32 — creation time. Stable across appends, and needed here
+        #           because st_ino is 0 on some Windows filesystems.
+        #   POSIX — inode CHANGE time, which bumps on EVERY append. Using
+        #           it made a growing log look rotated on every 0.5s poll
+        #           → pos = 0 → the whole (up to 10MB) server.log reprinted,
+        #           over and over, for as long as the server kept logging.
+        # So it's win32-only; elsewhere the inode alone is the identity.
+        if sys.platform == "win32":
+            return (st.st_ino, st.st_ctime)
+        return (st.st_ino, st.st_dev)
 
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
@@ -325,8 +334,10 @@ def _process_status(row):
 
 
 def _flag_of(row, name):
+    # row['argv'] is the exact token list psutil handed back — re-splitting
+    # the joined display string on spaces would mangle any path with one.
     from painapple_code.cli.list_cmd import _flag
-    return _flag((row.get("command") or "").split(), name)
+    return _flag(row.get("argv") or [], name)
 
 
 def _status(name, rest, detail=False):

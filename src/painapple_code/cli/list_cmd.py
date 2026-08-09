@@ -94,16 +94,15 @@ def _script_name(tok):
     return name
 
 
-def _serve_args(command):
-    """If `command` is a painapple SERVER process, return its flag tail;
-    None for anything else (other programs, subcommand invocations like
-    `painapple start work`, this very `painapple list`).
+def _serve_args(tokens):
+    """If `tokens` (an argv list) is a painapple SERVER process, return
+    its flag tail; None for anything else (other programs, subcommand
+    invocations like `painapple start work`, this very `painapple list`).
 
-    Accepts an argv list (what _iter_processes yields — exact, and safe
-    for paths containing spaces) or a whitespace-joined string (what the
-    older ps-based callers and tests pass).
+    argv list only — the ps-based string callers are gone, and re-splitting
+    a joined command on spaces is precisely what broke paths containing
+    one (`C:\\Program Files\\…\\painapple.exe`).
     """
-    tokens = command.split() if isinstance(command, str) else list(command)
     rest = None
     for i, tok in enumerate(tokens):
         # `python [-u …] -m painapple_code` — the interpreter must be
@@ -225,10 +224,10 @@ def local_servers():
     me = os.getpid()
     rows = []
     cache = {}
-    for pid, command in _iter_processes():
+    for pid, argv in _iter_processes():
         if pid == me:
             continue
-        rest = _serve_args(command)
+        rest = _serve_args(argv)
         if rest is None or _in_container(pid):
             continue
         saved = _saved_defaults(pid, cache)
@@ -250,10 +249,11 @@ def local_servers():
             "name": name,
             "workspace": _workspace_of(pid, rest, saved),
             "home": home,
-            # argv is the exact token list (respawn without re-parsing);
-            # command stays a display/compat string for existing callers.
-            "argv": list(command) if not isinstance(command, str) else None,
-            "command": command if isinstance(command, str) else " ".join(command),
+            # The exact token list — respawn and flag lookups read this.
+            # `command` is the joined form, for display only: never split
+            # it back apart (paths with spaces).
+            "argv": list(argv),
+            "command": " ".join(argv),
         })
     rows.sort(key=lambda r: int(r["port"]) if r["port"].isdigit() else 0)
     return rows
@@ -329,8 +329,8 @@ def deployment_rows(running):
 def profile_rows(running):
     """[{name, mode, host, port, workspace, state}] for every saved
     profile (profiles/NAME/profile.yaml). Host profiles match a running
-    local server by data home (exact, Linux) else by port; docker
-    profiles ask the container runtime."""
+    local server by data home (exact, via psutil environ()) else by port;
+    docker profiles ask the container runtime."""
     import shutil
     from painapple_code.cli import profiles as profmod
 
