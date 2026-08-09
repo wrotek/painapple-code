@@ -1606,12 +1606,15 @@
     position: relative;
 }
 
-/* Element being edited */
+/* Element being edited.
+   Deliberately does NOT set padding/margin: the block keeps the exact box it had
+   while rendered (.markdown-content [data-selectable] padding-right, li's narrower
+   variant, the block's own margins) so flipping into edit mode moves no text.
+   Highlight is outline + background only — both are layout-neutral. */
 .preview-rendered [data-selectable].inline-editing {
     background: rgba(var(--accent-rgb), 0.06);
     outline: 1px solid rgba(var(--accent-rgb), 0.35);
     border-radius: var(--radius-sm);
-    padding: 0;
 }
 
 /* Trash button — persistent on each selectable, hidden until hover (in edit mode). */
@@ -1695,44 +1698,61 @@
     pointer-events: none;
 }
 
-/* Inline edit textarea — blends with rendered view */
+/* Inline edit textarea — genuinely blends with the rendered view.
+   Every typographic property is inherited from the block being replaced, so the
+   raw markdown lands on the same baseline, in the same face, at the same size as
+   the prose it stands in for. A heading picks up its own 1.4em/600, a list item
+   its own metrics — no per-element rules needed. Height is JS-driven off
+   scrollHeight (autoResize), so any font-size/line-height/padding deviation here
+   compounds into a visible vertical jump: keep this list inheriting.
+   Padding is 0 on purpose. Clearance for the absolutely-positioned trash button
+   comes from the *block's* rendered padding-right (--sp-24, or --sp-20 on li),
+   the same gutter the button already occupies on hover in rendered mode. That
+   replaces the old hardcoded 34px right padding, which bought the same clearance
+   at the cost of shifting text sideways on entry. */
 .inline-edit-textarea {
     display: block;
     width: 100%;
-    min-height: 1.6em;
-    padding: var(--sp-6) 34px var(--sp-6) var(--sp-8);
+    min-height: 1.4em;
+    padding: 0;
     margin: 0;
-    background: rgba(var(--accent-rgb), 0.04);
+    background: transparent;
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--text-primary, #e0e0e0);
-    font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
-    font-size: var(--font-size-base);
-    line-height: 1.6;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
     resize: none;
     overflow: hidden;
     outline: none;
     box-sizing: border-box;
 }
 
-.inline-edit-textarea:focus {
-    background: rgba(var(--accent-rgb), 0.08);
-    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.3);
-}
+/* No :focus ring on the textarea — the block's own .inline-editing outline already
+   marks what's being edited, and a second ring hugging zero-padding text doubled up. */
 
-/* Hint text beneath textarea — Enter to save, Esc to cancel */
+/* Hint text — Enter to save, Esc to cancel.
+   Taken out of flow (absolute, pinned just under the block) so showing it reflows
+   nothing: previously an in-flow ::before with order:2 pushed every following
+   paragraph down the moment an edit started. pointer-events:none keeps it from
+   swallowing clicks on whatever it overlays. */
 .preview-rendered [data-selectable].inline-editing::before {
     content: 'Enter \2192 save \00b7 Esc \2192 cancel \00b7 Shift+Enter \2192 newline';
-    display: block;
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 0;
+    z-index: 21;
     font-size: var(--font-size-xs);
-    color: var(--text-muted, #666);
-    margin-top: var(--sp-2);
-    padding: var(--sp-2) var(--sp-8);
-    opacity: 0.7;
-    order: 2;
-}
-
-.preview-rendered [data-selectable].inline-editing {
-    display: flex;
-    flex-direction: column;
+    line-height: 1.4;
+    color: var(--text-muted, #888);
+    /* Opaque chip, right-aligned: since it floats over the following paragraph
+       instead of displacing it, it has to occlude that text rather than blend
+       into it — a translucent hint here renders as two strings of prose
+       overprinted on each other. */
+    background: var(--bg-tertiary, rgba(30, 30, 40, 0.96));
+    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    border-radius: var(--radius-sm);
+    padding: var(--sp-2) var(--sp-6);
+    pointer-events: none;
+    white-space: nowrap;
 }
