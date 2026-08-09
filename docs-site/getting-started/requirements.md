@@ -4,7 +4,7 @@ Here's what you need before installing pAInapple Code, and a frank note on what 
 
 ## What you need
 
-Running the bridge directly on a host (pip / pipx / source checkout):
+Running the server directly on a host (pip / pipx / source checkout):
 
 - **Python 3.12+**
 - **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and authenticated — either a Claude subscription (`claude login`) or an Anthropic API key
@@ -31,7 +31,7 @@ The bridge runs natively on all three desktop platforms. No WSL required.
 - Data lives in `%USERPROFILE%\.painapple-code` — the same `~/.painapple-code` layout as the other platforms, deliberately, so the docs and support answers match everywhere.
 
 !!! tip "Docker skips most of this"
-    The [Docker / Podman path](install-docker.md) is the recommended install on Linux and macOS. The image bundles Python 3.13, Node 20, and the `@anthropic-ai/claude-code` CLI, so the only host requirement is a container runtime.
+    The [Docker / Podman path](install-docker.md) is the recommended install on Linux and macOS. The image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start — so the only host requirement is a container runtime.
 
     On Windows, prefer the native install above. Docker Desktop works, but it runs the bridge inside a **Linux** container, so your projects are bind-mounted across the Windows/Linux boundary — which brings back the path translation, line-ending and file-watching problems that running natively avoids.
 

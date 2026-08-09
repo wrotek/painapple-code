@@ -119,7 +119,16 @@ jobs:
                       type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && (!contains(github.ref, '-') || steps.rel.outputs.stable == 'false') }}
                       type=raw,value=rc,enable=${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-') }}
                       type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
+                  # metadata-action ALSO auto-derives description/licenses/url from
+                  # the GitHub repo's About field + detected SPDX id, and everything
+                  # it emits is passed to build-push-action as --label below, which
+                  # beats the Dockerfile's own LABEL. So the Dockerfile's description
+                  # and licenses were dead: shipped images carried the About text and
+                  # GitHub's `AGPL-3.0` instead. Pin both here — an explicit entry in
+                  # this block does win over the auto-derived one.
                   labels: |
+                      org.opencontainers.image.description=Self-hosted web client and PWA for Claude Code sessions
+                      org.opencontainers.image.licenses=AGPL-3.0-or-later
                       org.opencontainers.image.version=${{ steps.scm.outputs.version }}
                       org.opencontainers.image.revision=${{ github.sha }}
                       org.opencontainers.image.created=${{ github.event.repository.updated_at }}

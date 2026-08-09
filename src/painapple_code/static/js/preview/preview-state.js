@@ -59,6 +59,7 @@ export class PreviewState {
         this.historyOldLabel = null;
         this.historyNewLabel = null;
         this.historyDiffMode = null;      // 'split' | 'unified' (null = derive from container width)
+        this.historyWrapLines = null;     // true | false (null = derive from localStorage, default on)
         // Pending seed: when set, loadHistory() applies it after fetching commits
         // instead of using the default (To=newest snapshot, From=auto).
         // Shape: { fromKind, fromHash, toKind, toHash } — hashes resolved by commit lookup.

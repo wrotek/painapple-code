@@ -6,10 +6,14 @@
 FROM docker.io/library/python:3.13-slim-bookworm
 
 # OCI image metadata — surfaces on Docker Hub / GHCR as the image's title,
-# description, license, and "Source" link. The CI workflow overrides
-# `revision` / `created` / `version` per build via --label.
+# description, license, and "Source" link. These are the values a local
+# `docker build` produces. CI overrides several of them via --label
+# (docker/metadata-action): `version` / `revision` / `created`, plus
+# `description` / `licenses`, which it would otherwise auto-derive from the
+# GitHub repo's About field — so keep those two in sync with the `labels:`
+# block in .github/workflows/docker-publish.yml, which is what ships.
 LABEL org.opencontainers.image.title="painapple-code" \
-      org.opencontainers.image.description="WebSocket bridge that serves a vanilla-JS PWA for Claude Code sessions" \
+      org.opencontainers.image.description="Self-hosted web client and PWA for Claude Code sessions" \
       org.opencontainers.image.source="https://github.com/wrotek/painapple-code" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.vendor="wrotek"
@@ -58,19 +62,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git-lfs gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 20 LTS + Claude Code CLI (the bridge spawns `claude` as a subprocess).
-# Pinned to the 2.x line — each image build resolves the newest 2.x.y at
-# build time, but the SemVer-2 ceiling protects us from a 3.0 with breaking
-# arg/output changes. DISABLE_AUTOUPDATER stops the bundled CLI from trying
-# to overwrite itself inside the immutable image layer at runtime, and
-# CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC suppresses the update-check
-# / telemetry calls that go with it.
+# Node.js 20 LTS. Needed by the bridge itself (the vega-lite / excalidraw
+# render helpers in src/painapple_code/tools/ are node scripts) and by the
+# agent CLI the entrypoint installs on first run.
+#
+# The agent CLI is deliberately NOT baked in here. @anthropic-ai/claude-code
+# is proprietary — "© Anthropic PBC. All rights reserved" — so shipping a
+# copy inside a published image would be redistribution we have no written
+# grant for. docker-entrypoint.sh installs it into /data on first boot
+# instead, which makes the download the user's own under their own
+# agreement with Anthropic, exactly like `npm i -g` on a host. See
+# THIRD_PARTY_NOTICES.md → "Agent CLIs the bridge drives".
+#
+# DISABLE_AUTOUPDATER keeps the CLI on the version the entrypoint pinned
+# (it now lives on a writable volume, so left alone it *would* update
+# itself past the 2.x ceiling), and CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+# suppresses the update-check / telemetry calls that go with it.
 ENV DISABLE_AUTOUPDATER=1 \
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/* \
-    && npm install -g @anthropic-ai/claude-code@2 \
     && npm cache clean --force
 
 # Non-root user. The build-time UID/GID is only a starting point — the
@@ -165,10 +177,17 @@ USER root
 # and setpriv doesn't rewrite the environment when it drops to `app` — so
 # without this the bridge and the `claude` CLI it spawns would look for
 # ~/.claude in /root instead of the bind-mounted /home/app/.claude.
+#
+# PATH picks up /data/npm-global/bin — where the entrypoint installs the
+# agent CLI on first run (see docker-entrypoint.sh). Baked in ENV rather
+# than only exported by the entrypoint so `docker exec` shells and the
+# web terminal find `claude` too. A custom PAINAPPLE_AGENT_CLI_PREFIX is
+# prepended by the entrypoint at runtime.
 ENV PAINAPPLE_CODE_HOME=/data \
     PYTHONUNBUFFERED=1 \
     SHELL=/usr/bin/zsh \
     HOME=/home/app \
+    PATH=/data/npm-global/bin:${PATH} \
     PAINAPPLE_IN_CONTAINER=1
 
 EXPOSE 8765

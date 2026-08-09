@@ -1,8 +1,10 @@
 # pAInapple Code
 
-A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server), which serves VSCode as a web app — pAInapple Code does the same for Claude Code.
+A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
 
-The image bundles Python 3.13, Node 20, and `@anthropic-ai/claude-code`. Multi-arch (`linux/amd64`, `linux/arm64`).
+Thanks to the [**Auto Journal**](https://painapple.ai/guides/shadow-git/), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. It's not just for you: the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
+
+The image ships Python 3.13 and Node 20; the agent CLIs (`@anthropic-ai/claude-code`, `@openai/codex`) are installed from npm on first start into the `/data` volume. Multi-arch (`linux/amd64`, `linux/arm64`).
 
 > **GitHub repo:** <https://github.com/wrotek/painapple-code> — full docs, source, issues, screenshots.
 
@@ -16,7 +18,7 @@ The image bundles Python 3.13, Node 20, and `@anthropic-ai/claude-code`. Multi-a
 - The first run logs a bootstrap URL with the auth password embedded as `?tkn=…`. Capture it from `docker logs` and open it once — the cookie keeps you logged in afterwards.
 - The terminal widget is a real PTY running as the container user. In `YOLO` permission mode anyone with the password can run arbitrary commands.
 
-**Claude CLI bundling.** This image bundles `@anthropic-ai/claude-code` (proprietary, © Anthropic PBC, all rights reserved) and Node.js so the server can spawn `claude` as a subprocess. By using the image you accept [Anthropic's Commercial Terms](https://www.anthropic.com/legal/commercial-terms) and must supply your own credentials (`ANTHROPIC_API_KEY` env var, or an OAuth login persisted via the `~/.claude` volume).
+**Agent CLIs are installed on first start, not bundled.** The image ships Node.js but no agent CLI. On first boot the entrypoint runs `npm install -g` for `@anthropic-ai/claude-code@2` and `@openai/codex@latest` into the `/data` volume, so the download is yours under your own agreement with the vendor — `@anthropic-ai/claude-code` is proprietary (© Anthropic PBC, all rights reserved) and using it means accepting [Anthropic's Commercial Terms](https://www.anthropic.com/legal/commercial-terms). Supply your own credentials (`ANTHROPIC_API_KEY` env var, or an OAuth login persisted via the `~/.claude` volume). First start therefore needs network access to the npm registry and takes a few seconds longer; set `PAINAPPLE_SKIP_AGENT_CLI=1` to opt out, or `PAINAPPLE_AGENT_CLIS` to change the set.
 
 ---
 
@@ -113,14 +115,17 @@ For the strongest guarantee, pin by digest: `wrotek/painapple-code@sha256:…`.
 | `ANTHROPIC_API_KEY` | Claude API key (alternative to OAuth via `~/.claude` mount). |
 | `PAINAPPLE_CODE_HOME` | Override the state directory. Defaults to `/data` in the image. |
 | `BRIDGE_ALLOWED_ORIGINS` | Comma-separated extra trusted browser origins (CSRF/Origin gate + CORS). Rarely needed — same-origin traffic (any proxied hostname or LAN IP) is accepted automatically; set this only for a genuinely cross-origin front-end. |
-| `DISABLE_AUTOUPDATER` | Pre-set to `1` — the bundled Claude CLI won't try to overwrite itself inside the immutable image layer. |
+| `PAINAPPLE_SKIP_AGENT_CLI` | Set to `1` to skip the first-run agent-CLI install (bring your own, or run a UI/terminal-only instance). |
+| `PAINAPPLE_AGENT_CLIS` | Override what gets installed, as space-separated `binary=npm-spec` pairs. Default: `claude=@anthropic-ai/claude-code@2 codex=@openai/codex@latest`. Drop one to skip it, or pin a version. |
+| `PAINAPPLE_AGENT_CLI_PREFIX` | Where they install. Defaults to `/data/npm-global`, i.e. on the persistent volume. |
+| `DISABLE_AUTOUPDATER` | Pre-set to `1` — keeps the Claude CLI on the version the entrypoint pinned instead of updating itself past the `@2` ceiling. |
 | `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | Pre-set to `1` — suppresses CLI update-check / telemetry calls. |
 
 ## Ports
 
 | Port | Protocol | Purpose |
 |---|---|---|
-| `8765` | HTTP + WebSocket | Bridge UI and API. The image listens on `0.0.0.0:8765` inside the container; the host port mapping is what gates network exposure. |
+| `8765` | HTTP + WebSocket | pAInapple Code UI and API. The image listens on `0.0.0.0:8765` inside the container; the host port mapping is what gates network exposure. |
 
 ## Authentication
 
@@ -169,10 +174,10 @@ docker buildx imagetools inspect wrotek/painapple-code:latest
 
 Full list on [GitHub](https://github.com/wrotek/painapple-code):
 
-- **Shadow Git auto-journal** — after each turn, a Haiku background fork summarizes the work and commits all file changes to a per-project shadow git repo. Queryable via DuckDB.
+- **Shadow Git auto-journal** — after each turn the session forks itself to a fast summarizer model (Haiku by default); its structured write-up becomes the commit message for a per-project shadow git repo holding that turn's file changes, and a queryable DuckDB row.
 - **Multi-session tabs**, real PTY terminal, cost analytics, prompt history search, comments stash, discussion threads.
 - **PWA** — installable on iPad / Android / desktop, offline fallback.
-- **Permission modes** per session: `Plan` (read-only), `Accept-Edits`, `Don't Ask`, `Auto` (Claude's AI classifier), `YOLO`.
+- **Permission modes** per session: `Ask` (the default — every edit/command waits on an approval card), `Plan` (read-only), `Accept-Edits`, `Don't Ask`, `Auto` (Claude's AI classifier), `YOLO`.
 
 ## Source & support
 

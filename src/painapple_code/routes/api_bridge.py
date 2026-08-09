@@ -41,6 +41,72 @@ _boot_version: dict | None = None
 _disk_version: tuple[float, str | None] | None = None
 _DISK_TTL = 10.0
 
+# Distribution metadata (license + project URLs), read once on first use.
+_package_meta: dict | None = None
+
+# Fallbacks for when distribution metadata is unavailable — running from a
+# source tree that was never pip-installed leaves importlib.metadata empty.
+# These mirror [project] / [project.urls] in pyproject.toml.
+_META_FALLBACK = {
+    "license": "AGPL-3.0-or-later",
+    "author": "Michał Booth-Wrotkowski",
+    "urls": {
+        "Homepage": "https://painapple.ai",
+        "Source": "https://github.com/wrotek/painapple-code",
+        "Issues": "https://github.com/wrotek/painapple-code/issues",
+    },
+}
+
+
+def _get_package_meta() -> dict:
+    """License expression + project URLs, straight from the installed dist.
+
+    Read from distribution metadata rather than hardcoded in the frontend so
+    a FORK automatically advertises its OWN source URL. That matters legally,
+    not just cosmetically: painapple-code is AGPL-3.0-or-later, and §13
+    obliges whoever operates it over a network to offer users the source of
+    the version they're actually talking to. Someone who forks, edits, and
+    redeploys inherits that duty — pointing at upstream's repo would be a
+    false offer. Editing pyproject.toml is the one place they'd naturally
+    change, so it's the one place we read.
+    """
+    global _package_meta
+    if _package_meta is not None:
+        return _package_meta
+
+    meta = {"license": None, "author": None, "urls": {}}
+    try:
+        from email.utils import parseaddr
+        from importlib.metadata import metadata
+
+        md = metadata("painapple-code")
+        # PEP 639 SPDX expression; older setuptools emits a Classifier
+        # instead, so fall back to the plain License field.
+        meta["license"] = md.get("License-Expression") or md.get("License")
+        # A pyproject `authors = [{name, email}]` entry is flattened into
+        # Author-email as "Name <addr>". Take the display name only — the
+        # address has no business being published to every client, and
+        # scraping a support inbox out of an About box is free.
+        name, _addr = parseaddr(md.get("Author-email") or "")
+        meta["author"] = (name or md.get("Author") or "").strip() or None
+        # Project-URL is a multi-value field, "Label, https://…" per entry.
+        for entry in md.get_all("Project-URL") or []:
+            label, _, url = entry.partition(",")
+            if url.strip():
+                meta["urls"][label.strip()] = url.strip()
+    except Exception:
+        logger.debug("package metadata unavailable; using pyproject fallback")
+
+    if not meta["license"]:
+        meta["license"] = _META_FALLBACK["license"]
+    if not meta["author"]:
+        meta["author"] = _META_FALLBACK["author"]
+    if not meta["urls"]:
+        meta["urls"] = dict(_META_FALLBACK["urls"])
+
+    _package_meta = meta
+    return _package_meta
+
 
 def _describe_checkout() -> str | None:
     """`git describe` the source tree we're importing from, or None.
@@ -181,6 +247,10 @@ async def get_server_info(request: Request):
 
     The two are the same idea one layer apart: loaded-vs-current assets
     means reload, booted-vs-current code means restart.
+
+    `license` and `urls` come from the installed distribution's metadata and
+    feed the About widget's source-offer link — see _get_package_meta for
+    why they're read from the dist rather than hardcoded client-side.
     """
     import os
 
@@ -205,6 +275,7 @@ async def get_server_info(request: Request):
         "cwd": os.getcwd(),
         "workspace": workspace,
         "static_build": static_build,
+        **_get_package_meta(),
         **_version_payload(),
     }
 

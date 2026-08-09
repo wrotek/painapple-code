@@ -1,6 +1,6 @@
 # Data storage & logs
 
-Everything the bridge writes lives in two directories — data under `~/.painapple-code/`, credentials under `~/.config/painapple-code/` — never inside your project folders.
+Everything pAInapple Code writes lives in two directories — data under `~/.painapple-code/`, credentials under `~/.config/painapple-code/` — never inside your project folders.
 
 ## Data directory: `~/.painapple-code/`
 
@@ -39,7 +39,7 @@ Notes:
 
 ## What the shadow journal captures
 
-`projects/{hash}/shadow-git/` is a private git repository that powers the timeline, undo, and per-file history. After each turn the bridge commits your **entire working tree — including files git itself doesn't track** — into that repo. Your project directory is never modified; the repo lives entirely under `~/.painapple-code/`.
+`projects/{hash}/shadow-git/` is a private git repository that powers the timeline, undo, and per-file history. After each turn the server commits your **entire working tree — including files git itself doesn't track** — into that repo. Your project directory is never modified; the repo lives entirely under `~/.painapple-code/`.
 
 It skips a default exclude set:
 
@@ -55,7 +55,7 @@ dist/  build/  out/  *.egg-info/
 …plus anything larger than 50 MB (`shadow_git.max_file_size_mb`; `0` disables the cap).
 
 !!! warning "Secrets outside the exclude list get copied"
-    A credential file that doesn't match those patterns — `credentials.json`, `secrets.yaml`, a stray `*.pem` — is committed into the shadow repo and stays in its history, even if you later delete it from the project. Before pointing the bridge at a directory holding production keys, either add those paths to `projects/{hash}/shadow-git/info/exclude` or turn the journal off for that project in **Settings → Auto-journal**.
+    A credential file that doesn't match those patterns — `credentials.json`, `secrets.yaml`, a stray `*.pem` — is committed into the shadow repo and stays in its history, even if you later delete it from the project. Before pointing pAInapple Code at a directory holding production keys, either add those paths to `projects/{hash}/shadow-git/info/exclude` or turn the journal off for that project in **Settings → Auto-journal**.
 
 Auto-journal also makes a small background model call after each turn (Haiku by default) to write the summaries and commit messages — real API usage, disabled in the same panel.
 
@@ -114,13 +114,13 @@ rm -rf ~/.painapple-code
 ```
 
 !!! warning "Stop the server before touching `shadow.duckdb`"
-    DuckDB is single-writer and keeps a `.wal` sidecar. Back up or move the database only while the bridge is stopped, and copy the `.wal` file together with it.
+    DuckDB is single-writer and keeps a `.wal` sidecar. Back up or move the database only while the server is stopped, and copy the `.wal` file together with it.
 
-Uninstalling the package removes neither directory — `pip uninstall` leaves `~/.painapple-code/` and `~/.config/painapple-code/` in place, so the two `rm -rf` lines above are the full cleanup. If you installed the [optional helpers](optional-helpers.md), `install-helpers.sh --uninstall` removes the two scripts from `~/.local/bin/` and the agent file from `~/.claude/agents/`. Nothing else on the system is touched: the bridge installs no service units, edits no shell rc files, and sends no telemetry — the only outbound request it makes on its own is the browser widget fetching a URL you asked it to open.
+Uninstalling the package removes neither directory — `pip uninstall` leaves `~/.painapple-code/` and `~/.config/painapple-code/` in place, so the two `rm -rf` lines above are the full cleanup. If you installed the [optional helpers](optional-helpers.md), `install-helpers.sh --uninstall` removes the two scripts from `~/.local/bin/` and the agent file from `~/.claude/agents/`. Nothing else on the system is touched: pAInapple Code installs no service units, edits no shell rc files, and sends no telemetry — the only outbound request it makes on its own is the browser widget fetching a URL you asked it to open.
 
 ## Resuming sessions in the plain CLI
 
-Sessions created through the bridge are regular Claude Code sessions. The provider session ID is stored in each session's `meta.json` (`provider_session_id`), and you can pick any conversation up from a terminal:
+Sessions created through pAInapple Code are regular Claude Code sessions. The provider session ID is stored in each session's `meta.json` (`provider_session_id`), and you can pick any conversation up from a terminal:
 
 ```bash
 claude --resume <session-id>

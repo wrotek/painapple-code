@@ -38,4 +38,4 @@ This risk isn't unique to this project, but it's worth restating the consequence
 By default the server binds `127.0.0.1` over plain HTTP. Bind it to a non-loopback host and it auto-enables TLS with a self-signed certificate (browsers show a one-time certificate warning — see the `--tls` flag).
 
 !!! warning "The password gate is not a firewall"
-    Either way, the built-in auth is a single-password gate — not a substitute for proper network controls. For real public exposure, put the server behind your own reverse proxy and keep the bridge itself on loopback.
+    Either way, the built-in auth is a single-password gate — not a substitute for proper network controls. For real public exposure, put the server behind your own reverse proxy and keep pAInapple Code itself on loopback.

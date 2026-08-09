@@ -1009,7 +1009,7 @@ export class ShortcutManager {
      * assets, so we say so — that mismatch is the usual explanation for "I
      * changed the JS but nothing happened".
      */
-    renderAbout(section) {
+    renderAbout(_section) {
         const info = getVersionInfo();
         const rows = [];
 
@@ -1033,7 +1033,34 @@ export class ShortcutManager {
         if (info.stale) {
             hints.push(S.help.about_stale.replace('{build}', this.formatBuild(info.serverBuild) || ''));
         }
-        return section(S.help.about_title, rows, hints.join(' '));
+
+        // Built inline rather than via renderHelp's `section()` helper so the
+        // About link can sit INSIDE the section, directly under the version
+        // rows it elaborates on.
+        //
+        // A <button>, not an <a href> — the handler in DialogController has to
+        // close this modal first, otherwise the widget opens underneath it
+        // (help sits at --z-modal 3000, widgets top out at --z-widget 1700).
+        const esc = (s) => this.escapeHelp(s);
+        const hint = hints.join(' ');
+        return `
+            <div class="help-section">
+                <h4>${esc(S.help.about_title)}</h4>
+                ${rows.map(([code, desc]) =>
+                    `<div class="help-item"><code>${esc(code)}</code> <span>${esc(desc)}</span></div>`
+                ).join('')}
+                ${hint ? `<div class="help-hint">${esc(hint)}</div>` : ''}
+                <button type="button" class="help-about-link" data-action="open-about">
+                    ${esc(S.help.about_more)}
+                </button>
+            </div>
+        `;
+    }
+
+    /** Local escape helper — renderHelp's `esc` is scoped to that method. */
+    escapeHelp(s) {
+        return String(s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     /** Epoch-seconds build stamp → readable local timestamp. */

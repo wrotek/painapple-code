@@ -5,7 +5,7 @@ Three small helpers ship with the package to make the [Shadow Git journal](../gu
 | Helper | Installed to | What it does |
 |--------|--------------|--------------|
 | `shadow-git` | `~/.local/bin/shadow-git` | Git wrapper for the per-project shadow repositories — log, show, diff, blame, plus project/session listing and full-text search |
-| `shadow-query` | `~/.local/bin/shadow-query` | Runs read-only SQL against the shadow DuckDB via the bridge's `/api/shadow-db/sql` endpoint (handles auth and formatting) |
+| `shadow-query` | `~/.local/bin/shadow-query` | Runs read-only SQL against the shadow DuckDB via the server's `/api/shadow-db/sql` endpoint (handles auth and formatting) |
 | `shadow-git-helper` | `~/.claude/agents/shadow-git-helper.md` | Claude Code agent template — a "code archaeologist" that knows how to search the shadow repo |
 
 All targets are user-scoped: no `sudo`, no `$PATH` edits, no shell-rc changes. The agent invokes the CLI via its absolute path (`~/.local/bin/shadow-git`), so it works the same in Docker, VMs, Codespaces, and WSL. The Docker image installs all three at build time.
@@ -30,7 +30,7 @@ src/painapple_code/tools/install-helpers.sh --uninstall # remove installed files
 src/painapple_code/tools/install-helpers.sh --dry-run   # preview without changing anything
 ```
 
-The bridge tracks freshness by content hash (`GET /api/bridge/helpers/status`), so after an upgrade the UI pill reappears when the installed copies are stale.
+The server tracks freshness by content hash (`GET /api/bridge/helpers/status`), so after an upgrade the UI pill reappears when the installed copies are stale.
 
 ## `shadow-git`
 
@@ -54,7 +54,7 @@ Project detection uses the current directory; override with `SHADOW_PROJECT=/pat
 
 ## `shadow-query`
 
-Sends SQL to the bridge's read-only DuckDB endpoint (the bridge owns the database's write lock, so all reads go through HTTP):
+Sends SQL to the server's read-only DuckDB endpoint (the server owns the database's write lock, so all reads go through HTTP):
 
 ```bash
 shadow-query 'SELECT count(*) FROM turns'
@@ -68,14 +68,14 @@ EOF
 
 | Variable | Purpose |
 |----------|---------|
-| `BRIDGE_URL` | Bridge base URL (default `http://localhost:8765`) |
+| `BRIDGE_URL` | Server base URL (default `http://localhost:8765`) |
 | `BRIDGE_PASSWORD` | Auth token override; otherwise read from `~/.config/painapple-code/config.yaml` |
 
 Output is TSV by default, JSON with `--json`. The endpoint rejects anything that isn't a read (no INSERT/UPDATE/DDL).
 
 ## `shadow-git-helper` agent
 
-A Claude Code agent template installed into `~/.claude/agents/`, giving every Claude session (bridge or plain CLI) a specialist for code archaeology: file history, changes by session, blame analysis, tracing when and why code changed.
+A Claude Code agent template installed into `~/.claude/agents/`, giving every Claude session (pAInapple Code or plain CLI) a specialist for code archaeology: file history, changes by session, blame analysis, tracing when and why code changed.
 
 Use it by delegating from a normal prompt:
 

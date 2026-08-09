@@ -586,8 +586,17 @@ QuickActionsRegistry.register('settings', {
     execute: () => getApp()?.showSettings(),
 });
 
+QuickActionsRegistry.register('about', {
+    keywords: ['version', 'license', 'agpl', 'source', 'github', 'credits', 'info'],
+    icon: 'info',
+    label: S.quick_actions_registry.actions.about.label,
+    description: S.quick_actions_registry.actions.about.desc,
+    category: S.quick_actions_registry.categories.panels,
+    execute: () => WidgetManager.open('about'),
+});
+
 QuickActionsRegistry.register('help', {
-    keywords: ['docs', 'shortcuts', 'tips', 'about', 'manual'],
+    keywords: ['docs', 'shortcuts', 'tips', 'manual'],
     icon: 'help-circle',
     label: S.quick_actions_registry.actions.help.label,
     description: S.quick_actions_registry.actions.help.desc,

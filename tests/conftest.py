@@ -37,7 +37,7 @@ def app(test_config_file):
     # WS handlers read app.state.bridge before the auth check. Default to
     # None here so unauthed tests reach the auth-rejection path instead
     # of AttributeErroring out of the handler. Tests that exercise authed
-    # paths replace this with a real ClaudeBridge via app_with_bridge.
+    # paths replace this with a real AgentBridge via app_with_bridge.
     app_.state.bridge = None
     return app_
 

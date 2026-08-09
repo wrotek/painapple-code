@@ -1,6 +1,6 @@
 # Features overview
 
-Everything the bridge and the web client can do, in one place. Each area links to its guide.
+Everything pAInapple Code and the web client can do, in one place. Each area links to its guide.
 
 ## Chat & sessions
 

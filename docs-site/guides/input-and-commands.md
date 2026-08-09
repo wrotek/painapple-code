@@ -37,7 +37,7 @@ Selecting a snippet inserts its text. Selecting an agent inserts an invocation p
 
 ### `/` — commands
 
-A `/` at the very start of the input (only there — mid-text slashes are left alone) opens command autocomplete over the whole catalog: built-in bridge commands, your Claude Code custom commands, and plugin commands. See the [command reference](../reference/commands.md) for the full list.
+A `/` at the very start of the input (only there — mid-text slashes are left alone) opens command autocomplete over the whole catalog: built-in pAInapple Code commands, your Claude Code custom commands, and plugin commands. See the [command reference](../reference/commands.md) for the full list.
 
 ### `$` — skills
 
@@ -52,7 +52,7 @@ Two prefixes flip the whole input into a different mode — the box restyles and
 **Plan mode (`/plan `)** — typing `/plan ` switches the input into plan compose mode and flips the [permission mode](permissions-and-thinking.md) to read-only Plan for that message.
 
 !!! warning "Shell mode is real shell"
-    `!` commands execute as the server user with no sandbox. That's the point — but read [the security notes](../getting-started/security.md) before exposing the bridge beyond localhost.
+    `!` commands execute as the server user with no sandbox. That's the point — but read [the security notes](../getting-started/security.md) before exposing the server beyond localhost.
 
 ## Attachments
 

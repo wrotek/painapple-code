@@ -3,7 +3,7 @@
  */
 
 import { COMMANDS, getRecentShellCommands } from './config.js';
-import { escapeHtml, decodeHtml, sanitizeSvg } from './utils.js';
+import { escapeHtml, escapeAttr, decodeHtml, sanitizeSvg } from './utils.js';
 import { getCommandStore, CommandType } from './command-store.js';
 import { anchorAbove } from './caret-position.js';
 import S from './strings.js';
@@ -144,7 +144,12 @@ export class MarkdownRenderer {
         // top of DOMPurify) — reject javascript:/data:/vbscript: hrefs outright.
         renderer.link = (href, title, text) => {
             const safe = this.constructor.sanitizeHref(href);
-            return `<a href="${safe}" target="_blank" rel="noopener noreferrer"${title ? ` data-tooltip="${title}"` : ''}>${text}</a>`;
+            // escapeAttr, not escapeHtml: both the href and the markdown link
+            // title are author-controlled, and escapeHtml leaves quotes intact
+            // — a title containing `"` could otherwise close the attribute and
+            // inject new ones. DOMPurify runs after this and would strip an
+            // injected handler, but that's the backstop, not the seatbelt.
+            return `<a href="${escapeAttr(safe)}" target="_blank" rel="noopener noreferrer"${title ? ` data-tooltip="${escapeAttr(title)}"` : ''}>${text}</a>`;
         };
 
         // Wrap tables in scrollable container. The extra .table-block around the
@@ -200,6 +205,18 @@ export class MarkdownRenderer {
      * Scrub a markdown link href down to safe schemes. Defense-in-depth on top of
      * DOMPurify: control chars are stripped first (defeats `jav&#9;ascript:` style
      * bypasses) and any scheme outside the allowlist collapses to '#'.
+     *
+     * Returns a RAW, UNESCAPED url — scheme-checked, not attribute-safe. Every
+     * caller must wrap it in escapeAttr() before interpolating into an
+     * attribute; tests/test_no_unsafe_sinks.py enforces that at every href site.
+     *
+     * It used to return escapeHtml(cleaned), which read as safer and was
+     * actually worse in both directions. escapeHtml doesn't escape quotes, so
+     * the output was never attribute-safe on its own and callers still needed
+     * escapeAttr — and layering escapeAttr on top double-escaped `&`, so
+     * `?a=1&b=2` reached the DOM as `?a=1&amp;b=2` and the link resolved to the
+     * wrong URL. One escape, applied by the caller that knows the context, is
+     * the only arrangement that is both safe and correct.
      */
     static sanitizeHref(href) {
         if (!href) return '#';
@@ -208,7 +225,7 @@ export class MarkdownRenderer {
         if (scheme && !['http', 'https', 'mailto', 'tel', 'ftp'].includes(scheme[1].toLowerCase())) {
             return '#';
         }
-        return escapeHtml(cleaned);
+        return cleaned;
     }
 
     /**
@@ -919,12 +936,17 @@ export class MarkdownRenderer {
             // Decode HTML entities (text is already escaped by markdown parser)
             // e.g., &amp; -> & so URLs work correctly
             const decodedUrl = decodeHtml(url);
-            // Re-escape for safe HTML attribute/display
+            // Re-escape per context: the href needs quote-safety plus a scheme
+            // check (escapeHtml alone gave neither), the link text only needs
+            // element-content escaping. Same string, two different escapes —
+            // reusing one value for both was the bug shape this gate exists to
+            // catch, it just evaded the grep by living on an earlier line.
+            const safeHref = escapeAttr(MarkdownRenderer.sanitizeHref(decodedUrl));
             const escapedUrl = escapeHtml(decodedUrl);
             replacements.push({
                 start: match.index,
                 end: end,
-                html: `<a href="${escapedUrl}" class="external-link" target="_blank" rel="noopener noreferrer">${escapedUrl}</a>`
+                html: `<a href="${safeHref}" class="external-link" target="_blank" rel="noopener noreferrer">${escapedUrl}</a>`
             });
         }
 

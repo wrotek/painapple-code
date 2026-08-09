@@ -74,7 +74,7 @@ curl -H "Authorization: Bearer $(awk '/^password:/ {print $2}' ~/.config/painapp
 1. **Open the app.** Go to `http://localhost:8765/` (redirects to `/app`) — or just use the login URL from the logs, which lands you there authenticated.
 2. **Welcome screen.** A fresh install greets you with the welcome tab: once you have history it lists recent sessions grouped by project, plus the projects in your workspace. For now, start a new session.
 3. **Pick a directory.** Choose the project directory Claude should work in — sessions are bound to a working directory inside your workspace.
-4. **Send a prompt.** Type into the input box and hit ++enter++. The bridge spawns a Claude Code subprocess for the session and streams the response — tool calls, thinking blocks and all — into the chat.
+4. **Send a prompt.** Type into the input box and hit ++enter++. The server spawns a Claude Code subprocess for the session and streams the response — tool calls, thinking blocks and all — into the chat.
 
 !!! tip "Install the PWA"
     On iPad (or any browser), install the app to your home screen on first visit — the auth cookie persists, so subsequent launches go straight to your sessions.

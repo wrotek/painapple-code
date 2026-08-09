@@ -1,8 +1,8 @@
 {
     "id": "painapple-code",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "name": "pAInapple Code",
-    "description": "Installs the pAInapple Code WebSocket bridge for Claude Code. Exposes a password-gated web/PWA UI (default port 8765) that any browser — including iPad — can use to drive `claude` inside the container.",
+    "description": "Installs pAInapple Code, a self-hosted web client for Claude Code. Exposes a password-gated web/PWA UI (default port 8765) that any browser — including iPad — can use to drive `claude` inside the container.",
     "documentationURL": "https://github.com/wrotek/painapple-code",
     "licenseURL": "https://github.com/wrotek/painapple-code/blob/main/LICENSE",
     "options": {
@@ -19,7 +19,7 @@
         "port": {
             "type": "string",
             "default": "8765",
-            "description": "Port the bridge listens on (HTTP + WebSocket). Forward this port in devcontainer.json to expose the UI."
+            "description": "Port the server listens on (HTTP + WebSocket). Forward this port in devcontainer.json to expose the UI."
         },
         "instanceName": {
             "type": "string",
@@ -35,7 +35,7 @@
         "autostart": {
             "type": "boolean",
             "default": true,
-            "description": "Start the bridge automatically on container start (via a systemd-less background launcher invoked from /etc/profile.d). Disable to start it manually with `painapple-code-start`."
+            "description": "Start the server automatically on container start (via a systemd-less background launcher invoked from /etc/profile.d). Disable to start it manually with `painapple-code-start`."
         },
         "installHelpers": {
             "type": "boolean",

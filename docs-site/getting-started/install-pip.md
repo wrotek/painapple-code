@@ -1,6 +1,6 @@
 # Install with pip / pipx
 
-Run the bridge directly on the host — no container. This path needs Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated (see [Requirements](requirements.md)).
+Run the server directly on the host — no container. This path needs Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated (see [Requirements](requirements.md)).
 
 !!! warning "No isolation"
     Running bare on the host means Claude — and the built-in terminal — run as your user, on your machine. Read the [security notes](security.md) before choosing this path; the [Docker install](install-docker.md) is the recommended default.

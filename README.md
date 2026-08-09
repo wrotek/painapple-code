@@ -1,10 +1,11 @@
 # pAInapple Code
 
-A self-hosted server that runs the [Claude Code](https://github.com/anthropics/claude-code) CLI on your machine; remote clients connect to it — streaming chat, interactive permission cards, an embedded terminal, git tools, multi-session tabs. It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
+A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server runs on your machine and drives Claude Code through the official Agent SDK, using your own Claude subscription. [OpenAI Codex CLI](https://painapple.ai/guides/engines/) support is experimental.
+Inspired by [code-server](https://github.com/coder/code-server).
 
-The distinguishing feature is the **Auto Journal**. After every turn, the session forks itself in the background to a fast summarizer model (Haiku by default), so the summarizer reads the turn's full conversation rather than just its diff. It writes one structured summary — work done, decisions, problems solved, learnings — and that summary does double duty: it becomes the commit message for a per-project shadow git repo holding the turn's file changes, and it lands as a queryable row in a local DuckDB that later sessions can search.
+Thanks to the [**Auto Journal**](#auto-journal-shadow-git), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. It's not just for you: the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
 
-The goal is native apps for every platform; desktop and mobile apps are in development. Today the client is a web app that installs as a PWA on iOS, Android, and desktop — a workable setup in practice: much of this project was written from a phone and an iPad through this same UI.
+Right now it's a PWA, but desktop and mobile apps are in development.
 
 **[Documentation](https://painapple.ai/)** · [Install](https://painapple.ai/getting-started/install-pip/) · [Features](https://painapple.ai/features/) · [Security](https://painapple.ai/getting-started/security/)
 
@@ -12,26 +13,39 @@ The goal is native apps for every platform; desktop and mobile apps are in devel
 
 ## Before you start
 
-pAInapple Code hands a browser tab full control of a Claude Code instance on your machine. Four things to know before the quick start:
-
-**The default permission mode is Ask.** pAInapple Code drives Claude through the official **Agent SDK**; every tool call pauses on an approve/deny card — with a readable preview of the edit or command — until you decide. Less restrictive modes are opt-in, per session: **Accept Edits**, **Auto** (Claude's own classifier gates each call), **Plan** (read-only), and full bypass. Permission mode and model switch live, mid-turn, without restarting the session. → [Permissions guide](https://painapple.ai/guides/permissions-and-thinking/)
-
-**Isolate the autonomous modes.** The embedded terminal is a real PTY, and anything Claude is approved to run executes as the user who started the server — prompt injection and poisoned packages are real risks for *any* coding agent. Approval cards cover the interactive modes; for autonomous use, run pAInapple Code in a container or VM. `painapple --in-docker` (below) is the built-in way to do that.
-
-**Network defaults are conservative.** The server binds `127.0.0.1` over plain HTTP; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or VPN; for anything public, put your own reverse proxy in front. → [Security notes](https://painapple.ai/getting-started/security/)
-
-**This is an MVP, and heavily "vibe-coded".** Most of the code was written by AI under my direction and review. I've put real effort into the security model, but I can't guarantee it — one more reason to take the isolation advice above seriously. A rewrite to a more rigorous standard is planned; for now the priority is implementing and testing ideas.
+**This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I try to keep the security hygiene tight, but I can't promise there isn't an RCE hiding somewhere — one more reason to take the isolation advice in [Security model](#security-model) seriously. A rewrite to a more rigorous standard is planned; for now there are plenty of ideas I want to implement and test first.
 
 ## Security model
 
-One sentence to internalize: **whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** The bridge exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user. Treat the password like an SSH key.
+**Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** pAInapple Code exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user. Treat the password like an SSH key.
 
-What that means in practice:
+The embedded terminal is a real PTY, and anything Claude is approved to run executes as the user who started the server — prompt injection and poisoned packages are real risks for *any* coding agent.
 
-- **Loopback by default.** The server binds `127.0.0.1`. Keep it there for local use.
-- **Remote access goes through a tunnel.** Reach it over a VPN, an SSH tunnel, or an authenticating reverse proxy — don't expose the port directly to the internet or a shared LAN.
-- **Single-user, not multi-tenant.** It is not hardened for untrusted multi-user hosting. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead.
-- **Isolate autonomous modes** in a container or VM — `painapple --in-docker` is the built-in way.
+The server binds `127.0.0.1` over plain HTTP by default; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or behind a personal VPN. I strongly discourage exposing it on a public interface.
+
+It is single-user, not multi-tenant. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead. → [Security notes](https://painapple.ai/getting-started/security/)
+
+### Simple isolation with the built-in Docker/Podman instance manager
+
+If you have Docker or Podman installed, add the `--in-docker` flag: it automatically creates and runs a container from an image that already has the basic development tools, the Claude Code CLI, and pAInapple Code itself.
+
+```bash
+pipx install painapple-code
+painapple --in-docker                     # sandbox the current directory, foreground
+painapple --in-docker --workspace ~/dev/  # sandbox ~/dev/ instead, foreground
+```
+
+For a sandbox you come back to, create a named instance. The wizard asks for the workspace, port, and container settings; after that the usual verbs manage it:
+
+```bash
+painapple setup myapp          # wizard — pick "Docker" as the run mode
+painapple start myapp          # detached, comes back up with the runtime
+painapple list                 # every instance, host or container, running or not
+painapple password myapp       # print its login URL
+painapple stop myapp
+```
+
+Full reference: [Docker & container mode](https://painapple.ai/getting-started/install-docker/).
 
 Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
@@ -46,7 +60,8 @@ Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURI
 ## Requirements
 
 - **Server:** Linux, macOS, or Windows 10/11 — natively, no WSL required. ([Windows notes](https://painapple.ai/getting-started/requirements/#windows-notes): install the Claude CLI with `irm https://claude.ai/install.ps1 | iex`, not npm.)
-- **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image bundles both.)
+- **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image ships Python and Node, and installs the agent CLIs itself on first start.)
+- **Optional:** Docker or Podman, if you want the sandboxed `--in-docker` run mode and the named container instances.
 - **Optional:** the [OpenAI Codex CLI](https://github.com/openai/codex), if you want the Codex engine.
 - **Client:** any modern browser with network access to the server.
 
@@ -59,22 +74,15 @@ pipx install painapple-code
 painapple --workspace /path/to/your/projects
 # …or cd into the project and run it bare — it serves the current directory:
 painapple
+# …or sandbox it in a container (see above):
+painapple --in-docker
 ```
 
-Open `http://localhost:8765/`. The first run prints a bootstrap URL with the password embedded as `?tkn=…` — open it once and a cookie keeps you logged in.
+The console prints the app URL with a generated password embedded — open it once and a cookie keeps you logged in.
 
 Plain `pip install painapple-code` into a venv works too — see the [pip/pipx guide](https://painapple.ai/getting-started/install-pip/).
 
-### Containers: `painapple --in-docker`
-
-For the autonomous permission modes, run pAInapple Code isolated. Docker is a built-in run mode — the same invocation, sandboxed in the prebuilt image:
-
-```bash
-pipx install painapple-code
-painapple --in-docker       # serve the current directory, containerized
-```
-
-The prebuilt image (Python, Node, and the Claude Code CLI bundled) is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted. Docker and Podman are auto-detected. For a durable named sandbox, `painapple setup myapp` (pick "Docker" as the run mode) then `painapple start myapp`. Raw `docker run` / compose / Podman recipes and source builds: [Docker install guide](https://painapple.ai/getting-started/install-docker/).
+In container mode the image is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted. Raw `docker run` / compose / Podman recipes and source builds: [Docker install guide](https://painapple.ai/getting-started/install-docker/).
 
 ### Desktop & mobile apps (in development)
 
@@ -153,6 +161,8 @@ Context usage, token delta, files changed with diff stats, tool counts, duration
 
 Click the bubble next to any paragraph, add a note, and it attaches — quote included — to your next prompt.
 
+Screenshots ride the same mechanism. Paste an image and the annotation editor opens (pen, arrow, box, text) — drop a numbered marker anywhere on it, type a note, and that note lands in the same stash as *"Marker 2 on screenshot.png"*. The badge pins the spot on the picture, the comment travels as prompt text, and the annotated image is attached to the same message, so the model can connect the two.
+
 ![Selecting a paragraph, adding a note, and the stash attaching itself to the next prompt](docs-site/assets/comments-stash.gif)
 
 ### Embedded terminal
@@ -207,10 +217,11 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Everythi
 
 This is an MVP — there are tradeoffs.
 
-1. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
-2. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
-3. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
-4. **Codex engine** — functional, but much newer than the Claude path and not yet as thoroughly tested.
+1. **No Windows support (server side)** — the server currently runs on Linux and macOS only. A few modules import POSIX-only pieces (`pty`/`termios`/`fcntl`) at module level, so the package does not even import on Windows yet; process control also assumes POSIX process groups and signals. Work on a ConPTY/`pywinpty` terminal backend and Windows-safe file locking is underway — until then, use WSL2 or the Docker image. The web client itself works fine from a Windows browser.
+2. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
+3. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
+4. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
+5. **Codex engine** — functional, but much newer than the Claude path and not yet as thoroughly tested.
 
 ## License
 

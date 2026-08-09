@@ -168,9 +168,11 @@ export function renderBody() {
         </button>
     ` : '';
 
-    // Search button (shown for text-based files; hidden in history view)
+    // Search button (shown for text-based files; hidden in history view).
+    // Stays visible while the search bar is open — lit, and re-focusing the
+    // existing query rather than reopening a blank search.
     const searchButton = (isEditable() && !isHistoryMode()) ? `
-        <button class="preview-search-btn" data-action="search" data-tooltip="Search (Ctrl+F)">
+        <button class="preview-search-btn ${state.search.active ? 'active' : ''}" data-action="search" data-tooltip="${state.search.active ? (S.preview?.search_focus || 'Focus search (Ctrl+F)') : (S.preview?.search_open || 'Search (Ctrl+F)')}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="11" cy="11" r="8"/>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -180,6 +182,12 @@ export function renderBody() {
 
     // Download link button
     const downloadButton = state.currentPath ? downloadBtnHtml() : '';
+
+    // Plugin-contributed toolbar controls (e.g. markdown's inline-edit toggle).
+    // The plugin decides per viewMode; history view never gets them.
+    const pluginControls = (!isHistoryMode() && state.plugin?.renderToolbarControls)
+        ? (state.plugin.renderToolbarControls(state, pluginHelpers) || '')
+        : '';
 
     // Edit-mode search buttons — open the CodeMirror search panel (the code
     // view's own search bar doesn't exist in edit mode). Two entry points:
@@ -261,21 +269,28 @@ export function renderBody() {
     } else {
         rightControls = `
             ${languageSelector}
+            ${pluginControls}
             ${searchButton}
             ${downloadButton}
             ${wrapToggle}
         `;
     }
 
-    // Unified toolbar: view tabs + right-side controls
+    // Unified toolbar: view tabs + right-side controls.
+    //
+    // An open search bar takes over the LEFT of the row (the view tabs and line
+    // badge yield the width to it), but the right-side controls always stay put
+    // — an open search is no reason to lose the edit toggle / download / wrap.
+    // The spacer is dropped while searching: it and .preview-search-bar are both
+    // flex:1, so keeping both would split the row and starve the input.
     const hasToolbar = viewToggle || lineBadge || rightControls || state.search.active;
     const toolbar = hasToolbar ? `
         <div class="preview-toolbar">
             ${state.search.active ? searchBar : ''}
             ${!state.search.active ? viewToggle : ''}
             ${!state.search.active ? lineBadge : ''}
-            <div class="toolbar-spacer"></div>
-            ${!state.search.active ? rightControls : ''}
+            ${!state.search.active ? '<div class="toolbar-spacer"></div>' : ''}
+            ${rightControls}
         </div>
     ` : '';
 

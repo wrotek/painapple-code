@@ -79,11 +79,11 @@ Handy for pinning one terminal or file preview across a set of related sessions.
 
 ## What syncs to the server
 
-Some customization is stored server-side, so it follows you to any browser or device that logs into the same bridge; the rest is per-browser `localStorage`.
+Some customization is stored server-side, so it follows you to any browser or device that logs into the same server; the rest is per-browser `localStorage`.
 
 **Server-side:** shortcut overrides, quick-action presets, the model catalog and default model, per-project config (extra dirs, Shadow Git, commit sections), global Shadow Git defaults, global extra dirs, and [tab state](sessions.md). **Per-browser:** appearance settings (density, font scale, opacity, tool-block modes), input toggles, and the FAB position/slots.
 
 ## Related
 
 - **Custom slash commands** — define your own `/commands` per project or globally: [Slash & bang commands](../reference/commands.md).
-- **Instance identity** — name and accent-color each bridge instance (`--instance-name DEV --accent red`) so tabs, PWA icons, and the UI make it obvious which server you're on: [Server CLI](../reference/server-cli.md).
+- **Instance identity** — name and accent-color each instance (`--instance-name DEV --accent red`) so tabs, PWA icons, and the UI make it obvious which server you're on: [Server CLI](../reference/server-cli.md).

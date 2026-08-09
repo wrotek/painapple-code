@@ -1,0 +1,196 @@
+/* ============================================================
+   About widget — version identity, license, project links
+   ============================================================ */
+
+.about-widget-body {
+    padding: var(--sp-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-20);
+}
+
+/* --- Hero --------------------------------------------------- */
+
+.about-hero {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-4);
+    padding-bottom: var(--sp-16);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.about-hero-name {
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+}
+
+.about-hero-version {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-base);
+    color: var(--accent);
+}
+
+.about-hero-author {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin-top: var(--sp-4);
+}
+
+/* --- Sections ----------------------------------------------- */
+
+.about-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-8);
+}
+
+.about-section h4 {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+
+.about-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-12);
+}
+
+.about-row-label {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+}
+
+.about-row-value {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    padding: 2px var(--sp-6);
+    border-radius: var(--radius-xs);
+    /* Long git-describe strings shouldn't push the label off-panel. */
+    overflow-wrap: anywhere;
+    text-align: right;
+}
+
+.about-hint {
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    color: var(--warning);
+    background: var(--bg-tertiary);
+    border-left: 2px solid var(--warning);
+    padding: var(--sp-6) var(--sp-8);
+    border-radius: var(--radius-xs);
+}
+
+.about-notice {
+    font-size: var(--font-size-sm);
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+/* --- Links -------------------------------------------------- */
+
+.about-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-12);
+    padding: var(--sp-8) var(--sp-10);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.about-link:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+}
+
+.about-link-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.about-link-label {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.about-link-desc {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.about-link-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    color: var(--text-secondary);
+}
+
+.about-link-icon svg {
+    width: var(--font-size-lg);
+    height: var(--font-size-lg);
+}
+
+/* --- Copy button -------------------------------------------- */
+
+.about-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-6);
+    align-self: flex-start;
+    padding: var(--sp-6) var(--sp-10);
+    font-size: var(--font-size-sm);
+    font-family: inherit;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.about-copy-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.about-copy-btn svg {
+    width: var(--font-size-base);
+    height: var(--font-size-base);
+}
+
+/* --- Help-modal entry point --------------------------------- */
+
+/* .help-section is a plain block (not flex), so align-self would no-op here. */
+.help-about-link {
+    display: block;
+    margin-top: var(--sp-4);
+    padding: var(--sp-4) 0;
+    font-size: var(--font-size-base);
+    font-family: inherit;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
+
+.help-about-link:hover {
+    text-decoration: underline;
+}

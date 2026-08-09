@@ -38,9 +38,13 @@ def auto_detect():
     present = [(name, path) for name in ("docker", "podman")
                if (path := shutil.which(name))]
     if not present:
+        # No RUNTIME env var here — that's the build wrapper's lever
+        # (painapple-docker.sh). The CLI's runtime lives in config.
         die("Neither docker nor podman found in PATH.",
-            "Install one, run `painapple setup` to point at a custom binary, "
-            "or set RUNTIME=… to override.")
+            "Install one, then point painapple at it:\n"
+            "  painapple setup                        (global runtime default)\n"
+            "  painapple profile set NAME RUNTIME=…   (one deployment — also "
+            "takes an absolute path to a custom binary)")
     for name, path in present:
         if _responds(path):
             return name

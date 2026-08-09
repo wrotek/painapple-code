@@ -133,6 +133,14 @@
     border-color: var(--border-secondary);
 }
 
+/* Latched state for pivots that toggle a sticky preference (e.g. wrap lines) —
+   same accent language as .preview-wrap-toggle.active in the preview toolbar. */
+.dv-pivot.dv-pivot-active {
+    background: rgba(var(--accent-rgb), 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 /* From/To picker pair (preview history bar) */
 .dv-picker-from,
 .dv-picker-to {
@@ -454,7 +462,13 @@
     outline-offset: -1px;
 }
 
-/* ── Wrap mode: lines wrap inside each hunk, no horizontal scroll ── */
+/* ── Wrap mode: lines wrap inside each hunk, no horizontal scroll ──
+   Split mode (.sbs-*) and unified mode (.diff-* from 22-edit-diff.css) both
+   render under .diff-viewer-content, so the toggle has to cover both — for a
+   while it only styled the split selectors and the button looked dead in
+   unified. */
+
+/* Split mode */
 .diff-viewer-content.wrap-lines .sbs-hunk { overflow-x: hidden; }
 .diff-viewer-content.wrap-lines .sbs-diff-grid {
     grid-template-columns: 40px minmax(0, 1fr) 4px 40px minmax(0, 1fr);
@@ -463,6 +477,18 @@
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: anywhere;
+}
+
+/* Unified mode — `.diff-line` is a flexbox, so the text cell also needs to be
+   allowed to shrink below its content width for wrapping to take effect. */
+.diff-viewer-content.wrap-lines .diff-hunk { overflow-x: hidden; }
+.diff-viewer-content.wrap-lines .diff-hunk-inner { min-width: 0; }
+.diff-viewer-content.wrap-lines .diff-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
 }
 
 /* ── View mode toggle in header ── */

@@ -1,6 +1,6 @@
 # Dev Containers & Codespaces
 
-pAInapple Code ships a [Dev Container Feature](https://containers.dev/features) — one line in a project's `devcontainer.json` and every Codespace (or local dev container) you open on that project boots with the bridge installed, started, and port-forwarded, ready to connect from an iPad or any browser.
+pAInapple Code ships a [Dev Container Feature](https://containers.dev/features) — one line in a project's `devcontainer.json` and every Codespace (or local dev container) you open on that project boots with pAInapple Code installed, started, and port-forwarded, ready to connect from an iPad or any browser.
 
 ## Add the Feature
 
@@ -57,9 +57,9 @@ A more complete example, with port labels and an API-key secret:
 
 The Feature installs system dependencies, Node 20 and the `@anthropic-ai/claude-code` CLI (skipped if a sibling Feature already provides them), clones pAInapple Code at the requested ref into `/opt/painapple-code`, and sets up a Python venv. It also:
 
-- Sets `PAINAPPLE_CODE_HOME=/var/painapple-code` so bridge state survives shell exits.
+- Sets `PAINAPPLE_CODE_HOME=/var/painapple-code` so server state survives shell exits.
 - Writes an idempotent launcher at `/usr/local/bin/painapple-code-start`.
-- Adds an `/etc/profile.d` hook (when `autostart` is on) that starts the bridge on the first interactive shell — Codespaces opens a shell on attach, so this is effectively container-start.
+- Adds an `/etc/profile.d` hook (when `autostart` is on) that starts the server on the first interactive shell — Codespaces opens a shell on attach, so this is effectively container-start.
 - Optionally installs the `shadow-git` / `shadow-query` helpers and the `shadow-git-helper` agent for the container user.
 
 The launcher logs to `/tmp/painapple-code.log` and serves `/workspaces` as the workspace root by default, so the welcome screen lists every project directory in the container. To pin a single repo, set `PAINAPPLE_WORKSPACE` before the launcher runs:
@@ -78,10 +78,10 @@ The launcher logs to `/tmp/painapple-code.log` and serves `/workspaces` as the w
 |--------|---------|-------------|
 | `version` | `main` | Git ref to install: branch, tag, or commit SHA (e.g. `v1.0.0`) |
 | `repo` | upstream GitHub URL | Repository to install from — override for a fork or mirror |
-| `port` | `8765` | Port the bridge listens on (HTTP + WebSocket) |
+| `port` | `8765` | Port the server listens on (HTTP + WebSocket) |
 | `instanceName` | `CODESPACE` | Label shown in the PWA header — useful with multiple codespaces |
 | `accent` | `blue` | Accent color preset: `blue`, `green`, `red`, `orange`, `purple`, `cyan` |
-| `autostart` | `true` | Start the bridge automatically on container start; disable to launch manually with `painapple-code-start` |
+| `autostart` | `true` | Start the server automatically on container start; disable to launch manually with `painapple-code-start` |
 | `installHelpers` | `true` | Install `shadow-git`, `shadow-query`, and the `shadow-git-helper` agent into the container user's home |
 
 Pin a release instead of tracking `main`:
@@ -99,12 +99,12 @@ Pin a release instead of tracking `main`:
 
 ## Port forwarding
 
-Forward the bridge port in `devcontainer.json` (`"forwardPorts": [8765]`, matching the `port` option). In Codespaces, the **Ports** tab then shows a forwarded URL your browser — including an iPad — can reach.
+Forward the server port in `devcontainer.json` (`"forwardPorts": [8765]`, matching the `port` option). In Codespaces, the **Ports** tab then shows a forwarded URL your browser — including an iPad — can reach.
 
 To log in, you need the bootstrap URL with the password embedded as `?tkn=…`. Inside a Codespace the launcher prints it using the public forwarding domain (`https://<codespace>-8765.<forwarding-domain>/?tkn=…`); grab it from `/tmp/painapple-code.log`, or let the `postAttachCommand` from the example print it whenever you open a terminal. See [First run & login](first-run.md) for how auth works from there.
 
 !!! note "Port visibility"
-    Keep the port `private` (the default) — the forwarded URL then also requires your GitHub login on top of the bridge password. Making it public leaves the bridge password as the only gate; read the [security notes](security.md) first.
+    Keep the port `private` (the default) — the forwarded URL then also requires your GitHub login on top of the pAInapple Code password. Making it public leaves that password as the only gate; read the [security notes](security.md) first.
 
 ## Codespaces specifics
 

@@ -1,5 +1,5 @@
 /**
- * Service Worker for Claude Code PWA
+ * Service Worker for pAInapple Code PWA
  *
  * Caching strategy:
  * - Precache: App shell (HTML, critical CSS/JS)
@@ -217,7 +217,7 @@ function offlineHTML() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Claude Code - Offline</title>
+  <title>pAInapple Code - Offline</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -256,7 +256,7 @@ function offlineHTML() {
   <div class="offline-container">
     <div class="offline-icon">📡</div>
     <h1>You're Offline</h1>
-    <p>Claude Code requires an internet connection to communicate with the server.</p>
+    <p>pAInapple Code requires an internet connection to communicate with the server.</p>
     <button onclick="location.reload()">Try Again</button>
   </div>
 </body>

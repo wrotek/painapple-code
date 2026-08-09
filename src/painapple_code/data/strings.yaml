@@ -113,6 +113,8 @@ preview:
   tab_history: "History"
   editor_search: "Search (Ctrl+F)"
   editor_replace: "Search & replace"
+  search_open: "Search (Ctrl+F)"
+  search_focus: "Focus search (Ctrl+F)"
   breadcrumb:
     filter_placeholder: "Filter…"
     parent_dir: "Parent directory"
@@ -208,7 +210,7 @@ toast:
 # ============================================================
 ui:
   app:
-    title: "Claude Code"
+    title: "pAInapple Code"
     description: "A powerful AI assistant for software development. Connect to start a session."
   # Static tooltips for the chrome rendered in web-client.html. Applied at
   # init by applyStaticTooltips() via data-tooltip-key="ui.tooltips.<key>".
@@ -1460,12 +1462,45 @@ help:
   about_restart: >-
     The checkout has moved on ({disk}) — the server is still running the
     code it booted with. Restart it to pick up the change.
+  about_more: "About painapple-code"
   triggers:
     - ["#", "Snippets & agents — insert a saved snippet or trigger an agent"]
     - ["/", "Slash commands — built-in, custom, and Claude's own"]
     - ["@", "Mention a file — fuzzy-search project paths"]
     - ["$", "Skills — browse and insert a skill invocation"]
     - ["!", "Shell mode — run the line locally instead of sending it"]
+
+# ============================================================
+# About widget — version identity, license, and the AGPL §13 source offer
+# ============================================================
+about:
+  title: "About"
+  app_name: "painapple-code"
+  author_prefix: "by {name}"
+  version_title: "Version"
+  server: "Server version"
+  frontend: "Frontend build"
+  unknown: "unknown"
+  license_title: "License"
+  license_row: "License"
+  # AGPL §13: anyone operating this over a network must offer its users the
+  # corresponding source. The Source link below IS that offer — this line
+  # exists to label it as one, which is what "prominently offer" asks for.
+  # Keep it to a sentence; the full terms are one tap away.
+  license_notice: "Free software — you're entitled to the source of the version you're running."
+  license_link: "Read the license"
+  third_party: "Third-party notices"
+  links_title: "Links"
+  source: "Source code"
+  source_desc: "Browse the repository on GitHub"
+  issues: "Report an issue"
+  issues_desc: "Bugs and feature requests"
+  homepage: "Website"
+  homepage_desc: "Project home"
+  docs: "Documentation"
+  docs_desc: "Guides and reference"
+  copy_version: "Copy version info"
+  copied: "Version info copied"
 
 # ============================================================
 # Time period labels (used in multiple places)
@@ -1640,6 +1675,7 @@ quick_actions_registry:
     reopen_tab: { label: "Reopen Tab", desc: "Reopen last closed tab" }
     settings: { label: "Settings", desc: "Open settings panel" }
     help: { label: "Help", desc: "Show keyboard shortcuts" }
+    about: { label: "About", desc: "Version, license, and source code" }
     send_message: { label: "Send", desc: "Send message to Claude" }
     stop: { label: "Stop", desc: "Stop Claude's response" }
     scroll_bottom: { label: "Scroll Down", desc: "Jump to latest message" }
@@ -1822,8 +1858,7 @@ helpers:
     body_missing: |
       The helpers above are not installed yet. Installing copies the
       files into your home directory — no sudo, no PATH changes. The
-      install runs on the bridge server's filesystem, not your
-      iPad/laptop.
+      install runs on the server's filesystem, not your iPad/laptop.
     body_outdated: |
       Your installed helpers are out of date with the bundled versions.
       Update to keep the installed copies in sync.

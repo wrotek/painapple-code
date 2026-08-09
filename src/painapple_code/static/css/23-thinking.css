@@ -214,6 +214,20 @@
     cursor: default;
 }
 
+/* Signature-only thinking blocks arrive with thinking: "" — no header is
+   rendered for them, and until a tool streams in there is nothing to show.
+   Hide rather than skip rendering: the step is the anchor tools attach to,
+   and :has() un-hides it the instant the first tool card is inserted. */
+.thinking-step:not(:has(.thinking-step-header)):not(:has(.thinking-step-tools > *)) {
+    display: none;
+}
+
+/* Same test one level up, so an all-empty section does not leave the orange
+   bubble behind as a bare bordered bar above the assistant message. */
+.message.thinking:not(:has(.thinking-step-header)):not(:has(.thinking-step-tools > *)) {
+    display: none;
+}
+
 /* Clickable header - text aligns with normal message content */
 .thinking-step-header {
     display: flex;

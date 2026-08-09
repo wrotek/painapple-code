@@ -76,7 +76,7 @@ When Claude uses its AskUserQuestion tool, the answer UI renders as an interacti
 
 Answered cards keep an **Edit** button — reopen the form, change your picks or comment, and resend, without retyping the whole answer as a new prompt.
 
-By default the bridge *stops* Claude on these questions so you can answer. You can flip that off in **Settings** ("Stop on questions"): the question is then auto-denied and Claude keeps going on its own judgment — the card stays in the transcript with a note explaining what happened.
+By default pAInapple Code *stops* Claude on these questions so you can answer. You can flip that off in **Settings** ("Stop on questions"): the question is then auto-denied and Claude keeps going on its own judgment — the card stays in the transcript with a note explaining what happened.
 
 ## The turn summary bar
 

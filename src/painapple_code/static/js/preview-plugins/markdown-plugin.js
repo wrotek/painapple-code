@@ -156,20 +156,33 @@ export default {
         const body = fm ? content.slice(fm.bodyOffset) : content;
         const renderedHtml = renderer.renderWithSourceMap(body, fm ? fm.bodyOffset : 0);
         const isActive = isInlineEditActive();
-        const tooltip = isActive
-            ? (S.preview?.inline_edit_disable || 'Disable inline editing')
-            : (S.preview?.inline_edit_enable || 'Click to edit');
 
         return `
             <div class="preview-body">
                 <div class="preview-rendered-wrapper">
                     ${fmHtml}
-                    <button class="inline-edit-toggle ${isActive ? 'active' : ''}" data-tooltip="${tooltip}">
-                        ${pencilIcon}
-                    </button>
                     <div class="preview-rendered markdown-content ${isActive ? 'inline-edit-mode' : ''}">${renderedHtml}</div>
                 </div>
             </div>
+        `;
+    },
+
+    /**
+     * Toolbar contribution: the inline-edit toggle lives in the preview
+     * toolbar next to search/download rather than floating over the first
+     * rendered block, where it collided with headings and the per-block
+     * trash buttons and scrolled with the content.
+     */
+    renderToolbarControls(state) {
+        if (state.viewMode !== 'rendered') return '';
+        const isActive = isInlineEditActive();
+        const tooltip = isActive
+            ? (S.preview?.inline_edit_disable || 'Disable inline editing')
+            : (S.preview?.inline_edit_enable || 'Click to edit');
+        return `
+            <button class="inline-edit-toggle ${isActive ? 'active' : ''}" data-tooltip="${tooltip}">
+                ${pencilIcon}
+            </button>
         `;
     },
 

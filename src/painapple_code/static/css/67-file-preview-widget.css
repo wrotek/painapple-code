@@ -568,6 +568,18 @@
     color: var(--text-primary, #e0e0e0);
 }
 
+/* Lit while the search bar is open — the button stays in the toolbar and
+   re-focuses the live query rather than reopening a blank search. */
+.preview-search-btn.active {
+    background: rgba(var(--accent-rgb), 0.25);
+    border-color: rgba(var(--accent-rgb), 0.6);
+    color: var(--accent);
+}
+
+.preview-search-btn.active:hover {
+    background: rgba(var(--accent-rgb), 0.35);
+}
+
 .preview-search-btn svg {
     width: 16px;
     height: 16px;
@@ -1456,6 +1468,51 @@
     text-align: center;
 }
 
+/* Wrap-toggle button in the history bar — icon-only */
+.dv-pivot.ph-wrap-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-4) var(--sp-6);
+}
+
+.dv-pivot.ph-wrap-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ── History wrap mode ──────────────────────────────────────────────────────
+   The History tab renders through the shared diff helpers, so it inherits the
+   nowrap defaults from two other features: `.sbs-text` (67-diff-viewer.css) in
+   split mode and `.diff-text` (22-edit-diff.css) in unified. Both files already
+   ship wrap overrides, but gated on ancestors this DOM never has
+   (`.diff-viewer-content.wrap-lines`, `.edit-diff.wrapped`) — so the rules are
+   restated here against our own container rather than retrofitting those
+   selectors onto a widget that doesn't own them. */
+
+/* Split mode */
+.preview-history-content.wrap-lines .sbs-hunk { overflow-x: hidden; }
+.preview-history-content.wrap-lines .sbs-diff-grid {
+    grid-template-columns: 40px minmax(0, 1fr) 4px 40px minmax(0, 1fr);
+}
+.preview-history-content.wrap-lines .sbs-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* Unified mode — `.diff-line` is a flexbox, so the text cell also needs to be
+   allowed to shrink below its content width for wrapping to take effect. */
+.preview-history-content.wrap-lines .diff-hunk { overflow-x: hidden; }
+.preview-history-content.wrap-lines .diff-hunk-inner { min-width: 0; }
+.preview-history-content.wrap-lines .diff-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    flex: 1;
+    min-width: 0;
+}
+
 /* Textarea fallback when CodeMirror fails to load */
 .preview-edit-fallback {
     width: 100%;
@@ -1527,25 +1584,22 @@
    INLINE EDIT MODE (rendered markdown)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Toggle button — floats in top-right of rendered wrapper */
+/* Toggle button — sits in the preview toolbar beside search/download, so it
+ * matches those buttons' metrics rather than floating over the content. */
 .inline-edit-toggle {
-    position: sticky;
-    top: 0;
-    float: right;
-    z-index: 10;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: var(--bg-tertiary, #2d2d44);
-    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    width: var(--layout-btn-md);
+    height: var(--layout-btn-md);
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
     border-radius: var(--radius-md);
-    color: var(--text-secondary, #a0a0b0);
+    color: var(--text-secondary, #888);
     cursor: pointer;
-    transition: all 0.15s;
-    margin-left: var(--sp-8);
-    margin-bottom: var(--sp-4);
+    transition: all 0.15s ease;
+    flex-shrink: 0;
 }
 
 .inline-edit-toggle svg {
@@ -1554,9 +1608,8 @@
 }
 
 .inline-edit-toggle:hover {
-    background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+    background: var(--surface-hover, #2a2a2a);
     color: var(--text-primary, #e0e0e0);
-    border-color: rgba(255, 255, 255, 0.2);
 }
 
 .inline-edit-toggle.active {
@@ -1576,9 +1629,17 @@
     border-radius: var(--radius-sm);
 }
 
-.preview-rendered.inline-edit-mode [data-selectable]:hover {
+/* :not(.inline-editing) matters. This selector is (0,5,0) — :not() contributes its
+   argument's specificity — and the edit-state rule below is (0,4,0), so while you
+   edit with the pointer resting on the block, hover would otherwise win and quietly
+   downgrade the solid edit border to the dashed hover one — the state you were IN
+   would look like the state you were merely pointing at.
+   Note the nested-selectable rule just below is ALSO (0,5,0) and beats this one on
+   source order alone; keep it after this rule. */
+.preview-rendered.inline-edit-mode [data-selectable]:not(.inline-editing):hover {
     background: rgba(var(--accent-rgb), 0.08);
     outline: 1px dashed rgba(var(--accent-rgb), 0.25);
+    outline-offset: var(--sp-3);
 }
 
 /* Nested selectables (e.g. sentence span inside a marked paragraph) are inert.
@@ -1593,36 +1654,58 @@
     display: none !important;
 }
 
-/* Selectable blocks in edit mode need positioning context for the trash button */
+/* Selectable blocks in edit mode need positioning context for the trash button.
+   The button's footprint is declared here, once: every consumer (the button's own
+   box, and the right-hand clearance the edit textarea has to leave for it) derives
+   from these, so they cannot drift apart the way a hardcoded 34px did. */
 .preview-rendered.inline-edit-mode [data-selectable] {
     position: relative;
+    --inline-edit-trash-size: 24px;
+    --inline-edit-trash-inset: 2px;
+    --inline-edit-trash-gutter: calc(var(--inline-edit-trash-size) + var(--inline-edit-trash-inset));
 }
 
-/* Element being edited */
-.preview-rendered [data-selectable].inline-editing {
-    background: rgba(var(--accent-rgb), 0.06);
-    outline: 1px solid rgba(var(--accent-rgb), 0.35);
+/* Element being edited — has to read as unmistakably live.
+   The breathing room around the highlight is padded OUTWARD, never inward: a
+   spread box-shadow in the same colour as the background paints a ring outside
+   the border box, and outline-offset pushes the border out to meet it. Visually
+   identical to a padded box; structurally free, because box-shadow and
+   outline-offset both paint outside the layout box and displace nothing.
+   That distinction is the whole point. Real padding here (the original 6px/8px
+   on the textarea) buys the same look by pushing the text you were mid-sentence
+   on, so the act of starting an edit moved the thing you were reading.
+   Sets no padding/margin of its own — the block keeps the exact box it had while
+   rendered (.markdown-content [data-selectable] padding-right, li's narrower
+   variant, its own margins), so flipping modes moves no character.
+   list-style is the one exception: an editing <li> shows its raw source, which
+   already begins with the literal "- " / "1. " marker, so leaving the CSS ::marker
+   on would render it twice ("• - item"). Suppressing it moves nothing, because
+   list-style-position is outside — the marker never occupied the content box. */
+.preview-rendered.inline-edit-mode [data-selectable].inline-editing {
+    --inline-edit-halo: var(--sp-6);
+    background: rgba(var(--accent-rgb), 0.11);
+    box-shadow: 0 0 0 var(--inline-edit-halo) rgba(var(--accent-rgb), 0.11);
+    outline: 1px solid rgba(var(--accent-rgb), 0.6);
+    outline-offset: var(--inline-edit-halo);
     border-radius: var(--radius-sm);
-    padding: 0;
+    list-style: none;
 }
 
-/* Trash button — persistent on each selectable, hidden until hover (in edit mode).
- * z-index must beat the sticky .inline-edit-toggle (z:10) so the first heading's
- * trash isn't occluded by it. */
+/* Trash button — persistent on each selectable, hidden until hover (in edit mode). */
 .inline-edit-trash-btn {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: var(--inline-edit-trash-inset, 2px);
+    right: var(--inline-edit-trash-inset, 2px);
     z-index: 20;
     display: none;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    background: var(--bg-tertiary, rgba(30, 30, 40, 0.92));
-    border: 1px solid var(--border-primary, rgba(255, 255, 255, 0.1));
+    width: var(--inline-edit-trash-size, 24px);
+    height: var(--inline-edit-trash-size, 24px);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
     border-radius: var(--radius-sm);
-    color: var(--text-muted, #888);
+    color: var(--text-muted);
     cursor: pointer;
     padding: 0;
     opacity: 0;
@@ -1689,44 +1772,102 @@
     pointer-events: none;
 }
 
-/* Inline edit textarea — blends with rendered view */
+/* Inline edit textarea — genuinely blends with the rendered view.
+   Every typographic property is inherited from the block being replaced, so the
+   raw markdown lands on the same baseline, in the same face, at the same size as
+   the prose it stands in for. A heading picks up its own 1.4em/600, a list item
+   its own metrics — no per-element rules needed. Height is JS-driven off
+   scrollHeight (autoResize), so any font-size/line-height/padding deviation here
+   compounds into a visible vertical jump: keep this list inheriting.
+   Padding is 0 on three sides — top/left padding is exactly what shifts glyphs,
+   and the original 6px/8px was the shift this rule exists to remove. The right
+   side still has to be reserved: the trash button is force-shown while editing
+   and is opaque, and the block's own padding-right (--sp-24, --sp-20 on li, 0 on
+   a table row) is SMALLER than the button's footprint in every density — 24px vs
+   26px at normal, 15px vs 26px at compact — so relying on it buries the tail of
+   the first line under the button, where a click deletes the block instead of
+   placing the caret. Reserve only the SHORTFALL, not the whole footprint: over-
+   reserving would wrap the raw markdown earlier than the rendered prose and cost
+   a whole extra line on long paragraphs, which is the same layout jump by another
+   route. padding-RIGHT displaces no character, so this costs width and nothing
+   else. (Yes, this couples to the padding-right tokens in 30-markdown.css — that
+   coupling is real either way; naming it beats hiding it behind a bare 34px.) */
 .inline-edit-textarea {
     display: block;
     width: 100%;
-    min-height: 1.6em;
-    padding: var(--sp-6) 34px var(--sp-6) var(--sp-8);
+    padding: 0 max(0px, calc(var(--inline-edit-trash-gutter, 26px) - var(--sp-24))) 0 0;
     margin: 0;
-    background: rgba(var(--accent-rgb), 0.04);
+    background: transparent;
     border: none;
-    border-radius: var(--radius-sm);
-    color: var(--text-primary, #e0e0e0);
-    font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
-    font-size: var(--font-size-base);
-    line-height: 1.6;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    /* Accent caret: with the typography now identical to the rendered prose, the
+       blinking caret is the clearest signal that this block is text you can type
+       into rather than text you are looking at. */
+    caret-color: var(--accent);
     resize: none;
     overflow: hidden;
     outline: none;
     box-sizing: border-box;
 }
 
-.inline-edit-textarea:focus {
-    background: rgba(var(--accent-rgb), 0.08);
-    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.3);
+/* A list item carries a narrower gutter than everything else, so it needs a
+   correspondingly wider reservation. Same arithmetic, different token. */
+.preview-rendered.inline-edit-mode li[data-selectable] > .inline-edit-textarea {
+    padding-right: max(0px, calc(var(--inline-edit-trash-gutter, 26px) - var(--sp-20)));
 }
 
-/* Hint text beneath textarea — Enter to save, Esc to cancel */
-.preview-rendered [data-selectable].inline-editing::before {
-    content: 'Enter \2192 save \00b7 Esc \2192 cancel \00b7 Shift+Enter \2192 newline';
-    display: block;
+/* No :focus ring on the textarea — the block's own .inline-editing outline already
+   marks what's being edited, and a second ring hugging zero-padding text doubled up. */
+
+/* Hint text — Enter to save, Esc to cancel.
+   Taken out of flow (absolute, pinned just under the block) so showing it reflows
+   nothing: previously an in-flow ::before with order:2 pushed every following
+   paragraph down the moment an edit started. pointer-events:none keeps it from
+   swallowing clicks on whatever it overlays.
+   Scoped to .inline-edit-mode like every other rule in this state set — it reads
+   --inline-edit-halo, which only the edit-state rule declares, so matching a wider
+   set of elements would only ever render the chip detached from the halo it is
+   meant to straddle. */
+.preview-rendered.inline-edit-mode [data-selectable].inline-editing::before {
+    /* Literal glyphs, not \2192 / \00b7 escapes: CSS consumes the whitespace that
+       terminates a hex escape, so `\2192 save` rendered as "→save". */
+    content: 'Enter → save · Esc → cancel · Shift+Enter → newline';
+    position: absolute;
+    /* Straddle the halo's bottom edge, flush right. Centring it on that edge parks
+       as much of the chip as will fit in the halo + the block's own bottom margin
+       — dead space — rather than dropping it a full line lower. It still clips the
+       top of the following line; that is the accepted cost of not displacing it.
+       The offset is half of a ONE-line chip, not -50% of the actual box: once the
+       chip wraps in a narrow pane, -50% would grow half the extra height UPWARD,
+       over the caret line of the very block you are typing in. Anchored this way,
+       wrapped lines only ever extend downward, into space the design already
+       accepts covering. */
+    --inline-edit-hint-line: calc(1.4 * var(--font-size-xs) + 2 * var(--sp-2) + 2px);
+    top: calc(100% + var(--inline-edit-halo, var(--sp-6)));
+    right: calc(-1 * var(--inline-edit-halo, var(--sp-6)));
+    transform: translateY(calc(-0.5 * var(--inline-edit-hint-line)));
+    /* Above the following block's prose (which is z-index: auto) so the chip
+       occludes rather than overprints, but BELOW the trash buttons at 20 — the
+       chip shares their x-column, and a hint must never hide the control the user
+       is reaching for. */
+    z-index: var(--z-internal);
     font-size: var(--font-size-xs);
-    color: var(--text-muted, #666);
-    margin-top: var(--sp-2);
-    padding: var(--sp-2) var(--sp-8);
-    opacity: 0.7;
-    order: 2;
-}
-
-.preview-rendered [data-selectable].inline-editing {
-    display: flex;
-    flex-direction: column;
+    line-height: 1.4;
+    color: var(--text-muted);
+    /* Opaque chip, right-aligned: since it floats over the following paragraph
+       instead of displacing it, it has to occlude that text rather than blend
+       into it — a translucent hint here renders as two strings of prose
+       overprinted on each other.
+       It wraps rather than running off: the chip is anchored by its RIGHT edge, so
+       a nowrap chip grows leftward, and left overflow is not scrollable overflow in
+       LTR — in a narrow pane the "Enter -> save" half was clipped away permanently,
+       hiding the one key that commits. */
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-2) var(--sp-6);
+    pointer-events: none;
+    max-width: calc(100% + 2 * var(--inline-edit-halo, var(--sp-6)));
 }

@@ -1,10 +1,10 @@
 # HTTP & WebSocket API
 
-A practical scripting reference for the bridge's HTTP endpoints and WebSocket protocols.
+A practical scripting reference for pAInapple Code's HTTP endpoints and WebSocket protocols.
 
 ## Authentication for scripts
 
-Every endpoint requires the bridge password except a small public allowlist (`/health`, `/login`, `/sw.js`, and a few login-page assets). For scripts and `curl`, send it as a Bearer token — the password lives in `~/.config/painapple-code/config.yaml`:
+Every endpoint requires the server password except a small public allowlist (`/health`, `/login`, `/sw.js`, and a few login-page assets). For scripts and `curl`, send it as a Bearer token — the password lives in `~/.config/painapple-code/config.yaml`:
 
 ```bash
 # Liveness check — no auth required
@@ -30,7 +30,7 @@ Not exhaustive — a map of where things live, with representative routes.
 | Logs | `/api/sessions/{id}/logs` | `…/logs/messages`, `…/logs/raw`, `…/logs/tools`, `GET /api/sessions/{id}/changes` |
 | Files | `/api/files`, `/api/file` | Directory listing (`GET /api/files?path=…`), `GET /api/file?path=…`, `POST /api/file/write` |
 | Git | `/api/git` | Status, diff, log, show |
-| Bridge | `/api/bridge` | `GET/POST /api/bridge/tabs`, `GET /api/bridge/presets`, `GET/PUT /api/bridge/config`, `GET /api/info` |
+| Server | `/api/bridge` | `GET/POST /api/bridge/tabs`, `GET /api/bridge/presets`, `GET/PUT /api/bridge/config`, `GET /api/info` |
 | Project config | `/api/project` | `GET/PUT /api/project/config`, `POST /api/project/rename` |
 | Stash | `/api/session/{id}/stash` | GET/POST/DELETE stash items; `GET /api/favorites` |
 | Welcome | `/api/welcome` | `GET /api/welcome/sessions`, `POST /api/welcome/search`, `GET /api/welcome/projects` |

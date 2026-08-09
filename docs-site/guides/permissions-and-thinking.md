@@ -32,13 +32,13 @@ The default mode is **Ask** — reads run freely, but every edit and command wai
 
 ### Per-session, with a default
 
-Your chosen mode is saved with the session and restored when you reopen it. On the default SDK engine a mode switch applies **immediately, even mid-turn** — the running engine changes gear in place, so you can flip to Accept Edits while approval cards are stacking up and the rest of the turn follows the new mode (the system log confirms "applied to the running engine"). On the classic line-protocol engine — or whenever the live switch isn't possible — it takes effect on your next message instead, when the bridge respawns the idle Claude process with the new mode. The **Set as default** button in the popup makes the current mode the global default for new sessions (also editable in Settings).
+Your chosen mode is saved with the session and restored when you reopen it. On the default SDK engine a mode switch applies **immediately, even mid-turn** — the running engine changes gear in place, so you can flip to Accept Edits while approval cards are stacking up and the rest of the turn follows the new mode (the system log confirms "applied to the running engine"). On the classic line-protocol engine — or whenever the live switch isn't possible — it takes effect on your next message instead, when the server respawns the idle Claude process with the new mode. The **Set as default** button in the popup makes the current mode the global default for new sessions (also editable in Settings).
 
 ### Plan mode and plan approval
 
 In **Plan** mode Claude explores read-only and ends with a plan. The plan renders as an interactive approval card — approve it and the session drops out of plan mode to execute; reject it and you stay planning. Tabs show a *Plan ready for review* badge while a plan waits. You can also enter plan mode for a single message by typing `/plan ` in the input — see [input modes](input-and-commands.md#input-modes).
 
-Related: when Claude asks a clarifying question mid-turn (AskUserQuestion), the bridge by default stops it so you can answer — see [When Claude asks you a question](sessions.md#when-claude-asks-you-a-question).
+Related: when Claude asks a clarifying question mid-turn (AskUserQuestion), pAInapple Code by default stops it so you can answer — see [When Claude asks you a question](sessions.md#when-claude-asks-you-a-question).
 
 ## Effort levels
 
