@@ -53,7 +53,7 @@ Every verb takes the profile name and dispatches on its mode:
 | `painapple --profile NAME` | run in the foreground | run the container in the foreground (`--rm`) |
 | `painapple status NAME` | config + running PID + URL | config + container state + URL + password |
 | `painapple logs NAME` | tail `server.log` / `console.log` | follow container logs |
-| `painapple password [NAME]` | login URL + password from the bridge config | same, read from the container/volume |
+| `painapple password [NAME]` | login URL + password from the server config | same, read from the container/volume |
 | `painapple shell NAME` | — (it's just this machine) | shell inside the container |
 | `painapple claude-login NAME` | — | run `claude login` inside the container |
 | `painapple extract NAME [DEST]` | — | copy the data volume to a host directory |
@@ -83,7 +83,7 @@ config_volume: ~/.config/painapple-code/docker-work
 claude_home: ~/.painapple-code/shared/.claude
 ```
 
-Shared keys use the serve vocabulary (`host` = bind, `tls`, `port`, `workspace`, `instance_name`, `accent`); docker mode adds its own. Docker profiles get **collision-free defaults** derived from the name — container `painapple-code-NAME`, volume `painapple-data-NAME`, bridge config `~/.config/painapple-code/docker-NAME` — while `claude_home` defaults to the shared isolated directory so one `claude login` serves every sandbox. Per-profile `runtime`/`runtime_flags` override the global ones when set.
+Shared keys use the serve vocabulary (`host` = bind, `tls`, `port`, `workspace`, `instance_name`, `accent`); docker mode adds its own. Docker profiles get **collision-free defaults** derived from the name — container `painapple-code-NAME`, volume `painapple-data-NAME`, server config `~/.config/painapple-code/docker-NAME` — while `claude_home` defaults to the shared isolated directory so one `claude login` serves every sandbox. Per-profile `runtime`/`runtime_flags` override the global ones when set.
 
 For **host** profiles the directory is the whole data home — sessions, shadow DB, logs, everything. Isolation isn't cosmetic: the DuckDB turn store is single-writer, so two servers can never share one home. If the profile doesn't set an `instance_name`, the profile name becomes the UI label.
 

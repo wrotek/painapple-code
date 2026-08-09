@@ -4,7 +4,7 @@ Here's what you need before installing pAInapple Code, and a frank note on what 
 
 ## What you need
 
-Running the bridge directly on a host (pip / pipx / source checkout):
+Running the server directly on a host (pip / pipx / source checkout):
 
 - **Python 3.12+**
 - **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and authenticated — either a Claude subscription (`claude login`) or an Anthropic API key

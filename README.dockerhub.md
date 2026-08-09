@@ -125,7 +125,7 @@ For the strongest guarantee, pin by digest: `wrotek/painapple-code@sha256:…`.
 
 | Port | Protocol | Purpose |
 |---|---|---|
-| `8765` | HTTP + WebSocket | Bridge UI and API. The image listens on `0.0.0.0:8765` inside the container; the host port mapping is what gates network exposure. |
+| `8765` | HTTP + WebSocket | pAInapple Code UI and API. The image listens on `0.0.0.0:8765` inside the container; the host port mapping is what gates network exposure. |
 
 ## Authentication
 

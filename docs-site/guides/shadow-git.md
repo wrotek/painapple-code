@@ -4,7 +4,7 @@ Every turn you run through pAInapple Code can be recorded — the file changes a
 
 ## What it is
 
-Shadow Git is a **parallel git repository per project**, stored under the bridge's data directory (`~/.painapple-code/projects/{hash}/shadow-git/`) — completely separate from your project's `.git`. After each turn in which Claude touched files, the bridge stages everything and commits it to the shadow repo.
+Shadow Git is a **parallel git repository per project**, stored under the server's data directory (`~/.painapple-code/projects/{hash}/shadow-git/`) — completely separate from your project's `.git`. After each turn in which Claude touched files, the server stages everything and commits it to the shadow repo.
 
 A few properties worth internalizing:
 
@@ -16,7 +16,7 @@ A few properties worth internalizing:
 
 ## Rich commits: the Haiku auto-journal
 
-On top of the raw commits sits the second layer: **rich commits**. After each turn, the bridge forks a background summarizer (Haiku by default; the model is configurable per [engine](engines.md) in **Settings → Engines** — the fork runs on the session's own engine, so Codex sessions self-summarize with a Codex model) that reads the turn — with the running "journey" context of previous turn summaries — and writes a structured commit message: a one-line summary, tags, plus sections like *work done*, *investigation*, *findings*, *decisions*, *problems solved*, *verification*, and *learnings*. You can customize which sections are generated per project.
+On top of the raw commits sits the second layer: **rich commits**. After each turn, the server forks a background summarizer (Haiku by default; the model is configurable per [engine](engines.md) in **Settings → Engines** — the fork runs on the session's own engine, so Codex sessions self-summarize with a Codex model) that reads the turn — with the running "journey" context of previous turn summaries — and writes a structured commit message: a one-line summary, tags, plus sections like *work done*, *investigation*, *findings*, *decisions*, *problems solved*, *verification*, and *learnings*. You can customize which sections are generated per project.
 
 Everything is parsed and stored in a local DuckDB alongside the git data, so it's queryable: every turn's prompt, cost, tokens, duration, model, files touched, tools used, tags, and all the generated sections.
 
@@ -36,7 +36,7 @@ Click the **Auto-journal** pill in the status bar (or open the *Helpers* widget)
 - **Sections** — choose which generated sections rich commits include for this project.
 - A link to system settings sets the defaults new projects inherit.
 
-The same panel installs the [optional helpers](../reference/optional-helpers.md) — the `shadow-git` and `shadow-query` CLIs and the `shadow-git-helper` agent. The journal records regardless; the helpers just add ways to query it. Installation is user-scoped (files in your home directory on the bridge server, no sudo) and the pill warns you when installed copies are outdated.
+The same panel installs the [optional helpers](../reference/optional-helpers.md) — the `shadow-git` and `shadow-query` CLIs and the `shadow-git-helper` agent. The journal records regardless; the helpers just add ways to query it. Installation is user-scoped (files in your home directory on the server, no sudo) and the pill warns you when installed copies are outdated.
 
 ## Browsing: the Journal widget
 
@@ -70,7 +70,7 @@ Or skip the plumbing and ask Claude: *"restore utils.py to how it was before the
 
 ## Querying the journal
 
-For questions the widgets don't answer, go straight at the DuckDB. The `shadow-query` helper wraps the bridge's read-only SQL endpoint (`POST /api/shadow-db/sql` — any DDL/DML is rejected):
+For questions the widgets don't answer, go straight at the DuckDB. The `shadow-query` helper wraps the server's read-only SQL endpoint (`POST /api/shadow-db/sql` — any DDL/DML is rejected):
 
 ```bash
 shadow-query "SELECT started_at, user_prompt[:80], cost, model

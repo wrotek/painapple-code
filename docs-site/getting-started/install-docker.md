@@ -53,7 +53,7 @@ docker logs painapple-code 2>&1 | grep -E 'http(s)?://' | head -1   # bootstrap 
 | `:edge` | Manual builds off `main` |
 
 !!! note "Published image and UIDs (Linux)"
-    The published image bakes in `USER_UID=1000`, but it doesn't have to stay there: started through `painapple` (or with `PAINAPPLE_UID`/`PAINAPPLE_GID` set), the entrypoint re-stamps its `app` user to whoever owns your mounts and drops privileges before the bridge starts, and Podman gets the host user remapped straight onto that UID. So a pulled image works on any host UID without a rebuild. Building locally (Option C) skips the step entirely by baking your own UID in.
+    The published image bakes in `USER_UID=1000`, but it doesn't have to stay there: started through `painapple` (or with `PAINAPPLE_UID`/`PAINAPPLE_GID` set), the entrypoint re-stamps its `app` user to whoever owns your mounts and drops privileges before the server starts, and Podman gets the host user remapped straight onto that UID. So a pulled image works on any host UID without a rebuild. Building locally (Option C) skips the step entirely by baking your own UID in.
 
 ## Option C — build from source with `painapple-docker.sh` (clone the repo)
 
@@ -127,7 +127,7 @@ Open `http://localhost:8765/` in a browser. The first run logs a bootstrap URL w
 
 | Mount target in container | Purpose |
 |---------------------------|---------|
-| `/data` | Bridge state (sessions, shadow DB, logs, presets, uploads) via `PAINAPPLE_CODE_HOME=/data`. Back up this one volume to back up everything. |
+| `/data` | Server state (sessions, shadow DB, logs, presets, uploads) via `PAINAPPLE_CODE_HOME=/data`. Back up this one volume to back up everything. |
 | `/home/app/.config/painapple-code` | Auth config — the generated password. Persist it so stop/start keeps the same login. |
 | `/home/app/.claude` | Container-local Claude CLI state (OAuth, history). Defaults to an isolated host path so the container never writes into your host's `~/.claude`. Mount `$HOME/.claude` instead to share state with your host CLI, or drop the mount and set `ANTHROPIC_API_KEY` for headless deploys. |
 | `/workspace` | **Required.** Your project directory — where Claude reads and edits files. Mount a single repo or a parent directory of many. |
@@ -147,7 +147,7 @@ They land in `/data/npm-global`, on the persistent volume, owned by the unprivil
 | `PAINAPPLE_AGENT_CLIS` | Override the set: space-separated `binary=npm-spec` pairs. Default `claude=@anthropic-ai/claude-code@2 codex=@openai/codex@latest`. Drop one to skip it, or pin an exact version. |
 | `PAINAPPLE_AGENT_CLI_PREFIX` | Install location. Default `/data/npm-global`. |
 
-A CLI already on `PATH` is left alone, checked per binary — so a baked-in `claude` doesn't suppress the `codex` install. A failed install is **not** fatal: the bridge still starts and serves the UI, terminal, git panel and history; only prompting that engine fails, with an explanation in the container log.
+A CLI already on `PATH` is left alone, checked per binary — so a baked-in `claude` doesn't suppress the `codex` install. A failed install is **not** fatal: the server still starts and serves the UI, terminal, git panel and history; only prompting that engine fails, with an explanation in the container log.
 
 !!! tip "Air-gapped hosts"
     Bake the CLIs into a derived image — the already-on-`PATH` check then leaves them alone:

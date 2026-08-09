@@ -14,12 +14,12 @@ Why bother, instead of a browser tab:
 
 - **Standalone mode** — no browser chrome, full-screen app, and shortcuts like ++cmd+r++ work as in-app bindings.
 - **Offline fallback** — a service worker precaches the app shell; if the server is unreachable you get a proper offline page instead of a browser error, and cached assets keep loads fast.
-- **Per-instance icons and names** — a bridge started with `--instance-name DEV --accent red` serves a manifest named "pAInapple Code DEV" with tinted icons, so multiple installed instances stay visually distinct on your home screen ([Server CLI](../reference/server-cli.md)).
+- **Per-instance icons and names** — an instance started with `--instance-name DEV --accent red` serves a manifest named "pAInapple Code DEV" with tinted icons, so multiple installed instances stay visually distinct on your home screen ([Server CLI](../reference/server-cli.md)).
 - **App shortcut** — long-press the icon for a **New Session** shortcut that opens the app straight into a fresh session.
 
 ## Reaching the server from a device
 
-Your phone or tablet needs a route to the bridge — `localhost` won't cut it:
+Your phone or tablet needs a route to the server — `localhost` won't cut it:
 
 - **Bind beyond loopback** — start the server with `--host 0.0.0.0` (or a LAN IP). Binding a non-loopback host auto-enables TLS with a self-signed certificate; the browser shows a one-time certificate warning you accept on first visit.
 - **Or put a reverse proxy in front** — Caddy/nginx/Tailscale with a real certificate gives you a clean HTTPS origin, which PWAs and service workers prefer.

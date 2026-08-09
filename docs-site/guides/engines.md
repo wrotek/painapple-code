@@ -1,6 +1,6 @@
 # AI engines (Claude & Codex)
 
-Every session runs on an **engine** — the AI CLI the bridge drives under the hood. The default is Claude Code via the official Agent SDK, but the bridge can also drive the **OpenAI Codex CLI**, and you pick per session: a Claude tab and a Codex tab can sit side by side in the same strip, each with its own models, permission vocabulary, and effort scale.
+Every session runs on an **engine** — the AI CLI pAInapple Code drives under the hood. The default is Claude Code via the official Agent SDK, but it can also drive the **OpenAI Codex CLI**, and you pick per session: a Claude tab and a Codex tab can sit side by side in the same strip, each with its own models, permission vocabulary, and effort scale.
 
 ## The engines
 

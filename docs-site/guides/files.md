@@ -66,12 +66,12 @@ Press ++alt+b++ for a small in-app browser — handy for checking the HTML repor
 It has two modes, picked automatically from what you type in the URL bar:
 
 - **Local files** — enter a path (or use **Open in Browser** from the file explorer) and the server renders the HTML with its relative assets intact.
-- **External URLs** — fetched through a same-origin proxy on the bridge that strips frame-blocking headers (`X-Frame-Options` and friends) and rewrites sub-resources, so most sites load inside the widget. The shield toggle next to the URL bar switches the proxy off for direct loading — better fidelity, but frame-blocking sites will refuse to render.
+- **External URLs** — fetched through a same-origin proxy on the server that strips frame-blocking headers (`X-Frame-Options` and friends) and rewrites sub-resources, so most sites load inside the widget. The shield toggle next to the URL bar switches the proxy off for direct loading — better fidelity, but frame-blocking sites will refuse to render.
 
 Back/forward/reload/home buttons work as you'd expect, and like the terminal, each chat session keeps its own URL and history. Buttons at the end of the URL bar hand the page off to the file preview or your system browser.
 
 !!! note "Sandboxed by design"
-    Pages always run in a sandboxed iframe with a null origin: scripts execute, but they can't read bridge cookies or call authenticated APIs, can't open popups, and can't navigate the app away. Treat it as a viewer, not a full browser — logins and complex web apps generally won't work through the proxy.
+    Pages always run in a sandboxed iframe with a null origin: scripts execute, but they can't read the server's cookies or call authenticated APIs, can't open popups, and can't navigate the app away. Treat it as a viewer, not a full browser — logins and complex web apps generally won't work through the proxy.
 
 ## Uploaded files
 

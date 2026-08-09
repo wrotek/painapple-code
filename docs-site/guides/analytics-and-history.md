@@ -63,9 +63,9 @@ Four actions per card:
 
 A few more panels for looking under the hood:
 
-**Log explorer** (++alt+l++) — the current session's logs in three tabs: parsed **Messages**, the **Raw** JSON stream between the bridge and the CLI (rendered as a collapsible JSON tree), and large **Tools** outputs stored on disk. Supports pagination, role/error filtering, and sort order toggling — the closest thing to a flight recorder for a session.
+**Log explorer** (++alt+l++) — the current session's logs in three tabs: parsed **Messages**, the **Raw** JSON stream between the server and the CLI (rendered as a collapsible JSON tree), and large **Tools** outputs stored on disk. Supports pagination, role/error filtering, and sort order toggling — the closest thing to a flight recorder for a session.
 
-**Active sessions** (++alt+s++) — a monitor of every Claude process the bridge is running: your sessions with their process state, background instances (like the Shadow Git summary forks) with history, and aggregate success-rate stats.
+**Active sessions** (++alt+s++) — a monitor of every Claude process the server is running: your sessions with their process state, background instances (like the Shadow Git summary forks) with history, and aggregate success-rate stats.
 
 **Sub-agents** — a runtime monitor for Task-tool sub-agents in the current session: each spawned agent as a card with its status, token usage, and an expandable log of the tool calls it made. (Distinct from the Agents widget, which manages agent *definition* files.)
 

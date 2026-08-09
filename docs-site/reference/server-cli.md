@@ -47,7 +47,7 @@ Defaults shown are the built-ins — values saved by [`painapple setup`](#saved-
 | `--tls` | `auto` | TLS mode: `auto`, `on`, or `off` (see below) |
 | `--tls-cert` | `<config-dir>/cert.pem` | TLS certificate path (auto-generated if missing) |
 | `--tls-key` | `<config-dir>/key.pem` | TLS key path (auto-generated if missing) |
-| `--public-origin` | — | Extra trusted browser origin for the CSRF/Origin gate, e.g. `https://claude.example.com`. Repeatable. **Usually unnecessary** — the server already accepts any request whose `Origin` matches the host it was reached on (proxied hostname or LAN IP, zero config). Only needed for a *genuinely cross-origin* front-end served from a different host than the bridge. |
+| `--public-origin` | — | Extra trusted browser origin for the CSRF/Origin gate, e.g. `https://claude.example.com`. Repeatable. **Usually unnecessary** — the server already accepts any request whose `Origin` matches the host it was reached on (proxied hostname or LAN IP, zero config). Only needed for a *genuinely cross-origin* front-end served from a different host than the server. |
 
 See [Origin/CSRF boundary](#origincsrf-boundary) below for how the trusted-origin
 set is built and when you need this flag.
@@ -77,11 +77,11 @@ set is built and when you need this flag.
 - When TLS is enabled, a self-signed certificate is auto-generated at `<config-dir>/cert.pem` / `key.pem` (next to the auth config file). There is no OS trust-store install; browsers show a one-time certificate warning.
 
 !!! warning "Non-loopback binds"
-    Binding to a non-loopback host also makes the server trust `X-Forwarded-Proto` from any client (`forwarded_allow_ips` is `*`). For real exposure, put the bridge behind a reverse proxy that sets that header itself — see [Read this first](../getting-started/security.md).
+    Binding to a non-loopback host also makes the server trust `X-Forwarded-Proto` from any client (`forwarded_allow_ips` is `*`). For real exposure, put the server behind a reverse proxy that sets that header itself — see [Read this first](../getting-started/security.md).
 
 ## Filesystem access
 
-The bridge browses, reads and **writes** anywhere its OS user can — your home
+pAInapple Code browses, reads and **writes** anywhere its OS user can — your home
 directory, `/data`, `/srv`, a NAS mount, Docker's `/workspace`, wherever. There
 is no path allowlist. The only exclusions are `/proc`, `/sys` and `/dev`, which
 are skipped for practical reasons (kernel-special files like the 128 TB
@@ -92,7 +92,7 @@ past the [password gate](../getting-started/security.md), and an authenticated
 session comes with a full PTY terminal, `!bang` shell commands, and an agent
 running as the same user. A path allowlist on the editor would stop nothing that
 isn't one shell line away, while breaking legitimate edits to projects outside
-`$HOME`. **Unix file permissions are the real boundary** — run the bridge as a
+`$HOME`. **Unix file permissions are the real boundary** — run the server as a
 user that can only touch what you're willing to expose, and don't run it as root.
 
 ## Environment variables
@@ -104,14 +104,14 @@ user that can only touch what you're willing to expose, and don't run it as root
 | `PAINAPPLE_CODE_CONFIG` | Override the config directory (default `~/.config/painapple-code`) — where `config.yaml` and the auto-generated TLS cert/key live. |
 | `BRIDGE_ALLOWED_ORIGINS` | Comma-separated list of extra trusted browser origins for the CSRF/Origin gate **and** the CORS allow-list (see [Origin/CSRF boundary](#origincsrf-boundary)). Unlike `--public-origin`, this also drives CORS and `TrustedHostMiddleware`. Rarely needed — same-origin traffic is accepted with no config. |
 | `PAINAPPLE_ENABLE_RENDERERS` | Set to `1`/`true` to enable server-side chart/diagram rendering (same as `--enable-renderers`; off by default — see the flag). |
-| `FORWARDED_ALLOW_IPS` | Comma-separated peers whose `X-Forwarded-*` headers uvicorn trusts. Defaults to `127.0.0.1,::1` (a local reverse proxy). Set to your proxy's address if it isn't loopback; only set `*` if the bridge is never directly reachable. |
+| `FORWARDED_ALLOW_IPS` | Comma-separated peers whose `X-Forwarded-*` headers uvicorn trusts. Defaults to `127.0.0.1,::1` (a local reverse proxy). Set to your proxy's address if it isn't loopback; only set `*` if the server is never directly reachable. |
 | `PAINAPPLE_REVEAL_CMD` | Exact "reveal password" command shown verbatim on the login page. Launchers (the Docker wrapper) set this because they know the host-side container name and engine; unset, the page falls back to a per-environment guess. |
 | `PAINAPPLE_IN_CONTAINER` | Set to `1` inside the official image. Gates the filesystem probes that distinguish Docker from Podman for the login page's environment detection — never set this on a bare-metal host. |
 
 ## Origin/CSRF boundary
 
 Any authenticated client can reach `/api/exec` (arbitrary shell as the server
-user), so the bridge guards state-changing requests that carry an **ambient**
+user), so the server guards state-changing requests that carry an **ambient**
 credential (the `bridge_auth` cookie or a `?tkn=`) against cross-site forgery.
 A `Authorization: Bearer` request sets its credential explicitly and is exempt.
 
@@ -126,7 +126,7 @@ A request is accepted when **any** of these hold:
    `BRIDGE_ALLOWED_ORIGINS`).
 
 You only need `--public-origin`/`BRIDGE_ALLOWED_ORIGINS` for a **genuinely
-cross-origin** front-end — a page served from a *different* host than the bridge
+cross-origin** front-end — a page served from a *different* host than the server
 that must call it with credentials. `BRIDGE_ALLOWED_ORIGINS` additionally
 configures the CORS allow-list and (when set) the `Host`-header allow-list;
 `--public-origin` affects only the Origin gate.
@@ -186,7 +186,7 @@ painapple start work --port 9001   # extra serve flags apply to THIS start only 
 
 `painapple status NAME`, `painapple logs NAME`, and `painapple password [NAME]` inspect any deployment — host or docker — without touching it. `status` also takes an unmanaged process's label, PID, or port, and a bare `painapple status` is the [fleet view](#the-fleet-view-painapple-list) (`painapple status default` is the root deployment's own detail block).
 
-With no NAME `logs`/`password` target the **root** deployment, which is the host one. The ad-hoc `painapple --in-docker` sandbox has no name to select it by, so it takes the mode flag instead: `painapple password --in-docker`, `painapple logs --in-docker`. (Its own login page prints the right command for you.) If no host bridge has ever run and the sandbox is up, a bare `painapple password` answers for the sandbox rather than reporting nothing.
+With no NAME `logs`/`password` target the **root** deployment, which is the host one. The ad-hoc `painapple --in-docker` sandbox has no name to select it by, so it takes the mode flag instead: `painapple password --in-docker`, `painapple logs --in-docker`. (Its own login page prints the right command for you.) If no host server has ever run and the sandbox is up, a bare `painapple password` answers for the sandbox rather than reporting nothing.
 
 ## Running multiple instances (manual flags)
 

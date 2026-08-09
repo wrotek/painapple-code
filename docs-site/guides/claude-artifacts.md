@@ -48,7 +48,7 @@ The header has two extra buttons: a wrench that jumps to the [Plugins manager](#
 
 Open with ++alt+shift+k++. This is the full slash-command catalog — everything the `/` picker can complete — grouped into five origins:
 
-- **Built-in (Claude CLI)** — the CLI's own commands plus the bridge's client-side commands (`/help`, `/fork`, …). Read-only.
+- **Built-in (Claude CLI)** — the CLI's own commands plus pAInapple Code's client-side commands (`/help`, `/fork`, …). Read-only.
 - **Project** — legacy single-file commands at `.claude/commands/<name>.md` in the project.
 - **Personal** — the same, in `~/.claude/commands/`.
 - **Plugin** — commands shipped by installed plugins. Read-only.

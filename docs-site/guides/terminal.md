@@ -5,7 +5,7 @@ A real PTY in your browser — xterm.js on the front, a persistent shell process
 ![The embedded terminal running ls, git status and a test suite inside the web client](../assets/terminal.gif)
 
 !!! danger "This is a real shell"
-    The terminal is not a sandbox: it runs as the same OS user as the bridge server, with that user's full filesystem and network access. Anyone who can log into your bridge can run arbitrary commands. Read [the security notes](../getting-started/security.md) before exposing the server beyond localhost.
+    The terminal is not a sandbox: it runs as the same OS user as the server, with that user's full filesystem and network access. Anyone who can log into pAInapple Code can run arbitrary commands. Read [the security notes](../getting-started/security.md) before exposing the server beyond localhost.
 
 ## Opening and toggling
 
