@@ -155,15 +155,19 @@ def _resolve_path(scope: str, name: str, cwd: str, allow_plugin: bool = False) -
 async def list_commands(cwd: str):
     """List built-in CLI commands and legacy `.md` files."""
     # Lazy import to avoid load-order issues
-    from painapple_code.routes.api_project_config import _cli_command_descriptions, _get_command_descriptions
+    from painapple_code.routes.api_project_config import cli_command_descriptions, _get_command_descriptions
 
     resolved_cwd = str(safe_resolve(cwd))
+    # Off the event loop — scanning the CLI bundle takes ~2s on a cold
+    # cache. Every lookup after this hits the memo, including the sync
+    # `_get_command_descriptions` below.
+    builtin_descriptions = await cli_command_descriptions()
     descriptions = _get_command_descriptions(resolved_cwd)
     commands: list[dict[str, Any]] = []
     counts = {"builtin": 0, "project": 0, "personal": 0, "plugin": 0}
 
     # Built-in CLI commands (read-only — extracted from binary)
-    for name, desc in sorted(_cli_command_descriptions().items()):
+    for name, desc in sorted(builtin_descriptions.items()):
         commands.append({
             "id": f"builtin:{name}",
             "name": name,
@@ -218,8 +222,8 @@ async def list_commands(cwd: str):
 async def get_command(scope: str, name: str, cwd: str):
     """Return full command metadata + body. Builtins return description only."""
     if scope == "builtin":
-        from painapple_code.routes.api_project_config import _cli_command_descriptions
-        cli_descriptions = _cli_command_descriptions()
+        from painapple_code.routes.api_project_config import cli_command_descriptions
+        cli_descriptions = await cli_command_descriptions()
         if name not in cli_descriptions:
             raise HTTPException(status_code=404, detail=f"Built-in command {name!r} not found")
         return {
