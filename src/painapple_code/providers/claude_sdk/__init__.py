@@ -90,8 +90,17 @@ class ClaudeSdkProvider(ClaudeProvider):
         cmd = [
             sys.executable, "-u", "-m",
             "painapple_code.providers.claude_sdk.driver",
-            "--cli-path", self.binary(),
         ]
+        # win32 + bare default: omit --cli-path so the SDK's _find_cli()
+        # discovers the CLI — it prefers a native claude.exe (bundled or
+        # installed) and refuses npm's claude.cmd shim with a curated
+        # remediation (CVE-2024-27980 class); which-resolving "claude" here
+        # would hand the SDK exactly the shim it's designed to reject.
+        # POSIX keeps passing the resolved system binary unconditionally —
+        # omitting it would let the SDK prefer its _bundled/ CLI over the
+        # user's installed claude, a silent version switch.
+        if sys.platform != "win32" or self.binary() != self.default_binary:
+            cmd.extend(["--cli-path", self.binary()])
 
         if opts.model:
             cmd.extend(["--model", opts.model])

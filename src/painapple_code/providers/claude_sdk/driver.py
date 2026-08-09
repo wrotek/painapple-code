@@ -192,7 +192,9 @@ async def _amain(args: argparse.Namespace) -> int:
         fork_session=args.fork_session,
         # The bridge already sets cwd on the driver process; pin the CLI to it.
         cwd=os.getcwd(),
-        cli_path=shutil.which(args.cli_path) or args.cli_path,
+        # None → the SDK's _find_cli() discovers (and on win32 vets) the CLI;
+        # an explicit config value is which-resolved as before.
+        cli_path=(shutil.which(args.cli_path) or args.cli_path) if args.cli_path else None,
         # Restore thinking summaries on all models (see providers/claude/launch.py).
         extra_args={"thinking-display": "summarized"},
         # Mirror CLI stderr onto ours so the bridge's classifier sees the exact
@@ -381,7 +383,7 @@ def main() -> None:
         from painapple_code.utils.proc import force_utf8_stdio
         force_utf8_stdio()
     parser = argparse.ArgumentParser(description="painapple-code Agent SDK driver")
-    parser.add_argument("--cli-path", default="claude")
+    parser.add_argument("--cli-path", default=None)  # None → SDK _find_cli()
     parser.add_argument("--model", default=None)
     parser.add_argument("--fallback-model", default=None)
     parser.add_argument("--effort", default=None)
