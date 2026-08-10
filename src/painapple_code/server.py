@@ -139,11 +139,16 @@ async def lifespan(app: FastAPI):
     # a from-source install, never a wheel (which ships a bundle already).
     if not _bundle_path() and not os.environ.get("PAINAPPLE_NO_BUNDLE"):
         if (REPO_ROOT / "build-frontend.sh").is_file():
-            logger.info(
-                "Frontend is not bundled — a cold page load fetches ~190 modules. "
-                "Run ./build-frontend.sh to serve a single bundle instead "
-                "(re-run it after frontend changes; --clean to undo)."
-            )
+            how = "Run ./build-frontend.sh (--clean to undo)"
+        else:
+            # Installed from source without npm on PATH — the build hook in
+            # setup.py skipped the bundle. Reinstalling with Node present
+            # produces one; there is no checkout here to build from.
+            how = "Install Node and reinstall to get a bundled build"
+        logger.info(
+            "Frontend is not bundled — a cold page load fetches ~190 modules. "
+            f"{how}."
+        )
     yield
     if bridge and bridge._cleanup_task:
         bridge._cleanup_task.cancel()
@@ -190,11 +195,16 @@ def _bundle_path() -> Optional[Path]:
     PAINAPPLE_NO_BUNDLE=1 forces per-file serving even when a bundle exists,
     so a packaged install can still be debugged against readable sources.
 
-    A bundle older than the newest module is treated as absent. In a wheel or
-    image the bundle is always built last, so this only fires in a checkout
-    where someone ran `npm run build:app` and then edited a source — there,
-    serving the stale bundle would silently swallow the edit while the version
-    digest moved. Falling back to loose modules keeps edit->refresh honest.
+    In a checkout, a bundle older than the newest module is treated as absent:
+    someone built it and then edited a source, and serving the stale bundle
+    would silently swallow the edit while the version digest moved. Falling
+    back to loose modules keeps edit->refresh honest.
+
+    That check is deliberately scoped to a checkout, identified by the build
+    script sitting next to the package. An installed package has no editable
+    sources, and every file lands at install time in whatever order the
+    installer unpacked them — mtimes there carry no signal at all, and
+    comparing them rejected the shipped bundle essentially at random.
     """
     global _bundle_stale_logged
     if os.environ.get("PAINAPPLE_NO_BUNDLE"):
@@ -202,6 +212,8 @@ def _bundle_path() -> Optional[Path]:
     p = PACKAGE_DIR / "static" / _BUNDLE_REL
     if not p.is_file():
         return None
+    if not (REPO_ROOT / "build-frontend.sh").is_file():
+        return p
     try:
         built = p.stat().st_mtime_ns
         newest = max(
