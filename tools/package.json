@@ -5,7 +5,6 @@
   "scripts": {
     "postinstall": "npm run build",
     "build": "npm run build:codemirror && npm run build:xterm && npm run build:marked && npm run build:dompurify && npm run build:highlight && npm run build:github-markdown && npm run build:legal",
-    "build:app": "node build-app.mjs",
     "build:legal": "node gen-copied-legal.mjs ../src/painapple_code/static/vendor/LICENSES.txt",
     "build:codemirror": "esbuild codemirror-entry.js --bundle --format=esm --minify --target=es2020 --legal-comments=external --metafile=codemirror-meta.json --outfile=../src/painapple_code/static/vendor/codemirror.js && node gen-vendor-legal.mjs codemirror-meta.json ../src/painapple_code/static/vendor/codemirror.js.LEGAL.txt && rm -f codemirror-meta.json",
     "build:xterm": "cp node_modules/xterm/lib/xterm.js ../src/painapple_code/static/vendor/xterm.js && cp node_modules/xterm/css/xterm.css ../src/painapple_code/static/vendor/xterm.css && cp node_modules/xterm-addon-fit/lib/xterm-addon-fit.js ../src/painapple_code/static/vendor/xterm-addon-fit.js",
@@ -49,7 +48,6 @@
     "github-markdown-css": "^5",
     "marked": "4.3.0",
     "xterm": "^5",
-    "xterm-addon-fit": "^0.8",
-    "yaml": "^2.9.0"
+    "xterm-addon-fit": "^0.8"
   }
 }

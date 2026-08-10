@@ -20,7 +20,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { parse as parseYaml } from 'yaml';
 
-const PKG = path.resolve(import.meta.dirname, '../src/painapple_code');
+const PKG = path.resolve(import.meta.dirname, '../../src/painapple_code');
 const JS_DIR = path.join(PKG, 'static/js');
 const outArg = process.argv.indexOf('--out');
 const OUT_DIR = outArg > -1 ? path.resolve(process.argv[outArg + 1]) : path.join(PKG, 'static/dist');

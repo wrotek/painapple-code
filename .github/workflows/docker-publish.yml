@@ -142,14 +142,10 @@ jobs:
               with:
                   node-version: "20"
 
+            # Same script a from-source deploy runs, so there is one build path
+            # and CI exercises it. Installs only esbuild + yaml (~7 MB).
             - name: Build frontend bundle
-              working-directory: tools
-              run: |
-                  # --ignore-scripts skips this package's postinstall (which
-                  # rebuilds the committed vendor bundles); esbuild still works,
-                  # its binary ships as an optional dependency.
-                  npm ci --ignore-scripts
-                  npm run build:app
+              run: ./build-frontend.sh
 
             - name: Build and push
               id: build
