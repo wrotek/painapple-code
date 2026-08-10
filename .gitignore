@@ -38,6 +38,11 @@ package-lock.json
 !tools/package.json
 !tools/package-lock.json
 
+# ...as does tools/bundler/ (esbuild + yaml only — the frontend bundler is
+# kept separate so a from-source deploy needn't build native modules)
+!tools/bundler/package.json
+!tools/bundler/package-lock.json
+
 # And tauri-app/ has its own tracked package.json & lockfile (native app shell)
 !tauri-app/package.json
 !tauri-app/package-lock.json

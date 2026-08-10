@@ -1,0 +1,13 @@
+{
+  "name": "painapple-code-bundler",
+  "private": true,
+  "type": "module",
+  "description": "Frontend bundler. Deliberately separate from tools/package.json so building the app needs two packages, not the ~40 (canvas, vega, jsdom) that the vendor/render toolchain pulls in — a from-source deploy shouldn't have to compile native modules to get a bundle.",
+  "scripts": {
+    "build": "node build-app.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "yaml": "^2.8.1"
+  }
+}

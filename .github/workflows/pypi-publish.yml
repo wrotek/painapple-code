@@ -34,11 +34,33 @@ jobs:
               with:
                   python-version: "3.12"
 
+            # The frontend bundle is a build artifact, not a committed one: it
+            # changes on every frontend edit and would bloat the history. It is
+            # gitignored, so it must be generated here — package-data globs the
+            # filesystem, so a present static/dist/ lands in the wheel.
+            - name: Set up Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+
+            # Same script a from-source deploy runs, so there is one build path
+            # and CI exercises it. Installs only esbuild + yaml (~7 MB).
+            - name: Build frontend bundle
+              run: ./build-frontend.sh
+
             - name: Build sdist and wheel
               run: |
                   pip install --quiet build
                   python -m build
                   ls -l dist/
+                  python - <<'PY'
+                  import pathlib, zipfile, sys
+                  whl = sorted(pathlib.Path("dist").glob("*.whl"))[-1]
+                  names = zipfile.ZipFile(whl).namelist()
+                  if not any(n.endswith("static/dist/app.bundle.js") for n in names):
+                      sys.exit(f"{whl.name} is missing the frontend bundle")
+                  print(f"{whl.name} ships the frontend bundle")
+                  PY
 
             # Sanity check: the version baked into the wheel must match the
             # tag that triggered us (v1.2.3 → 1.2.3, v1.2.3-rc1 → 1.2.3rc1).
