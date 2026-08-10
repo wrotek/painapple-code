@@ -1684,7 +1684,7 @@ def main(argv=None):
     # the built-ins and explicit flags: set_defaults() only fills flags
     # absent from argv, so systemd units / docker-entrypoint invocations
     # that pass everything explicitly are unaffected.
-    from painapple_code.cli.serve_config import apply_to_parser, serve_yaml_path
+    from painapple_code.cli.serve_config import active_config_path, apply_to_parser
     serve_defaults, serve_default_problems = apply_to_parser(parser)
 
     args = parser.parse_args(argv)
@@ -1698,7 +1698,7 @@ def main(argv=None):
         logger.info(f"Logging redirected to {log_dir}")
 
     if serve_defaults:
-        logger.info(f"Serve defaults from {serve_yaml_path()}: "
+        logger.info(f"Serve defaults from {active_config_path()}: "
                     f"{', '.join(serve_defaults)} (explicit flags override)")
     for problem in serve_default_problems:
         logger.warning(f"serve.yaml: {problem}")

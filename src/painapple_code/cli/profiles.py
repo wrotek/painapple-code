@@ -168,6 +168,27 @@ def save(name, mode, data, root=None):
     return path
 
 
+def resolve_home(name, root):
+    """The data home ``--profile NAME`` resolves to, given the launching
+    process's own PAINAPPLE_CODE_HOME (``root``). Pure path arithmetic,
+    creating nothing — :func:`activate` uses it for this process, and the
+    fleet-view scan uses it to reproduce the same answer for SOMEONE
+    ELSE's process from its argv. Unusable names fall back to ``root``.
+    """
+    name = (name or "").strip()
+    root = Path(root)
+    if name in ("", "default") or not valid_name(name):
+        return root
+    if root.name == name and root.parent.name in (PROFILES_DIR,
+                                                  LEGACY_SERVE_PROFILES_DIR):
+        # PAINAPPLE_CODE_HOME already points AT this profile's home (a
+        # spawner — `painapple start`, a service unit — exported both
+        # env vars). Re-appending profiles/NAME would nest a second home
+        # inside the first; adopt the given home instead.
+        return root
+    return root / PROFILES_DIR / name
+
+
 def activate(name):
     """Repoint PAINAPPLE_CODE_HOME at a HOST profile's data home
     (created if absent) and record the name in PAINAPPLE_PROFILE, so
@@ -180,16 +201,7 @@ def activate(name):
     if not valid_name(name):
         raise ValueError(
             f"Bad profile name: {name!r} (letters/digits/._- only, max 32 chars)")
-    root = serve_config.home_root()
-    if root.name == name and root.parent.name in (PROFILES_DIR,
-                                                  LEGACY_SERVE_PROFILES_DIR):
-        # PAINAPPLE_CODE_HOME already points AT this profile's home (a
-        # spawner — `painapple start`, a service unit — exported both
-        # env vars). Re-appending profiles/NAME would nest a second home
-        # inside the first; adopt the given home instead.
-        home = root
-    else:
-        home = root / PROFILES_DIR / name
+    home = resolve_home(name, serve_config.home_root())
     home.mkdir(parents=True, exist_ok=True)
     os.environ["PAINAPPLE_CODE_HOME"] = str(home)
     os.environ["PAINAPPLE_PROFILE"] = name

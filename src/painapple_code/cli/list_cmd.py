@@ -166,31 +166,51 @@ def _in_container(pid):
         return False  # other user's process — can't tell, assume host
 
 
-def _home_of(pid):
-    """This process's data home (PAINAPPLE_CODE_HOME) as a resolved path
-    string, or '' when the environment isn't readable (another user).
-    Readable-but-unset resolves to the default home, so it can be matched
-    against a profile home."""
+def _profile_of(rest, env):
+    """The profile name this process was launched under, '' when none.
+
+    argv FIRST, because `profiles.activate()` repoints the data home
+    IN-PROCESS: a foreground `painapple --profile NAME` is exec'd with
+    neither PAINAPPLE_CODE_HOME nor PAINAPPLE_PROFILE in its environment,
+    and psutil hands back the environment it was exec'd with — so the
+    only surviving evidence is the flag itself. Without this the instance
+    reads back as the ROOT deployment (port 8765, root serve.yaml): its
+    own profile row shows `stopped` while the process it can't see holds
+    the port, and `painapple stop` aims at it as if it were `default`.
+    The env var is the fallback for a spawner that exported it
+    (`painapple start NAME`, a service unit)."""
+    name = _flag(rest, "--profile", default="")
+    if not name:
+        name = (env or {}).get("PAINAPPLE_PROFILE", "")
+    return name.strip()
+
+
+def _home_of(pid, rest=()):
+    """This process's data home as a resolved path string, or '' when the
+    environment isn't readable (another user). Readable-but-unset
+    resolves to the default home, so it can be matched against a profile
+    home; a `--profile NAME` launch resolves to that profile's home by
+    the same rule `activate()` applies."""
     env = _proc_environ(pid)
     if env is None:
         return ""
     raw = env.get("PAINAPPLE_CODE_HOME", "")
-    if raw:
-        return str(Path(raw).expanduser().resolve())
-    return str(Path("~/.painapple-code").expanduser().resolve())  # unset
+    base = Path(raw or "~/.painapple-code").expanduser()  # unset → default
+    name = _profile_of(rest, env)
+    if name:
+        from painapple_code.cli.profiles import resolve_home
+        base = resolve_home(name, base)
+    return str(base.resolve())
 
 
-def _saved_defaults(pid, cache):
-    """The serve.yaml values THIS process booted with. Its own
-    PAINAPPLE_CODE_HOME decides which file applies; when its environment
-    isn't readable (another user), fall back to our own view."""
-    home = os.environ.get("PAINAPPLE_CODE_HOME", "")
-    env = _proc_environ(pid)
-    if env is not None:
-        home = env.get("PAINAPPLE_CODE_HOME", "")  # readable+unset → default home
+def _saved_defaults(home, cache):
+    """The saved serve values the process at data home `home` booted
+    with. '' (environment unreadable — another user) falls back to our
+    own view."""
     if home not in cache:
         from painapple_code.cli.serve_config import load
-        base = Path(home or "~/.painapple-code").expanduser()
+        base = Path(home or os.environ.get("PAINAPPLE_CODE_HOME")
+                    or "~/.painapple-code").expanduser()
         # A PROFILE home keeps its serve values in profile.yaml — there is
         # no serve.yaml beside it. Without this a profile instance reads
         # back as built-in defaults (port 8765, cwd as workspace).
@@ -230,8 +250,8 @@ def local_servers():
         rest = _serve_args(argv)
         if rest is None or _in_container(pid):
             continue
-        saved = _saved_defaults(pid, cache)
-        home = _home_of(pid)
+        home = _home_of(pid, rest)
+        saved = _saved_defaults(home, cache)
         name = _flag(rest, "--instance-name",
                      default=saved.get("instance_name", ""))
         if not name:

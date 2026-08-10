@@ -210,6 +210,14 @@ def _active_profile_config_path():
     return home / "serve.yaml"
 
 
+def active_config_path():
+    """The file :func:`apply_to_parser` actually layers — an activated
+    profile's ``profile.yaml`` (or its legacy ``serve.yaml``), else the
+    global ``serve.yaml``. Logging ``serve_yaml_path()`` instead named a
+    file that doesn't exist under a profile."""
+    return _active_profile_config_path() or serve_yaml_path()
+
+
 def apply_to_parser(parser):
     """Install saved defaults as parser defaults. Returns the same
     (values, problems) pair as :func:`load` so the caller can log what
