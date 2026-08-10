@@ -1504,7 +1504,8 @@ def main(argv=None):
     if app.state.auth_newly_created:
         logger.warning(
             f"Auth config generated at {app.state.auth_config_file}. "
-            f"Log in once via: {login_url}"
+            + ("Credentials hidden (--no-password) — run `painapple password` to reveal."
+               if args.no_password else f"Log in once via: {login_url}")
         )
     # (the config path, the password and the login URL are all in the startup
     #  box below — no need to repeat them as INFO lines here)
@@ -1545,12 +1546,20 @@ def main(argv=None):
 
     # The login URL is THE line users need — paint it bold green so it
     # stands out from the rest of the box (TTY-only; cli.ui's constants
-    # are empty strings when piped or NO_COLOR is set).
-    from painapple_code.cli.ui import BOLD, GREEN, RESET as _ANSI_RESET
-    auth_lines = (
-        f"\n║  Password:   {app.state.auth_password}"
-        f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
-    )
+    # are empty strings when piped or NO_COLOR is set). With
+    # --no-password the box still shows WHERE to log in, but the
+    # password and the ?tkn= query are withheld from stdout.
+    from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET as _ANSI_RESET
+    if args.no_password:
+        auth_lines = (
+            f"\n║  Password:   {DIM}(hidden — run `painapple password` to reveal){_ANSI_RESET}"
+            f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{scheme}://{args.host}:{args.port}/{_ANSI_RESET}"
+        )
+    else:
+        auth_lines = (
+            f"\n║  Password:   {app.state.auth_password}"
+            f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
+        )
 
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
