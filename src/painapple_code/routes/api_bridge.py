@@ -264,8 +264,8 @@ async def get_server_info(request: Request):
     # Imported lazily: server.py imports this module at load time, so a
     # module-level import would be circular. By request time it's cached.
     try:
-        from painapple_code.server import _get_static_mtime
-        static_build = _get_static_mtime()
+        from painapple_code.server import _asset_version
+        static_build = _asset_version()
     except Exception:
         static_build = None
 

@@ -13,18 +13,27 @@
 const CACHE_NAME = 'claude-code-auth-v__CACHE_VERSION__';
 const STATIC_CACHE = 'claude-code-auth-static-v__CACHE_VERSION__';
 
-// Assets to precache (app shell)
+// Assets to precache (app shell).
+//
+// The versioned entries must carry the SAME ?v= the page requests them with,
+// for two reasons: an unversioned URL is served `no-store`, so precaching one
+// downloaded a second, uncacheable copy of each module on every load; and
+// `caches.match()` keys on the full URL, so a bare entry never matched the
+// page's versioned request and the precache did nothing for JS/CSS.
+const ASSET_VERSION = '__CACHE_VERSION__';
+const v = (path) => `${path}?v=${ASSET_VERSION}`;
+
 const PRECACHE_ASSETS = [
   '/app',
-  '/static/styles.css',
-  '/static/js/app.js',
-  '/static/js/session.js',
-  '/static/js/config.js',
-  '/static/js/utils.js',
-  '/static/js/components.js',
-  '/static/js/controllers/thinking-controller.js',
-  '/static/js/widgets/file-explorer-widget.js',
-  '/static/js/widgets/file-preview-widget.js',
+  v('/static/styles.css'),
+  v('/static/js/app.js'),
+  v('/static/js/session.js'),
+  v('/static/js/config.js'),
+  v('/static/js/utils.js'),
+  v('/static/js/components.js'),
+  v('/static/js/controllers/thinking-controller.js'),
+  v('/static/js/widgets/file-explorer-widget.js'),
+  v('/static/js/widgets/file-preview-widget.js'),
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png'
 ];
