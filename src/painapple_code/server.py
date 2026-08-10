@@ -1415,17 +1415,45 @@ async def service_worker():
     return Response(content="// SW not found", media_type="application/javascript")
 
 
+# This is the only public (unauthenticated) route that takes a filesystem
+# name, so `filename` is the one attacker-controlled path component that
+# never passes an authenticated caller. It must be a bare basename.
+#
+# `{filename}` compiles to `[^/]+`, which stops POSIX traversal — but a
+# backslash is not a slash, and on Windows it IS a separator, so `%5C`
+# survives routing and reaches pathlib. Worse, `base / "C:\\..."` DISCARDS
+# the base entirely for any absolute right-hand side (same for a `\\host\share`
+# UNC, which would additionally make .exists() authenticate outbound to an
+# attacker's SMB server). That turned this handler into a pre-auth arbitrary
+# file read on Windows — including the bridge password in
+# ~/.config/painapple-code/config.yaml, which per SECURITY.md is equivalent
+# to a shell. Hence: allowlist the shape, don't blocklist the payloads.
+_ICON_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:png|ico|svg)$")
+
+
+def _safe_icon_path(base: Path, filename: str) -> Path | None:
+    """`base/filename` if it is a plain basename that stays inside `base`."""
+    if not _ICON_NAME_RE.match(filename) or ".." in filename:
+        return None
+    candidate = (base / filename).resolve()
+    # Belt and braces: even a name that passes the regex must resolve to
+    # somewhere under base (catches a symlink planted in the icons dir).
+    if not candidate.is_relative_to(base.resolve()):
+        return None
+    return candidate
+
+
 @app.get("/instance-icons/{filename}")
 async def serve_instance_icon(filename: str):
     """Serve dynamically generated instance-labeled icons."""
-    if _instance_icons_dir:
-        icon_path = _instance_icons_dir / filename
-        if icon_path.exists():
-            return FileResponse(icon_path, media_type="image/png")
-    # Fall back to default icons
-    icon_path = PACKAGE_DIR / "static" / "icons" / filename
-    if icon_path.exists():
-        return FileResponse(icon_path, media_type="image/png")
+    media = {".svg": "image/svg+xml", ".ico": "image/x-icon"}.get(
+        Path(filename).suffix, "image/png")
+    for base in (_instance_icons_dir, PACKAGE_DIR / "static" / "icons"):
+        if not base:
+            continue
+        icon_path = _safe_icon_path(Path(base), filename)
+        if icon_path and icon_path.is_file():
+            return FileResponse(icon_path, media_type=media)
     raise HTTPException(status_code=404, detail="Icon not found")
 
 
