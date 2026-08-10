@@ -5,7 +5,7 @@
  * Migrated from log-explorer.js to use the modular widget system.
  *
  * Features:
- * - Three tabs: Messages, Raw, Tools
+ * - Four tabs: Messages, Raw, Tools, System
  * - Pagination with "Load More"
  * - Filtering (role, errors only)
  * - Sort order toggle

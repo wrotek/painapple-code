@@ -242,7 +242,7 @@ QuickActionsRegistry.register('clone-session', {
     icon: 'copy',
     label: S.quick_actions_registry.actions.clone_session.label,
     description: S.quick_actions_registry.actions.clone_session.desc,
-    shortcut: 'Ctrl+Shift+M',
+    shortcut: 'Ctrl+Shift+N',
     category: S.quick_actions_registry.categories.sessions,
     execute: () => getApp()?.cloneSession?.(),
     isEnabled: () => getApp()?.activeSession?.cwd != null,
