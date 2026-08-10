@@ -28,7 +28,7 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 from starlette.middleware.base import BaseHTTPMiddleware
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from painapple_code import PACKAGE_DIR, REPO_ROOT
 from painapple_code.cli.serve_args import DEFAULT_PORT, build_parser
@@ -137,17 +137,11 @@ async def lifespan(app: FastAPI):
     # serving, for what is only an optimisation. Gated on the build script
     # being present, so it fires only where the fix is actually available —
     # a from-source install, never a wheel (which ships a bundle already).
-    if not _bundle_path() and not os.environ.get("PAINAPPLE_NO_BUNDLE"):
-        if (REPO_ROOT / "build-frontend.sh").is_file():
-            how = "Run ./build-frontend.sh (--clean to undo)"
-        else:
-            # Installed from source without npm on PATH — the build hook in
-            # setup.py skipped the bundle. Reinstalling with Node present
-            # produces one; there is no checkout here to build from.
-            how = "Install Node and reinstall to get a bundled build"
+    delivery = frontend_delivery()
+    if delivery["reason"] in _BUNDLE_REMEDY:
         logger.info(
             "Frontend is not bundled — a cold page load fetches ~190 modules. "
-            f"{how}."
+            f"{_BUNDLE_REMEDY[delivery['reason']]}."
         )
     yield
     if bridge and bridge._cleanup_task:
@@ -227,11 +221,41 @@ def _bundle_path() -> Optional[Path]:
             _bundle_stale_logged = True
             logger.warning(
                 "Frontend bundle is older than static/js — serving loose modules. "
-                "Run `npm run build:app` in tools/ to refresh it, or delete "
-                "static/dist/ to stay unbundled."
+                "Run ./build-frontend.sh to refresh it, or ./build-frontend.sh "
+                "--clean to stay unbundled."
             )
         return None
     return p
+
+
+# Why the frontend isn't bundled → what to do about it. The remedy differs by
+# install shape, and pointing someone at a build script that isn't there is
+# worse than saying nothing.
+_BUNDLE_REMEDY = {
+    # A checkout: the build script is right there next to the package.
+    "checkout": "Run ./build-frontend.sh (--clean to undo)",
+    # Installed from source without npm on PATH, so setup.py's build hook
+    # skipped the bundle. There is no checkout here to build from.
+    "unbuilt": "Install Node and reinstall to get a bundled build",
+}
+
+
+def frontend_delivery() -> Dict[str, Any]:
+    """How the frontend is being served, and why.
+
+    Shared by the startup hint and /api/info (which feeds the About widget)
+    so the two can't drift. `reason` is a stable key, not prose — the client
+    owns the wording (strings.yaml), the server owns the fact.
+    """
+    if _bundle_path():
+        return {"bundled": True, "reason": None}
+    # Not a problem to report: someone asked for loose modules on purpose.
+    if os.environ.get("PAINAPPLE_NO_BUNDLE"):
+        return {"bundled": False, "reason": "disabled"}
+    if (REPO_ROOT / "build-frontend.sh").is_file():
+        return {"bundled": False, "reason": "checkout"}
+    return {"bundled": False, "reason": "unbuilt"}
+
 
 # Accepts the current digest plus the legacy integer-mtime versions that older
 # cached pages still send. Anything else is rejected rather than reflected —

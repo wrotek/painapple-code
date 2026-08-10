@@ -1481,6 +1481,15 @@ about:
   server: "Server version"
   frontend: "Frontend build"
   unknown: "unknown"
+  # How the frontend is delivered. Worth surfacing because a source install
+  # only gets the bundle when Node was on PATH at install time — otherwise it
+  # silently falls back to loose modules and just feels slow to open.
+  assets: "Frontend assets"
+  assets_bundled: "Bundled (1 request)"
+  assets_loose: "Loose modules (~190 requests)"
+  assets_hint_checkout: "Not bundled — run ./build-frontend.sh in the checkout for a one-request cold load."
+  assets_hint_unbuilt: "Not bundled — this install had no Node available to build it. Reinstall with npm on PATH for a one-request cold load."
+  assets_hint_disabled: "Bundling is turned off by PAINAPPLE_NO_BUNDLE."
   license_title: "License"
   license_row: "License"
   # AGPL §13: anyone operating this over a network must offer its users the

@@ -286,6 +286,8 @@ export const initUiMethods = {
             setServerVersionInfo({
                 version: data.version,
                 staticBuild: data.static_build,
+                bundled: data.frontend_bundled,
+                bundleReason: data.frontend_reason,
                 diskVersion: data.disk_version,
                 restartNeeded: data.restart_needed,
                 license: data.license,

@@ -115,12 +115,27 @@ function row(label, value) {
     `;
 }
 
+/**
+ * Human label for how the frontend is delivered, or '' when the server didn't
+ * say. Deliberately not defaulted to either state: an older server reports
+ * nothing here, and guessing would put a confident wrong answer in a panel
+ * people open precisely because something seems off.
+ */
+function assetsLabel(info) {
+    if (info.bundled === null || info.bundled === undefined) return '';
+    return info.bundled ? S.about.assets_bundled : S.about.assets_loose;
+}
+
 /** Plain-text version block for the clipboard — what you paste into a bug report. */
 function versionText(info) {
     const lines = [
         `${S.about.app_name} ${info.server || S.about.unknown}`,
         `${S.about.frontend}: ${formatBuild(info.clientBuild) || S.about.unknown}`,
     ];
+    // Included because "the app is slow to open" reports are otherwise
+    // indistinguishable between an unbundled install and a real regression.
+    const assets = assetsLabel(info);
+    if (assets) lines.push(`${S.about.assets}: ${assets}`);
     if (info.restartNeeded && info.diskVersion) lines.push(`on disk: ${info.diskVersion}`);
     lines.push(`${S.about.license_row}: ${info.license || FALLBACK.license}`);
     lines.push(`${navigator.userAgent}`);
@@ -146,6 +161,18 @@ function renderBody(container) {
     // Two independent staleness axes with different remedies — newer assets
     // on the server means reload the page, newer code in the checkout than
     // the server booted with means restart the server.
+    // The remedy for an unbundled frontend depends on the install shape, so
+    // the server names the case and this maps it to wording. An unrecognised
+    // reason (newer server, older page) renders the row with no hint.
+    const assets = assetsLabel(info);
+    const assetHint = {
+        checkout: S.about.assets_hint_checkout,
+        unbuilt: S.about.assets_hint_unbuilt,
+        disabled: S.about.assets_hint_disabled,
+    }[info.bundleReason];
+    const assetsBlock = !assets ? '' : row(S.about.assets, assets)
+        + (assetHint ? `<div class="about-hint">${escapeHtml(assetHint)}</div>` : '');
+
     const hints = [];
     if (info.restartNeeded) {
         hints.push(S.help.about_restart.replace('{disk}', info.diskVersion || ''));
@@ -166,6 +193,7 @@ function renderBody(container) {
                 <h4>${escapeHtml(S.about.version_title)}</h4>
                 ${info.server ? row(S.about.server, info.server) : ''}
                 ${formatBuild(info.clientBuild) ? row(S.about.frontend, formatBuild(info.clientBuild)) : ''}
+                ${assetsBlock}
                 ${hints.map((h) => `<div class="about-hint">${escapeHtml(h)}</div>`).join('')}
                 <button class="about-copy-btn" data-action="copy-version">
                     ${getIcon('copy')}<span>${escapeHtml(S.about.copy_version)}</span>

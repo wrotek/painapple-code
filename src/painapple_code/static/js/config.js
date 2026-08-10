@@ -23,6 +23,12 @@ let serverStaticBuild = null;
 // serving older code than what's on disk, so it needs a restart (not a reload).
 let serverDiskVersion = null;
 let serverRestartNeeded = false;
+// How the frontend is delivered: one bundle or ~190 loose modules. Whether a
+// source install got the bundle depends on Node being present at install time,
+// which is invisible from the page — so the About panel says which it is.
+// null (not false) until /api/info answers, and on servers too old to report.
+let serverBundled = null;
+let serverBundleReason = null;
 // License expression + project URLs from the installed distribution, shown in
 // the About widget. Server-supplied so a fork advertises its own source.
 let serverLicense = null;
@@ -142,9 +148,13 @@ export function setServerWorkspace(workspace) {
 // Called with the /api/info payload. Unlike home/workspace these are allowed
 // to be re-set: a reconnect after a server upgrade should report the new
 // version rather than the one this tab booted against.
-export function setServerVersionInfo({ version, staticBuild, diskVersion, restartNeeded, license, urls, author } = {}) {
+export function setServerVersionInfo({ version, staticBuild, bundled, bundleReason, diskVersion, restartNeeded, license, urls, author } = {}) {
     if (version) serverVersion = version;
     if (staticBuild) serverStaticBuild = String(staticBuild);
+    // Explicit undefined check: `false` is the interesting value here, and a
+    // truthiness guard would discard exactly the case worth reporting.
+    if (bundled !== undefined && bundled !== null) serverBundled = Boolean(bundled);
+    if (bundleReason !== undefined) serverBundleReason = bundleReason || null;
     serverDiskVersion = diskVersion || null;
     serverRestartNeeded = Boolean(restartNeeded);
     if (license) serverLicense = license;
@@ -165,6 +175,8 @@ export function getVersionInfo() {
         stale: Boolean(
             CLIENT_BUILD && serverStaticBuild && CLIENT_BUILD !== serverStaticBuild
         ),
+        bundled: serverBundled,
+        bundleReason: serverBundleReason,
         diskVersion: serverDiskVersion,
         restartNeeded: serverRestartNeeded,
         license: serverLicense,

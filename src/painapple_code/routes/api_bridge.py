@@ -248,6 +248,11 @@ async def get_server_info(request: Request):
     The two are the same idea one layer apart: loaded-vs-current assets
     means reload, booted-vs-current code means restart.
 
+    `frontend_bundled`/`frontend_reason` report how those assets are being
+    delivered — one bundle or ~190 loose modules — because whether a source
+    install picked up the bundle depends on Node being present at install
+    time, which is invisible from the page and easy to get silently wrong.
+
     `license` and `urls` come from the installed distribution's metadata and
     feed the About widget's source-offer link — see _get_package_meta for
     why they're read from the dist rather than hardcoded client-side.
@@ -265,16 +270,20 @@ async def get_server_info(request: Request):
     # Imported lazily: server.py imports this module at load time, so a
     # module-level import would be circular. By request time it's cached.
     try:
-        from painapple_code.server import _asset_version
+        from painapple_code.server import _asset_version, frontend_delivery
         static_build = _asset_version()
+        delivery = frontend_delivery()
     except Exception:
         static_build = None
+        delivery = {"bundled": None, "reason": None}
 
     return {
         "home": str(Path.home()),
         "cwd": os.getcwd(),
         "workspace": workspace,
         "static_build": static_build,
+        "frontend_bundled": delivery["bundled"],
+        "frontend_reason": delivery["reason"],
         **_get_package_meta(),
         **_version_payload(),
     }
