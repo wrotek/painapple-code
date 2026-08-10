@@ -18,6 +18,7 @@ import logging
 import os
 import re
 import signal
+import stat
 import sys
 import time
 import yaml
@@ -32,7 +33,9 @@ from painapple_code.cli.serve_args import build_parser
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import ASGIApp
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -178,10 +181,47 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# Gzip is scoped to the app's own text assets rather than mounted globally.
+# Starlette's GZipMiddleware ignores status codes, so a global mount would
+# compress a 206 Partial Content and break Range requests; there is no media
+# under static/ (js/css/html + 11 small icons), so gating on these prefixes
+# keeps ranges out of scope by construction. Binary suffixes are skipped since
+# they don't compress. Non-HTTP scopes (WebSockets) never reach the responder.
+_GZIP_PREFIXES = ("/static/", "/app")
+_GZIP_SKIP_SUFFIXES = (".png", ".ico", ".woff", ".woff2")
+
+
+class ScopedGZipMiddleware:
+    """Apply GZipMiddleware only to the static asset routes.
+
+    The web client pulls ~185 ES modules + the concatenated stylesheet on a
+    cold load (~5 MB uncompressed). One GZipMiddleware instance is reused
+    across requests — it holds config only, building a fresh responder per
+    call — so this wrapper is a pure path gate.
+    """
+
+    def __init__(self, app: ASGIApp, minimum_size: int = 1024, compresslevel: int = 6) -> None:
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path", "")
+        if not path.startswith(_GZIP_PREFIXES) or path.endswith(_GZIP_SKIP_SUFFIXES):
+            await self.app(scope, receive, send)
+            return
+        await self.gzip(scope, receive, send)
+
+
 # Middleware order: last added = outermost = runs first on request.
 # CORS outermost so preflight OPTIONS bypasses auth entirely.
 # AuthMiddleware reads password / cookie token from scope["app"].state at
 # request time — main() / create_app() populate that state before serving.
+# Gzip is added first = innermost, so it compresses the route's own body
+# before the header-stamping middlewares run.
+app.add_middleware(ScopedGZipMiddleware)
 app.add_middleware(AccessLogMiddleware, logger=access_logger)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(NoCacheStaticMiddleware)
@@ -462,6 +502,18 @@ async def upload_perf_snapshot(request: Request):
         "client_bytes_mb": round(client_bytes / 1024 / 1024, 2),
     }
 
+# Concatenated stylesheet, cached by content-freshness key (see caller).
+# maxsize=2 keeps the previous build around during an edit without growing.
+@lru_cache(maxsize=2)
+def _build_concatenated_css(cache_key: tuple) -> str:
+    css_dir = PACKAGE_DIR / "static" / "css"
+    parts = []
+    for f in sorted(css_dir.glob("*.css")):
+        parts.append(f"/* === {f.name} === */")
+        parts.append(f.read_text())
+    return "\n".join(parts)
+
+
 # Serve concatenated CSS from modules (must be before static mount)
 @app.get("/static/styles.css")
 async def serve_concatenated_css(v: str = None):
@@ -474,14 +526,13 @@ async def serve_concatenated_css(v: str = None):
             return FileResponse(static_css, media_type="text/css")
         raise HTTPException(status_code=404, detail="CSS not found")
 
-    # Concatenate all CSS files in order
+    # Concatenate all CSS files in order. Cached by (newest mtime, file count)
+    # so editing/adding/removing a module still shows up on the next refresh —
+    # the no-build-step workflow is preserved, we just stop re-reading ~1.1 MB
+    # off the event loop on every request.
     css_files = sorted(css_dir.glob("*.css"))
-    parts = []
-    for f in css_files:
-        parts.append(f"/* === {f.name} === */")
-        parts.append(f.read_text())
-
-    content = "\n".join(parts)
+    cache_key = (max((f.stat().st_mtime_ns for f in css_files), default=0), len(css_files))
+    content = await asyncio.to_thread(_build_concatenated_css, cache_key)
 
     return Response(
         content=content,
@@ -519,11 +570,15 @@ def _get_js_cache_bust() -> str:
 
     return _js_cache_bust_version
 
-# LRU cache for processed JS content - avoids repeated file I/O and regex
-# Key: (filename, cache_bust_version), Value: processed content
-@lru_cache(maxsize=128)
-def _process_js_file(filename: str, cache_bust: str) -> str:
-    """Read and process JS file with cache-busted imports. Cached by filename+version."""
+# LRU cache for processed JS content - avoids repeated file I/O and regex.
+# Key: (filename, mtime_ns, cache_bust_version), Value: processed content.
+# mtime_ns is in the key because `cache_bust` only moves every 60s: without it
+# an edited file kept serving its pre-edit body for up to a minute, breaking
+# edit→refresh. maxsize covers the whole tree (186 modules) — at 128 a single
+# cold page load evicted entries it was still loading.
+@lru_cache(maxsize=512)
+def _process_js_file(filename: str, mtime_ns: int, cache_bust: str) -> str:
+    """Read and process JS file with cache-busted imports. Cached by filename+mtime+version."""
     js_path = PACKAGE_DIR / "static" / "js" / filename
     content = js_path.read_text()
     # Match static imports: from './foo.js' or from '../foo.js'
@@ -574,14 +629,18 @@ async def serve_js_with_cache_bust(filename: str, v: str = None):
     js_root = (PACKAGE_DIR / "static" / "js").resolve()
     if not js_path.resolve().is_relative_to(js_root):
         raise HTTPException(status_code=404, detail="File not found")
-    if not js_path.exists() or not js_path.is_file():
+    try:
+        st = js_path.stat()
+    except OSError:
+        raise HTTPException(status_code=404, detail="File not found")
+    if not stat.S_ISREG(st.st_mode):
         raise HTTPException(status_code=404, detail="File not found")
 
     cache_bust = _get_js_cache_bust()
 
     # Run blocking I/O in thread pool to avoid blocking event loop
     # LRU cache means subsequent requests for same file are instant
-    content = await asyncio.to_thread(_process_js_file, filename, cache_bust)
+    content = await asyncio.to_thread(_process_js_file, filename, st.st_mtime_ns, cache_bust)
 
     return Response(
         content=content,
@@ -1084,7 +1143,9 @@ def _get_static_mtime(*extra_patterns: str) -> int:
     """Get newest mtime from static CSS/JS files. Extra glob patterns are appended."""
     static_dir = PACKAGE_DIR / "static"
     newest_mtime = 0
-    for pattern in ["css/*.css", "js/*.js", "js/**/*.js", *extra_patterns]:
+    # pathlib's ** matches zero or more directories, so "js/**/*.js" already
+    # covers "js/*.js" — listing both stat'd all 186 modules twice per call.
+    for pattern in ["css/*.css", "js/**/*.js", *extra_patterns]:
         for f in static_dir.glob(pattern):
             newest_mtime = max(newest_mtime, f.stat().st_mtime)
     return int(newest_mtime)
