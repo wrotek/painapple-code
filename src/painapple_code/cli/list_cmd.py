@@ -255,8 +255,86 @@ def local_servers():
             "argv": list(argv),
             "command": " ".join(argv),
         })
+    rows = _collapse_chains(rows)
     rows.sort(key=lambda r: int(r["port"]) if r["port"].isdigit() else 0)
     return rows
+
+
+def _matched_ancestor(pid, by_pid):
+    """Nearest ancestor of `pid` that is itself a matched server row and
+    belongs to the SAME server, or None. Never raises."""
+    try:
+        import psutil
+        seen = {pid}
+        cur = psutil.Process(pid)
+        while True:
+            ppid = cur.ppid()
+            if not ppid or ppid in seen:
+                return None
+            if ppid in by_pid:
+                return ppid
+            seen.add(ppid)
+            cur = psutil.Process(ppid)
+    except Exception:
+        return None
+
+
+def _collapse_chains(rows):
+    """One row per server, even when the server is a process chain.
+
+    A pipx console script on Windows is three processes — painapple.exe
+    launcher, the python.exe it starts, and uvicorn's reload child — all
+    carrying identical argv, so all three match and one server presented
+    as three rows. That put phantom entries in `painapple list`, and made
+    `stop` a coin flip: _kill terminates a single pid, so picking the
+    reload child left the supervisor to respawn it while picking the
+    launcher left the real server serving. Keep the topmost ancestor,
+    whose termination takes the rest of its own chain with it.
+
+    Only collapses within one server: the ancestor must agree on port and
+    data home. Running a second server from a terminal *inside* the first
+    is a genuinely separate deployment and keeps its own row.
+    """
+    by_pid = {r["pid"]: r for r in rows}
+    parent = {}
+    for r in rows:
+        anc = _matched_ancestor(r["pid"], by_pid)
+        if anc is not None:
+            a = by_pid[anc]
+            if a["port"] == r["port"] and a.get("home") == r.get("home"):
+                parent[r["pid"]] = anc
+
+    def root_of(pid):
+        seen = set()
+        while pid in parent and pid not in seen:
+            seen.add(pid)
+            pid = parent[pid]
+        return pid
+
+    def depth(pid):
+        d, seen = 0, set()
+        while pid in parent and pid not in seen:
+            seen.add(pid)
+            pid = parent[pid]
+            d += 1
+        return d
+
+    kept = []
+    for r in rows:
+        if r["pid"] in parent:
+            continue
+        # The launcher shim's cwd is %TEMP%, not the project — so when the
+        # workspace fell back to cwd, take it from the DEEPEST process in
+        # the chain, which is the one actually serving. Explicit --workspace
+        # flags are identical across the chain (same argv), so this only
+        # ever changes the fallback case.
+        chain = [c for c in rows if root_of(c["pid"]) == r["pid"]]
+        if len(chain) > 1:
+            deepest = max(chain, key=lambda c: depth(c["pid"]))
+            if deepest["workspace"]:
+                r = {**r, "workspace": deepest["workspace"]}
+        kept.append(r)
+    return kept
 
 
 def match_process(running, home, port, exclude=()):
