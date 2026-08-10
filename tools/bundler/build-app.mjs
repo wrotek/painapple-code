@@ -48,12 +48,20 @@ const stringsPlugin = {
   },
 };
 
-fs.rmSync(OUT_DIR, { recursive: true, force: true });
-fs.mkdirSync(OUT_DIR, { recursive: true });
+// Build into a scratch dir and swap in only after validating. A bundle is
+// served as the ENTIRE frontend, so a truncated or half-written one is a blank
+// page — worse than having no bundle at all, which merely falls back to loose
+// modules. Nothing here may touch OUT_DIR until the result is known good:
+// clobbering it up front would also destroy a working bundle on a failed build.
+const TMP_DIR = `${OUT_DIR}.tmp`;
+fs.rmSync(TMP_DIR, { recursive: true, force: true });
+fs.mkdirSync(TMP_DIR, { recursive: true });
 
-const result = await esbuild.build({
+let result;
+try {
+  result = await esbuild.build({
   entryPoints: [path.join(JS_DIR, 'app.js')],
-  outfile: OUT_FILE,
+  outfile: path.join(TMP_DIR, 'app.bundle.js'),
   bundle: true,
   format: 'esm',
   target: 'es2022',
@@ -71,19 +79,42 @@ const result = await esbuild.build({
   plugins: [stringsPlugin],
   metafile: true,
   logLevel: 'warning',
-});
+  });
 
-const bytes = fs.readFileSync(OUT_FILE);
-const gz = zlib.gzipSync(bytes, { level: 6 }).length;
-const modules = Object.keys(result.metafile.inputs).length;
-console.log(
-  `built ${path.relative(process.cwd(), OUT_FILE)}: ` +
-    `${modules} modules -> ${(bytes.length / 1048576).toFixed(2)} MB ` +
-    `(${(gz / 1024).toFixed(0)} KB gzipped)`
-);
+  const built = path.join(TMP_DIR, 'app.bundle.js');
+  const bytes = fs.readFileSync(built);
+  const modules = Object.keys(result.metafile.inputs).length;
 
-// A truncated or half-written bundle would be served as the whole frontend.
-if (modules < 150) {
-  console.error(`refusing to ship a bundle with only ${modules} modules`);
-  process.exit(1);
+  // Validate BEFORE the swap, so a bad build leaves whatever was there.
+  if (modules < 150) {
+    throw new Error(`bundled only ${modules} modules, expected the full tree`);
+  }
+  // Size floor as a truncation guard. The real bundle is ~1.7 MB; anything
+  // near a tenth of that means the write was cut short, however many modules
+  // esbuild thinks it read. (Module paths are minified away, so the content
+  // itself can't be checked by name.)
+  if (bytes.length < 500_000) {
+    throw new Error(`bundle is only ${bytes.length} bytes — looks truncated`);
+  }
+
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  // rename(2) within the same directory is atomic: readers see either the old
+  // bundle or the new one, never a partial file.
+  for (const f of fs.readdirSync(TMP_DIR)) {
+    fs.renameSync(path.join(TMP_DIR, f), path.join(OUT_DIR, f));
+  }
+
+  const gz = zlib.gzipSync(bytes, { level: 6 }).length;
+  console.log(
+    `built ${path.relative(process.cwd(), OUT_FILE)}: ` +
+      `${modules} modules -> ${(bytes.length / 1048576).toFixed(2)} MB ` +
+      `(${(gz / 1024).toFixed(0)} KB gzipped)`
+  );
+} catch (err) {
+  console.error(`frontend bundle FAILED: ${err.message}`);
+  console.error('left the previous bundle (if any) in place — the server ' +
+                'serves loose modules when none is usable');
+  process.exitCode = 1;
+} finally {
+  fs.rmSync(TMP_DIR, { recursive: true, force: true });
 }
