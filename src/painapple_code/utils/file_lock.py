@@ -75,8 +75,11 @@ if sys.platform == "win32":
 
         def __enter__(self):
             # "a" creates without truncating — truncation would race other
-            # holders of the same lock file.
-            fh = open(self._path, "a")
+            # holders of the same lock file. Nothing is ever read or written
+            # through this handle (it exists only to carry the lock), but the
+            # encoding is stated anyway so the file never depends on the
+            # machine's locale codec.
+            fh = open(self._path, "a", encoding="utf-8")
             try:
                 self._acquire(fh)
             except BaseException:
@@ -139,7 +142,8 @@ else:
             self._fh = None
 
         def __enter__(self):
-            fh = open(self._path, "a")
+            # Lock-carrying handle only; see the win32 branch above.
+            fh = open(self._path, "a", encoding="utf-8")
             try:
                 fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
             except BaseException:
