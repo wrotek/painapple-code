@@ -14,11 +14,27 @@
  *
  *   node build-app.mjs [--out DIR]
  */
-import esbuild from 'esbuild';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { parse as parseYaml } from 'yaml';
+
+// Loaded dynamically only so a missing install produces a useful message.
+// ../../build-frontend.sh is the entry point and installs these; running
+// `npm run build` here directly is also fine, but skips that bootstrap and
+// would otherwise fail with a bare ERR_MODULE_NOT_FOUND naming a package the
+// reader has no reason to connect to "run npm ci first".
+let esbuild, parseYaml;
+try {
+  ({ default: esbuild } = await import('esbuild'));
+  ({ parse: parseYaml } = await import('yaml'));
+} catch (err) {
+  console.error(
+    `bundler dependencies are not installed (${err.message?.split('\n')[0]}).\n` +
+      'Run ./build-frontend.sh from the repo root — it installs them and then ' +
+      'builds. To stay here instead: npm ci --ignore-scripts && npm run build.'
+  );
+  process.exit(1);
+}
 
 const PKG = path.resolve(import.meta.dirname, '../../src/painapple_code');
 const JS_DIR = path.join(PKG, 'static/js');
