@@ -16,7 +16,7 @@ A few properties worth internalizing:
 
 ## Rich commits: the Haiku auto-journal
 
-On top of the raw commits sits the second layer: **rich commits**. After each turn, the server forks a background summarizer (Haiku by default; the model is configurable per [engine](engines.md) in **Settings → Engines** — the fork runs on the session's own engine, so Codex sessions self-summarize with a Codex model) that reads the turn — with the running "journey" context of previous turn summaries — and writes a structured commit message: a one-line summary, tags, plus sections like *work done*, *investigation*, *findings*, *decisions*, *problems solved*, *verification*, and *learnings*. You can customize which sections are generated per project.
+On top of the raw commits sits the second layer: **rich commits**. After each turn, the server forks a background summarizer (Haiku by default; the model is configurable per [engine](engines.md) in **Settings → Engines** — the fork runs on the session's own engine, so Codex sessions self-summarize with a Codex model) that reads the **whole turn, not just the diff** — with the running "journey" context of previous turn summaries — and writes a structured commit message: a one-line summary, tags, plus sections like *work done*, *investigation*, *findings*, *decisions*, *problems solved*, *verification*, and *learnings*. You can customize which sections are generated per project.
 
 Everything is parsed and stored in a local DuckDB alongside the git data, so it's queryable: every turn's prompt, cost, tokens, duration, model, files touched, tools used, tags, and all the generated sections.
 
@@ -24,8 +24,8 @@ Everything is parsed and stored in a local DuckDB alongside the git data, so it'
 
 The whole app feeds off this record. The [welcome screen's](welcome-screen.md) session cards get their names, one-line summaries, and tags from the journal; session search matches against summaries, not just prompts; and the next turn's summarizer receives the previous summaries as context, so the journal reads as a continuous narrative rather than isolated snapshots.
 
-!!! warning "This is not a backup"
-    The shadow commit is written *after* the summarizer fork finishes — a crash or server restart in between leaves a gap, and turns where Claude changed nothing produce no commit at all. Treat the journal as *"what did I change last time?"*, never as disaster recovery. Keep real backups and a real git history.
+!!! warning "A searchable record, not a backup"
+    Shadow Git is a **searchable record of what was done and why** — not disaster recovery. Mechanically it can't be one: the commit is written *after* the summarizer fork finishes, so a crash or server restart in between leaves a gap, and turns where Claude changed nothing produce no commit at all. Keep real backups and a real git history.
 
 ## Enabling it
 

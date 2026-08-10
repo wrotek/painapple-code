@@ -8,7 +8,7 @@ Some shortcuts bind different keys per platform: **Mac / iPad** uses ++cmd++, **
     Open the command palette (++ctrl+shift+p++ / ++cmd+shift+p++, or ++f1++ on Windows/Linux) or type `/help` to see the same list inside the app. Every binding can be rebound in **Settings → Shortcuts** (++ctrl+comma++); your overrides are synced to the server, so they follow you across browsers and devices.
 
 !!! note "iPad-reserved Cmd combos"
-    iPadOS reserves some ++cmd++ chords at the OS level (for example ++cmd+comma++, ++cmd+w++, ++cmd+tab++) — they never reach the web app, even in the PWA. Shortcuts that would collide keep an additive literal ++ctrl++ binding as the iPad-safe fallback (e.g. Settings is ++ctrl+comma++ everywhere *and* ++cmd+comma++ on macOS proper).
+    iPadOS reserves some ++cmd++ chords at the OS level — they never reach the web app, even in the PWA. Two of the app's bindings land on reserved chords, and each carries an additive fallback that always works: **Settings** is ++ctrl+comma++ everywhere, with ++cmd+comma++ riding along on macOS proper; **Close tab** is ++alt+w++ everywhere, with ++cmd+w++ on Mac and ++ctrl+w++ on Windows/Linux. Note the fallback is not always a ++ctrl++ chord — close-tab's is ++alt+w++, because ++ctrl+w++ is itself taken in browsers. Other reserved chords (++cmd+tab++, ++cmd+h++, ++cmd+q++, ++cmd+m++) are simply never bound; the grid switcher uses ++alt+tab++ on Mac/iPad precisely to stay clear of ++cmd+tab++.
 
 ## Sessions & Tabs
 
@@ -16,10 +16,11 @@ Some shortcuts bind different keys per platform: **Mac / iPad** uses ++cmd++, **
 |--------|-----------|-----------------|
 | New session | ++cmd+t++ | ++ctrl+t++ |
 | Quick switcher | ++cmd+k++ / ++cmd+p++ | ++ctrl+k++ / ++ctrl+p++ |
-| Open dialog (projects & sessions) | ++cmd+o++ | ++ctrl+o++ |
+| Browse Claude sessions | ++cmd+shift+k++ | ++ctrl+shift+k++ |
+| Open File or Folder | ++cmd+o++ | ++ctrl+o++ |
 | Command palette | ++cmd+shift+p++ | ++ctrl+shift+p++ / ++f1++ |
-| Grid switcher (cycle forward) | ++alt+tab++ | ++ctrl+shift+bracket-right++ |
-| Grid switcher (cycle backward) | ++alt+shift+tab++ | ++ctrl+shift+bracket-left++ |
+| All sessions grid (cycle forward) | ++alt+tab++ | ++ctrl+shift+bracket-right++ |
+| All sessions grid (cycle backward) | ++alt+shift+tab++ | ++ctrl+shift+bracket-left++ |
 | Close tab | ++alt+w++ (both) or ++cmd+w++ | ++alt+w++ (both) or ++ctrl+w++ |
 | Reopen last closed tab | ++cmd+shift+t++ | ++ctrl+shift+t++ |
 | Clone session | ++cmd+n++ | ++ctrl+shift+n++ |
@@ -48,10 +49,11 @@ Some shortcuts bind different keys per platform: **Mac / iPad** uses ++cmd++, **
 | Browser widget | ++alt+b++ | ++alt+b++ |
 | Debug console | ++alt+d++ | ++alt+d++ |
 | Eruda dev tools | ++alt+shift+d++ | ++alt+shift+d++ |
-| History explorer | ++alt+h++ | ++alt+h++ |
+| Toggle Journal | ++alt+h++ | ++alt+h++ |
 | Zen mode | ++alt+z++ | ++alt+z++ |
 | Quick actions (radial menu) | ++ctrl+q++ | ++ctrl+q++ |
 | Prompt explorer | ++alt+p++ / ++ctrl+r++ | ++alt+p++ / ++ctrl+r++ |
+| Save input as draft | ++ctrl+shift+s++ (both) or ++cmd+shift+s++ | ++ctrl+shift+s++ |
 | Skills panel | ++alt+k++ | ++alt+k++ |
 | Commands panel | ++alt+shift+k++ | ++alt+shift+k++ |
 | Thinking settings | ++cmd+apostrophe++ | ++ctrl+apostrophe++ |
@@ -100,10 +102,13 @@ Context gates worth knowing:
 |--------|-----|
 | Settings | ++ctrl+comma++ (all platforms), plus ++cmd+comma++ on macOS |
 | Close / cancel | ++escape++ |
+| Allow pending permission | ++enter++ (only while a permission card is waiting) |
 | Help | no default binding — use the command palette or `/help` |
 | Reload page (Mac/iPad only) | ++cmd+r++ |
 
 ++escape++ is gated out of the terminal so it reaches your shell, vim, etc.
+
+**Allow pending permission** is deliberately narrow: it fires only when an approve/deny card is actually waiting, never in the terminal, and — if focus is in a text field — only from an *empty* message box. That keeps ++enter++ as Send while you're typing, and leaves it to the deny-guidance field when you're writing one.
 
 ## How context gating works
 
@@ -117,5 +122,8 @@ Each shortcut declares a `when` context. The defaults:
 | `notInTerminal` | Suppressed only in the terminal |
 | `notInEditor` | Suppressed in the CodeMirror editor (lets the editor keymap win) |
 | `session` | Only while a chat session view is active |
+| `disconnected` | Only when a session exists and is disconnected — so once connected, the key passes through to other handlers (this is how ++cmd+enter++ can mean both Reconnect and Send) |
+| `permissionPending` | Only while an approve/deny permission card is waiting, never in the terminal, and from a text field only when it's the empty message box |
+| `backToSessionsContext` | Only when the back pill is visible, outside the terminal, and — in an input — only when it's empty, so ++backspace++ is never stolen mid-edit |
 
 This is why ++ctrl+b++ still works as your tmux prefix inside the terminal widget: the rail-menu toggle uses the default `global` context and stays out of the terminal's way.

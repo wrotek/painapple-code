@@ -40,6 +40,8 @@ Defaults shown are the built-ins — values saved by [`painapple setup`](#saved-
 | `--profile` | — | Run a named [profile](profiles.md) in the foreground (host: its own isolated data home; docker: its container) |
 | `--in-docker` | off | Run this same invocation inside a container instead — see [Profiles & container mode](profiles.md#ad-hoc-container-mode-in-docker) |
 
+`--profile` is not an argparse flag: the dispatcher strips it (`--profile NAME` or `--profile=NAME`, from anywhere in the command line) before the serve parser runs, because the profile decides which data home the server boots against. It behaves exactly like a flag, but `painapple serve --help` mentions it in the trailing *profiles* section rather than listing it among the flags.
+
 ### Network security
 
 | Flag | Default | Description |
@@ -78,7 +80,7 @@ set is built and when you need this flag.
 - When TLS is enabled, a self-signed certificate is auto-generated at `<config-dir>/cert.pem` / `key.pem` (next to the auth config file). There is no OS trust-store install; browsers show a one-time certificate warning.
 
 !!! warning "Non-loopback binds"
-    Binding to a non-loopback host also makes the server trust `X-Forwarded-Proto` from any client (`forwarded_allow_ips` is `*`). For real exposure, put the server behind a reverse proxy that sets that header itself — see [Read this first](../getting-started/security.md).
+    A non-loopback bind puts your traffic on the network, so prefer a reverse proxy (Caddy, nginx) over exposing the server directly — see [Read this first](../getting-started/security.md). `X-Forwarded-*` headers are trusted only from loopback (`127.0.0.1,::1`), regardless of what you bind to; if your proxy runs on another host, set `FORWARDED_ALLOW_IPS` to its address.
 
 ## Filesystem access
 
@@ -177,7 +179,7 @@ painapple --profile work           # …or run it in the foreground
 painapple list                     # everything shows up, host and docker alike
 ```
 
-Profile names are letters, digits, `.`, `_`, `-` (max 32); `default` is reserved for the flag-less root deployment (the classic `~/.painapple-code` home). If a profile doesn't set an `instance_name`, the profile name is used as the UI label, so co-running instances stay distinguishable.
+Profile names are letters, digits, `.`, `_`, `-` (max 32), and must **start** with a letter or digit; `default` is reserved for the flag-less root deployment (the classic `~/.painapple-code` home). If a profile doesn't set an `instance_name`, the profile name is used as the UI label, so co-running instances stay distinguishable.
 
 ## Background lifecycle — `painapple start`/`stop`/`restart`
 
@@ -215,12 +217,14 @@ Each instance needs its own shadow DB — DuckDB is single-writer.
 
 ## The fleet view — `painapple list`
 
-`painapple list` (aliases `ls`, `ps`, `instances`, `profiles`) and a bare `painapple status` render the same overview, in two sections:
+`painapple list` (aliases `ls`, `instances`, `profiles`) and a bare `painapple status` render the same overview, in two sections:
 
 - **Deployments** — everything a NAME verb targets: the root `default` deployment first, then every saved [profile](profiles.md), each with a `[host]`/`[docker]` badge, its address, and its running state. A running server is matched to its deployment by data home (exact) and port, so the process behind `default` is shown *as* `default` — with its `--instance-name` label alongside the PID when it has one.
 - **Unmanaged processes** — painapple servers in the process table that belong to no deployment: launched by hand or by a service unit with their own flags. Their name is just their `--instance-name` label, and `stop`/`restart`/`status`/`logs` accept it (or their PID or port).
 
 The ad-hoc `painapple --in-docker` container, when one exists, gets its own line below.
+
+`ps` is an alias of `status`, not of `list` — so a bare `painapple ps` lands on the same fleet view (via `status`), but `painapple ps NAME` gives you that deployment's detail block instead.
 
 ## Known limitations
 

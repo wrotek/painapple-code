@@ -2,7 +2,10 @@
 
 A real PTY in your browser — xterm.js on the front, a persistent shell process on the server — so you can run tests, poke at git, or drive the Claude CLI directly without leaving the chat.
 
-**Which shell you get:** `$SHELL` (falling back to `/bin/bash`) on Linux and macOS; on Windows it's a ConPTY session running PowerShell 7 (`pwsh`) if installed, otherwise Windows PowerShell. Set `PAINAPPLE_CODE_SHELL` to override on any platform.
+**Which shell you get:** on Linux and macOS, your `$SHELL` — started interactively (`-i`) — falling back to `/bin/bash` when the variable is unset. On Windows it's a ConPTY session running PowerShell 7 (`pwsh.exe`) if it's on `PATH`, otherwise Windows PowerShell (`powershell.exe`); `PAINAPPLE_CODE_SHELL` overrides that choice. The override is **Windows-only** — on Linux and macOS the shell is `$SHELL` and nothing else.
+
+!!! note "`!bang` commands don't use the same shell on Windows"
+    [Bang commands](../reference/commands.md#bang-commands) run through a separate one-shot process, and on Windows that one is always `powershell.exe` (Windows PowerShell 5.1) with `-NoProfile -NonInteractive` — it does not prefer `pwsh` and does not read `PAINAPPLE_CODE_SHELL`. So on a machine with PowerShell 7 installed, the terminal tab gives you `pwsh` while `!bang` gives you 5.1. On Linux and macOS bang commands go through `/bin/sh`, so they're POSIX-flavored even when your terminal is fish or zsh.
 
 ![The embedded terminal running ls, git status and a test suite inside the web client](../assets/terminal.gif)
 

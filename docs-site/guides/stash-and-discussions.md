@@ -34,6 +34,12 @@ The workflow:
 
 File selections are attached with their path and line range plus the selected code in a fenced block; message selections are quoted. Your note travels with each item.
 
+### Screenshot markers are stash items too
+
+The stash has a third item type: **numbered markers** from the [annotation editor](images-and-annotation.md#numbered-comment-markers). Drop a badge on a pasted screenshot, type a comment, and that comment lands here alongside your text selections — in the picker it reads `screenshot.png · marker 1`.
+
+It's one mechanism doing two things at once: the numbered badge is burned into the image, while the comment travels as prompt text, and both ride the same message — so the model can match "marker 2" in the prose to ② on the picture. Marker items have no quoted selection (the note *is* the content) and no **Open in preview** button, since there's no file and line range to jump to. Everything else works the same: toggle them, edit the note, remove them, and they clear when the message goes out.
+
 ### Reviewing the stash
 
 Click the stash button to open the **picker** — the full list of stashed items. From there you can:

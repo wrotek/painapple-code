@@ -10,11 +10,11 @@ Running the server directly on a host (pip / pipx / source checkout):
 - **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and authenticated — either a Claude subscription (`claude login`) or an Anthropic API key
 - **Git** on `PATH` — the [auto-journal](../guides/shadow-git.md) records every turn as a commit in a shadow repository, and the Git panel shells out to it for diffs. Without git the server still runs, but it journals nothing and the Git panel stays empty; you'll get a warning in the log at startup.
 - **Network access between client and server** — any modern browser works as a client
-- *Optional:* the **[OpenAI Codex CLI](https://github.com/openai/codex)** if you want sessions on the Codex [engine](../guides/engines.md) — you can even log it in from inside the app
+- *Optional:* the **[OpenAI Codex CLI](https://github.com/openai/codex)** if you want sessions on the Codex [engine](../guides/engines.md) — you can even log it in from inside the app. **Codex support is experimental** — newer and less exercised than the Claude path.
 
 ### Server platforms
 
-The bridge runs natively on all three desktop platforms. No WSL required.
+pAInapple Code runs natively on all three desktop platforms. No WSL required.
 
 | Platform | Status | Notes |
 |---|---|---|
@@ -35,7 +35,7 @@ The bridge runs natively on all three desktop platforms. No WSL required.
 !!! tip "Docker skips most of this"
     The [Docker / Podman path](install-docker.md) is the recommended install on Linux and macOS. The image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start — so the only host requirement is a container runtime.
 
-    On Windows, prefer the native install above. Docker Desktop works, but it runs the bridge inside a **Linux** container, so your projects are bind-mounted across the Windows/Linux boundary — which brings back the path translation, line-ending and file-watching problems that running natively avoids.
+    On Windows, prefer the native install above. Docker Desktop works, but it runs the server inside a **Linux** container, so your projects are bind-mounted across the Windows/Linux boundary — which brings back the path translation, line-ending and file-watching problems that running natively avoids.
 
 ### Client devices
 
@@ -45,7 +45,7 @@ The desktop browser is the primary target, but the UI is mobile-friendly and ins
 
 **It is** a thin wrapper around Claude Code — every prompt streams through the official **Agent SDK** (the classic `claude -p` line protocol is available as an alternate engine). Sessions you create here can be resumed in the regular CLI with `claude --resume <id>`.
 
-**It is not** an AI agent of its own. It does not modify your prompts, inject planning steps, parallelize work, or change Claude's behavior. The one exception is the optional `shadow-git-helper` agent, which knows how to query the Shadow Git history.
+**It is not** an AI agent of its own. It never modifies Claude's system prompt, tool policy, or behavior — no injected planning steps, no hidden instructions, no parallelized work. What it *does* add to a prompt is the context **you** attached: the output of `!bang` commands you ran, paths of files you uploaded, and snippets from the comments stash are prepended as plain text. The one other exception is the optional `shadow-git-helper` agent, which knows how to query the Shadow Git history.
 
 **It is not yet an easy "develop from anywhere" mobile setup.** Working from a phone or tablet as a PWA is entirely possible, but you have to wire up the networking yourself. By default the server listens on `127.0.0.1`; you can change that with `--host x.x.x.x`, or via `painapple setup` (the network step applies to `--in-docker` and docker-mode profiles too). In the default auto-TLS mode, non-loopback interfaces get a self-signed certificate, which some mobile browsers handle poorly.
 
@@ -54,4 +54,4 @@ The desktop browser is the primary target, but the UI is mobile-friendly and ins
 
 ## Next step
 
-Before installing anything, read the [security notes](security.md) — this is an MVP built around permissive permission modes, and you should understand the trade-offs first.
+Before installing anything, read the [security notes](security.md). Short version: this is an MVP, all of its code was written by AI, and whoever can authenticate gets the shell authority of the user running it — understand that trade-off first.

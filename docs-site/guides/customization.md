@@ -81,7 +81,7 @@ Handy for pinning one terminal or file preview across a set of related sessions.
 
 Some customization is stored server-side, so it follows you to any browser or device that logs into the same server; the rest is per-browser `localStorage`.
 
-**Server-side:** shortcut overrides, quick-action presets, the model catalog and default model, per-project config (extra dirs, Shadow Git, commit sections), global Shadow Git defaults, global extra dirs, and [tab state](sessions.md). **Per-browser:** appearance settings (density, font scale, opacity, tool-block modes), input toggles, and the FAB position/slots.
+**Server-side:** shortcut overrides, quick-action presets, everything on the Engines tab — which engines are enabled, which one is the default for new sessions, each engine's CLI path override, its per-model show/hide list, its editable model catalog (Claude only), its new-session defaults (model, effort, account) and its auto-journal summarizer model — per-project config (extra dirs, Shadow Git, commit sections), global Shadow Git defaults, global extra dirs, and [tab state](sessions.md). **Per-browser:** appearance settings (density, font scale, opacity, tool-block modes), input toggles, and the FAB position/slots.
 
 ## Related
 

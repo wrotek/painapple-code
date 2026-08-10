@@ -9,11 +9,15 @@ Override with `PAINAPPLE_CODE_HOME`. The Docker image sets it to `/data` (a name
 ```
 ~/.painapple-code/
 ├── config.json              # Global settings
+├── serve.yaml               # Saved global serve defaults (`painapple setup`)
 ├── tab-state.json           # Open tabs + active tab (server-side, survives PWA quirks)
 ├── shortcuts.json           # Keyboard-shortcut overrides
 ├── favorites.json           # Favorited sessions
 ├── prompt-favorites.json    # Favorited prompts
+├── drafts.json              # Saved prompt drafts
 ├── presets/                 # Prompt/config presets (one JSON per preset)
+├── profiles/                # Named deployments — profiles/NAME/profile.yaml (host mode: also its data home)
+├── instance-icons/          # Generated PWA icons (only with --instance-name / --accent)
 ├── shadow.duckdb            # Turn metadata database (DuckDB, + .wal sidecar)
 ├── logs/                    # Server logs (auto-rotating, see below)
 └── projects/
@@ -68,7 +72,6 @@ Override with `PAINAPPLE_CODE_CONFIG`. Kept separate so credentials survive wipi
 | `config.yaml` | Auth password — owner-only (mode `0600`, parent `0700`; an equivalent NTFS ACL on Windows) |
 | `tokens/` | Optional token-profile files (alternate API credentials selectable per session) |
 | `cert.pem`, `key.pem` | Auto-generated self-signed TLS cert/key (when TLS is enabled) |
-| `fingerprint` | Cert fingerprint sidecar (only with `--tls-fp-url`) |
 
 ## Log files
 
@@ -120,8 +123,13 @@ Uninstalling the package removes neither directory — `pip uninstall` leaves `~
 
 ## Resuming sessions in the plain CLI
 
-Sessions created through pAInapple Code are regular Claude Code sessions. The provider session ID is stored in each session's `meta.json` (`provider_session_id`), and you can pick any conversation up from a terminal:
+Sessions created through pAInapple Code are regular sessions of whatever [engine](../guides/engines.md) ran them — nothing proprietary is layered on top. The provider session ID is stored in each session's `meta.json` (`provider_session_id`), and you can pick any conversation up from a terminal.
+
+**The resume command follows the session's own engine.** Each provider self-describes its template, so a Codex session is not resumable with `claude`:
 
 ```bash
-claude --resume <session-id>
+claude -r <session-id>              # Claude engines (claude-sdk, claude)
+codex exec resume <session-id>      # Codex engines (codex, codex-app-server)
 ```
+
+The in-app **Continue in CLI** quick action copies the right one for the session you're looking at, so you don't have to remember which engine it was bound to.

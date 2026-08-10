@@ -47,7 +47,10 @@ A `/` at the very start of the input (only there — mid-text slashes are left a
 
 Two prefixes flip the whole input into a different mode — the box restyles and the placeholder changes so you can't mistake where your keystrokes go. Press ++backspace++ on an *empty* input to leave a mode (your text stays, prefix restored).
 
-**Shell mode (`!`)** — type `!` and the rest of the line is a shell command, with autocomplete over your recent commands. It runs on the *server* (in the session's working directory) without involving Claude; output appears in the chat as a collapsible block. Outputs are also buffered and quietly prepended to your next message, so you can run `!pytest`, read the failures, and then just type "fix these" — Claude sees the command and its output.
+**Shell mode (`!`)** — type `!` and the rest of the line is a shell command, with autocomplete over your recent commands. It runs on the *server* (in the session's working directory) without involving Claude; output appears in the chat as a collapsible block, and is truncated at 3,000 characters. A command that hasn't finished in **30 seconds** is cut off.
+
+!!! note "`!` doesn't use your login shell"
+    Bang commands don't run under the same shell as the [terminal tab](terminal.md). On Linux and macOS they run under `/bin/sh`, not your `$SHELL` — so fish and zsh aliases, functions, and syntax aren't available. On Windows they run under **Windows PowerShell** (`powershell.exe -NoProfile`), so they're PowerShell-flavored rather than `sh`-flavored — and note that's 5.1 even if you have PowerShell 7 installed and the terminal tab is using `pwsh`. Outputs are also buffered and quietly prepended to your next message, so you can run `!pytest`, read the failures, and then just type "fix these" — Claude sees the command and its output.
 
 **Plan mode (`/plan `)** — typing `/plan ` switches the input into plan compose mode and flips the [permission mode](permissions-and-thinking.md) to read-only Plan for that message.
 

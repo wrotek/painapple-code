@@ -213,7 +213,7 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Everythi
 
 **Nothing phones home.** No telemetry, no update checks, no analytics. The only outbound request the server itself makes is the browser widget fetching a URL you asked it to open (guarded against internal-network addresses). The Claude and Codex CLIs it launches talk to their own vendors, as they would anyway.
 
-**In Docker, your host `~/.claude` is mounted read-write** so the containerized CLI reuses your existing login — which means the container can modify that config. The setup wizard offers an isolated Claude home instead if you'd rather keep them separate.
+**In Docker, the Claude home is isolated by default.** Containers get their own `~/.painapple-code/shared/.claude` rather than a mount of your host `~/.claude`, so one `claude login` serves every sandbox without any of them being able to touch your host config. The setup wizard can seed that isolated home from your host login once, and you can point `claude_home` at the host copy explicitly if you'd rather share it.
 
 **Uninstalling the package leaves your data.** `~/.painapple-code/` (sessions, shadow repos, the DuckDB store) and `~/.config/painapple-code/` (password, cert) stay until you delete them; the helpers have their own uninstall flag. Full inventory: [data & storage reference](https://painapple.ai/reference/data-storage/).
 

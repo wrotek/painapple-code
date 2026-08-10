@@ -1,6 +1,8 @@
 # Read this first
 
-pAInapple Code is an MVP and is very YOLO-oriented — read this page before you run it anywhere that matters.
+**Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** It exists to run a coding agent on your behalf — `/api/exec`, the embedded terminal, and every approved tool call execute as that user. Treat the password like an SSH key, and read this page before you run it anywhere that matters.
+
+**This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I try to keep the security hygiene tight, but I can't promise there isn't an RCE hiding somewhere — one more reason to take the isolation advice below seriously.
 
 ## Permissions
 
@@ -29,7 +31,7 @@ This risk isn't unique to this project, but it's worth restating the consequence
 ## Isolation
 
 !!! warning "Always run in isolation"
-    Run your Claude environment — especially a YOLO-oriented one — inside isolation: Docker, a VM, LXC, BSD jails, or similar. On Windows the equivalents are Hyper-V or a WSL2 distro (with Docker Desktop on top if you want the container path); Windows Sandbox is too ephemeral to hold a working setup. A separate, non-Administrator Windows account is the minimum. Container mode is built into the CLI: `painapple --in-docker` sandboxes the current directory ad-hoc, and `painapple setup NAME` creates a durable docker-mode profile. See the [Docker setup](install-docker.md) for both.
+    Run your Claude environment — especially in the permissive modes — inside isolation: Docker, a VM, LXC, BSD jails, or similar. On Windows the equivalents are Hyper-V or a WSL2 distro (with Docker Desktop on top if you want the container path); Windows Sandbox is too ephemeral to hold a working setup. A separate, non-Administrator Windows account is the minimum. Container mode is built into the CLI: `painapple --in-docker` sandboxes the current directory ad-hoc, and `painapple setup NAME` creates a durable docker-mode profile. See the [Docker setup](install-docker.md) for both.
 
     **If these concepts are unfamiliar, this MVP is probably not for you yet.**
 
@@ -38,4 +40,21 @@ This risk isn't unique to this project, but it's worth restating the consequence
 By default the server binds `127.0.0.1` over plain HTTP. Bind it to a non-loopback host and it auto-enables TLS with a self-signed certificate (browsers show a one-time certificate warning — see the `--tls` flag).
 
 !!! warning "The password gate is not a firewall"
-    Either way, the built-in auth is a single-password gate — not a substitute for proper network controls. For real public exposure, put the server behind your own reverse proxy and keep pAInapple Code itself on loopback.
+    Either way, the built-in auth is a single-password gate — adequate on a home network or behind a personal VPN, and not a substitute for proper network controls. **I strongly discourage exposing it on a public interface.** If you must reach it from outside, keep pAInapple Code on loopback and put your own reverse proxy — with real TLS and its own auth — in front.
+
+## Single-user, not multi-tenant
+
+It is **single-user, not multi-tenant**. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead.
+
+## What it touches on your machine
+
+pAInapple Code runs a coding agent, so it is not a light-touch program. Two defaults are worth knowing before you point it at a directory:
+
+- **Shadow git copies your project into the data home — on by default.** After each turn it commits the whole working tree, *including untracked files*, into a private repo under `~/.painapple-code/`. It skips `.git`, `node_modules`, virtualenvs, build output, logs, `.env` files, and anything over 50 MB — but a secret in a file that *doesn't* match those exclusions (say `credentials.json`) gets copied there and kept in that repo's history.
+- **Auto-journal spends tokens in the background — on by default.** After each turn a second, short model call summarizes what happened. It's cheap, but it is real API usage you didn't explicitly trigger.
+
+Both are per-project toggles in the Auto-journal settings. **Nothing phones home** — no telemetry, no update checks, no analytics. Full inventory: [Data storage & logs](../reference/data-storage.md).
+
+## Reporting a vulnerability
+
+**Found one?** Please report it privately — see [`SECURITY.md`](https://github.com/wrotek/painapple-code/blob/main/SECURITY.md) in the repo.

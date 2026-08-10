@@ -63,9 +63,12 @@ Three buttons finish the job: **Attach annotated** (also plain ++enter++, or ++c
 
 ### Numbered comment markers
 
-The marker tool is the reason the editor exists. Click anywhere to drop a **numbered yellow badge** and type a comment into the floating box beside it. The badge is drawn onto the image; the comment text is **not** — it goes into the [Comments Stash](stash-and-discussions.md) instead, as "marker N on *filename*" items that attach to the same message as the picture.
+The marker tool is the reason the editor exists. Click anywhere to drop a **numbered yellow badge** and type a comment into the floating box beside it. The badge is drawn onto the image; the comment text is **not** — it goes into the [Comments Stash](stash-and-discussions.md) instead, as items that attach to the same message as the picture. In the stash picker they're listed as `screenshot.png · marker 1`; in the prompt they become a block headed `**Marker 1 on screenshot.png:**` with your comment quoted underneath.
 
-So Claude receives: a screenshot with badges ①②③ burned in, plus your prompt prefixed with "I'm referencing the numbered markers drawn on the attached screenshot: Marker 1 — …". The badge anchors the spot; the prose stays machine-readable text instead of pixels.
+So Claude receives: a screenshot with badges ①②③ burned in, plus a context block above your prompt — "I'm referencing the numbered markers drawn on the attached screenshot:" followed by one `**Marker N on <file>:**` entry per badge. The badge anchors the spot; the prose stays machine-readable text instead of pixels.
+
+!!! note "Mixed stash, generic lead-in"
+    That marker-specific lead-in is only used when *every* attached stash item is a marker. Add a text selection to the stash alongside your markers and the block falls back to the generic "I'm referencing these code sections:" header — the `**Marker N on …**` entries are still there, just under the other heading.
 
 Marker handling details:
 

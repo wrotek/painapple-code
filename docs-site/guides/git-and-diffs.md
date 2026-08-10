@@ -17,7 +17,7 @@ Right-clicking a changed file gets you the usual file actions (the same menu as 
 
 ## The diff viewer
 
-The diff viewer is a dedicated widget for comparing two versions of a file — or a set of files — with two rendering modes you can toggle at any time: **Split** (side-by-side columns, perfectly line-aligned) and **Unified** (classic single-column). A wrap toggle handles long lines, unchanged regions collapse into "*N unchanged lines*" expanders, and when it holds multiple files, arrows step through them. On the keyboard, ++j++ / ++n++ jump to the next hunk and ++k++ / ++p++ to the previous one.
+The diff viewer is a dedicated widget for comparing two versions of a file — or a set of files — with two rendering modes you can toggle at any time: **Split** (side-by-side columns, perfectly line-aligned) and **Unified** (classic single-column). Below about 600 px of widget width, Split is not worth the columns — the viewer renders Unified regardless of the toggle until you make it wider. A wrap toggle handles long lines, unchanged regions collapse into "*N unchanged lines*" expanders, and when it holds multiple files, arrows step through them. On the keyboard, ++j++ / ++n++ jump to the next hunk and ++k++ / ++p++ to the previous one.
 
 You'll land in it from all over the app:
 

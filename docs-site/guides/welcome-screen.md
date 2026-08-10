@@ -6,7 +6,7 @@ Every new tab opens on the welcome screen — a launcher that combines your proj
 
 ## Starting a session
 
-The fastest path: click a project chip under **Projects** and start typing. Chips are your known projects, sorted by how many sessions each has (the count badge); below them, an **Unvisited** row lists sibling directories in your workspace you haven't opened yet — new repos show up here before they have any history. Right-click (or long-press) a chip for more: **New Session**, **New Terminal**, **New Browser**, **New Draft**, or **Reopen Closed**.
+The fastest path: click a project chip under **Projects** and start typing. Chips are your known projects, sorted by how many sessions each has (the count badge); below them, an **Unvisited** row lists sibling directories in your workspace you haven't opened yet — new repos show up here before they have any history. Right-click (or long-press) a chip for more: **Filter by project**, **Rename project**, **Set color**, **New session**, **Copy path**, and **Open in terminal**.
 
 If your project isn't in the chips, use the connection bar's open button or ++cmd+o++ / ++ctrl+o++ to bring up the [Open dialog](sessions.md#open-dialog) — type any path with tab-completion, and **Open this folder** starts the session there. If the directory doesn't exist yet, you'll be offered to create it first.
 

@@ -7,13 +7,13 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 | Feature | What it does | Guide |
 |---|---|---|
 | Multi-session tabs | Several concurrent sessions in browser-style tabs; terminals and file previews can sit in the same tab strip | [Sessions & tabs](guides/sessions.md) |
-| AI engines | Pick Claude Code or OpenAI Codex per session — per-engine models, permission vocabularies, effort scales, defaults, and in-app CLI login | [AI engines](guides/engines.md) |
+| AI engines | Pick Claude Code or OpenAI Codex per session — per-engine models, permission vocabularies, effort scales, defaults, and in-app CLI login. Codex support is experimental | [AI engines](guides/engines.md) |
 | Session setup panel | One-tap engine / model / permissions / effort / account pills on every fresh session, gone after the first message | [AI engines](guides/engines.md) |
 | Streaming chat | Live-rendered markdown, collapsible tool and thinking blocks, syntax highlighting, per-block line-wrap toggle, clickable file references | [Sessions & tabs](guides/sessions.md) |
 | Per-turn summary bar | Context usage, token delta, files changed, tools used, duration, cost, and model after every turn | [Sessions & tabs](guides/sessions.md) |
 | Reconnect & resume | Claude keeps running when the tab disconnects; page refresh reattaches; resume any session in the CLI with `claude --resume` | [Sessions & tabs](guides/sessions.md) |
 | Quick switcher & command palette | Fuzzy-jump between sessions, files, and actions from the keyboard | [Sessions & tabs](guides/sessions.md) |
-| Welcome screen | Recent-session cards with journal metadata, session families, search, favorites, CLI session import | [Welcome screen](guides/welcome-screen.md) |
+| Welcome screen | Recent-session cards with journal metadata, session families, search, favorites, per-project colors | [Welcome screen](guides/welcome-screen.md) |
 | Session forks & threads | Fork a session, clone it, or graduate a discussion thread into a full tab | [Sessions & tabs](guides/sessions.md) |
 
 ## Input
@@ -36,7 +36,7 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 | File explorer & preview | Tree/list/search/bookmarks views; preview with editing (CodeMirror), markdown quick-edit, CSV, images, Excalidraw, Vega-Lite charts | [Files, preview & editing](guides/files.md) |
 | Search in files | Project-wide content search (ripgrep-backed, VS Code-style) — regex, globs, click-through to the exact line | [Files, preview & editing](guides/files.md#search-in-files) |
 | Browser widget | Renders local HTML or proxies external URLs in a sandboxed iframe | [Files, preview & editing](guides/files.md) |
-| Git widget & diff viewer | Status, history, side-by-side diffs, compare wizard, review workflow | [Git & diff viewer](guides/git-and-diffs.md) |
+| Git widget & diff viewer | Status, history, side-by-side and unified diffs, Shadow-Git history bar, compare wizard — read-only by design | [Git & diff viewer](guides/git-and-diffs.md) |
 | Skills / commands / agents / plugins / snippets managers | Browse and edit Claude Code artifacts from the UI | [Skills, commands, agents & plugins](guides/claude-artifacts.md) |
 | Zen mode | OLED focus overlay with Chat, Map, Review, and Act views *(experimental)* | [Zen mode](guides/zen-mode.md) |
 
@@ -44,7 +44,7 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 
 | Feature | What it does | Guide |
 |---|---|---|
-| Shadow Git auto-journal | Every turn committed to a parallel git repo with a Haiku-generated structured summary | [Shadow Git journal](guides/shadow-git.md) |
+| Shadow Git auto-journal | Pull up the full history of any topic or file you've worked on — a fast model reads the **whole turn, not just the diff** and stores a structured summary in git + DuckDB. **Not a backup — a searchable record of what was done and why.** | [Shadow Git journal](guides/shadow-git.md) |
 | Journal explorer | Timeline, per-file history, tags, decisions, problems, learnings — your development archaeology | [Shadow Git journal](guides/shadow-git.md) |
 | Undo & restore | Roll back a turn's file changes or restore any file from any past turn | [Shadow Git journal](guides/shadow-git.md) |
 | Cost analytics | Spend per project, session, model, and tool, with daily trends | [Cost analytics & prompt history](guides/analytics-and-history.md) |

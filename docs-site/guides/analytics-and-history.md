@@ -63,7 +63,7 @@ Four actions per card:
 
 A few more panels for looking under the hood:
 
-**Log explorer** (++alt+l++) — the current session's logs in three tabs: parsed **Messages**, the **Raw** JSON stream between the server and the CLI (rendered as a collapsible JSON tree), and large **Tools** outputs stored on disk. Supports pagination, role/error filtering, and sort order toggling — the closest thing to a flight recorder for a session.
+**Log explorer** (++alt+l++) — the current session's logs in four tabs: parsed **Messages**, the **Raw** JSON stream between the server and the CLI (rendered as a collapsible JSON tree), large **Tools** outputs stored on disk, and **System** — the client's own event log for this session (connects, reconnects, errors, warnings), sortable by timestamp. Supports pagination, role/error filtering, and sort order toggling — the closest thing to a flight recorder for a session.
 
 **Active sessions** (++alt+s++) — a monitor of every Claude process the server is running: your sessions with their process state, background instances (like the Shadow Git summary forks) with history, and aggregate success-rate stats.
 
