@@ -59,7 +59,9 @@ Full reference: [Docker & container mode](https://painapple.ai/getting-started/i
 
 ## Requirements
 
+- **Server:** Linux, macOS, or Windows 10/11 — **natively, no WSL required**. ([Windows notes](https://painapple.ai/getting-started/requirements/#windows-notes): install the Claude CLI with `irm https://claude.ai/install.ps1 | iex`, not npm.)
 - **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image ships Python and Node, and installs the agent CLIs itself on first start.)
+- **Git** on `PATH` — the auto-journal records every turn as a shadow-git commit, and the Git panel shells out to it. **Without git the server still runs, but journals nothing.** (Windows: [Git for Windows](https://git-scm.com/download/win), which also provides the bash the optional helpers run under.)
 - **Optional:** Docker or Podman, if you want the sandboxed `--in-docker` run mode and the named container instances.
 - **Optional:** the [OpenAI Codex CLI](https://github.com/openai/codex), if you want the Codex engine.
 - **Client:** any modern browser with network access to the server.
@@ -67,6 +69,15 @@ Full reference: [Docker & container mode](https://painapple.ai/getting-started/i
 ## Quick start
 
 ### pipx (recommended)
+
+No pipx yet? It's two lines (or `brew install pipx` on macOS):
+
+```bash
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
+```
+
+Then:
 
 ```bash
 pipx install painapple-code
@@ -94,7 +105,7 @@ Native desktop and mobile apps are in development — stay tuned.
 
 ## Authentication
 
-**Every HTTP and WebSocket request needs a password.** The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; mode 0600 either way), and logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest.
+**Every HTTP and WebSocket request needs a password.** The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; **owner-only either way** — mode 0600 on Unix, an owner-only NTFS ACL on Windows), and logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest.
 
 ```bash
 # Reveal the password — prints ready-to-open login URLs
@@ -186,7 +197,7 @@ src/painapple_code/tools/install-helpers.sh   # --update / --uninstall / --dry-r
 
 ## Data storage
 
-Everything lives under `~/.painapple-code/` (or `$PAINAPPLE_CODE_HOME`; `/data` in Docker): per-project sessions, shadow git repos, the DuckDB turn store, and logs. Auth config sits apart in `~/.config/painapple-code/config.yaml` (mode 0600), so **wiping the data directory doesn't rotate your password**. Full layout: [data & storage reference](https://painapple.ai/reference/data-storage/).
+Everything lives under `~/.painapple-code/` (or `$PAINAPPLE_CODE_HOME`; `/data` in Docker): per-project sessions, shadow git repos, the DuckDB turn store, and logs. Auth config sits apart in `~/.config/painapple-code/config.yaml` (owner-only: mode 0600 on Unix, an NTFS ACL on Windows), so **wiping the data directory doesn't rotate your password**. Full layout: [data & storage reference](https://painapple.ai/reference/data-storage/).
 
 ## What it touches on your machine
 
@@ -198,7 +209,7 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Everythi
 
 **Auto-journal spends tokens in the background — on by default.** After each turn a second, short model call (Haiku by default) summarizes what happened to produce the journal entries and commit messages. It's cheap, but it is real API usage you didn't explicitly trigger. Same settings panel turns it off.
 
-**Outside the data home it touches very little.** Auth config and TLS cert live in `~/.config/painapple-code/` (mode 0600). The optional helpers — only if you install them — add two scripts to `~/.local/bin/` and one agent file to `~/.claude/agents/`; no `sudo`, no `$PATH` or shell-rc edits. It reads `~/.claude/` and `$CODEX_HOME` to list your existing skills, agents, commands, and models.
+**Outside the data home it touches very little.** Auth config and TLS cert live in `~/.config/painapple-code/`, restricted to your account (mode 0600 on Unix; an owner-only ACL applied with `icacls` on Windows, since POSIX mode bits do nothing on NTFS). The optional helpers — only if you install them — add two scripts to `~/.local/bin/` and one agent file to `~/.claude/agents/`; no `sudo`, no `$PATH` or shell-rc edits. (On Windows the two scripts are bash, so each also gets a small generated `.cmd` wrapper beside it that invokes Git for Windows' bash — that's what lets you call them by name from the PowerShell terminal. Without Git for Windows they're skipped and only the agent file installs.) It reads `~/.claude/` and `$CODEX_HOME` to list your existing skills, agents, commands, and models.
 
 **Nothing phones home.** No telemetry, no update checks, no analytics. The only outbound request the server itself makes is the browser widget fetching a URL you asked it to open (guarded against internal-network addresses). The Claude and Codex CLIs it launches talk to their own vendors, as they would anyway.
 
@@ -210,7 +221,7 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Everythi
 
 This is an MVP — there are tradeoffs.
 
-1. **No Windows support (server side)** — the server currently runs on Linux and macOS only. A few modules import POSIX-only pieces (`pty`/`termios`/`fcntl`) at module level, so the package does not even import on Windows yet; process control also assumes POSIX process groups and signals. Work on a ConPTY/`pywinpty` terminal backend and Windows-safe file locking is underway — until then, use WSL2 or the Docker image. The web client itself works fine from a Windows browser.
+1. **Windows support is new** — the server now runs natively on Windows 10/11, no WSL: the terminal is ConPTY-backed, file locking and process control have Windows implementations, and CI smoke-tests install/import/boot on every push. But it is by far the **youngest and least-exercised platform** — Linux is where this is developed and used daily. Expect rougher edges than on Linux or macOS. Two deliberate differences: the terminal tab runs **PowerShell** (so `!bang` commands are PowerShell-flavored, not `sh`), and the optional `shadow-git`/`shadow-query` helpers are shell scripts that need **Git for Windows** to provide a bash.
 2. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
 3. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
 4. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.

@@ -7,6 +7,15 @@ Run the server directly on the host — no container. This path needs Python 3.1
 
 ## pipx (recommended for direct installs)
 
+No pipx yet? It's two lines (or `brew install pipx` on macOS):
+
+```bash
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
+```
+
+Then:
+
 ```bash
 pipx install painapple-code
 painapple --workspace /path/to/your/projects
