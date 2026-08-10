@@ -1915,7 +1915,7 @@ def main(argv=None):
 ║  WebSocket:  {ws_scheme}://{args.host}:{args.port}/chat
 ║  Files API:  {scheme}://{args.host}:{args.port}/api/files
 ║  Workspace:  {args.workspace}{instance_line}{shadow_db_line}{log_dir_line}{state_suffix_line}
-║  Auth File:  {app.state.auth_config_file}{auth_lines}{tls_line}
+║  Auth File:  {app.state.auth_config_file}{tls_line}{auth_lines}
 ╚══════════════════════════════════════════════════════════════╝
     """)
 
