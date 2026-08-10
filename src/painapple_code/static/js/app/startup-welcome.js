@@ -166,7 +166,7 @@ export const startupWelcomeMethods = {
         // Browse for a project (open file explorer)
         window.addEventListener('welcome:browse-project', () => {
             // Open file explorer widget in directory mode
-            import('./widget-system/index.js').then(({ WidgetManager }) => {
+            import('../widget-system/index.js').then(({ WidgetManager }) => {
                 WidgetManager.open('file-explorer');
             });
         });
@@ -176,7 +176,7 @@ export const startupWelcomeMethods = {
         // View session details
         window.addEventListener('welcome:session-details', (e) => {
             const { sessionId } = e.detail;
-            import('./widget-system/index.js').then(({ WidgetManager }) => {
+            import('../widget-system/index.js').then(({ WidgetManager }) => {
                 WidgetManager.open('log-explorer', { sessionId });
             });
         });

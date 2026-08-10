@@ -41,7 +41,7 @@ import time
 from pathlib import Path
 
 from painapple_code.cli import profiles, serve_config
-from painapple_code.cli.ui import DIM, RESET, err, info, ok, say, warn
+from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET, err, info, ok, say, warn
 from painapple_code.utils.proc import pid_alive
 
 START_TIMEOUT = 20   # seconds for the port to start accepting
@@ -180,7 +180,7 @@ def _print_login_url(*logs):
         for line in reversed(text.splitlines()):
             m = re.search(r"https?://\S+\?tkn=\S+", line)
             if m:
-                say(f"  {DIM}Log in:{RESET} {m.group(0)}")
+                say(f"  {BOLD}Log in:{RESET} {BOLD}{GREEN}{m.group(0)}{RESET}")
                 return
 
 

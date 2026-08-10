@@ -40,6 +40,11 @@ def _apply_serve_flags(cfg, argv):
         value = _flag(argv, flag)
         if value is not None:
             _try_assign(cfg, key, value, flag)
+    if "--no-password" in argv or "--no-passwd" in argv:
+        # The container invocation is assembled from DockerSettings, not
+        # the host argv — don't let the user believe stdout is clean.
+        warn("--no-password is not forwarded into the container; the "
+             "container's startup box will still print credentials")
     ws = _flag(argv, "--workspace", "--cwd")
     if ws is not None:
         _try_assign(cfg, "WORKSPACE", ws, "--workspace")

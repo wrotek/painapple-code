@@ -97,6 +97,13 @@ def build_parser():
                           "host. 'on' forces TLS. 'off' disables it. Self-signed cert is "
                           "auto-generated; clients accept it without verification (TLS here "
                           "guards against passive snooping only).")
+    net.add_argument("--no-password", "--no-passwd", dest="no_password",
+                     action="store_true",
+                     help="Don't print credentials to stdout: the startup box hides "
+                          "the password and strips the ?tkn= from the login URL. "
+                          "Retrieve them later with `painapple password` or from the "
+                          "auth config file. Useful when the console is visible to "
+                          "others (screen shares, recorded demos, shared logs).")
     net.add_argument("--tls-cert", default=None, metavar="PATH",
                      help="TLS cert path (default: <config-dir>/cert.pem, auto-generated)")
     net.add_argument("--tls-key", default=None, metavar="PATH",

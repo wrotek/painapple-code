@@ -51,6 +51,86 @@ export function formatKeyForDisplay(keyCombo) {
 }
 
 /**
+ * Normalize a chord for comparison ("Ctrl+Shift+K" → "ctrl+k+shift").
+ * Modifier order is irrelevant, so sort the parts.
+ */
+function normalizeChord(keyString) {
+    return keyString.toLowerCase().split('+').sort().join('+');
+}
+
+// literal chord → chord that actually fires on this platform. Built lazily
+// from SHORTCUTS + user overrides; invalidated whenever the map is rebuilt.
+let literalChordMap = null;
+
+function buildLiteralChordMap() {
+    const overrides = loadUserShortcutOverrides();
+    const map = new Map();
+    for (const shortcut of SHORTCUTS) {
+        const effective = overrides[shortcut.id] || resolveKeys(shortcut);
+        if (!effective.length) continue;
+        // Every chord this entry declares on ANY platform is a valid alias to
+        // look it up by — that's what the hardcoding surfaces wrote down.
+        const declared = [...(shortcut.keys || []), ...(shortcut.mac || []), ...(shortcut.other || [])];
+        for (const chord of declared) {
+            const key = normalizeChord(chord);
+            if (map.has(key)) continue;  // first entry in registry order wins
+            // On Mac, advertise the Cmd binding when the entry has one — several
+            // entries keep an iPad-safe Ctrl chord in `keys` AND a Cmd twin in
+            // `mac` (both fire), and ⌘ is what a Mac user expects to read.
+            // Otherwise keep the literal if it still fires here, else fall back
+            // to the entry's first effective binding.
+            const cmd = IS_MAC && effective.find(e => /Cmd\+/i.test(e));
+            const live = effective.find(e => normalizeChord(e) === key);
+            map.set(key, cmd || live || effective[0]);
+        }
+    }
+    return map;
+}
+
+/**
+ * Format a chord that was hardcoded OUTSIDE this registry — quick-action
+ * definitions, widget `shortcut:` fields — for display on this platform.
+ *
+ * Those surfaces each wrote down one platform's chord (historically the Ctrl
+ * one), so on Mac they advertised a binding that doesn't fire while the help
+ * overlay showed the Cmd one. Resolve the literal back to its SHORTCUTS entry
+ * (honouring user overrides) and render that entry's effective binding.
+ * Unclaimed literals fall through to plain sigil formatting.
+ */
+export function formatLiteralChord(literal) {
+    if (!literal) return literal;
+    if (!literalChordMap) literalChordMap = buildLiteralChordMap();
+    return formatKeyForDisplay(literalChordMap.get(normalizeChord(literal)) || literal);
+}
+
+/**
+ * Format a chord handled locally by a widget rather than by this registry
+ * (annotation undo, in-preview search…). Those handlers gate on
+ * `e.metaKey || e.ctrlKey`, so Cmd genuinely works on Mac — advertise it.
+ */
+export function formatModChord(literal) {
+    if (!literal) return literal;
+    return formatKeyForDisplay(IS_MAC ? literal.replace(/Ctrl\+/gi, 'Cmd+') : literal);
+}
+
+/**
+ * Resolve chord placeholders inside a strings.yaml value, so UI copy can name
+ * a shortcut without hardcoding one platform's modifier:
+ *
+ *   "Search ({key:Ctrl+F})"   → "Search (⌘ F)"      on Mac, "Search (Ctrl+F)" elsewhere
+ *   "Undo ({modkey:Ctrl+Z})"  → "Undo (⌘ Z)"        on Mac  (widget-local handler)
+ *
+ * `key:` resolves through the shortcut registry (use it when a SHORTCUTS entry
+ * owns the binding); `modkey:` is for handlers that gate on metaKey||ctrlKey.
+ */
+export function withChords(text) {
+    if (typeof text !== 'string') return text;
+    return text
+        .replace(/\{key:([^}]+)\}/g, (_, chord) => formatLiteralChord(chord))
+        .replace(/\{modkey:([^}]+)\}/g, (_, chord) => formatModChord(chord));
+}
+
+/**
  * Shortcut categories for help organization
  */
 export const CATEGORIES = {
@@ -711,6 +791,7 @@ export class ShortcutManager {
     buildShortcutMap() {
         this.shortcuts.clear();
         this.userOverrides = loadUserShortcutOverrides();
+        literalChordMap = null;  // overrides may have moved a binding
 
         for (const shortcut of SHORTCUTS) {
             const hasOverride = !!this.userOverrides[shortcut.id];
@@ -744,7 +825,7 @@ export class ShortcutManager {
      * Normalize a key string (e.g., "Ctrl+K" -> "ctrl+k")
      */
     normalizeKey(keyString) {
-        return keyString.toLowerCase().split('+').sort().join('+');
+        return normalizeChord(keyString);
     }
 
     /**

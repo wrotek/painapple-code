@@ -95,7 +95,7 @@ export const messageActionMethods = {
 
         // Import and call the API
         try {
-            const { toggleFavorite } = await import('./prompt-favorites.js');
+            const { toggleFavorite } = await import('../prompt-favorites.js');
             // Get content preview from message if found, otherwise from button's parent message
             const contentPreview = msg?.content?.substring(0, 100) || '';
             const newState = await toggleFavorite(promptId, contentPreview);

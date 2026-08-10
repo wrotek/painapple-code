@@ -22,6 +22,7 @@ import { SkillsAutocomplete } from '../skills-autocomplete.js';
 import { WidgetManager, WidgetBus } from '../widget-system/init.js';
 import { OpenDialog } from '../open-dialog.js';
 import { layoutSwitcher } from '../layout-switcher.js';
+import { withChords } from '../shortcuts.js';
 import { state as configState } from '../widgets/config/state.js';
 
 /**
@@ -441,7 +442,7 @@ export const initUiMethods = {
                 console.warn('Unknown tooltip key:', el.dataset.tooltipKey);
                 return;
             }
-            el.setAttribute('data-tooltip', text);
+            el.setAttribute('data-tooltip', withChords(text));
             delete el.dataset.shortcutBase;
         });
     },

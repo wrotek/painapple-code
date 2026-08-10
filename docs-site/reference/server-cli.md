@@ -45,6 +45,7 @@ Defaults shown are the built-ins — values saved by [`painapple setup`](#saved-
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--tls` | `auto` | TLS mode: `auto`, `on`, or `off` (see below) |
+| `--no-password` | off | Don't print credentials to stdout — the startup box hides the password and strips the `?tkn=` from the login URL. Retrieve them later with `painapple password` or from the auth config file. Useful when the console is visible to others (screen shares, recorded demos, shared logs). (`--no-passwd` is an alias.) Not forwarded into `--in-docker` containers — a warning says so. |
 | `--tls-cert` | `<config-dir>/cert.pem` | TLS certificate path (auto-generated if missing) |
 | `--tls-key` | `<config-dir>/key.pem` | TLS key path (auto-generated if missing) |
 | `--public-origin` | — | Extra trusted browser origin for the CSRF/Origin gate, e.g. `https://claude.example.com`. Repeatable. **Usually unnecessary** — the server already accepts any request whose `Origin` matches the host it was reached on (proxied hostname or LAN IP, zero config). Only needed for a *genuinely cross-origin* front-end served from a different host than the server. |

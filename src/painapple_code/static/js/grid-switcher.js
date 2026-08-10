@@ -10,6 +10,7 @@
  */
 
 import S from './strings.js';
+import { withChords } from './shortcuts.js';
 import { escapeHtml } from './utils.js';
 import { ICONS } from './widget-system/icons.js';
 import { projectColorStyle } from './project-colors.js';
@@ -152,7 +153,7 @@ export class GridSwitcher {
             : '';
 
         if (!sessions.length) {
-            this.grid.innerHTML = `<div class="gs-empty">${S.grid_switcher.empty}</div>`;
+            this.grid.innerHTML = `<div class="gs-empty">${withChords(S.grid_switcher.empty)}</div>`;
             return;
         }
 

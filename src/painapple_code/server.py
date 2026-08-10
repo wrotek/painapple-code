@@ -12,6 +12,7 @@ Usage:
 import asyncio
 import atexit
 import faulthandler
+import hashlib
 import hmac
 import json
 import logging
@@ -19,6 +20,7 @@ import os
 import re
 import shutil
 import signal
+import stat
 import sys
 import time
 import yaml
@@ -33,7 +35,9 @@ from painapple_code.cli.serve_args import build_parser
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import ASGIApp
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 import uvicorn
@@ -145,11 +149,98 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Painapple Code", lifespan=lifespan)
 
-# Middleware to disable caching for static files (enables hot reload for JS/CSS)
-class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+# ── Static asset versioning ────────────────────────────────────────────
+#
+# Every cacheable asset URL carries ?v=<digest>. `/app` computes the digest
+# once per page load and stamps it onto every asset it references; each JS
+# module then stamps its own imports with the version it was *requested* at,
+# so a single page load threads one consistent version through the whole
+# module graph without the server holding any global "current version" state.
+#
+# A versioned URL is served `immutable`, so a warm reload issues zero asset
+# requests. Correctness rests entirely on the digest changing whenever any
+# asset does — hence content hashing (below) rather than a bare mtime.
+_ASSET_GLOBS = ("css/*.css", "js/**/*.js", "vendor/*.js", "vendor/*.css", "sw.js")
+
+# Accepts the current digest plus the legacy integer-mtime versions that older
+# cached pages still send. Anything else is rejected rather than reflected —
+# the version is interpolated into served JS, so it must never carry arbitrary
+# text (or regex-replacement escapes).
+_VERSION_RE = re.compile(r"[0-9a-f]{1,32}\Z")
+
+
+def _valid_version(v: Optional[str]) -> Optional[str]:
+    """Return `v` if it is a well-formed asset version, else None."""
+    return v if v and _VERSION_RE.match(v) else None
+
+
+def _asset_stamps() -> tuple:
+    """(path, mtime_ns, size) for every cacheable asset — cheap change probe."""
+    static_dir = PACKAGE_DIR / "static"
+    entries = []
+    for pattern in _ASSET_GLOBS:
+        for f in static_dir.glob(pattern):
+            try:
+                st = f.stat()
+            except OSError:
+                continue
+            entries.append((str(f.relative_to(static_dir)), st.st_mtime_ns, st.st_size))
+    # strings.js is generated from this YAML and cached like any other module,
+    # so a strings-only edit has to move the version too.
+    try:
+        st = (PACKAGE_DIR / "data" / "strings.yaml").stat()
+        entries.append(("../data/strings.yaml", st.st_mtime_ns, st.st_size))
+    except OSError:
+        pass
+    return tuple(sorted(entries))
+
+
+@lru_cache(maxsize=4)
+def _content_version(stamps: tuple) -> str:
+    """Digest of asset *contents*, recomputed only when a stamp changes.
+
+    Hashing content rather than mtimes costs one ~5 MB read per edit and buys
+    two things: a deploy that happens to preserve mtimes can't serve stale
+    immutable assets, and reverting a file returns the previous version, so
+    the browser reuses what it already has.
+    """
+    h = hashlib.blake2b(digest_size=6)
+    static_dir = PACKAGE_DIR / "static"
+    for name, _mtime, _size in stamps:
+        h.update(name.encode())
+        h.update(b"\0")
+        try:
+            h.update((static_dir / name).read_bytes())
+        except OSError:
+            pass
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _asset_version() -> str:
+    """Current frontend build id. ~2 ms warm; only rehashes after an edit."""
+    return _content_version(_asset_stamps())
+
+
+class StaticCacheMiddleware(BaseHTTPMiddleware):
+    """Single owner of Cache-Control for /static/.
+
+    Versioned URLs are immutable (the version changes when content does);
+    unversioned ones stay uncached so direct hits and the service worker's
+    bare precache list keep picking up edits.
+    """
+
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        if request.url.path.startswith("/static/"):
+        if not request.url.path.startswith("/static/"):
+            return response
+        if _valid_version(request.query_params.get("v")) and response.status_code == 200:
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            # MutableHeaders is a Mapping with mutators bolted on — no .pop().
+            for stale in ("Pragma", "Expires"):
+                if stale in response.headers:
+                    del response.headers[stale]
+        else:
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
@@ -204,13 +295,50 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# Gzip is scoped to the app's own text assets rather than mounted globally.
+# Starlette's GZipMiddleware ignores status codes, so a global mount would
+# compress a 206 Partial Content and break Range requests; there is no media
+# under static/ (js/css/html + 11 small icons), so gating on these prefixes
+# keeps ranges out of scope by construction. Binary suffixes are skipped since
+# they don't compress. Non-HTTP scopes (WebSockets) never reach the responder.
+_GZIP_PREFIXES = ("/static/", "/app")
+_GZIP_SKIP_SUFFIXES = (".png", ".ico", ".woff", ".woff2")
+
+
+class ScopedGZipMiddleware:
+    """Apply GZipMiddleware only to the static asset routes.
+
+    The web client pulls ~185 ES modules + the concatenated stylesheet on a
+    cold load (~5 MB uncompressed). One GZipMiddleware instance is reused
+    across requests — it holds config only, building a fresh responder per
+    call — so this wrapper is a pure path gate.
+    """
+
+    def __init__(self, app: ASGIApp, minimum_size: int = 1024, compresslevel: int = 6) -> None:
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=minimum_size, compresslevel=compresslevel)
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        path = scope.get("path", "")
+        if not path.startswith(_GZIP_PREFIXES) or path.endswith(_GZIP_SKIP_SUFFIXES):
+            await self.app(scope, receive, send)
+            return
+        await self.gzip(scope, receive, send)
+
+
 # Middleware order: last added = outermost = runs first on request.
 # CORS outermost so preflight OPTIONS bypasses auth entirely.
 # AuthMiddleware reads password / cookie token from scope["app"].state at
 # request time — main() / create_app() populate that state before serving.
+# Gzip is added first = innermost, so it compresses the route's own body
+# before the header-stamping middlewares run.
+app.add_middleware(ScopedGZipMiddleware)
 app.add_middleware(AccessLogMiddleware, logger=access_logger)
 app.add_middleware(SecurityHeadersMiddleware)
-app.add_middleware(NoCacheStaticMiddleware)
+app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(AuthMiddleware)
 # Loopback dev origins — the default trust set when nothing is configured.
 _DEFAULT_CORS_ORIGINS = [
@@ -508,6 +636,21 @@ async def upload_perf_snapshot(request: Request):
         "client_bytes_mb": round(client_bytes / 1024 / 1024, 2),
     }
 
+# Concatenated stylesheet, cached by content-freshness key (see caller).
+# maxsize=2 keeps the previous build around during an edit without growing.
+@lru_cache(maxsize=2)
+def _build_concatenated_css(cache_key: tuple) -> str:
+    css_dir = PACKAGE_DIR / "static" / "css"
+    parts = []
+    for f in sorted(css_dir.glob("*.css")):
+        parts.append(f"/* === {f.name} === */")
+        # Explicit encoding: Python picks the locale codec otherwise, which is
+        # cp1252 on a stock Windows box — any non-ASCII byte in a stylesheet
+        # then raises UnicodeDecodeError and takes down the whole page load.
+        parts.append(f.read_text(encoding="utf-8"))
+    return "\n".join(parts)
+
+
 # Serve concatenated CSS from modules (must be before static mount)
 @app.get("/static/styles.css")
 async def serve_concatenated_css(v: str = None):
@@ -520,62 +663,43 @@ async def serve_concatenated_css(v: str = None):
             return FileResponse(static_css, media_type="text/css")
         raise HTTPException(status_code=404, detail="CSS not found")
 
-    # Concatenate all CSS files in order
+    # Concatenate all CSS files in order. Cached by (newest mtime, file count)
+    # so editing/adding/removing a module still shows up on the next refresh —
+    # the no-build-step workflow is preserved, we just stop re-reading ~1.1 MB
+    # off the event loop on every request.
     css_files = sorted(css_dir.glob("*.css"))
-    parts = []
-    for f in css_files:
-        parts.append(f"/* === {f.name} === */")
-        parts.append(f.read_text(encoding="utf-8"))
+    cache_key = (max((f.stat().st_mtime_ns for f in css_files), default=0), len(css_files))
+    content = await asyncio.to_thread(_build_concatenated_css, cache_key)
 
-    content = "\n".join(parts)
-
-    return Response(
-        content=content,
-        media_type="text/css",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
-        }
-    )
+    # Cache-Control is owned by StaticCacheMiddleware (versioned => immutable).
+    return Response(content=content, media_type="text/css")
 
 
-# Cache for JS file mtime computation - computed once at startup, refreshed periodically
-def _compute_js_cache_bust() -> str:
-    """Compute cache-bust version from newest JS file mtime."""
-    static_js_dir = PACKAGE_DIR / "static" / "js"
-    newest_mtime = 0
-    for f in static_js_dir.glob("**/*.js"):
-        newest_mtime = max(newest_mtime, f.stat().st_mtime)
-    return f"?v={int(newest_mtime)}"
-
-# Pre-compute at startup for fast first request
-_js_cache_bust_version: str = _compute_js_cache_bust()
-_js_cache_bust_computed_at: float = time.time()
-
-def _get_js_cache_bust() -> str:
-    """Get cached cache-bust version, recomputing periodically."""
-    global _js_cache_bust_version, _js_cache_bust_computed_at
-
-    # Recompute every 60 seconds (development mode can use shorter interval)
-    now = time.time()
-    if (now - _js_cache_bust_computed_at) > 60:
-        _js_cache_bust_version = _compute_js_cache_bust()
-        _js_cache_bust_computed_at = now
-
-    return _js_cache_bust_version
-
-# LRU cache for processed JS content - avoids repeated file I/O and regex
-# Key: (filename, cache_bust_version), Value: processed content
-@lru_cache(maxsize=128)
-def _process_js_file(filename: str, cache_bust: str) -> str:
-    """Read and process JS file with cache-busted imports. Cached by filename+version."""
+# LRU cache for processed JS content - avoids repeated file I/O and regex.
+# Key: (filename, mtime_ns, cache_bust_version), Value: processed content.
+# mtime_ns is in the key so an edit is picked up even when a client replays an
+# older version string. maxsize covers the whole tree (186 modules) across a
+# couple of live versions — at 128 a single cold page load thrashed.
+@lru_cache(maxsize=512)
+def _process_js_file(filename: str, mtime_ns: int, cache_bust: str) -> str:
+    """Read and process JS file with cache-busted imports. Cached by filename+mtime+version."""
     js_path = PACKAGE_DIR / "static" / "js" / filename
     content = js_path.read_text(encoding="utf-8")
     # Match static imports: from './foo.js' or from '../foo.js'
     content = re.sub(r"from\s+['\"]((\.\.?/)+[^'\"]+\.js)['\"]", rf"from '\1{cache_bust}'", content)
+    # Side-effect imports have no `from` clause: import './foo.js';
+    # (`import(` can't match here — a quote must follow the whitespace.)
+    content = re.sub(r"import\s+['\"]((\.\.?/)+[^'\"]+\.js)['\"]", rf"import '\1{cache_bust}'", content)
     # Match dynamic imports: import('./foo.js') or import('../foo.js')
     content = re.sub(r"import\(\s*['\"]((\.\.?/)+[^'\"]+\.js)['\"]\s*\)", rf"import('\1{cache_bust}')", content)
+    # Root-absolute asset literals — the lazily loaded vendor bundles
+    # (codemirror ~1 MB, xterm ~283 KB) reference themselves as
+    # '/static/vendor/x.js' via import() and injected <script>/<link> tags.
+    # Relative-only rewriting left them unversioned, so they were refetched on
+    # every page load that opened an editor or terminal.
+    content = re.sub(
+        r"(['\"])(/static/[^'\"]+\.(?:js|css))\1", rf"\1\2{cache_bust}\1", content
+    )
     return content
 
 # Serve strings.yaml as ES module (must be before catch-all JS route)
@@ -595,15 +719,7 @@ async def serve_strings_js(v: str = None):
         raise HTTPException(status_code=404, detail="strings.yaml not found")
     mtime = yaml_path.stat().st_mtime
     content = await asyncio.to_thread(_load_strings_yaml, mtime)
-    return Response(
-        content=content,
-        media_type="application/javascript",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
-        }
-    )
+    return Response(content=content, media_type="application/javascript")
 
 
 # Serve JS files with cache-busted imports (must be before static mount)
@@ -620,24 +736,26 @@ async def serve_js_with_cache_bust(filename: str, v: str = None):
     js_root = (PACKAGE_DIR / "static" / "js").resolve()
     if not js_path.resolve().is_relative_to(js_root):
         raise HTTPException(status_code=404, detail="File not found")
-    if not js_path.exists() or not js_path.is_file():
+    try:
+        st = js_path.stat()
+    except OSError:
+        raise HTTPException(status_code=404, detail="File not found")
+    if not stat.S_ISREG(st.st_mode):
         raise HTTPException(status_code=404, detail="File not found")
 
-    cache_bust = _get_js_cache_bust()
+    # Stamp imports with the version THIS module was requested at, so one page
+    # load threads a single version through the whole graph. Falling back to the
+    # live version covers unversioned hits (direct curl, the SW precache list).
+    version = _valid_version(v) or await asyncio.to_thread(_asset_version)
 
     # Run blocking I/O in thread pool to avoid blocking event loop
     # LRU cache means subsequent requests for same file are instant
-    content = await asyncio.to_thread(_process_js_file, filename, cache_bust)
-
-    return Response(
-        content=content,
-        media_type="application/javascript",
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
-        }
+    content = await asyncio.to_thread(
+        _process_js_file, filename, st.st_mtime_ns, f"?v={version}"
     )
+
+    # Cache-Control is owned by StaticCacheMiddleware (versioned => immutable).
+    return Response(content=content, media_type="application/javascript")
 
 
 # Mount static files directory (after JS route so it doesn't override)
@@ -1126,23 +1244,16 @@ async def get_features():
     return JSONResponse(result)
 
 
-def _get_static_mtime(*extra_patterns: str) -> int:
-    """Get newest mtime from static CSS/JS files. Extra glob patterns are appended."""
-    static_dir = PACKAGE_DIR / "static"
-    newest_mtime = 0
-    for pattern in ["css/*.css", "js/*.js", "js/**/*.js", *extra_patterns]:
-        for f in static_dir.glob(pattern):
-            newest_mtime = max(newest_mtime, f.stat().st_mtime)
-    return int(newest_mtime)
-
-
 @app.get("/app", response_class=HTMLResponse)
 async def web_client():
     """Serve the full web client with cache-busting for static assets."""
     html_path = PACKAGE_DIR / "static" / "web-client.html"
     if html_path.exists():
         html = html_path.read_text(encoding="utf-8")
-        cache_bust = f"?v={_get_static_mtime()}"
+        # Computed live (not cached) — this document is the sole source of the
+        # version for the whole page load, and it must reflect an edit made a
+        # moment ago or the immutable caching below would pin the stale build.
+        cache_bust = f"?v={await asyncio.to_thread(_asset_version)}"
         # Add cache bust to /static/*.css and /static/*.js URLs
         html = re.sub(r'(/static/[^"]+\.css)"', rf'\1{cache_bust}"', html)
         html = re.sub(r'(/static/[^"]+\.js)"', rf'\1{cache_bust}"', html)
@@ -1176,7 +1287,16 @@ async def web_client():
             html = html.replace('/static/icons/favicon-32.png',
                                 '/instance-icons/favicon-32.png')
 
-        return html
+        # The entry document must never be cached: it is what hands out the
+        # version every immutable asset URL is keyed on.
+        return HTMLResponse(
+            html,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     return _missing_asset_page(
         "Web client not found",
         f"Expected at <code>{html_path}</code>. The painapple-code install is missing its bundled static assets — try reinstalling the package.",
@@ -1188,7 +1308,7 @@ async def service_worker():
     """Serve service worker from root with auto-versioned cache names."""
     sw_path = PACKAGE_DIR / "static" / "sw.js"
     if sw_path.exists():
-        version = str(_get_static_mtime("sw.js"))
+        version = await asyncio.to_thread(_asset_version)
         # Inject version into SW
         content = sw_path.read_text(encoding="utf-8").replace("__CACHE_VERSION__", version)
         return Response(
@@ -1568,7 +1688,8 @@ def main(argv=None):
     if app.state.auth_newly_created:
         logger.warning(
             f"Auth config generated at {app.state.auth_config_file}. "
-            f"Log in once via: {login_url}"
+            + ("Credentials hidden (--no-password) — run `painapple password` to reveal."
+               if args.no_password else f"Log in once via: {login_url}")
         )
     # (the config path, the password and the login URL are all in the startup
     #  box below — no need to repeat them as INFO lines here)
@@ -1607,10 +1728,22 @@ def main(argv=None):
     if use_tls:
         tls_line = f"\n║  TLS Cert:   {tls_cert_path} (self-signed, unverified by clients)"
 
-    auth_lines = (
-        f"\n║  Password:   {app.state.auth_password}"
-        f"\n║  Log in:     {login_url}"
-    )
+    # The login URL is THE line users need — paint it bold green so it
+    # stands out from the rest of the box (TTY-only; cli.ui's constants
+    # are empty strings when piped or NO_COLOR is set). With
+    # --no-password the box still shows WHERE to log in, but the
+    # password and the ?tkn= query are withheld from stdout.
+    from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET as _ANSI_RESET
+    if args.no_password:
+        auth_lines = (
+            f"\n║  Password:   {DIM}(hidden — run `painapple password` to reveal){_ANSI_RESET}"
+            f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{scheme}://{args.host}:{args.port}/{_ANSI_RESET}"
+        )
+    else:
+        auth_lines = (
+            f"\n║  Password:   {app.state.auth_password}"
+            f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
+        )
 
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
