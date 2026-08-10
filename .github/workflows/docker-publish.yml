@@ -133,6 +133,24 @@ jobs:
                       org.opencontainers.image.revision=${{ github.sha }}
                       org.opencontainers.image.created=${{ github.event.repository.updated_at }}
 
+            # Built on the runner, not in the image: the Dockerfile COPYs the
+            # working tree, and .dockerignore allowlists src/, so a present
+            # static/dist/ ships. Doing it here also keeps it out of the
+            # per-architecture builds — the bundle is plain JS, arch-agnostic.
+            - name: Set up Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20"
+
+            - name: Build frontend bundle
+              working-directory: tools
+              run: |
+                  # --ignore-scripts skips this package's postinstall (which
+                  # rebuilds the committed vendor bundles); esbuild still works,
+                  # its binary ships as an optional dependency.
+                  npm ci --ignore-scripts
+                  npm run build:app
+
             - name: Build and push
               id: build
               uses: docker/build-push-action@v6
