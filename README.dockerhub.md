@@ -129,7 +129,7 @@ For the strongest guarantee, pin by digest: `wrotek/painapple-code@sha256:…`.
 
 ## Authentication
 
-**Every HTTP and WebSocket request needs a password.** The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; **owner-only either way** — mode 0600, or an equivalent NTFS ACL on a native Windows install), and logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest.
+**Every HTTP and WebSocket request needs a password.** The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; **owner-only either way** — mode 0600 on Unix, an owner-only NTFS ACL on Windows), and logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest.
 
 ```bash
 # Reveal the password — prints ready-to-open login URLs
