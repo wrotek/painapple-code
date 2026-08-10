@@ -6,7 +6,7 @@ directly (docs-ai/plans/2026-08-08-windows-native-port.md, "Cross-cutting").
 
 Why not ``os.kill(pid, 0)`` for liveness: on Windows sig 0 is
 ``CTRL_C_EVENT``, and the call **returns success even for a dead pid**
-(verified on winvm 2026-08-08) — every probe would report alive forever.
+(verified on Windows 11 2026-08-08) — every probe would report alive forever.
 psutil answers correctly on all platforms, with the same
 zombie-counts-as-alive semantics the POSIX idiom had.
 """
@@ -52,9 +52,9 @@ def popen_kwargs_detached(fully_detached: bool = False) -> dict:
 
     POSIX: ``start_new_session=True`` (setsid), exactly as before.
     win32: ``CREATE_NEW_PROCESS_GROUP`` — start_new_session is silently
-    ignored there (verified on winvm), and the new process group is the
+    ignored there (verified on Windows 11), and the new process group is the
     PREREQUISITE for ``interrupt_process``: CTRL_BREAK sent to a child
-    without its own group lands on OUR group instead (winvm probe 1c2).
+    without its own group lands on OUR group instead (a Windows 11 probe).
 
     ``fully_detached`` adds ``DETACHED_PROCESS`` on win32 for children
     that must outlive our console (``painapple start``); no-op on POSIX
@@ -73,7 +73,7 @@ def _shares_our_console(pid) -> bool:
 
     ``GenerateConsoleCtrlEvent`` only delivers to process groups attached
     to the caller's console. Sent anywhere else it does NOT error — it
-    returns success and nothing happens (measured on winvm 2026-08-09: a
+    returns success and nothing happens (measured on Windows 11 2026-08-09: a
     ``DETACHED_PROCESS`` child survived CTRL_BREAK with no exception
     raised, while a same-console group child died with
     STATUS_CONTROL_C_EXIT). So "unsendable" cannot be detected by
@@ -103,7 +103,7 @@ def interrupt_process(process) -> None:
     POSIX: SIGINT, as always. win32: CTRL_BREAK_EVENT — the only
     interrupt Windows can deliver to another process; requires the child
     to have been spawned with ``popen_kwargs_detached()``. SIGINT there
-    raises ``ValueError: Unsupported signal: 2`` (verified on winvm).
+    raises ``ValueError: Unsupported signal: 2`` (verified on Windows 11).
 
     Raises ProcessLookupError for an already-dead child, like the direct
     call did — callers keep their existing handling.

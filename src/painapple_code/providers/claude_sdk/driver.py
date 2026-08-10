@@ -212,7 +212,7 @@ async def _amain(args: argparse.Namespace) -> int:
         stop.set()
 
     if sys.platform == "win32":
-        # Proactor has no add_signal_handler (NotImplementedError — winvm
+        # Proactor has no add_signal_handler (NotImplementedError — a Windows 11
         # probe). signal.signal works: CPython's wakeup channel rouses the
         # loop, and call_soon_threadsafe hops back onto it. The bridge's
         # interrupt_process() sends CTRL_BREAK → SIGBREAK here (SIGTERM is
@@ -249,7 +249,7 @@ async def _amain(args: argparse.Namespace) -> int:
         if sys.platform == "win32":
             # connect_read_pipe on an inherited stdin HALF-works under
             # Proactor: it connects, then the first read dies with
-            # OSError WinError 6 and leaves stdin unusable (winvm probe
+            # OSError WinError 6 and leaves stdin unusable (a Windows 11 probe
             # 3). Don't attempt it — a daemon thread doing blocking
             # readline feeds the loop through an asyncio queue instead.
             queue: asyncio.Queue = asyncio.Queue()

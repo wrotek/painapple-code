@@ -17,7 +17,7 @@ is fine). The win32 branch polls ``LK_NBLCK`` with backoff rather than
 calling ``LK_LOCK``: LK_LOCK blocks ~10s inside the CRT (one attempt per
 second) before raising, so a caller-requested 2s timeout actually waited
 9-10s and the 5s slow-lock warning could never fire on time (measured on
-winvm 2026-08-09 — 9.2s to a ``timeout=2`` TimeoutError). The
+Windows 11 2026-08-09 — 9.2s to a ``timeout=2`` TimeoutError). The
 non-blocking probe returns immediately, putting the deadline and warn
 schedule under our own loop's control.
 

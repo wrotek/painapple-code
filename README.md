@@ -229,4 +229,8 @@ This is an MVP — there are tradeoffs.
 
 ## License
 
-AGPL 3.0 — see [`LICENSE`](LICENSE).
+Copyright (C) 2026 Michał Booth-Wrotkowski
+
+AGPL 3.0 or later — see [`LICENSE`](LICENSE). This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed WITHOUT ANY WARRANTY; see the license for details.
+
+Because §13 covers network use, the running app offers its own source: the About panel links to the repository.

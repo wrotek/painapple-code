@@ -1,12 +1,15 @@
 name: Windows smoke
 
-# Native-Windows import + boot smoke test. Guards the Phase 1 outcome of
-# docs-ai/plans/2026-08-08-windows-native-port.md: the package must
-# install, import, and serve /health on win32 — no WSL.
+# Native-Windows import + boot smoke test: the package must install,
+# import, and serve /health on win32 — no WSL.
 #
-# Required (no continue-on-error) since Phase 1 completed: the branch was
-# validated end-to-end on a real Windows box (winvm — boot, /health, chat
-# turn, Stop interrupt), so a red run here is a genuine regression.
+# The failure this exists to catch is a POSIX-only import creeping back in
+# (pty/termios/fcntl at module top level), which takes the whole package
+# down on Windows while every Linux job stays green.
+#
+# Required, not continue-on-error: the port was validated end-to-end on
+# real Windows hardware (boot, /health, a chat turn, Stop interrupt), so a
+# red run here is a genuine regression rather than an unproven target.
 
 on:
     push:
