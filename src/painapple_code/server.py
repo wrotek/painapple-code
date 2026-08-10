@@ -1901,45 +1901,48 @@ def main(argv=None):
 
     instance_line = ""
     if instance_config.get("name"):
-        instance_line = f"\n║  Instance:   {instance_config['name']} (accent: {instance_config.get('accent', 'default')})"
+        instance_line = f"\n║  Instance:       {instance_config['name']} (accent: {instance_config.get('accent', 'default')})"
 
     from painapple_code.shadow_db import DB_PATH as _default_db_path
     shadow_db_path = Path(args.shadow_db).expanduser() if args.shadow_db else _default_db_path
-    shadow_db_line = f"\n║  Shadow DB:  {shadow_db_path}"
-    log_dir_line = f"\n║  Log Dir:    {pid_log_dir}"
+    shadow_db_line = f"\n║  Shadow DB:      {shadow_db_path}"
+    log_dir_line = f"\n║  Log Dir:        {pid_log_dir}"
     state_suffix_line = ""
     if bridge_paths.STATE_SUFFIX:
-        state_suffix_line = f"\n║  State:      suffix '{bridge_paths.STATE_SUFFIX}' (tab-state/shortcuts/presets/favorites/config)"
+        state_suffix_line = f"\n║  State:          suffix '{bridge_paths.STATE_SUFFIX}' (tab-state/shortcuts/presets/favorites/config)"
     tls_line = ""
     if use_tls:
-        tls_line = f"\n║  TLS Cert:   {tls_cert_path} (self-signed, unverified by clients)"
+        tls_line = f"\n║  TLS Cert:       {tls_cert_path} (self-signed, unverified by clients)"
 
-    # The login URL is THE line users need — paint it bold green so it
+    # The login URL is THE line users need — labelled with the product name
+    # (it IS where the app lives, token included) and painted bold green so it
     # stands out from the rest of the box (TTY-only; cli.ui's constants
     # are empty strings when piped or NO_COLOR is set). With
     # --no-password the box still shows WHERE to log in, but the
     # password and the ?tkn= query are withheld from stdout.
+    # NOTE: every label in the box is padded to a 16-char field so the values
+    # line up — "pAInapple Code:" is the longest and sets that width.
     from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET as _ANSI_RESET
     if args.no_password:
         auth_lines = (
-            f"\n║  Password:   {DIM}(hidden — run `painapple password` to reveal){_ANSI_RESET}"
-            f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{scheme}://{args.host}:{args.port}/{_ANSI_RESET}"
+            f"\n║  Password:       {DIM}(hidden — run `painapple password` to reveal){_ANSI_RESET}"
+            f"\n║  {BOLD}pAInapple Code:{_ANSI_RESET} {BOLD}{GREEN}{scheme}://{args.host}:{args.port}/{_ANSI_RESET}"
         )
     else:
         auth_lines = (
-            f"\n║  Password:   {app.state.auth_password}"
-            f"\n║  {BOLD}Log in:{_ANSI_RESET}     {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
+            f"\n║  Password:       {app.state.auth_password}"
+            f"\n║  {BOLD}pAInapple Code:{_ANSI_RESET} {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
         )
 
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║           pAInapple Code Server                              ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Web Client: {scheme}://{args.host}:{args.port}/app
-║  WebSocket:  {ws_scheme}://{args.host}:{args.port}/chat
-║  Files API:  {scheme}://{args.host}:{args.port}/api/files
-║  Workspace:  {args.workspace}{instance_line}{shadow_db_line}{log_dir_line}{state_suffix_line}
-║  Auth File:  {app.state.auth_config_file}{tls_line}{auth_lines}
+║  Web Client:     {scheme}://{args.host}:{args.port}/app
+║  WebSocket:      {ws_scheme}://{args.host}:{args.port}/chat
+║  Files API:      {scheme}://{args.host}:{args.port}/api/files
+║  Workspace:      {args.workspace}{instance_line}{shadow_db_line}{log_dir_line}{state_suffix_line}
+║  Auth File:      {app.state.auth_config_file}{tls_line}{auth_lines}
 ╚══════════════════════════════════════════════════════════════╝
     """)
 
