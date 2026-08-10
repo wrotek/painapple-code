@@ -63,6 +63,7 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 
 | Feature | What it does | Guide |
 |---|---|---|
+| Server platforms | Runs natively on Linux, macOS, and Windows 10/11 — no WSL. The terminal uses ConPTY on Windows | [Requirements](getting-started/requirements.md) |
 | PWA | Installable on iPadOS, iOS, Android, and desktop; offline fallback; per-instance icons | [iPad & mobile](guides/ipad-and-mobile.md) |
 | Touch UX | Swipe tab switching, long-press menus, selection bubbles, keyboard extension bar | [iPad & mobile](guides/ipad-and-mobile.md) |
 | Customization | Layout density, font size, shortcuts editor, quick-actions radial menu, tool collapse modes | [Customization](guides/customization.md) |

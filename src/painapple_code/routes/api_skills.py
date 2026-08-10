@@ -25,6 +25,7 @@ from typing import Any, Optional
 import yaml
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from painapple_code.utils.file_paths import safe_resolve
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 
@@ -122,7 +123,7 @@ def _list_supporting(skill_dir: Path) -> list[dict[str, Any]]:
                 size = entry.stat().st_size
             except OSError:
                 size = 0
-            out.append({"path": str(rel), "size": size})
+            out.append({"path": rel.as_posix(), "size": size})
     return out
 
 
@@ -247,7 +248,7 @@ def _resolve_path(scope: str, name: str, cwd: str, allow_plugin: bool = False) -
 @router.get("")
 async def list_skills(cwd: str):
     """List every skill across scopes. Returns rich metadata for the gallery."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     skills = []
     # Track name-per-scope for conflict detection
     by_name: dict[str, list[tuple[str, str]]] = {}
@@ -300,7 +301,7 @@ async def list_skills(cwd: str):
 @router.get("/{scope}/{name}")
 async def get_skill(scope: str, name: str, cwd: str):
     """Return full skill metadata + body for viewing or editing."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     rec = _resolve_path(scope, name, resolved_cwd, allow_plugin=True)
     text = rec["path"].read_text(encoding="utf-8", errors="replace")
     fm, body = _parse_frontmatter(text)
@@ -334,7 +335,7 @@ async def update_skill(scope: str, name: str, cwd: str, payload: UpdateSkillBody
 
     Supply either `raw` (wins) or `frontmatter`+`body`. Plugin scope rejected.
     """
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     rec = _resolve_path(scope, name, resolved_cwd, allow_plugin=False)
     path: Path = rec["path"]
 
@@ -364,7 +365,7 @@ async def update_skill(scope: str, name: str, cwd: str, payload: UpdateSkillBody
 
     # Atomic write
     tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(new_text, encoding="utf-8")
+    tmp.write_text(new_text, encoding="utf-8", newline="")
     os.replace(tmp, path)
 
     return {
@@ -450,7 +451,7 @@ def _write_skill_dir(target_dir: Path, frontmatter: dict[str, Any], body: str) -
     text = _serialize_skill(frontmatter, body)
     # Atomic write
     tmp = skill_path.with_suffix(skill_path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(text, encoding="utf-8")
+    tmp.write_text(text, encoding="utf-8", newline="")
     os.replace(tmp, skill_path)
     return skill_path
 
@@ -497,7 +498,7 @@ class CreateSkillBody(BaseModel):
 async def create_skill(scope: str, name: str, cwd: str, payload: CreateSkillBody):
     """Create a new skill directory with SKILL.md from a template."""
     _validate_name(name)
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     target_dir = _scope_skill_dir(scope, name, resolved_cwd)
 
     existing = _all_names_in_scope(scope, resolved_cwd)
@@ -532,7 +533,7 @@ async def create_skill(scope: str, name: str, cwd: str, payload: CreateSkillBody
 @router.delete("/{scope}/{name}")
 async def delete_skill(scope: str, name: str, cwd: str):
     """Delete a skill directory (rmtree)."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     rec = _resolve_path(scope, name, resolved_cwd, allow_plugin=False)
     path: Path = rec["path"]
 
@@ -558,7 +559,7 @@ class DuplicateBody(BaseModel):
 @router.post("/{scope}/{name}/duplicate")
 async def duplicate_skill(scope: str, name: str, cwd: str, payload: DuplicateBody):
     """Copy a skill into a new name/scope. Description is prefixed "Duplicate of …"."""
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     src = _resolve_path(scope, name, resolved_cwd, allow_plugin=True)
 
     target_scope = payload.target_scope or (scope if scope != "plugin" else "personal")
@@ -597,7 +598,7 @@ async def duplicate_skill(scope: str, name: str, cwd: str, payload: DuplicateBod
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Copy failed: {e}")
     new_skill = target_dir / "SKILL.md"
-    new_skill.write_text(_serialize_skill(fm, body), encoding="utf-8")
+    new_skill.write_text(_serialize_skill(fm, body), encoding="utf-8", newline="")
 
     return {
         "ok": True,

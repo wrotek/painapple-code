@@ -29,7 +29,7 @@ This risk isn't unique to this project, but it's worth restating the consequence
 ## Isolation
 
 !!! warning "Always run in isolation"
-    Run your Claude environment — especially a YOLO-oriented one — inside isolation: Docker, a VM, LXC, BSD jails, or similar. Container mode is built into the CLI: `painapple --in-docker` sandboxes the current directory ad-hoc, and `painapple setup NAME` creates a durable docker-mode profile. See the [Docker setup](install-docker.md) for both.
+    Run your Claude environment — especially a YOLO-oriented one — inside isolation: Docker, a VM, LXC, BSD jails, or similar. On Windows the equivalents are Hyper-V or a WSL2 distro (with Docker Desktop on top if you want the container path); Windows Sandbox is too ephemeral to hold a working setup. A separate, non-Administrator Windows account is the minimum. Container mode is built into the CLI: `painapple --in-docker` sandboxes the current directory ad-hoc, and `painapple setup NAME` creates a durable docker-mode profile. See the [Docker setup](install-docker.md) for both.
 
     **If these concepts are unfamiliar, this MVP is probably not for you yet.**
 

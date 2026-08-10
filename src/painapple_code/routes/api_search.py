@@ -27,7 +27,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 
-from painapple_code.utils.file_paths import is_path_allowed_for_read
+from painapple_code.utils.file_paths import is_path_allowed_for_read, safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +169,17 @@ async def _search_ripgrep(work_dir: Path, q, regex, case_sensitive, whole_word,
                 continue
 
             data = event.get("data", {})
-            path = _event_text(data.get("path"))
+            # ripgrep emits OS-native separators; normalize so the client
+            # and the Python fallback engine agree on the shape.
+            #
+            # Keyed off os.sep, NOT an unconditional '\\' -> '/'. On
+            # Linux/macOS a backslash is an ordinary filename byte, so the
+            # blanket rewrite turned a real `src/weird\name.txt` into
+            # `src/weird/name.txt` — a path that doesn't exist, 404ing in
+            # the preview — while _search_python's relative_to().as_posix()
+            # preserved it. Same query, two answers, depending only on
+            # whether rg happened to be installed.
+            path = _event_text(data.get("path")).replace(os.sep, "/")
             lines_obj = data.get("lines", {})
             raw = _event_text(lines_obj).rstrip("\r\n")
 
@@ -277,7 +287,11 @@ def _search_python(work_dir: Path, q, regex, case_sensitive, whole_word,
             if not include_ignored and fname.startswith("."):
                 continue
             fpath = Path(root) / fname
-            rel = str(fpath.relative_to(work_dir))
+            # as_posix, not str: on Windows str() yields "sub\\dir\\f.py",
+            # which (a) reaches the client with backslashes and (b) can never
+            # match an include/exclude glob like "src/**" — so user filters
+            # were silently ignored rather than failing loudly.
+            rel = fpath.relative_to(work_dir).as_posix()
             if include and not any(_glob_match(rel, fname, g) for g in include):
                 continue
             if any(_glob_match(rel, fname, g) for g in exclude):
@@ -359,7 +373,7 @@ async def search_in_files(
         raise HTTPException(status_code=400, detail="Search query too long")
     limit = max(1, min(limit, MAX_LIMIT))
 
-    work_dir = Path(cwd).expanduser().resolve()
+    work_dir = safe_resolve(cwd)
     if not is_path_allowed_for_read(work_dir):
         raise HTTPException(status_code=403, detail="Path not allowed")
     if not work_dir.exists() or not work_dir.is_dir():

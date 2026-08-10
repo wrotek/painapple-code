@@ -35,6 +35,7 @@ import { renderBreadcrumb, closeMenu as closeBreadcrumbMenu } from '../preview/p
 import S from '../strings.js';
 import { appConfirm } from '../utils.js';
 import { debug } from '../config.js';
+import { basename } from '../path-utils.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MODULE SETUP
@@ -640,7 +641,7 @@ export const FilePreviewWidget = {
         WidgetBus.emit('widget:file-changed', {
             widgetId: 'file-preview',
             filePath: path,
-            fileName: path.split('/').pop()
+            fileName: basename(path)
         });
 
         state.language = detectLanguage(path);

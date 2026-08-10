@@ -19,6 +19,7 @@ import { MarkdownRenderer } from '../components.js';
 import { SHORTCUTS, resolveKeys, formatKeyForDisplay } from '../shortcuts.js';
 import { getProjectColor } from '../project-colors.js';
 import { showToast } from '../context-menu.js';
+import { basename } from '../path-utils.js';
 
 let mdRenderer = null;
 function getMarkdown() {
@@ -625,7 +626,7 @@ function renderStashRefs(refs) {
             ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
             : '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
         const label = ref.type === 'file' && ref.filePath
-            ? ref.filePath.split('/').pop()
+            ? basename(ref.filePath)
             : (ref.selectedText || '').substring(0, 80);
         const note = ref.note ? `<span class="pe-stash-note">${escapeHtml(ref.note)}</span>` : '';
         return `<div class="pe-stash-item">${icon} <span class="pe-stash-text">${escapeHtml(label)}${label.length >= 80 ? '...' : ''}</span>${note}</div>`;

@@ -9,47 +9,95 @@ Run the server directly on the host — no container. This path needs Python 3.1
 
 No pipx yet? It's two lines (or `brew install pipx` on macOS):
 
-```bash
-python3 -m pip install --user pipx
-python3 -m pipx ensurepath
-```
+=== "Linux / macOS"
+
+    ```bash
+    python3 -m pip install --user pipx
+    python3 -m pipx ensurepath
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    python -m pip install --user pipx
+    python -m pipx ensurepath
+    ```
 
 Then:
 
-```bash
-pipx install painapple-code
-painapple --workspace /path/to/your/projects
-```
+=== "Linux / macOS"
+
+    ```bash
+    pipx install painapple-code
+    painapple --workspace /path/to/your/projects
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    pipx install painapple-code
+    painapple --workspace C:\Users\you\projects
+    ```
 
 The package drops a `painapple` console script on your PATH. Bare `painapple` serves the current directory (the explicit form is `painapple serve`); add `--in-docker` to run the same thing in a container — see the [Docker install](install-docker.md) and [Profiles & container mode](../reference/profiles.md).
 
 ## pip (into a venv)
 
-```bash
-python3 -m venv venv
-venv/bin/pip install painapple-code
-venv/bin/painapple --workspace /path/to/your/projects
-```
+=== "Linux / macOS"
 
-`python -m painapple_code` is equivalent to the console script:
+    ```bash
+    python3 -m venv venv
+    venv/bin/pip install painapple-code
+    venv/bin/painapple --workspace /path/to/your/projects
+    ```
 
-```bash
-venv/bin/python -m painapple_code --workspace /path/to/your/projects
-```
+    `python -m painapple_code` is equivalent to the console script:
+
+    ```bash
+    venv/bin/python -m painapple_code --workspace /path/to/your/projects
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    py -m venv venv
+    venv\Scripts\pip install painapple-code
+    venv\Scripts\painapple --workspace C:\Users\you\projects
+    ```
+
+    `python -m painapple_code` is equivalent to the console script:
+
+    ```powershell
+    venv\Scripts\python -m painapple_code --workspace C:\Users\you\projects
+    ```
 
 ## From a source checkout
 
-```bash
-git clone https://github.com/wrotek/painapple-code.git && cd painapple-code
-python3 -m venv venv
-venv/bin/pip install -e .
-venv/bin/python -m painapple_code --workspace /path/to/your/projects
-```
+=== "Linux / macOS"
 
-!!! note "fish / csh users"
-    `source venv/bin/activate` is bash-only. On fish or csh, use `venv/bin/python` directly, or your shell's matching activate script (`activate.fish`, `activate.csh`).
+    ```bash
+    git clone https://github.com/wrotek/painapple-code.git && cd painapple-code
+    python3 -m venv venv
+    venv/bin/pip install -e .
+    venv/bin/python -m painapple_code --workspace /path/to/your/projects
+    ```
+
+=== "Windows (PowerShell)"
+
+    ```powershell
+    git clone https://github.com/wrotek/painapple-code.git; cd painapple-code
+    py -m venv venv
+    venv\Scripts\pip install -e .
+    venv\Scripts\python -m painapple_code --workspace C:\Users\you\projects
+    ```
+
+!!! note "Activating the venv"
+    None of the commands above need an activated venv — calling the interpreter by path is enough. If you do want to activate: `source venv/bin/activate` is bash-only, so use `activate.fish` / `activate.csh` on those shells, and `venv\Scripts\Activate.ps1` on PowerShell. If PowerShell refuses that script, it's the execution policy: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`.
 
 ### start.sh — self-bootstrapping launcher
+
+!!! note "Unix only"
+    `start.sh` is a bash script — it needs Linux, macOS, or a bash on Windows (Git Bash / WSL). On native Windows use the venv commands above; there is nothing `start.sh` does that they don't, it just does it in one step.
 
 A repo checkout also includes `./start.sh`, which creates the venv and installs dependencies on first run (or when `requirements.txt` changes), then launches the server. It's safe to run repeatedly, and unrecognized arguments are forwarded to `python -m painapple_code`:
 

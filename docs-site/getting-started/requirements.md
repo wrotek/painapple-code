@@ -8,11 +8,34 @@ Running the server directly on a host (pip / pipx / source checkout):
 
 - **Python 3.12+**
 - **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and authenticated — either a Claude subscription (`claude login`) or an Anthropic API key
+- **Git** on `PATH` — the [auto-journal](../guides/shadow-git.md) records every turn as a commit in a shadow repository, and the Git panel shells out to it for diffs. Without git the server still runs, but it journals nothing and the Git panel stays empty; you'll get a warning in the log at startup.
 - **Network access between client and server** — any modern browser works as a client
 - *Optional:* the **[OpenAI Codex CLI](https://github.com/openai/codex)** if you want sessions on the Codex [engine](../guides/engines.md) — you can even log it in from inside the app
 
+### Server platforms
+
+The bridge runs natively on all three desktop platforms. No WSL required.
+
+| Platform | Status | Notes |
+|---|---|---|
+| **Linux** | Fully supported | The primary development and deployment target. |
+| **macOS** | Fully supported | Intel and Apple Silicon. |
+| **Windows 10/11** | Fully supported | Native — no WSL, no VM. See the Windows notes below. |
+
+#### Windows notes
+
+- **Install the Claude CLI with the native installer**, not npm: `irm https://claude.ai/install.ps1 | iex`. The Agent SDK that the default engine uses refuses to execute npm's `claude.cmd` shim (batch files are a command-injection vector — the same class as CVE-2024-27980), and will tell you so with a link to this fix. If you already logged in via the npm install, your credentials carry over.
+- **Get git from [Git for Windows](https://git-scm.com/download/win)**, which is what `winget install Git.Git` installs too. Besides `git.exe` it ships a `bash.exe`, and the optional `shadow-git` / `shadow-query` [helpers](../reference/optional-helpers.md) are shell scripts that run under it — the installer generates a small `.cmd` wrapper so you can still call them by name from PowerShell. (It deliberately does *not* use `C:\Windows\System32\bash.exe`; that one is the WSL launcher, which would look for your data inside the Linux filesystem.)
+- **The terminal tab runs PowerShell** through ConPTY. `pwsh` (PowerShell 7) is preferred when present, otherwise Windows PowerShell; override with `PAINAPPLE_CODE_SHELL`.
+- **`!bang` commands are PowerShell-flavored** on Windows, not `sh`.
+- **File permissions** are enforced with NTFS ACLs (owner-only, applied via `icacls`) rather than POSIX mode bits — see [security](security.md).
+- **Windows on ARM** (Surface, Snapdragon X) works, on a slightly slower HTTP stack: the optional `httptools` parser publishes no ARM64 wheel, so those machines use uvicorn's pure-Python parser. This is automatic; you don't have to do anything.
+- Data lives in `%USERPROFILE%\.painapple-code` — the same `~/.painapple-code` layout as the other platforms, deliberately, so the docs and support answers match everywhere.
+
 !!! tip "Docker skips most of this"
-    The [Docker / Podman path](install-docker.md) is the recommended install. The image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start — so the only host requirement is a container runtime.
+    The [Docker / Podman path](install-docker.md) is the recommended install on Linux and macOS. The image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start — so the only host requirement is a container runtime.
+
+    On Windows, prefer the native install above. Docker Desktop works, but it runs the bridge inside a **Linux** container, so your projects are bind-mounted across the Windows/Linux boundary — which brings back the path translation, line-ending and file-watching problems that running natively avoids.
 
 ### Client devices
 

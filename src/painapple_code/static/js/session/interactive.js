@@ -16,6 +16,7 @@ import { debug } from '../config.js';
 import { genId } from '../utils.js';
 import { showToast } from '../context-menu.js';
 import S from '../strings.js';
+import { basename } from '../path-utils.js';
 
 const getApp = () => window.app;
 
@@ -174,7 +175,7 @@ export const interactiveMethods = {
             for (let i = this.messages.length - 1; i >= 0; i--) {
                 const m = this.messages[i];
                 if (m.role === 'tool' && m.toolName === 'Write' && m.toolInput?.file_path) {
-                    const fname = m.toolInput.file_path.split('/').pop().toLowerCase();
+                    const fname = basename(m.toolInput.file_path).toLowerCase();
                     if (fname.includes('plan')) {
                         planFile = m.toolInput.file_path;
                         break;

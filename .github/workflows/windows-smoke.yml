@@ -1,0 +1,67 @@
+name: Windows smoke
+
+# Native-Windows import + boot smoke test. Guards the Phase 1 outcome of
+# docs-ai/plans/2026-08-08-windows-native-port.md: the package must
+# install, import, and serve /health on win32 — no WSL.
+#
+# Required (no continue-on-error) since Phase 1 completed: the branch was
+# validated end-to-end on a real Windows box (winvm — boot, /health, chat
+# turn, Stop interrupt), so a red run here is a genuine regression.
+
+on:
+    push:
+        branches: [main, "feat/windows-native"]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+jobs:
+    smoke:
+        runs-on: windows-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                python-version: ["3.12", "3.13"]
+        steps:
+            # fetch-depth: 0 so setuptools-scm can resolve a version from
+            # tags; without it the build falls back to 0.1.devN, which is
+            # fine for a smoke test but noisy in logs.
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ matrix.python-version }}
+
+            - name: Install package
+              run: python -m pip install .
+
+            - name: Import server module
+              run: python -c "import painapple_code.server; print('import OK')"
+
+            - name: CLI fast gate
+              run: python -m painapple_code --help
+
+            - name: Boot and probe /health
+              shell: pwsh
+              run: |
+                  $env:PAINAPPLE_CODE_HOME = Join-Path $env:RUNNER_TEMP "pa-home"
+                  $env:PAINAPPLE_CODE_CONFIG = Join-Path $env:RUNNER_TEMP "pa-config"
+                  $proc = Start-Process -PassThru -NoNewWindow python `
+                      -ArgumentList "-m", "painapple_code", "--host", "127.0.0.1", "--port", "8790", "--tls", "off" `
+                      -RedirectStandardOutput server-out.log -RedirectStandardError server-err.log
+                  $ok = $false
+                  foreach ($i in 1..30) {
+                      Start-Sleep -Seconds 1
+                      try {
+                          $r = Invoke-WebRequest -Uri "http://127.0.0.1:8790/health" -UseBasicParsing -TimeoutSec 2
+                          if ($r.StatusCode -eq 200) { $ok = $true; break }
+                      } catch {}
+                      if ($proc.HasExited) { break }
+                  }
+                  Get-Content server-out.log -ErrorAction SilentlyContinue | Select-Object -Last 20
+                  Get-Content server-err.log -ErrorAction SilentlyContinue | Select-Object -Last 40
+                  if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+                  if (-not $ok) { Write-Error "/health never answered 200"; exit 1 }
+                  Write-Host "/health OK"

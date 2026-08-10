@@ -7,9 +7,10 @@
 import { state } from './preview-state.js';
 import { CONFIG } from '../config.js';
 import { escapeHtml } from '../utils.js';
+import { basename } from '../path-utils.js';
 
 export function getFileName(path) {
-    return path?.split('/').pop() || '';
+    return basename(path) || '';
 }
 
 export function getRelativePath(path, cwd) {

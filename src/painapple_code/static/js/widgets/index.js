@@ -7,6 +7,7 @@
 
 import { registerGitWidget, GitWidget } from './git-widget.js';
 import { registerTerminalWidget, TerminalWidget } from './terminal-widget.js';
+import { terminalAvailable } from '../utils.js';
 import { registerConfigWidget } from './config-widget.js';
 import { registerLogExplorerWidget, openLogExplorer, closeLogExplorer } from './log-explorer-widget.js';
 import { registerFileExplorerWidget, FileExplorerWidget } from './file-explorer-widget.js';
@@ -43,7 +44,7 @@ import { debug } from '../config.js';
 export function initWidgets() {
     // Register all widgets
     registerGitWidget();
-    registerTerminalWidget();
+    if (terminalAvailable()) registerTerminalWidget();
     registerConfigWidget();
     registerLogExplorerWidget();
     registerFileExplorerWidget();

@@ -88,13 +88,24 @@ is no path allowlist. The only exclusions are `/proc`, `/sys` and `/dev`, which
 are skipped for practical reasons (kernel-special files like the 128 TB
 `/proc/kcore` make the file browser hang, and editing them is meaningless).
 
+On Windows the equivalent exclusions are UNC paths (`\\server\share`), the device
+namespaces (`\\.\`, `\\?\`) and the reserved DOS names (`CON`, `NUL`, `COM1`…).
+UNC is the one that isn't merely practical: opening `\\host\share` makes Windows
+authenticate **outbound** to that host, so allowing it would turn a file read into
+a credential-disclosure primitive.
+
 That's deliberate, not an oversight: everyone reaching these endpoints is already
 past the [password gate](../getting-started/security.md), and an authenticated
 session comes with a full PTY terminal, `!bang` shell commands, and an agent
 running as the same user. A path allowlist on the editor would stop nothing that
 isn't one shell line away, while breaking legitimate edits to projects outside
-`$HOME`. **Unix file permissions are the real boundary** — run the server as a
-user that can only touch what you're willing to expose, and don't run it as root.
+`$HOME`. **OS file permissions are the real boundary** — run the server as a
+user that can only touch what you're willing to expose.
+
+- **Linux / macOS:** don't run it as root.
+- **Windows:** don't run it from an elevated (Administrator) terminal. NTFS ACLs
+  play the role Unix modes do; the server tightens its own secrets to
+  owner-only, but everything else is whatever your account can reach.
 
 ## Environment variables
 
@@ -183,7 +194,7 @@ painapple start                    # no name = the flag-less default deployment
 painapple start work --port 9001   # extra serve flags apply to THIS start only (not saved)
 ```
 
-`start` targets a **saved** profile (`painapple setup NAME` first) — an unknown name is refused rather than silently spawning an empty deployment, and a port already occupied by a *different* instance is refused up front. A **docker-mode** profile delegates to the container runtime instead: `start` = `docker run -d --restart unless-stopped` (durable across reboots), `stop` = `docker stop`. A label/pid/port target has no saved config (it was launched ad hoc with flags), so `restart` recaptures the live process's own command line, working directory, and environment (`/proc` on Linux; a lossier `ps`-based fallback elsewhere) and respawns it verbatim. Console output goes to `<data-home>/logs/console.log`; the regular `server.log` lives next to it. A failed startup prints the tail of the console log. For an always-on host instance prefer a service manager (systemd, launchd) that restarts on exit — host `start` spawns once and does not supervise.
+`start` targets a **saved** profile (`painapple setup NAME` first) — an unknown name is refused rather than silently spawning an empty deployment, and a port already occupied by a *different* instance is refused up front. A **docker-mode** profile delegates to the container runtime instead: `start` = `docker run -d --restart unless-stopped` (durable across reboots), `stop` = `docker stop`. A label/pid/port target has no saved config (it was launched ad hoc with flags), so `restart` recaptures the live process's own command line, working directory, and environment (`/proc` on Linux, `psutil` on macOS and Windows) and respawns it verbatim. Console output goes to `<data-home>/logs/console.log`; the regular `server.log` lives next to it. A failed startup prints the tail of the console log. For an always-on host instance prefer a service manager that restarts on exit — systemd on Linux, launchd on macOS, a Windows Service (NSSM or `sc.exe`) or a Task Scheduler task set to run at logon on Windows — since host `start` spawns once and does not supervise.
 
 `painapple status NAME`, `painapple logs NAME`, and `painapple password [NAME]` inspect any deployment — host or docker — without touching it. `status` also takes an unmanaged process's label, PID, or port, and a bare `painapple status` is the [fleet view](#the-fleet-view-painapple-list) (`painapple status default` is the root deployment's own detail block).
 

@@ -1,31 +1,39 @@
 """Host network introspection shared by the setup wizards and the
-container launch path. Import-cheap (stdlib only)."""
+container launch path. Import-cheap: stdlib plus psutil, both imported
+inside the functions so importing this module stays nearly free."""
 
-import re
-import shutil
-import subprocess
+import sys
 
 
 def detect_local_ips():
     """[(ip, interface)] for every non-loopback IPv4 the host has.
-    Prefers iproute2, falls back to ifconfig; [] if neither exists."""
+
+    psutil rather than parsing `ip`/`ifconfig`: neither exists on Windows,
+    and ipconfig's output is localized (and OEM-encoded), so scraping it
+    would break on any non-English install. psutil is a hard dependency
+    (requirements.txt, no environment marker), so there is no fallback to
+    keep — the old scrape sat behind an ImportError that cannot fire.
+    """
+    import socket
+
+    import psutil
+
     results = []
-    if shutil.which("ip"):
-        out = subprocess.run(["ip", "-4", "-o", "addr", "show"],
-                             capture_output=True, text=True).stdout
-        for line in out.splitlines():
-            parts = line.split()
-            if len(parts) >= 4 and parts[1] != "lo":
-                results.append((parts[3].split("/")[0], parts[1]))
-    elif shutil.which("ifconfig"):
-        out = subprocess.run(["ifconfig"], capture_output=True, text=True).stdout
-        iface = ""
-        for line in out.splitlines():
-            if line and not line[0].isspace():
-                iface = line.split()[0].rstrip(":")
-            m = re.search(r"inet (?:addr:)?([0-9.]+)", line)
-            if m and iface not in ("lo", "lo0") and not m.group(1).startswith("127."):
-                results.append((m.group(1), iface))
+    try:
+        stats = psutil.net_if_stats()
+        for iface, addrs in psutil.net_if_addrs().items():
+            st = stats.get(iface)
+            if st is not None and not st.isup:
+                continue
+            for addr in addrs:
+                if addr.family != socket.AF_INET:
+                    continue
+                ip = addr.address
+                if ip.startswith("127.") or iface in ("lo", "lo0"):
+                    continue
+                results.append((ip, iface))
+    except Exception:
+        pass  # exotic/unsupported interface table — report what we got
     return results
 
 
@@ -43,12 +51,36 @@ def port_taken(host, port):
         return f"cannot resolve host {host!r} ({e})"
     family, socktype, proto, _canon, sockaddr = infos[0]
     with socket.socket(family, socktype, proto) as sock:
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # SO_REUSEADDR means opposite things on the two platforms. On POSIX
+        # it only skips the TIME_WAIT guard, which is what we want here. On
+        # Windows it permits binding a port another socket is ACTIVELY
+        # listening on (Microsoft's documented port-hijacking behavior) —
+        # so this probe would report "free" while a server was running, and
+        # every caller (boot pre-flight, `painapple start`, the container
+        # launcher) would happily start a second instance on the same port,
+        # after which Windows routes new connections to whichever bound
+        # last. Setting nothing on win32 gives the strict bind we need.
+        if sys.platform != "win32":
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(sockaddr)
         except OSError as e:
             return e.strerror or str(e)
     return ""
+
+
+def _listener_pid(port):
+    """PID of whatever holds the listening socket on `port`, or None.
+    Never raises — every caller is decoration."""
+    try:
+        import psutil
+        for conn in psutil.net_connections(kind="inet"):
+            if (conn.status == psutil.CONN_LISTEN and conn.laddr
+                    and conn.laddr.port == int(port) and conn.pid):
+                return conn.pid
+    except Exception:
+        pass  # AccessDenied for other users' sockets
+    return None
 
 
 def port_holder(port):
@@ -57,8 +89,19 @@ def port_holder(port):
     '' when nothing can be determined. Never raises (decoration only)."""
     try:
         from painapple_code.cli.list_cmd import local_servers
-        row = next((r for r in local_servers()
-                    if str(r["port"]) == str(port)), None)
+        rows = [r for r in local_servers() if str(r["port"]) == str(port)]
+        # One server can present as SEVERAL rows on Windows: the pipx
+        # console-script launcher (painapple.exe), the python.exe it
+        # spawns, and uvicorn's reload child all carry the same argv, so
+        # all three match. Picking the first gave whichever the process
+        # scan happened to list first — usually the launcher shim, whose
+        # cwd is %TEMP%, so the error blamed a real port conflict on a
+        # workspace the user had never heard of. Prefer the row that
+        # actually owns the listening socket.
+        listener = _listener_pid(port)
+        row = next((r for r in rows if r["pid"] == listener), None)
+        if row is None and rows:
+            row = rows[0]
         if row:
             label = row.get("name") or "unnamed instance"
             return (f"painapple '{label}' (pid {row['pid']}, "
@@ -66,24 +109,17 @@ def port_holder(port):
     except Exception:
         pass
 
-    probes = []
-    if shutil.which("ss"):
-        probes.append(["ss", "-ltnp", f"sport = :{port}"])
-    if shutil.which("lsof"):
-        probes.append(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"])
-    for cmd in probes:
+    # psutil: works on all three platforms and needs no ss/lsof. (On
+    # Windows neither exists, so the holder was always reported as unknown
+    # — the user got "port in use" with no way to tell what by.) The ss/
+    # lsof scrape that used to follow this was unreachable-by-design
+    # fallback: psutil is a hard dependency, so it only ever ran when
+    # psutil ALSO failed, in which case ss wouldn't have known better.
+    holder = _listener_pid(port)
+    if holder is not None:
         try:
-            out = subprocess.run(cmd, capture_output=True, text=True,
-                                 timeout=3).stdout
+            import psutil
+            return f"{psutil.Process(holder).name()} (pid {holder})"
         except Exception:
-            continue
-        # ss: users:(("python",pid=123,fd=7))
-        m = re.search(r'\("?([\w.-]+)"?,pid=(\d+)', out)
-        if m:
-            return f"{m.group(1)} (pid {m.group(2)})"
-        lines = [ln for ln in out.splitlines()[1:] if ln.strip()]
-        if lines:
-            parts = lines[0].split()
-            if len(parts) >= 2:
-                return f"{parts[0]} (pid {parts[1]})"
+            return f"pid {holder}"
     return ""

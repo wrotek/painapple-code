@@ -27,6 +27,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from painapple_code import bridge_paths
 from painapple_code import helpers as helpers_module
+from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -123,7 +124,7 @@ def _describe_checkout() -> str | None:
             # Same tag filter as [tool.setuptools_scm] in pyproject.toml,
             # so this agrees with what a rebuild would produce.
             ["git", "describe", "--dirty", "--tags", "--long", "--match", "v[0-9]*"],
-            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=2,
+            cwd=str(REPO_ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=2,
         )
     except Exception:
         return None
@@ -257,7 +258,7 @@ async def get_server_info(request: Request):
     workspace = None
     if raw_ws:
         try:
-            workspace = str(Path(raw_ws).expanduser().resolve())
+            workspace = str(safe_resolve(raw_ws))
         except Exception:
             workspace = raw_ws
 
@@ -313,36 +314,22 @@ async def install_helpers():
     Returns 200 with {ok, exit_code, stdout, stderr} regardless of script outcome
     so the frontend can read the result without HTTP error handling.
     """
-    script = helpers_module.install_helpers_script_path()
-    if not script.exists():
-        return {"ok": False, "exit_code": -1, "stdout": "",
-                "stderr": f"install-helpers.sh not found at {script}"}
-
     try:
-        # Run off the event loop — this script can take up to 30s and would
-        # otherwise stall every other request for its whole duration.
-        result = await asyncio.to_thread(
-            subprocess.run,
-            ["bash", str(script), "--update"],
-            capture_output=True, text=True, timeout=30,
-        )
-        # install-helpers.sh cp -f's the bundled agent file (model: sonnet
+        # In-process now (helpers.install_helpers) rather than `bash
+        # tools/install-helpers.sh --update`: bash isn't present on a stock
+        # Windows box, and uninstall was already pure Python — the two
+        # halves of the same feature no longer disagree about their
+        # requirements. Still off the event loop: it's blocking file IO.
+        result = await asyncio.to_thread(helpers_module.install_helpers, True)
+        # The install overwrites the bundled agent file (model: sonnet
         # default); re-apply the user's persisted subagent-model choice on top.
         try:
             helpers_module.apply_agent_model_from_config()
         except Exception:
             logger.exception("failed to re-apply helper agent model after install")
-        return {
-            "ok": result.returncode == 0,
-            "exit_code": result.returncode,
-            "stdout": result.stdout,
-            "stderr": result.stderr,
-        }
-    except subprocess.TimeoutExpired:
-        return {"ok": False, "exit_code": -1, "stdout": "",
-                "stderr": "install-helpers.sh timed out after 30s"}
+        return result
     except Exception as e:
-        logger.exception("install-helpers.sh failed to run")
+        logger.exception("helper install failed to run")
         return {"ok": False, "exit_code": -1, "stdout": "", "stderr": str(e)}
 
 

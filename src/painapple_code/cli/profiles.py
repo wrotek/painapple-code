@@ -130,7 +130,7 @@ def load(name, root=None):
     import yaml
     problems = []
     try:
-        data = yaml.safe_load(path.read_text()) or {}
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as e:
         return Profile(name, "host", {}, [f"unreadable ({e})"])
     if not isinstance(data, dict):
@@ -162,8 +162,9 @@ def save(name, mode, data, root=None):
     path.write_text(
         f"# Profile '{name}' — written by `painapple setup {name}`, editable by hand.\n"
         "# mode: host (local server; this dir is its data home) or docker (container).\n"
-        + body)
-    path.chmod(0o600)
+        + body, encoding="utf-8")
+    from painapple_code.bridge_paths import lock_mode
+    lock_mode(path, 0o600)  # icacls on win32; chmod is a no-op there
     return path
 
 
@@ -219,7 +220,7 @@ def _adopt_serve_profile(root, name, notes):
     dst.parent.mkdir(parents=True, exist_ok=True)
     import yaml
     try:
-        data = yaml.safe_load((src / "serve.yaml").read_text()) or {}
+        data = yaml.safe_load((src / "serve.yaml").read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as e:
         notes.append(f"'{name}': unreadable serve.yaml ({e}) — skipped")
         return
@@ -252,7 +253,7 @@ def _adopt_docker_profile(root, name, notes):
         return
     import yaml
     try:
-        data = yaml.safe_load(legacy_yaml.read_text()) or {}
+        data = yaml.safe_load(legacy_yaml.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as e:
         notes.append(f"'{name}': unreadable docker.yaml ({e}) — skipped")
         return
@@ -277,7 +278,7 @@ def _adopt_root_docker(root, notes):
         return
     import yaml
     try:
-        data = yaml.safe_load(legacy_yaml.read_text()) or {}
+        data = yaml.safe_load(legacy_yaml.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as e:
         notes.append(f"root docker.yaml unreadable ({e}) — left in place")
         return
@@ -324,7 +325,9 @@ def _adopt_root_docker(root, notes):
             notes.append(f"adopted the root docker deployment → "
                          f"profiles/{target} (mode: docker)")
 
-    legacy_yaml.rename(legacy_yaml.with_suffix(".yaml.migrated"))
+    # os.replace: a re-run after a partial migration already left a
+    # .migrated file behind — Path.rename would raise on win32 then.
+    os.replace(legacy_yaml, legacy_yaml.with_suffix(".yaml.migrated"))
     notes.append("root docker.yaml → docker.yaml.migrated (superseded by "
                  "serve.yaml + profiles)")
 

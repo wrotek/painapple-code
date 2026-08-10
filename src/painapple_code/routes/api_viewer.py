@@ -9,13 +9,12 @@ These endpoints provide:
 """
 
 import logging
-from pathlib import Path
 from typing import NoReturn
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, Response
 
-from painapple_code.utils.file_paths import is_path_allowed_for_read
+from painapple_code.utils.file_paths import is_path_allowed_for_read, safe_resolve
 from painapple_code.utils.excalidraw import render_excalidraw, render_excalidraw_file, is_excalidraw_file
 from painapple_code.utils.chart import render_chart, render_chart_file, is_chart_file
 from painapple_code.viewer_templates import (
@@ -86,7 +85,7 @@ def _reject_renderer_disabled() -> NoReturn:
 async def get_file_raw(request: Request, path: str, dark: bool = False):
     """Serve a raw file with correct MIME type (for images, etc.)."""
     try:
-        p = Path(path).expanduser().resolve()
+        p = safe_resolve(path)
 
         if not is_path_allowed_for_read(p):
             raise HTTPException(status_code=403, detail="Path not allowed")
@@ -150,7 +149,7 @@ async def file_viewer(path: str = None):
         return usage_page()
 
     try:
-        p = Path(path).expanduser().resolve()
+        p = safe_resolve(path)
 
         if not is_path_allowed_for_read(p):
             return access_denied_page(path)
@@ -174,11 +173,11 @@ async def file_viewer(path: str = None):
 
         # Markdown viewer
         if suffix == '.md':
-            content = p.read_text(errors='replace')
+            content = p.read_text(encoding="utf-8", errors='replace')
             return markdown_viewer(p.name, str(p), content)
 
         # Code/text viewer
-        content = p.read_text(errors='replace')
+        content = p.read_text(encoding="utf-8", errors='replace')
         lang = get_language(suffix)
         return code_viewer(p.name, str(p), content, lang)
 

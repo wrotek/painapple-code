@@ -6,6 +6,7 @@
  */
 
 import { CONFIG, escapeHtml, panzoomToolbarHtml, setupPanZoom, darkDefault } from './plugin-helpers.js';
+import { basename } from '../path-utils.js';
 
 /**
  * @param {object} opts
@@ -33,7 +34,7 @@ export function createPanzoomPlugin({ id, match, canvasClass, imgClass, hasDarkT
         renderBody(state, helpers) {
             const ps = state.pluginState;
             const src = getSrc(state.currentPath, ps);
-            const fileName = state.currentPath?.split('/').pop() || '';
+            const fileName = basename(state.currentPath) || '';
             const bodyClasses = ['preview-body', canvasClass];
             if (bodyClass) bodyClasses.push(bodyClass);
             bodyClasses.push('panzoom-canvas');

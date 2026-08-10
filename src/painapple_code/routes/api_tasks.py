@@ -29,8 +29,15 @@ def _cwd_to_slug(cwd: str) -> str:
     return cwd.replace('/', '-')
 
 
-def _get_tasks_dir() -> Path:
-    """Get the tasks directory for the current project."""
+def _get_tasks_dir() -> Path | None:
+    """Get the tasks directory for the current project.
+
+    Returns None on native Windows: os.getuid doesn't exist there and the
+    whole /tmp/claude-{uid} convention is Linux/macOS Claude CLI layout —
+    the endpoints degrade to an empty list / 404 instead of a 500.
+    """
+    if not hasattr(os, "getuid"):
+        return None
     from painapple_code.server import bridge
     cwd = (bridge.default_cwd if bridge else None) or os.getcwd()
     uid = os.getuid()
@@ -71,7 +78,7 @@ async def list_tasks():
     """List all background tasks for the current project."""
     tasks_dir = _get_tasks_dir()
 
-    if not tasks_dir.exists():
+    if tasks_dir is None or not tasks_dir.exists():
         return {"tasks": []}
 
     tasks = []
@@ -104,6 +111,8 @@ async def get_task_output(task_id: str, offset: int = 0):
         raise HTTPException(400, "Invalid task ID format")
 
     tasks_dir = _get_tasks_dir()
+    if tasks_dir is None:
+        raise HTTPException(404, "Background tasks not available on this platform")
     file_path = tasks_dir / f"{task_id}.output"
 
     if not file_path.exists():
@@ -121,7 +130,7 @@ async def get_task_output(task_id: str, offset: int = 0):
     content = ""
     new_offset = offset
     try:
-        with open(real_path, 'r', errors='replace') as f:
+        with open(real_path, 'r', errors='replace', encoding="utf-8") as f:
             if offset > 0:
                 f.seek(min(offset, stat.st_size))
             content = f.read()

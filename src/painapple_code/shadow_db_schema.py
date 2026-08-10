@@ -658,7 +658,7 @@ class _SchemaMixin:
                 if h_dir.is_dir():
                     path_file = h_dir / "path"
                     if path_file.exists():
-                        project_path = path_file.read_text().strip()
+                        project_path = path_file.read_text(encoding="utf-8").strip()
                         repo_hash = get_git_repo_hash(project_path)
                         if repo_hash:
                             mapping[h_dir.name] = repo_hash

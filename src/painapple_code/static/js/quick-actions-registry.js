@@ -23,7 +23,7 @@
 import { WidgetManager } from './widget-system/index.js';
 import { DebugWidget } from './widgets/debug-widget.js';
 import { TerminalWidget } from './widgets/terminal-widget.js';
-import { appConfirm, escapeHtml } from './utils.js';
+import { appConfirm, escapeHtml, terminalAvailable } from './utils.js';
 import { copyToClipboard, showToast } from './context-menu.js';
 import { OpenDialog } from './open-dialog.js';
 import S from './strings.js';
@@ -318,25 +318,29 @@ QuickActionsRegistry.register('toggle-favorite', {
 // Category: Panels & Widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
-QuickActionsRegistry.register('terminal', {
-    keywords: ['shell', 'bash', 'console', 'cli', 'tty'],
-    icon: 'terminal',
-    label: S.quick_actions_registry.actions.terminal.label,
-    description: S.quick_actions_registry.actions.terminal.desc,
-    shortcut: 'Ctrl+`',
-    category: S.quick_actions_registry.categories.panels,
-    execute: () => getApp()?.toggleTerminalPanel(),
-});
+// Terminal actions register only when the server has a PTY backend
+// (absent on native Windows until the ConPTY port lands).
+if (terminalAvailable()) {
+    QuickActionsRegistry.register('terminal', {
+        keywords: ['shell', 'bash', 'console', 'cli', 'tty'],
+        icon: 'terminal',
+        label: S.quick_actions_registry.actions.terminal.label,
+        description: S.quick_actions_registry.actions.terminal.desc,
+        shortcut: 'Ctrl+`',
+        category: S.quick_actions_registry.categories.panels,
+        execute: () => getApp()?.toggleTerminalPanel(),
+    });
 
-QuickActionsRegistry.register('new-terminal', {
-    keywords: ['shell', 'console', 'pty', 'tty'],
-    icon: 'plus-square',
-    label: S.quick_actions_registry.actions.new_terminal.label,
-    description: S.quick_actions_registry.actions.new_terminal.desc,
-    shortcut: 'Ctrl+Shift+`',
-    category: S.quick_actions_registry.categories.panels,
-    execute: () => getApp()?.createTerminal(),
-});
+    QuickActionsRegistry.register('new-terminal', {
+        keywords: ['shell', 'console', 'pty', 'tty'],
+        icon: 'plus-square',
+        label: S.quick_actions_registry.actions.new_terminal.label,
+        description: S.quick_actions_registry.actions.new_terminal.desc,
+        shortcut: 'Ctrl+Shift+`',
+        category: S.quick_actions_registry.categories.panels,
+        execute: () => getApp()?.createTerminal(),
+    });
+}
 
 QuickActionsRegistry.register('file-preview', {
     keywords: ['preview', 'view', 'file', 'editor', 'reopen', 'last'],

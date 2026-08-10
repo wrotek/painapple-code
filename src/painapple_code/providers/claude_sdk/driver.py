@@ -32,6 +32,7 @@ import os
 import shutil
 import signal
 import sys
+import threading
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -191,7 +192,9 @@ async def _amain(args: argparse.Namespace) -> int:
         fork_session=args.fork_session,
         # The bridge already sets cwd on the driver process; pin the CLI to it.
         cwd=os.getcwd(),
-        cli_path=shutil.which(args.cli_path) or args.cli_path,
+        # None → the SDK's _find_cli() discovers (and on win32 vets) the CLI;
+        # an explicit config value is which-resolved as before.
+        cli_path=(shutil.which(args.cli_path) or args.cli_path) if args.cli_path else None,
         # Restore thinking summaries on all models (see providers/claude/launch.py).
         extra_args={"thinking-display": "summarized"},
         # Mirror CLI stderr onto ours so the bridge's classifier sees the exact
@@ -208,8 +211,21 @@ async def _amain(args: argparse.Namespace) -> int:
         exit_code = code
         stop.set()
 
-    loop.add_signal_handler(signal.SIGINT, _shutdown, 130)
-    loop.add_signal_handler(signal.SIGTERM, _shutdown, 143)
+    if sys.platform == "win32":
+        # Proactor has no add_signal_handler (NotImplementedError — winvm
+        # probe). signal.signal works: CPython's wakeup channel rouses the
+        # loop, and call_soon_threadsafe hops back onto it. The bridge's
+        # interrupt_process() sends CTRL_BREAK → SIGBREAK here (SIGTERM is
+        # undeliverable on win32; parent terminate() covers that path).
+        def _sig_handler(signum, frame):
+            loop.call_soon_threadsafe(
+                _shutdown, 130 if signum == signal.SIGINT else 143
+            )
+        signal.signal(signal.SIGINT, _sig_handler)
+        signal.signal(signal.SIGBREAK, _sig_handler)
+    else:
+        loop.add_signal_handler(signal.SIGINT, _shutdown, 130)
+        loop.add_signal_handler(signal.SIGTERM, _shutdown, 143)
 
     # With a custom transport, ClaudeSDKClient skips its own
     # `permission_prompt_tool_name="stdio"` injection (it only applies it to
@@ -230,12 +246,39 @@ async def _amain(args: argparse.Namespace) -> int:
 
     async def stdin_loop() -> None:
         """Forward each canonical user-message line from the bridge into the SDK."""
-        reader = asyncio.StreamReader(limit=MAX_STDIN_LINE)
-        await loop.connect_read_pipe(
-            lambda: asyncio.StreamReaderProtocol(reader), sys.stdin
-        )
+        if sys.platform == "win32":
+            # connect_read_pipe on an inherited stdin HALF-works under
+            # Proactor: it connects, then the first read dies with
+            # OSError WinError 6 and leaves stdin unusable (winvm probe
+            # 3). Don't attempt it — a daemon thread doing blocking
+            # readline feeds the loop through an asyncio queue instead.
+            queue: asyncio.Queue = asyncio.Queue()
+
+            def _pump() -> None:
+                try:
+                    while True:
+                        raw = sys.stdin.buffer.readline()
+                        loop.call_soon_threadsafe(queue.put_nowait, raw)
+                        if not raw:  # EOF — bridge closed our stdin
+                            return
+                except Exception:
+                    loop.call_soon_threadsafe(queue.put_nowait, b"")
+
+            threading.Thread(target=_pump, daemon=True, name="stdin-pump").start()
+
+            async def _readline() -> bytes:
+                return await queue.get()
+        else:
+            reader = asyncio.StreamReader(limit=MAX_STDIN_LINE)
+            await loop.connect_read_pipe(
+                lambda: asyncio.StreamReaderProtocol(reader), sys.stdin
+            )
+
+            async def _readline() -> bytes:
+                return await reader.readline()
+
         while True:
-            line = await reader.readline()
+            line = await _readline()
             if not line:
                 # Bridge closed stdin. Mirror `claude -p` one-shot semantics:
                 # close the CLI's stdin and let it finish in-flight work; the
@@ -334,8 +377,13 @@ async def _amain(args: argparse.Namespace) -> int:
 
 
 def main() -> None:
+    if sys.platform == "win32":
+        # stdout is the wire to the bridge and emit() uses ensure_ascii=False —
+        # a cp1252 pipe would corrupt the first non-ASCII assistant token.
+        from painapple_code.utils.proc import force_utf8_stdio
+        force_utf8_stdio()
     parser = argparse.ArgumentParser(description="painapple-code Agent SDK driver")
-    parser.add_argument("--cli-path", default="claude")
+    parser.add_argument("--cli-path", default=None)  # None → SDK _find_cli()
     parser.add_argument("--model", default=None)
     parser.add_argument("--fallback-model", default=None)
     parser.add_argument("--effort", default=None)
@@ -343,7 +391,21 @@ def main() -> None:
     parser.add_argument("--resume", default=None)
     parser.add_argument("--fork-session", action="store_true")
     args = parser.parse_args()
-    sys.exit(asyncio.run(_amain(args)))
+    code = asyncio.run(_amain(args))
+    if sys.platform == "win32":
+        # The win32 stdin pump is a daemon thread parked in a blocking
+        # readline(), so it owns the <stdin> BufferedReader lock at exit.
+        # Normal interpreter finalization waits for that lock and instead
+        # aborts with "Fatal Python error: _enter_buffered_busy" on stderr —
+        # which the bridge forwards verbatim, painting three red error
+        # bubbles into the chat on every AskUserQuestion auto-stop.
+        # _amain's finally already disconnected the CLI child and cancelled
+        # the loop tasks, so finalization has nothing left to do; skip it
+        # rather than lose a race it cannot win. os._exit does not flush.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(code)
+    sys.exit(code)
 
 
 if __name__ == "__main__":

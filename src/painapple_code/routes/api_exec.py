@@ -7,10 +7,11 @@ with output capture and timeout handling.
 
 import asyncio
 import logging
-from pathlib import Path
+import sys
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
@@ -35,16 +36,31 @@ async def execute_command(req: ExecRequest):
     command = req.command
     cwd = req.cwd
     try:
-        p = Path(cwd).expanduser().resolve()
+        p = safe_resolve(cwd)
         if not p.exists() or not p.is_dir():
             raise HTTPException(status_code=400, detail="Invalid working directory")
 
-        process = await asyncio.create_subprocess_shell(
-            command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(p)
-        )
+        if sys.platform == "win32":
+            # create_subprocess_shell would use COMSPEC (cmd.exe), whose
+            # dialect shares almost nothing with the POSIX-shaped commands
+            # every doc and quick-action here assumes. PowerShell is both
+            # closer and what native Claude Code itself defaults to on
+            # Windows. Note for docs: bang commands are PowerShell-flavored
+            # on Windows.
+            process = await asyncio.create_subprocess_exec(
+                "powershell.exe", "-NoProfile", "-NonInteractive",
+                "-Command", command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(p),
+            )
+        else:
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(p)
+            )
 
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=30.0)

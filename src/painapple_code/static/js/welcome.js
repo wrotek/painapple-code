@@ -68,6 +68,7 @@ import {
     clearProjectFilter,
     filterSelectedProject,
 } from './welcome/api.js';
+import { basename } from './path-utils.js';
 
 // Re-export close helpers used by app.js for global Escape handling.
 export { closeSessionPreview, closeWelcomeContextMenu };
@@ -814,7 +815,7 @@ function attachEventListeners(container) {
             // Alt+click: filter by this session's project
             if (e.altKey && projectPath) {
                 const s = findSession(sessionId);
-                setProjectFilter(projectPath, s?.project || projectPath.split('/').pop(), container);
+                setProjectFilter(projectPath, s?.project || basename(projectPath), container);
                 return;
             }
 
@@ -867,7 +868,7 @@ function attachEventListeners(container) {
             // Alt+click: filter by this session's project
             if (e.altKey && projectPath) {
                 const s = findSession(sessionId);
-                setProjectFilter(projectPath, s?.project || projectPath.split('/').pop(), container);
+                setProjectFilter(projectPath, s?.project || basename(projectPath), container);
                 return;
             }
 
@@ -909,7 +910,7 @@ function attachEventListeners(container) {
             // Alt+click: filter by this session's project
             if (e.altKey && projectPath) {
                 const s = findSession(sessionId);
-                setProjectFilter(projectPath, s?.project || projectPath.split('/').pop(), container);
+                setProjectFilter(projectPath, s?.project || basename(projectPath), container);
                 return;
             }
 
@@ -968,7 +969,7 @@ function attachEventListeners(container) {
 
             // Alt+click: filter by this session's project
             if (e.altKey && projectPath) {
-                setProjectFilter(projectPath, session.project || projectPath.split('/').pop(), container);
+                setProjectFilter(projectPath, session.project || basename(projectPath), container);
                 return;
             }
 
@@ -1134,7 +1135,7 @@ function attachEventListeners(container) {
 
             // Alt+click: filter by this project
             if (e.altKey && projectPath) {
-                setProjectFilter(projectPath, projectName || projectPath.split('/').pop(), container);
+                setProjectFilter(projectPath, projectName || basename(projectPath), container);
                 return;
             }
 
@@ -1236,7 +1237,7 @@ function attachEventListeners(container) {
 
             // Alt+click: filter by this project
             if (e.altKey && path) {
-                const name = item.querySelector('.project-name')?.textContent || path.split('/').pop();
+                const name = item.querySelector('.project-name')?.textContent || basename(path);
                 setProjectFilter(path, name, container);
                 return;
             }

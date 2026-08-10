@@ -12,6 +12,7 @@
 import { CONFIG } from '../../config.js';
 import S from '../../strings.js';
 import { escapeHtml } from '../../utils.js';
+import { isAbsolutePath } from '../../path-utils.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Extra Directories - In-place update helpers
@@ -147,7 +148,7 @@ function highlightItem(items, index) {
 
 async function fetchDirSuggestions(input, dropdown) {
     const value = input.value.trim();
-    if (!value || !value.startsWith('/')) {
+    if (!value || !isAbsolutePath(value)) {
         dropdown.classList.remove('visible');
         dropdown.innerHTML = '';
         return;

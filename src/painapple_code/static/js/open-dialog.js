@@ -23,6 +23,7 @@ import S from './strings.js';
 import { CONFIG } from './config.js';
 import { ICONS } from './widget-system/index.js';
 import { escapeHtml, extractApiError } from './utils.js';
+import { basename, dirname, isAbsolutePath, isUnder, joinPath, parentOf, pathRoot, pathSep, relativeTo, resolvePath, splitPath, stripTrailingSep } from './path-utils.js';
 import { ContextMenu, copyToClipboard, showToast } from './context-menu.js';
 
 const DEBOUNCE_MS = 80;
@@ -31,6 +32,19 @@ const PATH_CACHE_TTL = 5_000;
 const RECENT_TTL = 30_000;
 const MAX_LIST = 100;
 const MAX_BASENAME_LIST = 50;
+
+/**
+ * `absPath` under `base`, as text to put back in the input box.
+ *
+ * relativeTo() normalizes to '/' because its usual consumers are git
+ * pathspecs and API keys; here the separator has to match what the user
+ * types, so the server's own goes back in. Doing the offset by hand is what
+ * broke on a root base ('/', 'C:\'): `base.length + 1` ate the first real
+ * character, turning /etc/hosts into tc/hosts.
+ */
+function relDisplay(absPath, base) {
+    return relativeTo(absPath, base).split('/').join(pathSep(absPath));
+}
 
 class OpenDialogClass {
     constructor() {
@@ -242,7 +256,7 @@ class OpenDialogClass {
                 const noSelection = start === end;
                 const atStart = noSelection && start === 0;
                 const atEnd = noSelection && start === val.length;
-                if (atStart || (atEnd && val.endsWith('/'))) {
+                if (atStart || (atEnd && /[\\/]$/.test(val))) {
                     e.preventDefault();
                     this._goUp();
                 }
@@ -261,19 +275,13 @@ class OpenDialogClass {
 
     _goUp() {
         const { dir } = this._parse(this.input.value);
-        const parent = this._parentOf(dir);
+        const parent = parentOf(dir);
         if (!parent) return;
         const display = this._displayFor(parent, true);
         this.input.value = display;
         this.input.selectionStart = this.input.selectionEnd = display.length;
         this._ghost = '';
         this._refresh();
-    }
-
-    _parentOf(dir) {
-        if (!dir || dir === '/') return null;
-        const trimmed = dir.replace(/\/+$/, '');
-        return trimmed.split('/').slice(0, -1).join('/') || '/';
     }
 
     _move(delta) {
@@ -344,18 +352,19 @@ class OpenDialogClass {
         const cwd = this._getCwd();
         if (!input) return { mode: 'empty', dir: cwd, filter: '' };
 
-        const startsWithTilde = input === '~' || input.startsWith('~/');
-        const isAbsolute = input.startsWith('/');
+        const startsWithTilde = input === '~' || /^~[\\/]/.test(input);
+        const isAbsolute = isAbsolutePath(input, cwd);
         const isRelative =
             input === '.' || input === '..' ||
-            input.startsWith('./') || input.startsWith('../');
-        const hasSlash = input.includes('/');
+            /^\.\.?[\\/]/.test(input);
+        // Either separator: a Windows user types (and pastes) backslashes.
+        const hasSlash = /[\\/]/.test(input);
 
         const pathMode = startsWithTilde || isAbsolute || isRelative || hasSlash;
         if (!pathMode) return { mode: 'basename', dir: cwd, filter: input };
 
-        // Split into (head) + (filter being typed after the last '/').
-        const lastSlash = input.lastIndexOf('/');
+        // Split into (head) + (filter being typed after the last separator).
+        const lastSlash = Math.max(input.lastIndexOf('/'), input.lastIndexOf('\\'));
         let head, filter;
         if (lastSlash === -1) {
             // Input is `~`, `.`, or `..` — treat as if it had a trailing slash.
@@ -367,28 +376,16 @@ class OpenDialogClass {
         }
 
         let dir;
-        if (head.startsWith('~/')) {
-            dir = (CONFIG.HOME || '') + head.slice(1);
-        } else if (head.startsWith('/')) {
+        if (/^~[\\/]/.test(head)) {
+            dir = joinPath(CONFIG.HOME || '', head.slice(2));
+        } else if (isAbsolutePath(head, cwd)) {
             dir = head;
         } else {
             // ./foo/  ../foo/  foo/bar/  (relative to cwd)
-            dir = this._resolveRelative(cwd, head);
+            dir = resolvePath(cwd, head);
         }
-        dir = dir.replace(/\/+$/, '') || '/';
+        dir = stripTrailingSep(dir) || pathRoot(dir) || '/';
         return { mode: 'path', dir, filter };
-    }
-
-    _resolveRelative(cwd, relPath) {
-        const combined = (cwd || '') + '/' + relPath;
-        const parts = combined.split('/').filter(p => p !== '');
-        const out = [];
-        for (const p of parts) {
-            if (p === '.') continue;
-            if (p === '..') out.pop();
-            else out.push(p);
-        }
-        return '/' + out.join('/');
     }
 
     _getCwd() {
@@ -434,8 +431,8 @@ class OpenDialogClass {
             (mode === 'basename' && filter)
         );
         if (offerCreate) {
-            const target = filter ? (dir === '/' ? '/' + filter : dir + '/' + filter) : dir;
-            const pretty = this._formatPathForDisplay(target).replace(/\/$/, '') || '/';
+            const target = filter ? joinPath(dir, filter) : dir;
+            const pretty = this._formatPathForDisplay(target).replace(/[\\/]$/, '') || '/';
             items = [{
                 type: 'action',
                 is_dir: true,
@@ -517,7 +514,7 @@ class OpenDialogClass {
                 description: S.open_dialog.open_here.desc,
                 absPath: dir,
             });
-            const parent = this._parentOf(dir);
+            const parent = parentOf(dir);
             if (parent) {
                 mapped.unshift({
                     type: 'dir',
@@ -560,7 +557,7 @@ class OpenDialogClass {
         for (const d of dirs) {
             const name = d.replace(/\/$/, '');
             if (!name.toLowerCase().startsWith(fLower)) continue;
-            const abs = this._joinAbs(cwd, name);
+            const abs = resolvePath(cwd, name);
             matches.push({
                 type: 'dir',
                 is_dir: true,
@@ -572,17 +569,15 @@ class OpenDialogClass {
             });
         }
         for (const path of files) {
-            const slash = path.lastIndexOf('/');
-            const basename = slash >= 0 ? path.slice(slash + 1) : path;
-            if (!basename.toLowerCase().startsWith(fLower)) continue;
-            const abs = this._joinAbs(cwd, path);
-            const dirPart = slash >= 0 ? path.slice(0, slash) : '';
+            const fileName = basename(path);
+            if (!fileName.toLowerCase().startsWith(fLower)) continue;
+            const abs = resolvePath(cwd, path);
             matches.push({
                 type: 'file',
                 is_dir: false,
-                name: basename,
-                label: basename,
-                description: dirPart,
+                name: fileName,
+                label: fileName,
+                description: dirname(path),
                 absPath: abs,
                 recentRank: recent.get(abs) ?? Infinity,
             });
@@ -592,8 +587,8 @@ class OpenDialogClass {
         matches.sort((a, b) => {
             if (a.recentRank !== b.recentRank) return a.recentRank - b.recentRank;
             if (a.is_dir !== b.is_dir) return a.is_dir ? -1 : 1;
-            const ad = (a.description.match(/\//g) || []).length;
-            const bd = (b.description.match(/\//g) || []).length;
+            const ad = splitPath(a.description, a.absPath).length;
+            const bd = splitPath(b.description, b.absPath).length;
             if (ad !== bd) return ad - bd;
             return a.name.localeCompare(b.name);
         });
@@ -612,7 +607,7 @@ class OpenDialogClass {
             if (r.ok) {
                 const data = await r.json();
                 (data.files || []).forEach((f, i) => {
-                    const abs = this._joinAbs(cwd, f.path);
+                    const abs = resolvePath(cwd, f.path);
                     map.set(abs, i);
                 });
             }
@@ -621,12 +616,6 @@ class OpenDialogClass {
         }
         this._recentCache.set(cwd, { t: Date.now(), map });
         return map;
-    }
-
-    _joinAbs(cwd, rel) {
-        if (rel.startsWith('/')) return rel;
-        const base = (cwd || '').replace(/\/$/, '');
-        return base + '/' + rel;
     }
 
     _renderGhost() {
@@ -651,10 +640,10 @@ class OpenDialogClass {
         if (!dir) return '';
         const home = CONFIG.HOME || '';
         let out = dir;
-        if (home && (dir === home || dir.startsWith(home + '/'))) {
+        if (home && isUnder(dir, home)) {
             out = '~' + dir.slice(home.length);
         }
-        return out.endsWith('/') ? out : out + '/';
+        return /[\\/]$/.test(out) ? out : out + pathSep(dir);
     }
 
     _renderList() {
@@ -780,7 +769,7 @@ class OpenDialogClass {
             // Bust the cached listings (the dir itself + its parent, whose
             // cached entry list is now missing the new child).
             this._pathCache.delete(dir);
-            const parent = this._parentOf(dir);
+            const parent = parentOf(dir);
             if (parent) this._pathCache.delete(parent);
             this._drillInto({ is_dir: true, absPath: data.path || dir });
             this.input.focus();
@@ -806,7 +795,7 @@ class OpenDialogClass {
     _openSessionAt(cwd) {
         const app = window.app;
         if (!app?.sessionManager) return;
-        const name = cwd.split('/').pop() || 'New Session';
+        const name = basename(cwd) || 'New Session';
         const session = app.sessionManager.create({ name });
         if (!session) return;
         session.cwd = cwd;
@@ -869,20 +858,20 @@ class OpenDialogClass {
         let out;
         if (home && absPath === home) {
             out = '~';
-        } else if (original.startsWith('~/') && home && absPath.startsWith(home + '/')) {
-            out = '~' + absPath.slice(home.length);
-        } else if (original.startsWith('/') || !cwd) {
+        } else if (/^~[\\/]/.test(original) && home && isUnder(absPath, home) && absPath !== home) {
+            out = '~' + pathSep(absPath) + relDisplay(absPath, home);
+        } else if (isAbsolutePath(original, cwd) || !cwd) {
             out = absPath;
         } else if (absPath === cwd) {
             out = './';
-        } else if (absPath.startsWith(cwd + '/')) {
-            out = absPath.slice(cwd.length + 1);
-        } else if (home && absPath.startsWith(home + '/')) {
-            out = '~' + absPath.slice(home.length);
+        } else if (isUnder(absPath, cwd) && absPath !== cwd) {
+            out = relDisplay(absPath, cwd);
+        } else if (home && isUnder(absPath, home) && absPath !== home) {
+            out = '~' + pathSep(absPath) + relDisplay(absPath, home);
         } else {
             out = absPath;
         }
-        if (isDir && !out.endsWith('/')) out += '/';
+        if (isDir && !/[\\/]$/.test(out)) out += pathSep(absPath);
         return out;
     }
 }

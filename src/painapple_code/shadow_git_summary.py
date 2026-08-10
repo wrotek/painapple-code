@@ -29,6 +29,7 @@ from typing import Optional
 
 from painapple_code.bridge_paths import get_sessions_dir
 from painapple_code.subprocess_registry import agent_subprocesses, SubprocessType, SubprocessStatus
+from painapple_code.utils.proc import popen_kwargs_detached, resolve_binary
 from painapple_code.turn_tracker import TurnTracker
 
 from painapple_code.shadow_git_frontmatter import (
@@ -224,13 +225,13 @@ class _SummaryMixin:
             stdout, stderr = b"", b""
 
             proc = await asyncio.create_subprocess_exec(
-                *plan.argv,
+                resolve_binary(plan.argv[0]), *plan.argv[1:],
                 stdin=asyncio.subprocess.PIPE if (transport_driven or stdin_input is not None) else None,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self.project_path),
                 env=plan.env,
-                start_new_session=True,  # isolate from server's process group
+                **popen_kwargs_detached(),  # isolate from server's process group
             )
 
             # Register subprocess for visibility in Active Sessions widget
@@ -387,7 +388,7 @@ class _SummaryMixin:
             return
 
         try:
-            meta = json.loads(meta_file.read_text())
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
             # Update session title if provided (from the summary fork)
             # Skip if user manually renamed the session (manual_name flag)

@@ -509,7 +509,7 @@ class PromptExtractor:
 
             # Get project path for display
             path_file = project_dir / "path"
-            project_path = path_file.read_text().strip() if path_file.exists() else ""
+            project_path = path_file.read_text(encoding="utf-8").strip() if path_file.exists() else ""
 
             # Filter by project hash OR project path (partial match)
             if effective_project:
@@ -539,7 +539,7 @@ class PromptExtractor:
                     continue
 
                 try:
-                    meta = json.loads(meta_file.read_text())
+                    meta = json.loads(meta_file.read_text(encoding="utf-8"))
                 except (ValueError, OSError) as exc:
                     logger.debug("prompt search: skipping %s with unreadable meta: %s", session_id, exc)
                     continue
@@ -772,7 +772,7 @@ class PromptExtractor:
 
         parts: List[str] = []
         try:
-            with open(messages_file, "r") as f:
+            with open(messages_file, "r", encoding="utf-8") as f:
                 for ln, line in enumerate(f, 1):
                     if ln <= line_number:
                         continue
@@ -817,7 +817,7 @@ class PromptExtractor:
         prompts = []
 
         try:
-            with open(messages_file, 'r') as f:
+            with open(messages_file, 'r', encoding="utf-8") as f:
                 lines = f.readlines()
 
             # First pass: collect user messages

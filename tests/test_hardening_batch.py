@@ -4,6 +4,7 @@ Covers:
   T2  — uploaded files are served inert (attachment + nosniff + private cache)
   T3  — server-side renderers are OFF by default (503, no Node subprocess)
   T10 — the /static/js cache-bust route cannot escape its root
+  T11 — Windows UNC / device / reserved-name paths are refused
 
 All tests use the tmp_path-backed `app`/`client` fixtures from conftest.py —
 nothing touches the real ~/.painapple-code or ~/.config data.
@@ -135,3 +136,286 @@ def test_static_js_traversal_blocked(client):
     resp = client.get("/static/js/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd")
     assert resp.status_code == 404
     assert "root:x:0:0" not in resp.text
+
+
+# ---------------------------------------------------------------------------
+# T11 — Windows path namespaces the POSIX deny-list never covered
+# ---------------------------------------------------------------------------
+#
+# On win32, /proc,/sys,/dev don't exist, so the read/write gate degraded to
+# "allow everything". Two of the things it then allowed are not merely
+# exotic — a UNC path makes Windows authenticate OUTBOUND to an arbitrary
+# host, turning "open this file" into an NTLM-hash exfiltration primitive,
+# and the device namespaces do something other than read a file.
+#
+# _is_windows_path_allowed is pure string/parts work over PureWindowsPath,
+# so this runs (and fails) on Linux CI too — the point is that the rule
+# can't silently rot on the platform nobody's test box runs.
+
+from pathlib import PureWindowsPath
+
+from painapple_code.utils.file_paths import _is_windows_path_allowed
+
+
+@pytest.mark.parametrize("path", [
+    r"\\attacker.example.com\share\payload",   # outbound SMB -> NTLM leak
+    r"\\192.168.1.5\c$\Windows",
+    r"\\.\PhysicalDrive0",                     # device namespace
+    r"\\?\C:\Users\me\x",                      # extended-length namespace
+    r"C:\tmp\nul",                             # reserved names, any directory
+    r"C:\tmp\NUL.txt",                         # ...with or without extension
+    r"C:\tmp\con.log",
+    r"C:\tmp\COM1",
+    r"C:\tmp\lpt9.dat",
+    "C:\\tmp\\nul. ",                          # NTFS strips trailing dot/space
+])
+def test_windows_denied_paths(path):
+    assert not _is_windows_path_allowed(PureWindowsPath(path)), path
+
+
+@pytest.mark.parametrize("path", [
+    r"C:\Users\me\proj\app.js",
+    r"D:\data\notes.md",
+    r"C:\tmp\console.js",      # reserved name as a PREFIX is fine
+    r"C:\tmp\nullable.py",
+    r"C:\tmp\lpt10.txt",       # only LPT1-9 are reserved
+    r"C:\tmp\communicate.md",
+])
+def test_windows_allowed_paths(path):
+    assert _is_windows_path_allowed(PureWindowsPath(path)), path
+
+
+# ---------------------------------------------------------------------------
+# T12 — lock_mode is not a silent no-op on Windows
+# ---------------------------------------------------------------------------
+#
+# os.chmod on Windows only toggles FILE_ATTRIBUTE_READONLY and returns
+# SUCCESS, so `lock_mode(config, 0o600)` protected nothing while looking
+# like it had — and the `except OSError` warning could never fire to say
+# so. The replacement shells icacls; these tests pin the argv, because
+# dropping /inheritance:r is the difference between "owner only" and
+# "still whatever the parent directory grants".
+
+def _capture_icacls(monkeypatch, bridge_paths):
+    """Stub subprocess.run and hand back the dict that records argv."""
+    seen = {}
+
+    class _Result:
+        returncode = 0
+        stdout = "processed file: x"
+        stderr = ""
+
+    def _fake_run(argv, **kwargs):
+        seen["argv"] = argv
+        return _Result()
+
+    monkeypatch.setattr(bridge_paths.subprocess, "run", _fake_run)
+    return seen
+
+
+def test_lock_mode_windows_builds_owner_only_icacls(monkeypatch, tmp_path):
+    from painapple_code import bridge_paths
+
+    seen = _capture_icacls(monkeypatch, bridge_paths)
+    monkeypatch.setattr(bridge_paths, "_current_user_sid",
+                        lambda: "S-1-5-21-1-2-3-1002")
+
+    target = tmp_path / "config.yaml"
+    target.write_text("password: x")
+    bridge_paths._lock_mode_windows(target, 0o600)
+
+    argv = seen["argv"]
+    assert argv[0] == "icacls"
+    assert str(target) in argv
+    # Without this, inherited ACEs survive and the "restriction" is a lie.
+    assert "/inheritance:r" in argv
+    # /grant:r (replace), not /grant (add) — and full control for the owner.
+    assert "/grant:r" in argv
+    # SID form, `*`-prefixed — see the regression test below for why.
+    assert "*S-1-5-21-1-2-3-1002:F" in argv
+
+
+def test_lock_mode_windows_never_uses_userdomain(monkeypatch, tmp_path):
+    """Regression: %USERDOMAIN%\\%USERNAME% is unresolvable on a workgroup box.
+
+    USERDOMAIN there is the literal "WORKGROUP", which maps to no SID, so
+    icacls fails 1332 and the file keeps whatever its parent granted. Seen
+    live on the Windows test VM against the config holding the auth password.
+    """
+    from painapple_code import bridge_paths
+
+    seen = _capture_icacls(monkeypatch, bridge_paths)
+    monkeypatch.setattr(bridge_paths, "_current_user_sid", lambda: None)
+    monkeypatch.setenv("USERNAME", "alice")
+    monkeypatch.setenv("USERDOMAIN", "WORKGROUP")
+
+    target = tmp_path / "config.yaml"
+    target.write_text("password: x")
+    bridge_paths._lock_mode_windows(target, 0o600)
+
+    argv = seen["argv"]
+    assert "WORKGROUP\\alice:F" not in argv
+    # Falls back to the bare name, which does resolve against the local machine.
+    assert "alice:F" in argv
+
+
+def test_lock_mode_windows_skips_group_readable_modes(monkeypatch, tmp_path):
+    """0o644 isn't owner-only; tightening it to owner-only would be wrong."""
+    from painapple_code import bridge_paths
+
+    called = []
+    monkeypatch.setattr(bridge_paths.subprocess, "run",
+                        lambda *a, **k: called.append(a) or None)
+    target = tmp_path / "public.txt"
+    target.write_text("x")
+    bridge_paths._lock_mode_windows(target, 0o644)
+    assert not called
+
+
+def test_lock_mode_windows_warns_once_on_failure(monkeypatch, tmp_path, caplog):
+    """A failed restriction must be LOUD (once), never silent."""
+    import logging
+
+    from painapple_code import bridge_paths
+
+    class _Fail:
+        returncode = 1
+        stdout = ""
+        stderr = "Access is denied."
+
+    monkeypatch.setattr(bridge_paths.subprocess, "run", lambda *a, **k: _Fail())
+    monkeypatch.setenv("USERNAME", "alice")
+    bridge_paths._ACL_WARNED.clear()
+
+    target = tmp_path / "config.yaml"
+    target.write_text("password: x")
+    with caplog.at_level(logging.WARNING):
+        bridge_paths._lock_mode_windows(target, 0o600)
+        bridge_paths._lock_mode_windows(target, 0o600)  # repeat call
+
+    warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+    assert len(warnings) == 1, "should warn exactly once per path"
+    assert "Access is denied." in warnings[0].message
+    bridge_paths._ACL_WARNED.clear()
+
+
+# ---------------------------------------------------------------------------
+# T13 — upload filename sanitizer covers the NTFS name rules
+# ---------------------------------------------------------------------------
+#
+# Enforced on EVERY platform, not just win32: uploads land in shared and
+# synced directories, so a Linux-hosted bridge shouldn't be able to mint a
+# name its Windows users cannot open. The trailing-dot case is the sharp
+# one — NTFS silently strips it, so "report." and "report" are the same
+# file, which is both a quiet overwrite and a way past a uniqueness check.
+
+from painapple_code.routes.api_upload import sanitize_filename
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("report.txt", "report.txt"),
+    ("../../etc/passwd", "passwd"),        # traversal (pre-existing behavior)
+    ("nul", "_nul"),                       # reserved device names
+    ("NUL.txt", "_NUL.txt"),
+    ("con.log", "_con.log"),
+    ("COM1", "_COM1"),
+    ("report.", "report"),                 # NTFS strips trailing dot
+    ("report ", "report"),                 # ...and trailing space
+    ("a:b.txt", "a_b.txt"),                # alternate data stream syntax
+    ('we"ird<>.txt', "we_ird__.txt"),      # characters NTFS rejects outright
+    ("lpt10.txt", "lpt10.txt"),            # only LPT1-9 reserved
+    ("console.js", "console.js"),          # reserved name as prefix is fine
+])
+def test_sanitize_filename(raw, expected):
+    assert sanitize_filename(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", ".", "..", "...", "   "])
+def test_sanitize_filename_rejects_empty_shapes(raw):
+    with pytest.raises(ValueError):
+        sanitize_filename(raw)
+
+
+# ---------------------------------------------------------------------------
+# T14 — the allow-check must not phone home before it says "no"
+# ---------------------------------------------------------------------------
+#
+# Every route resolved the path BEFORE consulting the allow-list. On Windows
+# that ordering is the bug the UNC rule exists to prevent: canonicalizing
+# \\attacker\share makes the OS contact `attacker` and offer the logged-in
+# user's credentials. Measured on the Windows VM, /api/file with a UNC path
+# stalled ~3s in resolve() — and then died with
+#   OSError: [WinError 64] The specified network name is no longer available
+# because ntpath doesn't swallow that one, so the route returned 500 (stack
+# trace) instead of 403.
+
+from pathlib import Path
+
+
+def test_safe_resolve_denies_unc_without_touching_the_filesystem(monkeypatch):
+    """The denial has to cost zero I/O — that's the entire point.
+
+    Asserted by making resolve() fatal: if the screen runs first, nothing
+    calls it. (We can't also assert the result still looks like a UNC path,
+    because the lexical fallback runs through POSIX abspath on this box and
+    backslashes aren't separators here.)
+    """
+    import painapple_code.utils.file_paths as fp
+
+    monkeypatch.setattr(fp.sys, "platform", "win32")
+
+    def _explode(*a, **k):
+        raise AssertionError("resolve() was called on a denied UNC path")
+
+    monkeypatch.setattr(Path, "resolve", _explode)
+
+    assert isinstance(fp.safe_resolve(r"\\attacker.example.com\share\payload"), Path)
+
+
+def test_safe_resolve_survives_oserror_from_resolve(monkeypatch, tmp_path):
+    """WinError 64 out of resolve() must not escape as a 500."""
+    import painapple_code.utils.file_paths as fp
+
+    def _boom(*a, **k):
+        raise OSError(64, "The specified network name is no longer available")
+
+    monkeypatch.setattr(Path, "resolve", _boom)
+
+    out = fp.safe_resolve(str(tmp_path / "sub" / ".." / "file.txt"))
+    assert isinstance(out, Path)
+    # Lexically normalized even though the filesystem was never consulted,
+    # so a containment check on the result is still meaningful.
+    assert ".." not in out.parts
+
+
+def test_is_path_allowed_for_read_denies_unc_before_resolving(monkeypatch):
+    import painapple_code.utils.file_paths as fp
+
+    monkeypatch.setattr(fp.sys, "platform", "win32")
+    monkeypatch.setattr(
+        Path, "resolve",
+        lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("resolved a UNC path before denying it")))
+
+    assert not fp.is_path_allowed_for_read(Path(r"\\attacker\share\x"))
+
+
+# ---------------------------------------------------------------------------
+# T15 — sanitize_filename must not vary with the host OS
+# ---------------------------------------------------------------------------
+#
+# It used to open with `Path(filename).name`, which is whichever flavor the
+# server runs on. WindowsPath("a:b.txt").name is "b.txt" (it reads "a:" as a
+# drive); PosixPath's is "a:b.txt". Same upload, different stored name — and
+# the ':' rule below it only ever ran on the POSIX side. Caught by uploading
+# to the Windows VM and getting "b.txt" where the unit test said "a_b.txt".
+
+@pytest.mark.parametrize("raw,expected", [
+    ("a:b.txt", "a_b.txt"),               # drive-looking prefix, not a drive
+    ("C:evil.txt", "C_evil.txt"),
+    (r"C:\Users\x\evil.txt", "evil.txt"),  # backslash traversal
+    ("../../etc/passwd", "passwd"),        # slash traversal
+    (r"..\..\windows\system32\x.dll", "x.dll"),
+])
+def test_sanitize_filename_is_platform_independent(raw, expected):
+    assert sanitize_filename(raw) == expected

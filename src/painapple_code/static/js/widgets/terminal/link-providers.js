@@ -27,6 +27,7 @@ import {
     cleanUrlTrailingPunct
 } from '../../linkify-utils.js';
 import { isContinuationRow } from './wrap-utils.js';
+import { isAbsolutePath } from '../../path-utils.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // xterm.js Loading
@@ -448,7 +449,7 @@ export class FilePathLinkProvider {
      */
     async resolveFullPath(path, cwd, hints = []) {
         if (!path) return null;
-        const isAbsolute = path.startsWith('/') || path.startsWith('~');
+        const isAbsolute = isAbsolutePath(path) || path.startsWith('~');
         if (!cwd && !isAbsolute) return null;
 
         const cacheKey = `${cwd}:${path}:${hints.join('|')}`;
@@ -488,7 +489,7 @@ export class FilePathLinkProvider {
             const live = await this.getLiveCwd();
             if (live) cwd = live;
         }
-        const isAbsolute = path.startsWith('/') || path.startsWith('~');
+        const isAbsolute = isAbsolutePath(path) || path.startsWith('~');
         if (!cwd && !isAbsolute) {
             showToast('No working directory set', 'warning');
             return;

@@ -137,7 +137,7 @@ class CostAnalyzer:
     def _load_session_meta(self, meta_path: Path) -> Optional[dict]:
         """Load and parse session metadata."""
         try:
-            return json.loads(meta_path.read_text())
+            return json.loads(meta_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, IOError):
             return None
 
@@ -148,7 +148,7 @@ class CostAnalyzer:
             return results
 
         try:
-            with open(raw_path) as f:
+            with open(raw_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line)
@@ -179,7 +179,7 @@ class CostAnalyzer:
             return dict(tool_counts)
 
         try:
-            with open(messages_path) as f:
+            with open(messages_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         msg = json.loads(line)
@@ -204,7 +204,7 @@ class CostAnalyzer:
             return results
 
         try:
-            with open(messages_path) as f:
+            with open(messages_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         msg = json.loads(line)
@@ -708,7 +708,7 @@ class CostAnalyzer:
                 current_turn_ts = None
 
                 try:
-                    with open(messages_path) as f:
+                    with open(messages_path, encoding="utf-8") as f:
                         for line in f:
                             msg = json.loads(line)
                             ts = msg.get("timestamp", "")

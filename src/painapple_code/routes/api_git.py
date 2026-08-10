@@ -328,7 +328,7 @@ async def get_git_file_content(file: str, cwd: str = None, staged: bool = False,
                 if not file_path.is_relative_to(work_root):
                     raise HTTPException(status_code=400, detail="File path escapes working directory")
                 try:
-                    new_content = file_path.read_text(errors='replace')
+                    new_content = file_path.read_text(encoding="utf-8", errors='replace')
                 except FileNotFoundError:
                     new_content = ''
             old_label = "HEAD"

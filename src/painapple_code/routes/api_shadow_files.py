@@ -24,6 +24,34 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/shadow", tags=["shadow"])
 
 
+def _git_pathspec(file_path: str, work_dir) -> str:
+    """Normalize a client-supplied path into a git pathspec for `work_dir`.
+
+    Two Windows-specific reasons this isn't a one-liner:
+
+    - Absoluteness is `Path.is_absolute()`, not `startswith('/')`. A
+      `C:\\Users\\...\\app.js` failed the old test, skipped normalization
+      entirely, and got handed to `git log -- C:\\Users\\...` — which
+      matches nothing, so history/diffs/timeline came back silently empty.
+    - Git pathspecs are forward-slash on every platform, so the relative
+      result goes through `as_posix()`; `str()` would emit backslashes
+      that git reads as escapes.
+
+    Paths outside the work dir pass through unchanged (they simply won't
+    match, same as before).
+    """
+    if not file_path:
+        return file_path
+    p = Path(file_path)
+    if not p.is_absolute():
+        # Already relative — still normalize separators for git.
+        return p.as_posix()
+    try:
+        return p.relative_to(work_dir).as_posix()
+    except ValueError:
+        return p.as_posix()
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Timeline
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -135,16 +163,7 @@ async def get_shadow_file_history(file_path: str, cwd: str = None, limit: int = 
     try:
         work_dir = resolve_work_dir(cwd)
 
-        # Normalize file_path: convert absolute to relative if within cwd
-        normalized_path = file_path
-        if file_path.startswith('/'):
-            abs_file = Path(file_path)
-            try:
-                # Try to make it relative to work_dir
-                normalized_path = str(abs_file.relative_to(work_dir))
-            except ValueError:
-                # Not within work_dir, use as-is (will likely not find anything)
-                normalized_path = file_path
+        normalized_path = _git_pathspec(file_path, work_dir)
 
         shadow = get_shadow_git(str(work_dir))
 
@@ -237,14 +256,7 @@ async def get_shadow_file_diff(
     try:
         work_dir = resolve_work_dir(cwd)
 
-        # Normalize file_path: convert absolute to relative if within cwd
-        normalized_path = file_path
-        if file_path.startswith('/'):
-            abs_file = Path(file_path)
-            try:
-                normalized_path = str(abs_file.relative_to(work_dir))
-            except ValueError:
-                normalized_path = file_path
+        normalized_path = _git_pathspec(file_path, work_dir)
 
         shadow = get_shadow_git(str(work_dir))
 
@@ -295,14 +307,7 @@ async def get_shadow_file_content(file_path: str, ref: str, cwd: str = None):
     try:
         work_dir = resolve_work_dir(cwd)
 
-        # Normalize file_path: convert absolute to relative if within cwd
-        normalized_path = file_path
-        if file_path.startswith('/'):
-            abs_file = Path(file_path)
-            try:
-                normalized_path = str(abs_file.relative_to(work_dir))
-            except ValueError:
-                normalized_path = file_path
+        normalized_path = _git_pathspec(file_path, work_dir)
 
         # Validate ref (allow HEAD, hex hashes, and parent suffixes like abc123~1 or abc123^)
         if ref != "HEAD" and not re.match(r'^[a-fA-F0-9]{7,40}(?:~\d+|\^\d*)?$', ref):

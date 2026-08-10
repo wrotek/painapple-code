@@ -2,6 +2,8 @@
 
 A real PTY in your browser — xterm.js on the front, a persistent shell process on the server — so you can run tests, poke at git, or drive the Claude CLI directly without leaving the chat.
 
+**Which shell you get:** `$SHELL` (falling back to `/bin/bash`) on Linux and macOS; on Windows it's a ConPTY session running PowerShell 7 (`pwsh`) if installed, otherwise Windows PowerShell. Set `PAINAPPLE_CODE_SHELL` to override on any platform.
+
 ![The embedded terminal running ls, git status and a test suite inside the web client](../assets/terminal.gif)
 
 !!! danger "This is a real shell"
@@ -38,6 +40,9 @@ Terminal output is linkified as you go:
 - **Directories** open in the file explorer instead.
 
 Resolution is context-aware: it tracks the shell's *live* working directory (your `cd`s count), and when you click a bare filename it also scans the lines above for directory context — so a filename in the output of `ls docs/guides/` resolves into `docs/guides/`.
+
+!!! note "Live `cd` tracking under PowerShell"
+    PowerShell's `cd` changes its own *provider location*, which it never pushes down to the Win32 process working directory — so on Windows the terminal reports the directory it was started in rather than following your `cd`s. Paths still resolve; they're just anchored to the session's directory. (`cmd.exe` does update the process CWD, if you set `PAINAPPLE_CODE_SHELL` to it.)
 
 ## Logging into Claude from the terminal
 

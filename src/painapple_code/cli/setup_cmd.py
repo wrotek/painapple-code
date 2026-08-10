@@ -160,8 +160,8 @@ def step_runtime(cfg, back, n=2):
     if picked == "custom":
         path = ui.text(
             "Runtime binary path (docker/podman-compatible)",
-            default=current if current.startswith("/") else "",
-            validate=lambda v: None if v.startswith("/")
+            default=current if Path(current).is_absolute() else "",
+            validate=lambda v: None if Path(v).expanduser().is_absolute()
             and Path(v).expanduser().is_file()
             else "Need an absolute path to an existing binary.")
         if path is BACK:
@@ -355,7 +355,7 @@ def step_storage(cfg, back):
     _section(6, "Data storage",
              "Where the container stores sessions, logs, and DuckDB")
     current = cfg.get("data_volume") or ""
-    is_bind = current.startswith("/")
+    is_bind = Path(current).is_absolute()
     if current:
         default = "bind" if is_bind else "named"
     else:
@@ -482,7 +482,7 @@ def _profile_summary(name, cfg):
         say(f"  Claude    : {cfg.get('claude_home')}")
         dv = cfg.get("data_volume") or ""
         say(f"  Data      : {dv} "
-            f"{DIM}({'bind' if dv.startswith('/') else 'named volume'}){RESET}")
+            f"{DIM}({'bind' if Path(dv).is_absolute() else 'named volume'}){RESET}")
 
 
 def _apply_docker_side_effects(cfg, pending, name):
@@ -495,8 +495,13 @@ def _apply_docker_side_effects(cfg, pending, name):
     dst_creds = claude_home / ".credentials.json"
     if pending.get("seed_creds"):
         src = Path("~/.claude/.credentials.json").expanduser()
+        from painapple_code.bridge_paths import lock_mode
+
         _shutil.copy(src, dst_creds)
-        dst_creds.chmod(0o600)
+        # These are OAuth credentials. chmod on Windows only toggles the
+        # read-only attribute and still returns success, so this needs the
+        # icacls path or the copy lands readable by every local user.
+        lock_mode(dst_creds, 0o600)
         ok(f"Credentials copied to {dst_creds}")
     if pending.get("seed_json"):
         if seed_claude_json(Path("~/.claude.json").expanduser(), effective_json):

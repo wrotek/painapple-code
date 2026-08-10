@@ -34,6 +34,7 @@ import {
 import { connect } from './connection.js';
 import { registerOsc52Handler } from './osc52.js';
 import { isContinuationRow, oscUriAt } from './wrap-utils.js';
+import { isAbsolutePath, joinPath } from '../../path-utils.js';
 
 // Tap-vs-scroll disambiguation for terminal link taps (mirrors
 // chat-controller.js bindTapHandler): a touch that moves beyond this many
@@ -216,7 +217,7 @@ export async function initTerminal(targetState) {
                 const pathMatch = linkText.match(/^(.+?)(?::\d|#L\d)/);
                 const path = pathMatch ? pathMatch[1] : linkText;
                 const cwd = targetState.liveCwd || targetState.cwd || '';
-                const fullPath = (path.startsWith('/') || path.startsWith('~')) ? path : `${cwd}/${path}`.replace(/\/+/g, '/');
+                const fullPath = (isAbsolutePath(path) || path.startsWith('~')) ? path : joinPath(cwd, path);
                 return { type: 'file', text: linkText, path, fullPath, cwd, bufferLine: clickedLink.range?.start?.y || bufferLine };
             };
 
@@ -302,8 +303,8 @@ export async function initTerminal(targetState) {
                     // search.
                     const { path } = link;
                     const cwd = (await refreshLiveCwd()) || link.cwd;
-                    let fullPath = (path.startsWith('/') || path.startsWith('~'))
-                        ? path : `${cwd}/${path}`.replace(/\/+/g, '/');
+                    let fullPath = (isAbsolutePath(path) || path.startsWith('~'))
+                        ? path : joinPath(cwd, path);
                     let isDir = false;
                     if (targetState.filePathProvider) {
                         const hints = targetState.filePathProvider.collectDirHints(link.bufferLine);

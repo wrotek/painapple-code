@@ -17,6 +17,7 @@ import { getFileName, detectLanguage, getLanguageIcon } from '../file-tabs.js';
 import { isFavoriteSession } from '../welcome.js';
 import { recordOpen as recordRecentOpen } from '../recent-opens.js';
 import { projectColorStyle } from '../project-colors.js';
+import { basename } from '../path-utils.js';
 
 export class TabController {
     constructor(ctx) {
@@ -702,7 +703,7 @@ export class TabController {
                         scratchTab.isScratch = false;
                         scratchTab.scratchId = null;
                         scratchTab.filePath = filePath;
-                        scratchTab.title = filePath.split('/').pop();
+                        scratchTab.title = basename(filePath);
                         scratchTab.icon = 'file';
                         this.renderTabs();
                         this.saveWidgetTabs();
@@ -714,7 +715,7 @@ export class TabController {
                 const tab = this.widgetTabs.find(t => t.widgetId === 'file-preview' && !t.isScratch && t.isPreview);
                 if (tab) {
                     tab.filePath = filePath;
-                    tab.title = filePath.split('/').pop();
+                    tab.title = basename(filePath);
                     this.renderTabs();
                     this.saveWidgetTabs();
                 }
@@ -872,7 +873,7 @@ export class TabController {
             const existing = this.widgetTabs.find(t => t.widgetId === 'file-preview' && !t.isScratch && t.isPreview);
             if (existing) {
                 existing.filePath = filePath;
-                existing.title = title || filePath.split('/').pop();
+                existing.title = title || basename(filePath);
                 this.switchToWidgetTab(existing.id);
                 this.renderWidgetTabContent(existing.id, 'file-preview', { filePath });
                 this.renderTabs();
@@ -885,7 +886,7 @@ export class TabController {
         const tab = {
             id: tabId,
             widgetId: 'file-preview',
-            title: title || filePath.split('/').pop(),
+            title: title || basename(filePath),
             icon: 'file',
             filePath: filePath,  // Store file path in tab data
             isPreview: !pinned  // Only plain-click tabs are ephemeral/reusable
@@ -1449,7 +1450,7 @@ export class TabController {
         if (tab.widgetId === 'file-preview' && tab.filePath) {
             const lang = detectLanguage(tab.filePath);
             const icon = getLanguageIcon(lang);
-            const fileName = tab.filePath.split('/').pop();
+            const fileName = basename(tab.filePath);
             return `
             <div class="tab tab-file ${isActive ? 'active' : ''}${pin.cls}"
                  data-type="widget" data-id="${tab.id}" data-tooltip="${escapeHtml(tab.filePath)}">

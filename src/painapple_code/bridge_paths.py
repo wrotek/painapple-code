@@ -24,6 +24,7 @@ import logging
 import os
 import stat
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -136,7 +137,7 @@ def get_git_repo_hash(project_path: str) -> Optional[str]:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--git-common-dir"],
-            capture_output=True, text=True, cwd=str(project_path), timeout=5
+            capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=str(project_path), timeout=5
         )
         if result.returncode != 0:
             return None
@@ -240,7 +241,7 @@ def _load_default_presets() -> dict:
     """Load default presets from presets.defaults.json (ships with the project)."""
     defaults_file = PACKAGE_DIR / "data" / "presets.defaults.json"
     try:
-        return json.loads(defaults_file.read_text())
+        return json.loads(defaults_file.read_text(encoding="utf-8"))
     except Exception as e:
         logger.error(f"Failed to load {defaults_file}: {e}")
         return {}
@@ -256,7 +257,7 @@ def ensure_presets_dir() -> Path:
     for preset_id, preset in defaults.items():
         path = presets_dir / f"{preset_id}.json"
         if not path.exists():
-            path.write_text(json.dumps(preset, indent=2) + "\n")
+            path.write_text(json.dumps(preset, indent=2) + "\n", encoding="utf-8")
             seeded += 1
     if seeded:
         logger.info(f"Seeded {seeded} new default presets in {presets_dir}")
@@ -269,7 +270,7 @@ def load_all_presets() -> dict:
     presets = {}
     for path in sorted(presets_dir.glob("*.json")):
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
             preset_id = path.stem
             presets[preset_id] = data
         except Exception as e:
@@ -281,7 +282,7 @@ def save_preset(preset_id: str, data: dict):
     """Save a single preset to ~/.painapple-code/presets/{id}.json"""
     presets_dir = ensure_presets_dir()
     path = presets_dir / f"{preset_id}.json"
-    path.write_text(json.dumps(data, indent=2) + "\n")
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def delete_preset(preset_id: str) -> bool:
@@ -322,12 +323,12 @@ def ensure_project_dir(project_path: str) -> Path:
     abs_path = str(Path(project_path).resolve())
 
     if not path_file.exists():
-        path_file.write_text(abs_path)
+        path_file.write_text(abs_path, encoding="utf-8")
         logger.debug(f"Created project dir: {project_dir} -> {abs_path}")
-    elif path_file.read_text().strip() != abs_path:
+    elif path_file.read_text(encoding="utf-8").strip() != abs_path:
         # Path changed (shouldn't happen with hash, but handle gracefully)
-        logger.warning(f"Project path mismatch: {path_file.read_text().strip()} vs {abs_path}")
-        path_file.write_text(abs_path)
+        logger.warning(f"Project path mismatch: {path_file.read_text(encoding="utf-8").strip()} vs {abs_path}")
+        path_file.write_text(abs_path, encoding="utf-8")
 
     return project_dir
 
@@ -344,7 +345,7 @@ def get_project_path_from_hash(project_hash: str) -> Optional[str]:
     """
     path_file = BRIDGE_HOME / "projects" / project_hash / "path"
     if path_file.exists():
-        return path_file.read_text().strip()
+        return path_file.read_text(encoding="utf-8").strip()
     return None
 
 
@@ -378,7 +379,7 @@ def list_projects(include_unreachable: bool = False) -> list[dict]:
         if not path_file.exists():
             continue
 
-        project_path = path_file.read_text().strip()
+        project_path = path_file.read_text(encoding="utf-8").strip()
         reachable = Path(project_path).is_dir()
 
         if not reachable and not include_unreachable:
@@ -399,7 +400,7 @@ def list_projects(include_unreachable: bool = False) -> list[dict]:
         cfg_file = hash_dir / "config.json"
         if cfg_file.exists():
             try:
-                cfg = json.loads(cfg_file.read_text())
+                cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
                 custom_color = _normalize_project_color(
                     cfg.get("display", {}).get("color")
                 )
@@ -424,6 +425,26 @@ def list_projects(include_unreachable: bool = False) -> list[dict]:
 # Don't auto-scan these dangerous parents — they're almost never what the user
 # means by "workspace folder" and would surface huge noisy lists.
 _WORKSPACE_ROOT_DENYLIST = {"/", "/home", "/Users", "/root", "/mnt", "/srv"}
+
+# Windows equivalents. The exact-string set above can't cover these: a
+# drive root is "C:\\" (any letter) and the user container is
+# "C:\\Users" — so a `--workspace C:\` would have enumerated every
+# top-level directory into the welcome screen, exactly what this guard
+# exists to prevent.
+_WIN_DENY_NAMES = {"users", "windows", "program files", "program files (x86)",
+                   "programdata"}
+
+
+def _is_denied_workspace_root(root_path: Path) -> bool:
+    if str(root_path) in _WORKSPACE_ROOT_DENYLIST:
+        return True
+    if sys.platform != "win32":
+        return False
+    # A drive or UNC root is its own parent.
+    if root_path.parent == root_path:
+        return True
+    return (root_path.parent == Path(root_path.anchor)
+            and root_path.name.lower() in _WIN_DENY_NAMES)
 
 
 _PROJECT_MARKERS = (
@@ -473,7 +494,7 @@ def list_workspace_dirs(root: str, exclude_paths: Optional[list[str]] = None,
     except (OSError, RuntimeError):
         return []
 
-    if not root_path.is_dir() or str(root_path) in _WORKSPACE_ROOT_DENYLIST:
+    if not root_path.is_dir() or _is_denied_workspace_root(root_path):
         return []
 
     exclude_set: set[str] = set()
@@ -527,7 +548,7 @@ def load_global_config() -> dict:
     config_path = get_global_config_path()
     if config_path.exists():
         try:
-            return json.loads(config_path.read_text())
+            return json.loads(config_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load global config: {e}")
     return {}
@@ -543,7 +564,7 @@ def save_global_config(config: dict):
     ensure_bridge_home()
     config_path = get_global_config_path()
     try:
-        config_path.write_text(json.dumps(config, indent=2))
+        config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save global config: {e}")
 
@@ -612,7 +633,7 @@ def load_models_config() -> dict:
     if mtime == _models_mtime and _models_cache:
         return _models_cache
     import yaml
-    with open(yaml_path) as f:
+    with open(yaml_path, encoding="utf-8") as f:
         _models_cache = yaml.safe_load(f) or {}
     _models_mtime = mtime
     return _models_cache
@@ -636,7 +657,7 @@ def get_default_models_config() -> dict:
     if not yaml_path.exists():
         return {"selectable": [], "summary_model": "claude-haiku-4-5"}
     import yaml
-    with open(yaml_path) as f:
+    with open(yaml_path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
 
@@ -651,7 +672,7 @@ def save_models_config(config: dict) -> None:
         "# Edit via Settings → Engines (Claude tab), or by hand (both work).\n\n"
     )
     body = yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
-    yaml_path.write_text(header + body)
+    yaml_path.write_text(header + body, encoding="utf-8")
     # Invalidate cache so next read picks up the change
     _models_cache = {}
     _models_mtime = 0.0
@@ -774,7 +795,7 @@ def load_project_config(project_path: str) -> dict:
     project_config_path = get_project_config_path(project_path)
     if project_config_path.exists():
         try:
-            project_config = json.loads(project_config_path.read_text())
+            project_config = json.loads(project_config_path.read_text(encoding="utf-8"))
 
             # Deep merge shadow_git if present
             if "shadow_git" in project_config:
@@ -802,7 +823,7 @@ def save_project_config(project_path: str, config: dict):
     ensure_project_dir(project_path)
     config_path = get_project_config_path(project_path)
     try:
-        config_path.write_text(json.dumps(config, indent=2))
+        config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save project config: {e}")
 
@@ -840,7 +861,7 @@ def set_project_display_name(project_path: str, name: str):
     existing = {}
     if config_path.exists():
         try:
-            existing = json.loads(config_path.read_text())
+            existing = json.loads(config_path.read_text(encoding="utf-8"))
         except Exception:
             pass
 
@@ -898,7 +919,7 @@ def set_project_color(project_path: str, color: str) -> Optional[str]:
     existing = {}
     if config_path.exists():
         try:
-            existing = json.loads(config_path.read_text())
+            existing = json.loads(config_path.read_text(encoding="utf-8"))
         except Exception:
             pass
 
@@ -967,7 +988,7 @@ def load_drafts() -> dict:
     drafts_path = get_drafts_path()
     if drafts_path.exists():
         try:
-            return json.loads(drafts_path.read_text())
+            return json.loads(drafts_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load drafts: {e}")
     return {"version": 1, "drafts": []}
@@ -986,7 +1007,7 @@ def save_drafts(data: dict) -> bool:
     ensure_bridge_home()
     drafts_path = get_drafts_path()
     try:
-        drafts_path.write_text(json.dumps(data, indent=2))
+        drafts_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return True
     except Exception as e:
         logger.error(f"Failed to save drafts: {e}")
@@ -1003,7 +1024,7 @@ def load_favorites() -> dict:
     fav_path = get_favorites_path()
     if fav_path.exists():
         try:
-            return json.loads(fav_path.read_text())
+            return json.loads(fav_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load favorites: {e}")
     return {"version": 1, "favorites": []}
@@ -1019,7 +1040,7 @@ def save_favorites(data: dict):
     ensure_bridge_home()
     fav_path = get_favorites_path()
     try:
-        fav_path.write_text(json.dumps(data, indent=2))
+        fav_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save favorites: {e}")
 
@@ -1168,7 +1189,7 @@ def load_prompt_favorites() -> dict:
     fav_path = get_prompt_favorites_path()
     if fav_path.exists():
         try:
-            return json.loads(fav_path.read_text())
+            return json.loads(fav_path.read_text(encoding="utf-8"))
         except Exception as e:
             logger.error(f"Failed to load prompt favorites: {e}")
     return {"version": 1, "prompts": {}}
@@ -1184,7 +1205,7 @@ def save_prompt_favorites(data: dict):
     ensure_bridge_home()
     fav_path = get_prompt_favorites_path()
     try:
-        fav_path.write_text(json.dumps(data, indent=2))
+        fav_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
     except Exception as e:
         logger.error(f"Failed to save prompt favorites: {e}")
 
@@ -1281,6 +1302,150 @@ def get_all_prompt_favorites() -> dict:
     return data.get("prompts", {})
 
 
+# One warning per path per process — a failed ACL tightening is worth
+# saying loudly once, not on every ensure_config_file() call.
+_ACL_WARNED: set = set()
+
+
+def _current_user_sid() -> Optional[str]:
+    """The calling process's user SID (``S-1-5-21-…``), or None if unreadable.
+
+    icacls names a principal either by account name or, with a ``*`` prefix,
+    by SID. Account names are the wrong currency here. The obvious spelling,
+    ``%USERDOMAIN%\\%USERNAME%``, is actively wrong on a workgroup machine:
+    USERDOMAIN is the literal string "WORKGROUP", which maps to no SID at
+    all, so icacls fails with 1332 ("No mapping between account names and
+    security IDs was done") and the hardening silently degrades to a warning.
+    A bare username usually resolves, but not on a localized install where
+    the account was renamed, and it can be ambiguous when a local and a
+    domain account share a name.
+
+    The SID sidesteps all of it: we read it straight off our own process
+    token, so there is no name to resolve and no locale to get wrong.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    TOKEN_QUERY = 0x0008
+    TOKEN_USER_CLASS = 1
+
+    try:
+        advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+        # Declare signatures explicitly: ctypes defaults every return type to
+        # C int, which truncates HANDLEs and pointers on 64-bit Windows.
+        advapi32.OpenProcessToken.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+        advapi32.OpenProcessToken.restype = wintypes.BOOL
+        advapi32.GetTokenInformation.argtypes = [
+            wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD)]
+        advapi32.GetTokenInformation.restype = wintypes.BOOL
+        advapi32.ConvertSidToStringSidW.argtypes = [
+            ctypes.c_void_p, ctypes.POINTER(ctypes.c_wchar_p)]
+        advapi32.ConvertSidToStringSidW.restype = wintypes.BOOL
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+        kernel32.LocalFree.restype = ctypes.c_void_p
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        token = wintypes.HANDLE()
+        if not advapi32.OpenProcessToken(
+                kernel32.GetCurrentProcess(), TOKEN_QUERY, ctypes.byref(token)):
+            return None
+        try:
+            # First call sizes the buffer; it's expected to "fail" with
+            # ERROR_INSUFFICIENT_BUFFER, so only the second return matters.
+            size = wintypes.DWORD()
+            advapi32.GetTokenInformation(
+                token, TOKEN_USER_CLASS, None, 0, ctypes.byref(size))
+            if not size.value:
+                return None
+            buf = ctypes.create_string_buffer(size.value)
+            if not advapi32.GetTokenInformation(
+                    token, TOKEN_USER_CLASS, buf, size, ctypes.byref(size)):
+                return None
+            # TOKEN_USER is a SID_AND_ATTRIBUTES, whose first pointer-sized
+            # field is the PSID itself (the SID lives past the struct).
+            sid = ctypes.cast(buf, ctypes.POINTER(ctypes.c_void_p)).contents
+            out = ctypes.c_wchar_p()
+            if not advapi32.ConvertSidToStringSidW(sid, ctypes.byref(out)):
+                return None
+            try:
+                return out.value
+            finally:
+                kernel32.LocalFree(out)
+        finally:
+            kernel32.CloseHandle(token)
+    except (OSError, AttributeError, ValueError):
+        return None
+
+
+def _acl_principal() -> Optional[str]:
+    """The icacls principal for the current user — SID first, name as backstop."""
+    sid = _current_user_sid()
+    if sid:
+        return f"*{sid}"
+    # Deliberately the BARE username, never %USERDOMAIN%\%USERNAME%: on a
+    # workgroup machine that domain part is unresolvable (see above).
+    return os.environ.get("USERNAME") or None
+
+
+def _lock_mode_windows(path: Path, mode: int) -> None:
+    """Owner-only DACL via icacls — the NTFS stand-in for chmod 0600/0700.
+
+    On Windows `os.chmod` only toggles FILE_ATTRIBUTE_READONLY and
+    RETURNS SUCCESS, so the POSIX path here was a silent no-op: the
+    bridge password and the TLS private key were protected by nothing but
+    whatever the user's profile happened to inherit, and the `except
+    OSError` warning could never fire to say so. (Perversely, chmod 0600
+    on an already-read-only file LOOSENS it by clearing that attribute.)
+
+    icacls ships in every Windows install, so this needs no pywin32:
+      /inheritance:r   drop inherited ACEs (the whole point — otherwise
+                       a permissive parent keeps granting access)
+      /grant:r USER:F  full control for just this user, replacing any
+                       existing grant for them
+    Modes with any group/other bits set (0o644) aren't "owner only" and
+    are left alone rather than silently over-tightened.
+    """
+    if mode & 0o077:
+        return
+    key = str(path)
+    principal = _acl_principal()
+    if not principal:
+        if key not in _ACL_WARNED:
+            _ACL_WARNED.add(key)
+            logger.warning(
+                f"Cannot restrict {path}: the current user's SID and USERNAME "
+                "are both unreadable, so no owner-only ACL was applied. This "
+                "file is readable by any account that inherits access to its "
+                "parent directory."
+            )
+        return
+    try:
+        result = subprocess.run(
+            ["icacls", str(path), "/inheritance:r", "/grant:r", f"{principal}:F"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        result = None
+        detail = f"{type(e).__name__}: {e}"
+    else:
+        detail = (result.stderr or result.stdout or "").strip()[:200]
+    if result is None or result.returncode != 0:
+        if key not in _ACL_WARNED:
+            _ACL_WARNED.add(key)
+            logger.warning(
+                f"Could not restrict {path} to {principal} only ({detail}). "
+                "Continuing — check it isn't readable by other accounts on "
+                "this machine."
+            )
+
+
 def lock_mode(path, mode: int) -> None:
     """Tighten `path` to `mode`, tolerating a filesystem that won't have it.
 
@@ -1294,8 +1459,15 @@ def lock_mode(path, mode: int) -> None:
     can chmod themselves, so a refusal is worth a loud warning rather
     than a dead bridge. The no-op case (already correct, by far the most
     common) doesn't call chmod at all, so it can't fail there either.
+
+    On Windows the POSIX bits are meaningless, so this delegates to an
+    icacls DACL — see _lock_mode_windows for why a no-op there was worse
+    than it looks.
     """
     path = Path(path)
+    if sys.platform == "win32":
+        _lock_mode_windows(path, mode)
+        return
     try:
         current = stat.S_IMODE(path.stat().st_mode)
     except OSError:

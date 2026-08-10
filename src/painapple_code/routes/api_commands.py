@@ -23,6 +23,7 @@ from typing import Any, Optional
 import yaml
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from painapple_code.utils.file_paths import safe_resolve
 
 router = APIRouter(prefix="/api/commands", tags=["commands"])
 
@@ -154,15 +155,19 @@ def _resolve_path(scope: str, name: str, cwd: str, allow_plugin: bool = False) -
 async def list_commands(cwd: str):
     """List built-in CLI commands and legacy `.md` files."""
     # Lazy import to avoid load-order issues
-    from painapple_code.routes.api_project_config import _cli_command_descriptions, _get_command_descriptions
+    from painapple_code.routes.api_project_config import cli_command_descriptions, _get_command_descriptions
 
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
+    # Off the event loop — scanning the CLI bundle takes ~2s on a cold
+    # cache. Every lookup after this hits the memo, including the sync
+    # `_get_command_descriptions` below.
+    builtin_descriptions = await cli_command_descriptions()
     descriptions = _get_command_descriptions(resolved_cwd)
     commands: list[dict[str, Any]] = []
     counts = {"builtin": 0, "project": 0, "personal": 0, "plugin": 0}
 
     # Built-in CLI commands (read-only — extracted from binary)
-    for name, desc in sorted(_cli_command_descriptions().items()):
+    for name, desc in sorted(builtin_descriptions.items()):
         commands.append({
             "id": f"builtin:{name}",
             "name": name,
@@ -217,8 +222,8 @@ async def list_commands(cwd: str):
 async def get_command(scope: str, name: str, cwd: str):
     """Return full command metadata + body. Builtins return description only."""
     if scope == "builtin":
-        from painapple_code.routes.api_project_config import _cli_command_descriptions
-        cli_descriptions = _cli_command_descriptions()
+        from painapple_code.routes.api_project_config import cli_command_descriptions
+        cli_descriptions = await cli_command_descriptions()
         if name not in cli_descriptions:
             raise HTTPException(status_code=404, detail=f"Built-in command {name!r} not found")
         return {
@@ -236,7 +241,7 @@ async def get_command(scope: str, name: str, cwd: str):
             "mtime": 0,
         }
 
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     rec = _resolve_path(scope, name, resolved_cwd, allow_plugin=True)
     text = rec["path"].read_text(encoding="utf-8", errors="replace")
     fm, body = _parse_frontmatter(text)
@@ -268,7 +273,7 @@ async def update_command(scope: str, name: str, cwd: str, payload: UpdateCommand
     """Update a legacy `.md` command file (project or personal scope only)."""
     if scope == "builtin":
         raise HTTPException(status_code=405, detail="Built-in commands are not editable")
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     rec = _resolve_path(scope, name, resolved_cwd, allow_plugin=False)
     path: Path = rec["path"]
 
@@ -295,7 +300,7 @@ async def update_command(scope: str, name: str, cwd: str, payload: UpdateCommand
         raise HTTPException(status_code=400, detail="No content provided")
 
     tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    tmp.write_text(new_text, encoding="utf-8")
+    tmp.write_text(new_text, encoding="utf-8", newline="")
     os.replace(tmp, path)
 
     return {
@@ -311,7 +316,7 @@ async def delete_command(scope: str, name: str, cwd: str):
     """Delete a legacy `.md` command file."""
     if scope == "builtin":
         raise HTTPException(status_code=405, detail="Built-in commands cannot be deleted")
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     rec = _resolve_path(scope, name, resolved_cwd, allow_plugin=False)
     path: Path = rec["path"]
 
@@ -334,7 +339,7 @@ async def upgrade_to_skill(scope: str, name: str, cwd: str):
     """
     if scope == "builtin":
         raise HTTPException(status_code=405, detail="Built-in commands cannot be upgraded")
-    resolved_cwd = str(Path(cwd).expanduser().resolve())
+    resolved_cwd = str(safe_resolve(cwd))
     rec = _resolve_path(scope, name, resolved_cwd, allow_plugin=False)
     src_file: Path = rec["path"]
 
@@ -350,7 +355,7 @@ async def upgrade_to_skill(scope: str, name: str, cwd: str):
     fm.setdefault("name", name)
 
     target_dir.mkdir(parents=True, exist_ok=False)
-    (target_dir / "SKILL.md").write_text(_serialize(fm, body), encoding="utf-8")
+    (target_dir / "SKILL.md").write_text(_serialize(fm, body), encoding="utf-8", newline="")
 
     try:
         src_file.unlink()

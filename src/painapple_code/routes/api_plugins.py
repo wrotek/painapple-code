@@ -45,8 +45,9 @@ def _validate_plugin_id(plugin_id: str) -> None:
 async def _run_claude(*args: str) -> tuple[int, str, str]:
     """Spawn `claude` with the given args; return (returncode, stdout, stderr)."""
     try:
+        from painapple_code.utils.proc import resolve_binary
         proc = await asyncio.create_subprocess_exec(
-            "claude", *args,
+            resolve_binary("claude"), *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )

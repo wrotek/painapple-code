@@ -94,16 +94,49 @@ list_sessions() {
     fi
     echo "Sessions in shadow git:"
     echo ""
-    # Extract unique session IDs from commit messages
-    git --git-dir="$SHADOW_GIT_DIR" log --all --format="%s" | \
-        grep -oE '\[[a-zA-Z0-9_-]{8}' | \
-        sed 's/\[//' | \
-        sort -u | \
-        while read -r sid; do
-            count=$(git --git-dir="$SHADOW_GIT_DIR" log --all --grep="\[$sid" --oneline | wc -l)
-            last=$(git --git-dir="$SHADOW_GIT_DIR" log --all --grep="\[$sid" -1 --format="%ar" 2>/dev/null || echo "unknown")
-            printf "  %-10s %3d turns  (%s)\n" "$sid" "$count" "$last"
-        done
+    # ONE pass over the log; aggregate in awk.
+    #
+    # This used to walk the whole history twice per session (a --grep count
+    # plus a --grep for the timestamp), which is quadratic: this project's
+    # own repo has 6047 commits across 1195 sessions, so `sessions` issued
+    # 2390 full scans and never visibly finished. One scan does it.
+    #
+    # The extraction anchors on the WHOLE marker, `[<8-char id>] Turn <n>`.
+    # Matching a bare bracket plus 8 word characters also swallowed the head
+    # of every frontmatter list — `tools: [AskUserQuestion,`, `files:
+    # [CAPACITOR-VS-TAURI.md` — so the listing invented sessions named
+    # AskUserQ, CAPACITO, painappl, requirem and tauri-ap, each with a
+    # plausible-looking turn count. The sed is greedy on purpose: the real
+    # marker is last on the line, the decoy lists come earlier.
+    #
+    # POSIX-only constructs throughout (BRE \{8\} in sed, no regex intervals
+    # in awk) — this has to run under Git for Windows' toolchain too.
+    git --git-dir="$SHADOW_GIT_DIR" log --all --format="%at %s" | \
+        sed -n 's/^\([0-9]*\) .*\[\([a-zA-Z0-9_-]\{8\}\)\] Turn [0-9].*$/\2 \1/p' | \
+        awk -v now="$(date +%s)" '
+            function rnd(secs, unit) { return int(secs / unit + 0.5) }
+            { n[$1]++; if ($2 + 0 > last[$1]) last[$1] = $2 + 0 }
+            END {
+                for (s in n) {
+                    d = now - last[s]
+                    # Same tiers, cutovers and rounding that git uses for
+                    # %ar, so this listing agrees with `shadow-git log`
+                    # instead of quietly disagreeing by a tier. Truncating
+                    # 30-day months with no weeks tier reported "2 months"
+                    # where git says "3 months", and "1 months" where git
+                    # says "5 weeks".
+                    # (No apostrophes in here: the whole awk program is a
+                    # single-quoted shell string.)
+                    if      (d <      60) age = rnd(d, 1)        " seconds ago"
+                    else if (d <    3600) age = rnd(d, 60)       " minutes ago"
+                    else if (d <   86400) age = rnd(d, 3600)     " hours ago"
+                    else if (d < 1209600) age = rnd(d, 86400)    " days ago"
+                    else if (d < 6048000) age = rnd(d, 604800)   " weeks ago"
+                    else if (d <31556952) age = rnd(d, 2629746)  " months ago"
+                    else                  age = rnd(d, 31556952) " years ago"
+                    printf "  %-10s %3d turns  (%s)\n", s, n[s], age
+                }
+            }' | sort
 }
 
 # List shadow branches with commit counts
@@ -232,6 +265,16 @@ esac
 
 # Get project path (default to current directory)
 PROJECT_PATH="${SHADOW_PROJECT:-$(pwd)}"
+
+# Under Git Bash / MSYS the same directory has two spellings, and the hash is
+# taken over the STRING: bash sees /c/Users/me/proj, while the server (running
+# as a native Windows process) hashed C:\Users\me\proj. Different digest, so a
+# plain `shadow-git log` reported "No shadow git found" for a project that has
+# one. cygpath exists only on those shells, so this is a no-op elsewhere.
+if [ -z "${SHADOW_PROJECT:-}" ] && command -v cygpath >/dev/null 2>&1; then
+    PROJECT_PATH=$(cygpath -w "$PROJECT_PATH")
+fi
+
 HASH=$(project_hash "$PROJECT_PATH")
 SHADOW_GIT_DIR="${BRIDGE_DIR}/projects/${HASH}/shadow-git"
 

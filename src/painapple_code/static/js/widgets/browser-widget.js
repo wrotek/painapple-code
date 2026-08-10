@@ -31,6 +31,7 @@ import S from '../strings.js';
 import { escapeHtml } from '../utils.js';
 import { CONFIG, debug } from '../config.js';
 import { WidgetManager, ICONS } from '../widget-system/index.js';
+import { isAbsolutePath } from '../path-utils.js';
 
 const STORAGE_KEY = 'claude-code-browser-last-url';
 const PROXY_PREF_KEY = 'claude-code-browser-proxy-enabled';
@@ -98,7 +99,7 @@ function classify(raw) {
     const t = (raw || '').trim();
     if (!t) return { kind: 'empty' };
     if (/^https?:\/\//i.test(t)) return { kind: 'external', url: t };
-    if (t.startsWith('file://') || t.startsWith('/') || t.startsWith('~') || t.startsWith('./')) {
+    if (t.startsWith('file://') || isAbsolutePath(t) || t.startsWith('~') || t.startsWith('./')) {
         return { kind: 'local', path: t };
     }
     // Heuristic: bare domain → external https

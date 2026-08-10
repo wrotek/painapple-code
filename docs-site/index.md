@@ -4,7 +4,7 @@ A self-hosted UI for [Claude Code](https://github.com/anthropics/claude-code) â€
 
 ![The web client with a session on the left and the Auto Journal widget open on the right](assets/overview.png)
 
-The goal is native apps for every platform; today the client is a web app that installs as a PWA on iOS, Android, and desktop. Roughly a third of this app was developed on an iPhone, and the rest on an iPad with a hardware keyboard.
+The **server** runs natively on Linux, macOS, and Windows 10/11 â€” no WSL required. The goal is native apps for every platform; today the client is a web app that installs as a PWA on iOS, Android, and desktop. Roughly a third of this app was developed on an iPhone, and the rest on an iPad with a hardware keyboard.
 
 !!! danger "Read the security notes first"
     This is an MVP and it is very YOLO-oriented: the embedded terminal is a real PTY running as the server user, and the best experience comes from permissive Claude permission modes. Run it isolated (Docker, VM) and read [Read this first](getting-started/security.md) before exposing it to anything.

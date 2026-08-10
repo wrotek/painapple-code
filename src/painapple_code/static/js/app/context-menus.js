@@ -11,6 +11,7 @@ import { copyToClipboard, showToast, fileDownloadAction, getDownloadLabel } from
 import { isFavoriteSession, toggleFavoriteSession } from '../welcome.js';
 import { DiffViewerWidget } from '../widget-system/init.js';
 import { showProjectColorPicker } from '../project-color-picker.js';
+import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
 
 export const contextMenuMethods = {
     /**
@@ -158,7 +159,7 @@ export const contextMenuMethods = {
         const showFileLinkMenu = (fileLink, x, y) => {
             const path = fileLink.dataset.file;
             const cwd = this.activeSession?.cwd || CONFIG.HOME;
-            const fullPath = fileLink.dataset.resolved || (path.startsWith('/') ? path : `${cwd}/${path}`.replace(/\/+/g, '/'));
+            const fullPath = fileLink.dataset.resolved || (isAbsolutePath(path) ? path : joinPath(cwd, path));
             showFileMenu(path, cwd, fullPath, x, y);
         };
 
@@ -168,7 +169,7 @@ export const contextMenuMethods = {
             const summaryBar = pill.closest('.turn-summary-bar');
             const cwd = summaryBar?.dataset.cwd || this.activeSession?.cwd || CONFIG.HOME;
             const turnId = summaryBar?.dataset.turnId;
-            const fullPath = filePath.startsWith('/') ? filePath : `${cwd}/${filePath}`.replace(/\/+/g, '/');
+            const fullPath = isAbsolutePath(filePath) ? filePath : joinPath(cwd, filePath);
             showFileMenu(filePath, cwd, fullPath, x, y, turnId);
         };
 
@@ -178,7 +179,7 @@ export const contextMenuMethods = {
             const summaryBar = row.closest('.turn-summary-bar');
             const cwd = summaryBar?.dataset.cwd || this.activeSession?.cwd || CONFIG.HOME;
             const turnId = summaryBar?.dataset.turnId;
-            const fullPath = filePath.startsWith('/') ? filePath : `${cwd}/${filePath}`.replace(/\/+/g, '/');
+            const fullPath = isAbsolutePath(filePath) ? filePath : joinPath(cwd, filePath);
             showFileMenu(filePath, cwd, fullPath, x, y, turnId);
         };
 
@@ -188,7 +189,7 @@ export const contextMenuMethods = {
         const showGitFileMenu = (item, x, y) => {
             const filePath = item.dataset.path;
             const cwd = item.dataset.cwd || this.activeSession?.cwd || CONFIG.HOME;
-            const fullPath = filePath.startsWith('/') ? filePath : `${cwd}/${filePath}`.replace(/\/+/g, '/');
+            const fullPath = isAbsolutePath(filePath) ? filePath : joinPath(cwd, filePath);
             showFileMenu(filePath, cwd, fullPath, x, y);
         };
 
@@ -530,7 +531,7 @@ export const contextMenuMethods = {
 
         if (isFilePreview) {
             const filePath = tab.filePath;
-            const fileName = filePath.split('/').pop();
+            const fileName = basename(filePath);
             const cwd = this.activeSession?.cwd || CONFIG.HOME;
             const relativePath = filePath.startsWith(cwd + '/')
                 ? filePath.slice(cwd.length + 1) : fileName;

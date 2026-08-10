@@ -93,6 +93,10 @@
 .helpers-file-state.outdated::before { background: var(--warning); }
 .helpers-file-state.missing  { color: var(--text-muted); }
 .helpers-file-state.missing::before  { background: var(--text-muted); opacity: 0.6; }
+/* Nothing to act on — dim the whole row so it reads as "n/a here", not "broken". */
+.helpers-file-row.unsupported { opacity: 0.55; }
+.helpers-file-state.unsupported { color: var(--text-muted); }
+.helpers-file-state.unsupported::before { background: transparent; box-shadow: inset 0 0 0 1px var(--text-muted); }
 
 .helpers-dont-show {
     display: flex;

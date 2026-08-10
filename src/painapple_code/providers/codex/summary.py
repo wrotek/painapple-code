@@ -49,7 +49,7 @@ class _SummaryMixin:
         fork_id, copy_path = fork
 
         schema_fd, schema_path = tempfile.mkstemp(prefix="codex_schema_", suffix=".json")
-        with os.fdopen(schema_fd, "w") as f:
+        with os.fdopen(schema_fd, "w", encoding="utf-8") as f:
             f.write(self._strictify_schema(schema_json))
         out_fd, out_path = tempfile.mkstemp(prefix="codex_summary_", suffix=".json")
         os.close(out_fd)

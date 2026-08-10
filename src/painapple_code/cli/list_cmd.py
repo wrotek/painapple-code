@@ -19,6 +19,7 @@ parsing the serve flags out of each command line.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -28,18 +29,49 @@ from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET, say
 # ──── Local server discovery (process scan) ──────────────────────────────
 
 def _iter_processes():
-    """(pid, command) for every visible process. `ps ax` syntax works on
-    both procps (Linux) and BSD ps (macOS)."""
-    import subprocess
+    """(pid, argv_tokens) for every visible process.
+
+    psutil rather than `ps ax`: there is no ps on Windows, and psutil
+    hands back a real argv LIST instead of a line we have to re-split on
+    spaces — which is what made `C:\\Program Files\\...\\painapple.exe`
+    (or any macOS path with a space) unparseable.
+    """
+    import psutil
+    for proc in psutil.process_iter(["pid", "cmdline"]):
+        try:
+            argv = proc.info["cmdline"]
+            if argv:
+                yield proc.info["pid"], list(argv)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+
+def _proc_environ(pid):
+    """A process's environment as a dict, or None when unreadable.
+
+    Works for same-user processes on Linux, macOS AND Windows — the
+    /proc/<pid>/environ reads this replaces were Linux-only, which is why
+    macOS silently fell back to port-only matching (and why `painapple
+    stop` on Windows could kill whatever else held the port).
+    """
+    import psutil
     try:
-        out = subprocess.run(["ps", "ax", "-o", "pid=,command="],
-                             capture_output=True, text=True, timeout=10).stdout
-    except (OSError, subprocess.TimeoutExpired):
-        return
-    for line in out.splitlines():
-        pid, _, command = line.strip().partition(" ")
-        if pid.isdigit() and command:
-            yield int(pid), command.strip()
+        return psutil.Process(pid).environ()
+    except Exception:
+        # NoSuchProcess / AccessDenied / NotImplementedError — all mean
+        # "not ours to read", which callers already handle.
+        return None
+
+
+def _basename(tok):
+    """Last path component, splitting on BOTH separators.
+
+    `Path(tok).name` only knows the running platform's separator, so a
+    Windows argv0 read on any other host (and, more usefully, in a test)
+    comes back whole. Splitting on both keeps the argv-shape checks below
+    platform-independent.
+    """
+    return re.split(r"[\\/]", tok)[-1]
 
 
 def _is_python(tok):
@@ -50,14 +82,27 @@ def _is_python(tok):
     on macOS. A case-sensitive test made every pipx-installed `painapple`
     on macOS invisible to the scan — `painapple list` reported the
     deployment stopped while the server was serving."""
-    return Path(tok).name.lower().startswith("python")
+    return _basename(tok).lower().startswith("python")
 
 
-def _serve_args(command):
-    """If `command` is a painapple SERVER process, return its flag tail;
-    None for anything else (other programs, subcommand invocations like
-    `painapple start work`, this very `painapple list`)."""
-    tokens = command.split()
+def _script_name(tok):
+    """argv[0]'s bare command name, minus a Windows executable suffix."""
+    name = _basename(tok).lower()
+    for suffix in (".exe", ".cmd", ".bat"):
+        if name.endswith(suffix):
+            return name[: -len(suffix)]
+    return name
+
+
+def _serve_args(tokens):
+    """If `tokens` (an argv list) is a painapple SERVER process, return
+    its flag tail; None for anything else (other programs, subcommand
+    invocations like `painapple start work`, this very `painapple list`).
+
+    argv list only — the ps-based string callers are gone, and re-splitting
+    a joined command on spaces is precisely what broke paths containing
+    one (`C:\\Program Files\\…\\painapple.exe`).
+    """
     rest = None
     for i, tok in enumerate(tokens):
         # `python [-u …] -m painapple_code` — the interpreter must be
@@ -74,7 +119,7 @@ def _serve_args(command):
         # possibly with interpreter options (`/path/python -E /path/bin/
         # painapple --port …`). The interpreter guard keeps e.g.
         # `grep foo …/painapple-code` from matching.
-        if (Path(tok).name in ("painapple", "painapple-code")
+        if (_script_name(tok) in ("painapple", "painapple-code")
                 and (i == 0
                      or (_is_python(tokens[0])
                          and all(t.startswith("-") for t in tokens[1:i])))):
@@ -110,15 +155,11 @@ def _in_container(pid):
     fallback — under --userns=keep-id that link reads back as '/' from
     the host, which used to list every containerized bridge twice (once
     as a phantom ad-hoc process on the container's own port)."""
+    env = _proc_environ(pid)
+    if env and ("PAINAPPLE_IN_CONTAINER" in env or "container" in env):
+        return True
     if not sys.platform.startswith("linux"):
         return False
-    try:
-        environ = Path(f"/proc/{pid}/environ").read_bytes()
-    except OSError:
-        environ = b""
-    for entry in environ.split(b"\0"):
-        if entry.startswith((b"PAINAPPLE_IN_CONTAINER=", b"container=")):
-            return True
     try:
         return os.readlink(f"/proc/{pid}/root") != "/"
     except OSError:
@@ -127,40 +168,26 @@ def _in_container(pid):
 
 def _home_of(pid):
     """This process's data home (PAINAPPLE_CODE_HOME) as a resolved path
-    string — readable from /proc/<pid>/environ for same-user Linux
-    processes; '' when unknown (other user, macOS). Readable-but-unset
-    resolves to the default home, so it can be matched against a profile
-    home."""
-    if not sys.platform.startswith("linux"):
+    string, or '' when the environment isn't readable (another user).
+    Readable-but-unset resolves to the default home, so it can be matched
+    against a profile home."""
+    env = _proc_environ(pid)
+    if env is None:
         return ""
-    try:
-        environ = Path(f"/proc/{pid}/environ").read_bytes()
-    except OSError:
-        return ""
-    for entry in environ.split(b"\0"):
-        if entry.startswith(b"PAINAPPLE_CODE_HOME="):
-            raw = entry.split(b"=", 1)[1].decode("utf-8", "replace")
-            return str(Path(raw).expanduser().resolve()) if raw else ""
+    raw = env.get("PAINAPPLE_CODE_HOME", "")
+    if raw:
+        return str(Path(raw).expanduser().resolve())
     return str(Path("~/.painapple-code").expanduser().resolve())  # unset
 
 
 def _saved_defaults(pid, cache):
     """The serve.yaml values THIS process booted with. Its own
-    PAINAPPLE_CODE_HOME decides which file applies — readable from
-    /proc/<pid>/environ for same-user processes on Linux; when it isn't
-    (other user, macOS), fall back to our own environment's view."""
+    PAINAPPLE_CODE_HOME decides which file applies; when its environment
+    isn't readable (another user), fall back to our own view."""
     home = os.environ.get("PAINAPPLE_CODE_HOME", "")
-    if sys.platform.startswith("linux"):
-        try:
-            environ = Path(f"/proc/{pid}/environ").read_bytes()
-        except OSError:
-            pass  # not ours to read — keep the fallback
-        else:
-            home = ""  # readable and unset → the default home
-            for entry in environ.split(b"\0"):
-                if entry.startswith(b"PAINAPPLE_CODE_HOME="):
-                    home = entry.split(b"=", 1)[1].decode("utf-8", "replace")
-                    break
+    env = _proc_environ(pid)
+    if env is not None:
+        home = env.get("PAINAPPLE_CODE_HOME", "")  # readable+unset → default home
     if home not in cache:
         from painapple_code.cli.serve_config import load
         base = Path(home or "~/.painapple-code").expanduser()
@@ -182,9 +209,10 @@ def _workspace_of(pid, rest, saved):
     # process's cwd — readable on Linux for same-user processes.
     if saved.get("workspace"):
         return saved["workspace"]
+    import psutil
     try:
-        return os.readlink(f"/proc/{pid}/cwd")
-    except OSError:
+        return psutil.Process(pid).cwd()
+    except Exception:
         return ws or ""
 
 
@@ -196,10 +224,10 @@ def local_servers():
     me = os.getpid()
     rows = []
     cache = {}
-    for pid, command in _iter_processes():
+    for pid, argv in _iter_processes():
         if pid == me:
             continue
-        rest = _serve_args(command)
+        rest = _serve_args(argv)
         if rest is None or _in_container(pid):
             continue
         saved = _saved_defaults(pid, cache)
@@ -221,10 +249,92 @@ def local_servers():
             "name": name,
             "workspace": _workspace_of(pid, rest, saved),
             "home": home,
-            "command": command,  # raw ps line — lifecycle_cmd respawn fallback
+            # The exact token list — respawn and flag lookups read this.
+            # `command` is the joined form, for display only: never split
+            # it back apart (paths with spaces).
+            "argv": list(argv),
+            "command": " ".join(argv),
         })
+    rows = _collapse_chains(rows)
     rows.sort(key=lambda r: int(r["port"]) if r["port"].isdigit() else 0)
     return rows
+
+
+def _matched_ancestor(pid, by_pid):
+    """Nearest ancestor of `pid` that is itself a matched server row and
+    belongs to the SAME server, or None. Never raises."""
+    try:
+        import psutil
+        seen = {pid}
+        cur = psutil.Process(pid)
+        while True:
+            ppid = cur.ppid()
+            if not ppid or ppid in seen:
+                return None
+            if ppid in by_pid:
+                return ppid
+            seen.add(ppid)
+            cur = psutil.Process(ppid)
+    except Exception:
+        return None
+
+
+def _collapse_chains(rows):
+    """One row per server, even when the server is a process chain.
+
+    A pipx console script on Windows is three processes — painapple.exe
+    launcher, the python.exe it starts, and uvicorn's reload child — all
+    carrying identical argv, so all three match and one server presented
+    as three rows. That put phantom entries in `painapple list`, and made
+    `stop` a coin flip: _kill terminates a single pid, so picking the
+    reload child left the supervisor to respawn it while picking the
+    launcher left the real server serving. Keep the topmost ancestor,
+    whose termination takes the rest of its own chain with it.
+
+    Only collapses within one server: the ancestor must agree on port and
+    data home. Running a second server from a terminal *inside* the first
+    is a genuinely separate deployment and keeps its own row.
+    """
+    by_pid = {r["pid"]: r for r in rows}
+    parent = {}
+    for r in rows:
+        anc = _matched_ancestor(r["pid"], by_pid)
+        if anc is not None:
+            a = by_pid[anc]
+            if a["port"] == r["port"] and a.get("home") == r.get("home"):
+                parent[r["pid"]] = anc
+
+    def root_of(pid):
+        seen = set()
+        while pid in parent and pid not in seen:
+            seen.add(pid)
+            pid = parent[pid]
+        return pid
+
+    def depth(pid):
+        d, seen = 0, set()
+        while pid in parent and pid not in seen:
+            seen.add(pid)
+            pid = parent[pid]
+            d += 1
+        return d
+
+    kept = []
+    for r in rows:
+        if r["pid"] in parent:
+            continue
+        # The launcher shim's cwd is %TEMP%, not the project — so when the
+        # workspace fell back to cwd, take it from the DEEPEST process in
+        # the chain, which is the one actually serving. Explicit --workspace
+        # flags are identical across the chain (same argv), so this only
+        # ever changes the fallback case.
+        chain = [c for c in rows if root_of(c["pid"]) == r["pid"]]
+        if len(chain) > 1:
+            deepest = max(chain, key=lambda c: depth(c["pid"]))
+            if deepest["workspace"]:
+                r = {**r, "workspace": deepest["workspace"]}
+        kept.append(r)
+    return kept
 
 
 def match_process(running, home, port, exclude=()):
@@ -297,8 +407,8 @@ def deployment_rows(running):
 def profile_rows(running):
     """[{name, mode, host, port, workspace, state}] for every saved
     profile (profiles/NAME/profile.yaml). Host profiles match a running
-    local server by data home (exact, Linux) else by port; docker
-    profiles ask the container runtime."""
+    local server by data home (exact, via psutil environ()) else by port;
+    docker profiles ask the container runtime."""
     import shutil
     from painapple_code.cli import profiles as profmod
 

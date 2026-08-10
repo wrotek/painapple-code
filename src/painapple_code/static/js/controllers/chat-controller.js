@@ -25,6 +25,7 @@ import { SessionContainerPool, useContainerPool } from '../session-container-poo
 import { showToast } from '../context-menu.js';
 import { engineAuthorLabel } from '../status-bar.js';
 import S from '../strings.js';
+import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
 
 // Turn-summary files row: current-turn pills (changed files + image thumbs)
 // always render in full; session-accumulated pills (changed first, then image
@@ -836,9 +837,9 @@ export class ChatController {
             const noteHtml = ref.note ? `<div class="ref-note">💬 ${escapeHtml(ref.note)}</div>` : '';
             let sourceLabel;
             if (ref.type === 'file') {
-                sourceLabel = `📄 ${escapeHtml(ref.filePath?.split('/').pop() || 'file')}`;
+                sourceLabel = `📄 ${escapeHtml(basename(ref.filePath) || 'file')}`;
             } else if (ref.type === 'image') {
-                const name = escapeHtml(ref.filePath?.split('/').pop() || 'image');
+                const name = escapeHtml(basename(ref.filePath) || 'image');
                 sourceLabel = ref.markerIndex != null ? `📍 ${name} · marker ${ref.markerIndex}` : `📍 ${name}`;
             } else {
                 sourceLabel = `💬 Message #${ref.messageIndex || '?'}`;
@@ -1345,7 +1346,7 @@ export class ChatController {
         let html = '<div class="turn-files-row">';
         if (hasChanged) {
             for (const filePath of changedFiles) {
-                const fileName = filePath.split('/').pop();
+                const fileName = basename(filePath);
                 const stats = fileActions[filePath] || {};
                 const adds = stats.adds || 0;
                 const dels = stats.dels || 0;
@@ -1362,7 +1363,7 @@ export class ChatController {
         if (sessionChanged.length > 0) {
             if (hasChanged) html += '<span class="turn-files-sep"></span>';
             for (const [fp, stats] of sessionChanged) {
-                const name = fp.split('/').pop();
+                const name = basename(fp);
                 let pillContent = `<span class="file-name">${escHtml(name)}</span>`;
                 if (stats.created) pillContent += `<span class="file-new">new</span>`;
                 if (stats.adds > 0) pillContent += `<span class="file-adds">+${stats.adds}</span>`;
@@ -1377,8 +1378,8 @@ export class ChatController {
             // apply; a tap routes through previewFile → image gallery, where
             // collectImages() picks these pills up for session-wide navigation.
             const thumb = (fp, extraClass, tooltip) => {
-                const full = fp.startsWith('/') ? fp : (cwd ? `${cwd}/${fp}` : fp);
-                return `<span class="turn-file-pill turn-read-file turn-image-thumb${extraClass}" data-file-path="${escHtml(fp)}" data-tooltip="${escHtml(tooltip.replace('{path}', fp))}"><img src="/api/file-raw?path=${encodeURIComponent(full)}" alt="${escHtml(fp.split('/').pop())}" loading="lazy"></span>`;
+                const full = isAbsolutePath(fp) ? fp : (cwd ? joinPath(cwd, fp) : fp);
+                return `<span class="turn-file-pill turn-read-file turn-image-thumb${extraClass}" data-file-path="${escHtml(fp)}" data-tooltip="${escHtml(tooltip.replace('{path}', fp))}"><img src="/api/file-raw?path=${encodeURIComponent(full)}" alt="${escHtml(basename(fp))}" loading="lazy"></span>`;
             };
             for (const fp of turnImages) html += thumb(fp, '', S.turn_bar.read_tooltip);
             for (const fp of sessionImages) html += thumb(fp, ' session-read', S.turn_bar.read_session_tooltip);
@@ -1492,7 +1493,7 @@ export class ChatController {
                 const filePath = pill.dataset.filePath;
                 const cwd = container.dataset.cwd;
                 if (!filePath) return;
-                const fullPath = filePath.startsWith('/') ? filePath : (cwd ? `${cwd}/${filePath}` : filePath);
+                const fullPath = isAbsolutePath(filePath) ? filePath : (cwd ? joinPath(cwd, filePath) : filePath);
 
                 if ((e.metaKey || e.ctrlKey) && e.shiftKey) {
                     // Cmd+Shift+Click → foreground new tab
@@ -1515,7 +1516,7 @@ export class ChatController {
                     const filePath = pill.dataset.filePath;
                     const cwd = container.dataset.cwd;
                     if (!filePath) return;
-                    const fullPath = filePath.startsWith('/') ? filePath : (cwd ? `${cwd}/${filePath}` : filePath);
+                    const fullPath = isAbsolutePath(filePath) ? filePath : (cwd ? joinPath(cwd, filePath) : filePath);
                     this._openFileInTab(fullPath, { background: true });
                 }
             });
@@ -1542,7 +1543,7 @@ export class ChatController {
                 const filePath = el.dataset.filePath;
                 const cwd = container.dataset.cwd;
                 if (filePath) {
-                    const fullPath = filePath.startsWith('/') ? filePath : (cwd ? `${cwd}/${filePath}` : filePath);
+                    const fullPath = isAbsolutePath(filePath) ? filePath : (cwd ? joinPath(cwd, filePath) : filePath);
                     this._openFilePreviewDirect(fullPath);
                 }
             };
@@ -1828,7 +1829,7 @@ export class ChatController {
                 const statusIcon = gitStatus
                     ? (gitStatus === 'staged' ? 'S' : gitStatus === 'modified' ? 'M' : '?')
                     : '✓';
-                const fileName = relPath.split('/').pop();
+                const fileName = basename(relPath);
                 const turnsStr = info.turns.size > 0 ? [...info.turns].map(t => `T${t}`).join(' ') : '';
                 const statsStr = (info.adds > 0 || info.dels > 0)
                     ? `<span class="sf-stats">${info.adds > 0 ? `<span class="file-adds">+${info.adds}</span>` : ''}${info.dels > 0 ? `<span class="file-dels">-${info.dels}</span>` : ''}</span>`
@@ -1856,7 +1857,7 @@ export class ChatController {
             html += '<div class="session-files-grid">';
             for (const { path, status } of otherDirty.slice(0, 20)) {
                 const statusIcon = status === 'staged' ? 'S' : status === 'modified' ? 'M' : '?';
-                const fileName = path.split('/').pop();
+                const fileName = basename(path);
                 html += `<div class="session-file-row git-${status}" data-file-path="${escHtml(path)}">
                     <span class="session-file-status">${statusIcon}</span>
                     <span class="session-file-name" data-tooltip="${escHtml(path)}">${escHtml(fileName)}</span>
@@ -1890,7 +1891,7 @@ export class ChatController {
                 e.stopPropagation();
                 const filePath = row.dataset.filePath;
                 if (filePath) {
-                    const fullPath = filePath.startsWith('/') ? filePath : (cwd ? `${cwd}/${filePath}` : filePath);
+                    const fullPath = isAbsolutePath(filePath) ? filePath : (cwd ? joinPath(cwd, filePath) : filePath);
                     this._openFilePreviewDirect(fullPath);
                 }
             });
@@ -2859,7 +2860,7 @@ export class ChatController {
                 <h4>Continue</h4>
                 <div class="session-list">
                     ${recentSessions.map(s => {
-                        const name = s.name || s.cwd?.split('/').pop() || 'Session';
+                        const name = s.name || basename(s.cwd) || 'Session';
                         const msgCount = s.message_count || 0;
                         const timeAgo = formatRelativeTime(s.last_activity);
                         const cost = s.total_cost > 0 ? `$${s.total_cost.toFixed(3)}` : '';
@@ -2914,7 +2915,7 @@ export class ChatController {
                 <h4>Recent Projects</h4>
                 <div class="project-list">
                     ${projects.map(path => {
-                        const name = path.split('/').pop();
+                        const name = basename(path);
                         return `
                             <div class="project-item" data-path="${escapeHtml(path)}">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3501,7 +3502,7 @@ export class ChatController {
 
         // Write — file header + content preview
         if (toolName === 'Write' && input.file_path) {
-            const filename = input.file_path.split('/').pop() || input.file_path;
+            const filename = basename(input.file_path) || input.file_path;
             const content = typeof input.content === 'string' ? input.content : '';
             const nLines = content ? content.split('\n').length : 0;
             const tag = nLines
@@ -3516,7 +3517,7 @@ export class ChatController {
 
         // Edit / MultiEdit — file header + old→new diff
         if ((toolName === 'Edit' || toolName === 'MultiEdit') && input.file_path) {
-            const filename = input.file_path.split('/').pop() || input.file_path;
+            const filename = basename(input.file_path) || input.file_path;
             const edits = (toolName === 'MultiEdit' && Array.isArray(input.edits))
                 ? input.edits
                 : [{ old_string: input.old_string, new_string: input.new_string }];

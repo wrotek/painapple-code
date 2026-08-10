@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import signal
 import stat
 import sys
@@ -84,13 +85,20 @@ def _signal_handler(signum, frame):
     faulthandler.dump_traceback(file=sys.stderr, all_threads=True)
     # Re-raise with default handler so process actually dies
     signal.signal(signum, signal.SIG_DFL)
+    if sys.platform == "win32":
+        # os.kill(pid, sig) can't re-deliver arbitrary signals on Windows
+        # (only CTRL_C/CTRL_BREAK events); the diagnostics above are the
+        # point of this handler, so just exit with the conventional code.
+        os._exit(128 + signum)
     os.kill(os.getpid(), signum)
 
 # Enable faulthandler for SIGSEGV/SIGABRT/SIGFPE/SIGBUS tracebacks
 faulthandler.enable(file=sys.stderr, all_threads=True)
-# Trap signals that would normally kill silently
-for _sig in (signal.SIGTERM, signal.SIGHUP):
-    signal.signal(_sig, _signal_handler)
+# Trap signals that would normally kill silently. SIGHUP doesn't exist on
+# Windows — build the tuple defensively instead of naming it directly.
+for _sig in (signal.SIGTERM, getattr(signal, "SIGHUP", None)):
+    if _sig is not None:
+        signal.signal(_sig, _signal_handler)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -101,6 +109,24 @@ async def lifespan(app: FastAPI):
     # this process actually imported.
     from painapple_code.routes.api_bridge import capture_boot_version
     capture_boot_version()
+
+    # `git` is a hard requirement, not an optional extra: the auto-journal
+    # shells out to it for every turn, and the Git panel for every diff.
+    # Without it the failure is SILENT — ShadowGit.init_repo() catches the
+    # FileNotFoundError, logs at exception level and returns False, so the
+    # server comes up looking healthy and simply never journals anything.
+    # Say so once, loudly, at boot instead.
+    if shutil.which("git") is None:
+        hint = (
+            " Windows: install Git for Windows (https://git-scm.com/download/win),"
+            " which also provides the bash that the optional shadow-git/"
+            "shadow-query helpers run under."
+            if sys.platform == "win32" else ""
+        )
+        logger.warning(
+            "git not found on PATH — the auto-journal (shadow git) and the "
+            "Git panel are both disabled. Install git and restart." + hint
+        )
 
     # Bridge is created in main() before uvicorn.run() so --cwd is available
     if bridge:
@@ -458,7 +484,11 @@ def init_auth_state(app_: FastAPI, config_file: Optional[Path] = None) -> None:
     Repeat calls just refresh state — middleware is already registered at
     module-load time and reads state dynamically via scope["app"].state.
     """
-    cfg_path = config_file or (Path.home() / ".config" / "painapple-code" / "config.yaml")
+    # CONFIG_HOME, not a hand-built default: it honors PAINAPPLE_CODE_CONFIG,
+    # which the Windows smoke workflow (and any isolated test run) sets
+    # expecting the auth file to follow — previously only the data home
+    # moved and the password file still landed in the real user profile.
+    cfg_path = config_file or (bridge_paths.CONFIG_HOME / "config.yaml")
     password, newly_created = ensure_config_file(cfg_path)
     app_.state.auth_password = password
     app_.state.auth_cookie_token = derive_cookie_token(password)
@@ -501,7 +531,22 @@ from painapple_code.routes.api_sessions import router as sessions_router
 from painapple_code.routes.api_session_stash import router as session_stash_router
 from painapple_code.routes.api_session_welcome import router as session_welcome_router
 from painapple_code.routes.api_logs import router as logs_router
-from painapple_code.routes.api_terminal import router as terminal_router
+
+# The terminal needs a pseudo-terminal backend: pty/fcntl/termios on
+# POSIX, pywinpty (ConPTY) on Windows. Both are declared dependencies for
+# their platform, so this normally succeeds everywhere — but a Windows
+# install that skipped the optional pywinpty should lose only the
+# terminal tab, not the server. TERMINAL_AVAILABLE feeds the client via
+# INSTANCE_CONFIG so the UI hides the widget/shortcut instead of offering
+# a button that 404s.
+from painapple_code.utils.pty_backend import PTY_AVAILABLE, PTY_UNAVAILABLE_REASON
+
+TERMINAL_AVAILABLE = PTY_AVAILABLE
+if PTY_AVAILABLE:
+    from painapple_code.routes.api_terminal import router as terminal_router
+else:
+    terminal_router = None
+    logger.warning(f"Terminal disabled: {PTY_UNAVAILABLE_REASON}")
 
 from painapple_code.routes.api_upload import router as upload_router
 from painapple_code.routes.api_exec import router as exec_router
@@ -541,7 +586,8 @@ app.include_router(sessions_router)
 app.include_router(session_stash_router)
 app.include_router(session_welcome_router)
 app.include_router(logs_router)
-app.include_router(terminal_router)
+if terminal_router is not None:
+    app.include_router(terminal_router)
 
 app.include_router(upload_router)
 app.include_router(exec_router)
@@ -587,7 +633,7 @@ async def upload_perf_snapshot(request: Request):
             messages_content = ""
             messages_count = 0
             if messages_path.exists():
-                messages_content = messages_path.read_text()
+                messages_content = messages_path.read_text(encoding="utf-8")
                 messages_count = sum(1 for line in messages_content.splitlines() if line.strip())
 
             msg_bytes = len(messages_content.encode("utf-8"))
@@ -645,7 +691,10 @@ def _build_concatenated_css(cache_key: tuple) -> str:
     parts = []
     for f in sorted(css_dir.glob("*.css")):
         parts.append(f"/* === {f.name} === */")
-        parts.append(f.read_text())
+        # Explicit encoding: Python picks the locale codec otherwise, which is
+        # cp1252 on a stock Windows box — any non-ASCII byte in a stylesheet
+        # then raises UnicodeDecodeError and takes down the whole page load.
+        parts.append(f.read_text(encoding="utf-8"))
     return "\n".join(parts)
 
 
@@ -682,7 +731,7 @@ async def serve_concatenated_css(v: str = None):
 def _process_js_file(subdir: str, filename: str, mtime_ns: int, cache_bust: str) -> str:
     """Read and process JS file with cache-busted imports. Cached by filename+mtime+version."""
     js_path = PACKAGE_DIR / "static" / subdir / filename
-    content = js_path.read_text()
+    content = js_path.read_text(encoding="utf-8")
     # Match static imports: from './foo.js' or from '../foo.js'
     content = re.sub(r"from\s+['\"]((\.\.?/)+[^'\"]+\.js)['\"]", rf"from '\1{cache_bust}'", content)
     # Side-effect imports have no `from` clause: import './foo.js';
@@ -705,7 +754,7 @@ def _process_js_file(subdir: str, filename: str, mtime_ns: int, cache_bust: str)
 def _load_strings_yaml(mtime: float) -> str:
     """Read strings.yaml and convert to ES module. Cached by file mtime."""
     yaml_path = PACKAGE_DIR / "data" / "strings.yaml"
-    with open(yaml_path) as f:
+    with open(yaml_path, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return f"// Auto-generated from strings.yaml — do not edit\nexport default {json.dumps(data, ensure_ascii=False)};\n"
 
@@ -861,7 +910,7 @@ async def login_page(request: Request):
     reveal_cmd = os.environ.get("PAINAPPLE_REVEAL_CMD", "").strip()
     if reveal_cmd:
         login_config["revealCmd"] = reveal_cmd
-    html = html_path.read_text().replace(
+    html = html_path.read_text(encoding="utf-8").replace(
         "</head>",
         f"    <script>window.LOGIN_CONFIG={json.dumps(login_config)};</script>\n</head>",
     )
@@ -1019,7 +1068,7 @@ async def triage_page():
     """Serve the feature triage tool."""
     html_path = PACKAGE_DIR / "static" / "feature-triage.html"
     if html_path.exists():
-        return html_path.read_text()
+        return html_path.read_text(encoding="utf-8")
     return _missing_asset_page(
         "Triage tool not found",
         f"Expected at <code>{html_path}</code>.",
@@ -1032,7 +1081,7 @@ async def get_triage_state():
     index_path = _FEATURES_DIR / "_index.yaml"
     if not index_path.exists():
         return JSONResponse({"decisions": {}, "notes": {}})
-    with open(index_path) as f:
+    with open(index_path, encoding="utf-8") as f:
         index = yaml.safe_load(f)
     decisions = {}
     notes = {}
@@ -1057,7 +1106,7 @@ async def save_triage_state(request: Request):
     if not index_path.exists():
         return JSONResponse({"error": "index not found"}, status_code=404)
 
-    lines = index_path.read_text().splitlines()
+    lines = index_path.read_text(encoding="utf-8").splitlines()
     result = []
     i = 0
     while i < len(lines):
@@ -1119,7 +1168,7 @@ async def save_triage_state(request: Request):
                 continue  # don't increment, already at next block
         i += 1
 
-    index_path.write_text('\n'.join(result) + '\n')
+    index_path.write_text('\n'.join(result) + '\n', encoding="utf-8")
     _features_cache["data"] = None  # invalidate
     return JSONResponse({"ok": True})
 
@@ -1224,7 +1273,7 @@ async def get_features():
     if _features_cache["data"] and _features_cache["mtime"] == mtime:
         return JSONResponse(_features_cache["data"])
 
-    with open(index_path) as f:
+    with open(index_path, encoding="utf-8") as f:
         index = yaml.safe_load(f)
 
     groups = index.get('groups', [])
@@ -1234,7 +1283,7 @@ async def get_features():
         spec = {}
         if spec_file.exists():
             try:
-                spec = _parse_spec(spec_file.read_text())
+                spec = _parse_spec(spec_file.read_text(encoding="utf-8"))
             except Exception:
                 spec = {}
         features.append({
@@ -1265,7 +1314,7 @@ async def web_client():
     """Serve the full web client with cache-busting for static assets."""
     html_path = PACKAGE_DIR / "static" / "web-client.html"
     if html_path.exists():
-        html = html_path.read_text()
+        html = html_path.read_text(encoding="utf-8")
         # Point the entry at the bundle before stamping, so it gets versioned
         # like everything else. Loose modules stay reachable either way.
         if _bundle_path():
@@ -1351,7 +1400,7 @@ async def service_worker():
         ]
         # Inject version into SW
         content = (
-            sw_path.read_text()
+            sw_path.read_text(encoding="utf-8")
             .replace("__PRECACHE_ASSETS__", json.dumps(precache))
             .replace("__CACHE_VERSION__", version)
         )
@@ -1387,7 +1436,7 @@ async def manifest():
     if not manifest_path.exists():
         return JSONResponse(content={}, status_code=404)
 
-    data = json.loads(manifest_path.read_text())
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     if instance_config.get("name"):
         name = instance_config["name"]
@@ -1468,6 +1517,12 @@ def _generate_instance_icons(name: str, accent_hex: str):
         "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
         "/Library/Fonts/Arial Bold.ttf",
+        # Windows: %WINDIR% rather than a hardcoded C:\, since Windows can
+        # legitimately live on another drive. Cosmetic only — the
+        # load_default() fallback below already keeps boot working.
+        str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "arialbd.ttf"),
+        str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "segoeuib.ttf"),
+        str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts" / "calibrib.ttf"),
     ]
     font_path = next((p for p in font_candidates if Path(p).exists()), None)
     hex_clean = accent_hex.lstrip('#')[:6]
@@ -1563,6 +1618,9 @@ def _preflight_port(host: str, port: int) -> None:
 
 
 def main(argv=None):
+    if sys.platform == "win32":  # idempotent; direct-entry safety (cli.main already did it)
+        from painapple_code.utils.proc import force_utf8_stdio
+        force_utf8_stdio()
     # Parser lives in cli/serve_args.py (import-light) so cli.main() can
     # fast-fail on bad flags / -v / --help without importing this module.
     # By the time we run, cli.main() has already gate-parsed argv — this
@@ -1632,6 +1690,15 @@ def main(argv=None):
     app.state.renderers_enabled = renderers_enabled
     instance_config["renderers_enabled"] = renderers_enabled
 
+    # PTY terminal availability — client hides the terminal widget and
+    # shortcut when no backend could be loaded (see PTY_UNAVAILABLE_REASON).
+    instance_config["terminal_available"] = TERMINAL_AVAILABLE
+
+    # Path flavor of THIS server's filesystem. The client manipulates
+    # server paths (an iPad may be driving a Windows bridge), so it must
+    # be told, not sniff navigator.platform — see static/js/path-utils.js.
+    instance_config["path_style"] = "windows" if sys.platform == "win32" else "posix"
+
     # Resolve the trusted-origin set now that host/port/--public-origin are
     # known. The HTTP + WebSocket Origin checks read this.
     app.state.allowed_origins = resolve_allowed_origins(
@@ -1654,7 +1721,7 @@ def main(argv=None):
     from painapple_code.server_logging import DEFAULT_LOG_DIR
     pid_log_dir = Path(args.log_dir).expanduser() if args.log_dir else DEFAULT_LOG_DIR
     pid_file = pid_log_dir / "server.pid"
-    pid_file.write_text(str(os.getpid()))
+    pid_file.write_text(str(os.getpid()), encoding="utf-8")
     atexit.register(lambda: pid_file.unlink(missing_ok=True))
 
     if args.default_provider:

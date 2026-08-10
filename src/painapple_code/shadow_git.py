@@ -23,9 +23,9 @@ This file holds the public `ShadowGit` class plus the singleton accessor and
 """
 
 import asyncio
-import fcntl
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -39,6 +39,7 @@ from painapple_code.bridge_paths import (
     get_summary_model,
 )
 from painapple_code.turn_tracker import TurnTracker
+from painapple_code.utils.file_lock import FileLock
 
 # Public re-exports — kept under shadow_git.* so downstream importers
 # (services/, routes/, shadow_parser.py, welcome_search.py) don't change.
@@ -211,7 +212,7 @@ class ShadowGit(_SummaryMixin):
         try:
             exclude_file = self.git_dir / "info" / "exclude"
             exclude_file.parent.mkdir(parents=True, exist_ok=True)
-            existing = exclude_file.read_text() if exclude_file.exists() else ""
+            existing = exclude_file.read_text(encoding="utf-8") if exclude_file.exists() else ""
             default_lines = set(DEFAULT_EXCLUDES.splitlines())
             extras = [
                 line for line in existing.splitlines()
@@ -223,7 +224,7 @@ class ShadowGit(_SummaryMixin):
             if extras:
                 content += "\n# Auto-excluded / project-specific\n" + "\n".join(extras) + "\n"
             if content != existing:
-                exclude_file.write_text(content)
+                exclude_file.write_text(content, encoding="utf-8")
         except OSError as e:
             logger.warning(f"Failed to sync shadow git excludes: {e}")
 
@@ -232,7 +233,7 @@ class ShadowGit(_SummaryMixin):
         try:
             exclude_file = self.git_dir / "info" / "exclude"
             exclude_file.parent.mkdir(parents=True, exist_ok=True)
-            existing = exclude_file.read_text() if exclude_file.exists() else ""
+            existing = exclude_file.read_text(encoding="utf-8") if exclude_file.exists() else ""
             existing_lines = set(existing.splitlines())
             new_lines = [
                 pattern for pattern in
@@ -245,7 +246,7 @@ class ShadowGit(_SummaryMixin):
             if reason:
                 block += f"# Auto-excluded ({reason})\n"
             block += "\n".join(new_lines) + "\n"
-            exclude_file.write_text(existing + block)
+            exclude_file.write_text(existing + block, encoding="utf-8")
         except OSError as e:
             logger.warning(f"Failed to update shadow git excludes: {e}")
 
@@ -375,7 +376,7 @@ class ShadowGit(_SummaryMixin):
             # Write exclude patterns
             exclude_file = self.git_dir / "info" / "exclude"
             exclude_file.parent.mkdir(parents=True, exist_ok=True)
-            exclude_file.write_text(DEFAULT_EXCLUDES)
+            exclude_file.write_text(DEFAULT_EXCLUDES, encoding="utf-8")
 
             # Configure git
             await self._run(["config", "user.email", "shadow-git@painapple-code"])
@@ -385,7 +386,16 @@ class ShadowGit(_SummaryMixin):
             # This ensures shadow git tracks the full project state, not just Claude's changes
             await self._run(["add", "-A"])
             await self._quarantine_oversized()
-            await self._run(["commit", "-m", "Initial project snapshot"])
+            # check=False: an empty project directory stages nothing, so this
+            # exits 1 with "nothing to commit" on STDOUT and an empty stderr.
+            # That used to raise RuntimeError("Git command failed: ") — a
+            # blank, unactionable error that aborted init for every brand-new
+            # project. The bare repo is already usable either way; the first
+            # real turn writes the first commit.
+            out, err, rc = await self._run(
+                ["commit", "-m", "Initial project snapshot"], check=False)
+            if rc != 0:
+                logger.debug(f"Baseline snapshot skipped (rc={rc}): {out or err}")
 
             logger.info(f"Initialized shadow git: {self.git_dir}")
             return True
@@ -402,7 +412,7 @@ class ShadowGit(_SummaryMixin):
         """Load active-modifications.json."""
         if self.tracking_file.exists():
             try:
-                return json.loads(self.tracking_file.read_text())
+                return json.loads(self.tracking_file.read_text(encoding="utf-8"))
             except Exception as e:
                 logger.warning(f"Failed to load tracking file: {e}")
         return {}
@@ -410,8 +420,10 @@ class ShadowGit(_SummaryMixin):
     def _save_tracking(self, data: dict):
         """Save active-modifications.json atomically."""
         temp = self.tracking_file.with_suffix(".tmp")
-        temp.write_text(json.dumps(data, indent=2))
-        temp.rename(self.tracking_file)
+        temp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        # os.replace, not rename: rename over an existing dest raises
+        # FileExistsError on Windows — every save after the first.
+        os.replace(temp, self.tracking_file)
 
     def track_modification(self, file_path: str, session_id: str):
         """
@@ -433,20 +445,16 @@ class ShadowGit(_SummaryMixin):
         self.project_dir.mkdir(parents=True, exist_ok=True)
 
         lock_file = self.tracking_file.with_suffix(".lock")
-        with open(lock_file, "w") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
-                data = self._load_tracking()
+        with FileLock(lock_file):
+            data = self._load_tracking()
 
-                if file_path not in data:
-                    data[file_path] = []
-                if session_id not in data[file_path]:
-                    data[file_path].append(session_id)
+            if file_path not in data:
+                data[file_path] = []
+            if session_id not in data[file_path]:
+                data[file_path].append(session_id)
 
-                self._save_tracking(data)
-                logger.debug(f"Tracked modification: {file_path} by {session_id[:8]}")
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            self._save_tracking(data)
+            logger.debug(f"Tracked modification: {file_path} by {session_id[:8]}")
 
     def _cleanup_tracking(self, data: dict, files: list[str], sessions: set[str]):
         """Remove sessions from tracking for committed files."""
@@ -786,7 +794,7 @@ class ShadowGit(_SummaryMixin):
                             } if summary_cost else None,
                             "structured_data": structured_data,
                         }
-                        with open(summary_file, "a") as f:
+                        with open(summary_file, "a", encoding="utf-8") as f:
                             f.write(json.dumps(summary_record) + "\n")
                     except Exception as e:
                         logger.warning(f"Failed to save summary.jsonl: {e}")
@@ -930,7 +938,7 @@ class ShadowGit(_SummaryMixin):
             return False
 
         try:
-            meta = json.loads(meta_file.read_text())
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
             shadow = meta.get("shadow", {})
 
             if not shadow or shadow.get("archived"):
@@ -962,7 +970,7 @@ Files: {', '.join(shadow.get('files_touched', [])[:10])}
             # Mark as archived in meta
             meta["shadow"]["archived"] = True
             meta["shadow"]["archive_tag"] = f"sessions/{session_id}"
-            meta_file.write_text(json.dumps(meta, indent=2))
+            meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
             logger.info(f"Archived session: {session_id}")
             return True
@@ -1185,8 +1193,9 @@ Files: {', '.join(shadow.get('files_touched', [])[:10])}
                 from painapple_code.providers import get_provider
                 subprocess_env = build_token_env(token_profile)
 
+                from painapple_code.utils.proc import resolve_binary
                 proc = await asyncio.create_subprocess_exec(
-                    get_provider("claude").binary(),
+                    resolve_binary(get_provider("claude").binary()),
                     "--resume", provider_session_id,
                     "--fork-session",
                     "--model", get_summary_model(),

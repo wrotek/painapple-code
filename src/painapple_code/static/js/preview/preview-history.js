@@ -17,6 +17,7 @@ import { generateSmartDiff, renderSmartDiff, renderSideBySideDiff } from '../dif
 import { ContextMenu, showToast } from '../context-menu.js';
 import { DiffViewerWidget } from '../widgets/diff-viewer-widget.js';
 import S from '../strings.js';
+import { relativeTo } from '../path-utils.js';
 
 const PREF_KEY_VIEW_MODE = 'preview-history-view-mode';
 const PREF_KEY_WRAP_LINES = 'preview-history-wrap-lines';
@@ -52,7 +53,7 @@ function getCwd() {
 
 function relPath(filePath, cwd) {
     if (!filePath) return '';
-    return filePath.startsWith(cwd + '/') ? filePath.slice(cwd.length + 1) : filePath;
+    return relativeTo(filePath, cwd);
 }
 
 function timeAgo(timestamp) {

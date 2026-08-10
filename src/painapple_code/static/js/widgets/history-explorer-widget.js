@@ -17,6 +17,7 @@ import { CONFIG } from '../config.js';
 import { WidgetManager, ICONS } from '../widget-system/index.js';
 import { FilePreviewWidget } from './file-preview-widget.js';
 import { ContextMenu } from '../context-menu.js';
+import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // State
@@ -246,7 +247,7 @@ async function fetchCommitDiff(hash) {
 
 async function openInDiffTool(commitHash, filePath) {
     if (!commitHash || !filePath || !state.cwd) return;
-    const fullPath = filePath.startsWith('/') ? filePath : `${state.cwd}/${filePath}`;
+    const fullPath = isAbsolutePath(filePath) ? filePath : joinPath(state.cwd, filePath);
     await window.app?.previewFileWithHistory(fullPath, {
         cwd: state.cwd,
         seed: { toKind: 'snapshot', toHash: commitHash, fromKind: 'auto' }
@@ -255,7 +256,7 @@ async function openInDiffTool(commitHash, filePath) {
 
 async function previewFileAtHead(relPath) {
     if (!state.cwd || !relPath) return;
-    const fullPath = relPath.startsWith('/') ? relPath : `${state.cwd}/${relPath}`;
+    const fullPath = isAbsolutePath(relPath) ? relPath : joinPath(state.cwd, relPath);
     FilePreviewWidget.setCwd(state.cwd);
     await FilePreviewWidget.preview(fullPath);
 }
@@ -599,7 +600,7 @@ function renderFileDiff(file, commitHash) {
              data-hash="${escapeHtml(commitHash)}"
              data-path="${escapeHtml(file.path)}"
              data-tooltip="${escapeHtml(S.history_explorer?.open_in_diff_tool || 'Open in diff tool')}">
-            ${fileIconHtml(file.path.split('/').pop())}
+            ${fileIconHtml(basename(file.path))}
             <span class="he-file-path">${escapeHtml(file.path)}</span>
             <span class="he-file-stats">
                 <span class="he-additions">+${file.additions}</span>
@@ -1014,7 +1015,7 @@ function renderFileList(files) {
         <div class="he-file-list">
             ${files.map(f => `
                 <div class="he-file-row" data-action="select-file" data-path="${escapeHtml(f)}">
-                    ${fileIconHtml(f.split('/').pop())}
+                    ${fileIconHtml(basename(f))}
                     <span class="he-file-name">${escapeHtml(f)}</span>
                     <span class="he-file-preview-icon"
                           data-action="preview-file"
@@ -1080,7 +1081,7 @@ function renderTreeNode(node, path) {
                 </div>
             `;
         } else {
-            const dirPath = path ? `${path}/${name}` : name;
+            const dirPath = path ? joinPath(path, name) : name;
             const isExpanded = state.expandedDirs.has(dirPath);
             return `
                 <div class="he-tree-dir ${isExpanded ? 'expanded' : ''}">
@@ -1125,7 +1126,7 @@ function renderFileHistory() {
 }
 
 function renderFileHistoryHeader(totalAdditions, totalDeletions) {
-    const fileName = state.selectedFile.split('/').pop();
+    const fileName = basename(state.selectedFile);
     const dirPath = state.selectedFile.includes('/')
         ? state.selectedFile.slice(0, state.selectedFile.lastIndexOf('/'))
         : '';

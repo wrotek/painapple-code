@@ -66,7 +66,7 @@ def detect_runtimes():
         version = ""
         try:
             out = subprocess.run([path, "--version"], capture_output=True,
-                                 text=True, timeout=5).stdout.strip()
+                                 text=True, encoding="utf-8", errors="replace", timeout=5).stdout.strip()
             m = re.search(r"version\s+v?([0-9][\w.-]*)", out)
             version = m.group(1).rstrip(",") if m else out
         except (OSError, subprocess.TimeoutExpired):
@@ -101,7 +101,7 @@ class Runtime:
     def output(self, *args):
         """Stdout of a runtime call, or '' on any failure."""
         try:
-            proc = self.run(*args, capture_output=True, text=True)
+            proc = self.run(*args, capture_output=True, text=True, encoding="utf-8", errors="replace")
             return proc.stdout if proc.returncode == 0 else ""
         except OSError:
             return ""

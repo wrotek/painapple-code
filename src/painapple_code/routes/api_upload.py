@@ -11,13 +11,14 @@ import io
 import logging
 import secrets
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from PIL import Image
 
 from painapple_code.session_store import SessionStore
 from painapple_code.bridge_paths import BRIDGE_HOME
+from painapple_code.utils.file_paths import is_reserved_dos_name
 
 logger = logging.getLogger(__name__)
 
@@ -149,18 +150,83 @@ async def upload_image(file: UploadFile = File(...), session: str = None):
     }
 
 
+# Longest filename we hand to the filesystem. NAME_MAX is 255 on ext4 and
+# NTFS; 200 leaves room for the "-2", "-3" de-duplication suffixes callers
+# append.
+_MAX_NAME_LEN = 200
+
+
+def _truncate_name(name: str) -> str:
+    """Clamp to _MAX_NAME_LEN, keeping the extension when one can fit.
+
+    PurePosixPath, not Path, for the same reason as the basename split
+    below: nothing here should vary with the host OS. (No separators or
+    colons survive to this point, so the two flavors agree — but pinning
+    it keeps that true if the rules above ever change.)
+
+    The old form was `name[:200 - len(ext)] + ext`, which for any suffix
+    longer than 200 made the slice bound negative — `name[:-51]` chops the
+    WRONG end and still returns an over-limit name (a 256-char input came
+    back 251 chars). A suffix that alone busts the budget isn't an
+    extension in any useful sense, so it gets clamped like any other text.
+    """
+    if len(name) <= _MAX_NAME_LEN:
+        return name
+    ext = PurePosixPath(name).suffix
+    if len(ext) > _MAX_NAME_LEN:
+        return name[:_MAX_NAME_LEN]
+    return PurePosixPath(name).stem[:_MAX_NAME_LEN - len(ext)] + ext
+
+
 def sanitize_filename(filename: str) -> str:
     """Sanitize a filename to prevent path traversal and other issues."""
     if not filename:
         raise ValueError("Empty filename")
 
-    filename = Path(filename).name
+    # Basename under BOTH path flavors, not whichever one the host happens to
+    # be. `Path(filename).name` was platform-dependent in a way that changed
+    # the result: WindowsPath("a:b.txt").name is "b.txt" — it reads "a:" as a
+    # drive — while PosixPath's is "a:b.txt". So the same upload landed under
+    # a different name depending on the server's OS, and the colon rule below
+    # only ran on one of them. Splitting on both separators here makes every
+    # platform agree (and "a:b.txt" reaches the ':' rule everywhere).
+    filename = filename.replace('\\', '/').rsplit('/', 1)[-1]
     filename = "".join(c for c in filename if c.isprintable() and c not in '\x00')
-    filename = filename.replace('/', '_').replace('\\', '_')
 
-    if len(filename) > 200:
-        name, ext = Path(filename).stem, Path(filename).suffix
-        filename = name[:200 - len(ext)] + ext
+    # NTFS forbids these outright; without stripping them the write fails
+    # with an opaque OSError instead of a clean rejection.
+    filename = "".join('_' if c in ':*?"<>|' else c for c in filename)
+
+    # NTFS silently strips trailing dots and spaces, so "report." and
+    # "report" become the same file — a quiet overwrite of someone else's
+    # upload, and a way to smuggle a second name past a uniqueness check.
+    filename = filename.rstrip(". ")
+
+    # Length first, reserved-device check AFTER it. The other order is what
+    # the comment here used to claim was safe ("before length truncation so
+    # that truncating can't create one") and it was exactly backwards:
+    # truncation is the step that CAN create one. `con` + 10 filler chars +
+    # a 197-char extension passed the guard on stem "conxxxxxxxxxx", then
+    # truncated to "con.yyy…" — a name Windows resolves to the CON console
+    # device, so the upload's write_bytes went to the console.
+    filename = _truncate_name(filename)
+    filename = filename.rstrip(". ")
+
+    # An alternate-data-stream suffix is gone with ':' above; device names
+    # need their own check. Shared with the read-path screen in
+    # utils.file_paths so the two can't disagree about what a device is —
+    # this file's private copy had already drifted, accepting "nul .txt"
+    # (Windows strips the trailing space and opens the device) that
+    # is_path_allowed_for_read denies.
+    #
+    # Applied on EVERY platform, not just win32: uploads are shared (synced
+    # dirs, a repo later cloned on Windows), and a Linux-hosted bridge
+    # shouldn't be able to mint a file its Windows users can't open.
+    if is_reserved_dos_name(filename):
+        # The prefix can push a just-at-limit name one over, so re-clamp.
+        # This can't loop: every truncation of "_…" still starts with "_",
+        # which is not a device name.
+        filename = _truncate_name("_" + filename).rstrip(". ")
 
     if not filename or filename in ('.', '..'):
         raise ValueError("Invalid filename after sanitization")

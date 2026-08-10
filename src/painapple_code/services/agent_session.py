@@ -15,9 +15,11 @@ import logging
 import os
 import re
 import signal
+import sys
 import time
 import traceback
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
 
@@ -30,6 +32,12 @@ from painapple_code.turn_tracker import (
     TurnTracker, summarize_edit_output, summarize_write_output,
 )
 from painapple_code.utils.agent_cli import read_line_unlimited
+from painapple_code.utils.proc import (
+    interrupt_process,
+    pid_alive,
+    popen_kwargs_detached,
+    resolve_binary,
+)
 from painapple_code.utils.file_paths import (
     extract_file_links, add_verified_files_to_message, parse_edit_line_number,
 )
@@ -562,13 +570,7 @@ class AgentBridge:
 
                 # Validate process state - fix stale is_running if process died
                 if session.is_running:
-                    process_alive = False
-                    if session.process:
-                        try:
-                            os.kill(session.process.pid, 0)
-                            process_alive = True
-                        except (OSError, ProcessLookupError):
-                            pass
+                    process_alive = bool(session.process) and pid_alive(session.process.pid)
 
                     if not process_alive:
                         logger.warning(
@@ -746,6 +748,15 @@ class AgentBridge:
 
             # Build subprocess environment with token profile if configured
             subprocess_env = build_token_env(resolve_profile(session.token_profile, session.provider))
+            if sys.platform == "win32":
+                # Python children (claude_sdk driver + the SDK inside it) must
+                # do UTF-8 file/pipe IO regardless of the console codepage;
+                # inert for non-Python providers (claude/codex are node).
+                # build_token_env returns None for "inherit parent env" —
+                # materialize a copy so the setdefault has something to land on.
+                if subprocess_env is None:
+                    subprocess_env = os.environ.copy()
+                subprocess_env.setdefault("PYTHONUTF8", "1")
 
             logger.info(f"Starting {session.provider.display_name} in {session.cwd}" +
                         (f" (token: {session.token_profile})" if session.token_profile else ""))
@@ -753,13 +764,15 @@ class AgentBridge:
 
             try:
                 session.process = await asyncio.create_subprocess_exec(
-                    *cmd,
+                    resolve_binary(cmd[0]), *cmd[1:],
                     stdin=asyncio.subprocess.DEVNULL if ephemeral else asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=session.cwd,
                     env=subprocess_env,
-                    start_new_session=True,  # isolate from server's process group
+                    # POSIX: own session; win32: own process group (needed
+                    # for CTRL_BREAK interrupts — see utils/proc.py)
+                    **popen_kwargs_detached(),
                 )
             except FileNotFoundError:
                 # Raised both for a missing executable and a missing cwd.
@@ -974,7 +987,7 @@ class AgentBridge:
                         logger.info(f"Auto-stopping agent for {tool} user input")
                         session._interrupting = True
                         try:
-                            session.process.send_signal(signal.SIGINT)
+                            interrupt_process(session.process)
                         except (ProcessLookupError, OSError):
                             pass
 
@@ -1297,7 +1310,7 @@ class AgentBridge:
                 await session.safe_send(self._auth_error_frame(session, 401))
                 session._interrupting = True
                 try:
-                    session.process.send_signal(signal.SIGINT)
+                    interrupt_process(session.process)
                 except (ProcessLookupError, OSError, AttributeError):
                     pass
 
@@ -1626,10 +1639,18 @@ class AgentBridge:
     def _track_file_modification(self, session: AgentSession, tool_id: str, tool_name: str, tool_input: dict):
         """Track Edit/Write file modifications for shadow git and turn tracker."""
         file_path = tool_input.get("file_path")
-        # Make path relative to cwd (ensure directory boundary match)
-        cwd_prefix = session.cwd.rstrip("/") + "/"
-        if session.cwd and file_path.startswith(cwd_prefix):
-            file_path = file_path[len(cwd_prefix):]
+        # Make path relative to cwd (directory-boundary safe). pathlib, not
+        # string-prefix: `cwd.rstrip("/") + "/"` never matches Windows
+        # `C:\...` paths, which recorded every file under its ABSOLUTE
+        # path and broke shadow-git keying. Forward slashes always — git
+        # pathspecs and the shadow store use them on every platform.
+        if session.cwd and file_path:
+            try:
+                p, cwd = Path(file_path), Path(session.cwd)
+                if p.is_absolute() and p.is_relative_to(cwd):
+                    file_path = p.relative_to(cwd).as_posix()
+            except (ValueError, OSError):
+                pass  # foreign/malformed path — record as given, as before
         session.turn_tracker.add_modified_file(file_path)
 
         # Track in shadow git (skip for comment threads)
@@ -2001,7 +2022,7 @@ class AgentBridge:
         client's re-login card says "Log in to Codex" and opens the right CLI
         — not a hardcoded `claude auth login`.
         """
-        import shlex
+        from painapple_code.utils.proc import shell_join
         from painapple_code import bridge_paths
 
         p = session.provider
@@ -2022,7 +2043,7 @@ class AgentBridge:
             configured = config.get(p.path_config_key) if p.path_config_key else None
             binary = configured or p.default_binary
             if binary:
-                frame["login_command"] = shlex.join([binary, *p.auth_login_args])
+                frame["login_command"] = shell_join([binary, *p.auth_login_args])
         return frame
 
     async def _cleanup_process(self, session: AgentSession):
@@ -2538,13 +2559,13 @@ class AgentBridge:
                 session._interrupting = False
 
         try:
-            logger.info("Interrupting Claude with SIGINT")
+            logger.info("Interrupting agent (SIGINT / CTRL_BREAK on win32)")
             session._interrupting = True
             # Cancel any pending API retry
             session._api_retry_pending = False
             session._api_error_detected = False
             session._api_retry_count = 0
-            session.process.send_signal(signal.SIGINT)
+            interrupt_process(session.process)
 
             # Notify client that we're stopping
             await session.safe_send({

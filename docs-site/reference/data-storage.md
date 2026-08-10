@@ -65,7 +65,7 @@ Override with `PAINAPPLE_CODE_CONFIG`. Kept separate so credentials survive wipi
 
 | Path | Purpose |
 |------|---------|
-| `config.yaml` | Auth password (mode `0600`, parent `0700`) |
+| `config.yaml` | Auth password — owner-only (mode `0600`, parent `0700`; an equivalent NTFS ACL on Windows) |
 | `tokens/` | Optional token-profile files (alternate API credentials selectable per session) |
 | `cert.pem`, `key.pem` | Auto-generated self-signed TLS cert/key (when TLS is enabled) |
 | `fingerprint` | Cert fingerprint sidecar (only with `--tls-fp-url`) |

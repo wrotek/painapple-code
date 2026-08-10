@@ -13,6 +13,7 @@ import { CONFIG } from '../config.js';
 import { state } from './state.js';
 import { renderWelcomeScreen } from '../welcome.js';
 import { setProjectColorOverride } from '../project-colors.js';
+import { basename } from '../path-utils.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DATA LOADERS
@@ -136,7 +137,7 @@ export function mergeLocalSessions() {
         const apiSession = {
             session_id: localSession.storeId,
             name: localSession.name || null,
-            project: localSession.cwd ? localSession.cwd.split('/').pop() : 'New Session',
+            project: localSession.cwd ? basename(localSession.cwd) : 'New Session',
             project_path: localSession.cwd || '',
             created_at: localSession.createdAt,
             last_activity: localSession.lastActivity || localSession.createdAt,

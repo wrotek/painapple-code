@@ -87,9 +87,12 @@ async def _engine_path_payload(p) -> dict:
             # block every other request for up to 5s.
             result = await asyncio.to_thread(
                 subprocess.run,
-                [current, "--version"],
+                # `resolved`, not `current`: on win32 a bare npm-shim name
+                # ("claude" → claude.cmd) isn't spawnable, but the full
+                # path shutil.which returned is.
+                [resolved, "--version"],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=5,
             )
             if result.returncode == 0:
@@ -230,7 +233,7 @@ async def get_engine_auth(provider_name: str):
     terminal tab. `logged_in: null` = probe couldn't run (binary missing,
     timeout); `supported: false` = the provider describes no auth probe.
     """
-    import shlex
+    from painapple_code.utils.proc import shell_join
 
     p = _provider_or_404(provider_name)
     if not p.auth_status_args:
@@ -241,7 +244,7 @@ async def get_engine_auth(provider_name: str):
     current = configured or p.default_binary
     resolved = current if Path(current).is_absolute() else shutil.which(current)
     login_command = (
-        shlex.join([current, *p.auth_login_args]) if p.auth_login_args else None
+        shell_join([current, *p.auth_login_args]) if p.auth_login_args else None
     )
 
     logged_in, detail = None, ""
@@ -250,9 +253,11 @@ async def get_engine_auth(provider_name: str):
             # Off the event loop — a hung status probe must not block requests.
             result = await asyncio.to_thread(
                 subprocess.run,
-                [current, *p.auth_status_args],
+                # `resolved` for the same reason as the version probe:
+                # bare .cmd shim names aren't spawnable on win32.
+                [resolved, *p.auth_status_args],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=10,
             )
             parsed = p.parse_auth_status(

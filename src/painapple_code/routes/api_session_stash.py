@@ -7,6 +7,7 @@ Endpoints for managing:
 """
 
 import logging
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -159,8 +160,8 @@ async def get_favorites():
                     "updated_at": fav.get("updated_at"),
                     "project_hash": fav.get("project_hash") or session_data.get("project_hash"),
                     "session": {
-                        "name": session_data.get("name") or cwd.split("/")[-1] or "Session",
-                        "project": cwd.split("/")[-1] if cwd else None,
+                        "name": session_data.get("name") or (Path(cwd).name if cwd else "") or "Session",
+                        "project": Path(cwd).name if cwd else None,
                         "project_path": cwd,
                         "last_activity": session_data.get("last_activity"),
                         "created_at": session_data.get("created_at"),

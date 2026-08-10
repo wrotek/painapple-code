@@ -5,7 +5,13 @@
 #                      CVE-2024-28219, CVE-2025-48379)
 #   cryptography>=43.0.1 -> CVE-2024-26130 / GHSA-h4gh (NULL-deref + Bleichenbacher fixes)
 fastapi>=0.115.0
-uvicorn[standard]>=0.24.0
+# uvicorn's [standard] extra pulls httptools, which publishes no
+# win_arm64 wheel — pip would try to build it from source and fail on a
+# stock Windows-on-ARM box (Surface / Snapdragon X). Those machines get
+# plain uvicorn (asyncio loop, h11 parser): measurably slower per request,
+# entirely fine for a single-user bridge. Everyone else keeps the fast path.
+uvicorn[standard]>=0.24.0; platform_machine != "ARM64" or sys_platform != "win32"
+uvicorn>=0.24.0; platform_machine == "ARM64" and sys_platform == "win32"
 websockets>=12.0
 duckdb>=1.0.0
 pytz
@@ -16,4 +22,6 @@ cryptography>=43.0.1
 httpx>=0.28.0
 httpcore>=1.0  # imported directly for the browser-proxy SSRF-guard transport
 questionary>=2.1
+psutil>=5.9  # utils/proc.py liveness + process discovery — os.kill(pid,0) lies on win32 and /proc doesn't exist on macOS/Windows
+pywinpty>=2.0; sys_platform == "win32"  # utils/pty_windows.py — ConPTY for the terminal tab (POSIX uses stdlib pty)
 claude-agent-sdk>=0.2.111,<0.3  # claude-sdk provider driver (providers/claude_sdk/); upper-pinned because the driver's tee subclasses the SDK's _internal SubprocessCLITransport — raise the ceiling deliberately (test-cli skill) when bumping the minor

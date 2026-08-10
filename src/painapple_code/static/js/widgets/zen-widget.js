@@ -14,6 +14,7 @@ import S from '../strings.js';
 import { escapeHtml } from '../utils.js';
 import { showToast } from '../context-menu.js';
 import { engineAuthorLabel } from '../status-bar.js';
+import { basename } from '../path-utils.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // SVG Icons (inline to avoid dependencies)
@@ -205,7 +206,7 @@ function computeLayout(data, width, height) {
             const fx = tx + Math.cos(fAngle) * fileRadius;
             const fy = ty + Math.sin(fAngle) * fileRadius;
             const fileId = `${turnId}-f-${j}`;
-            const fileName = fp.split('/').pop();
+            const fileName = basename(fp);
 
             nodes.push({
                 id: fileId,
@@ -383,14 +384,14 @@ function showNodeDetail(node, mapContainer) {
             ${turn.files.size ? `
                 <div class="zen-detail-files">
                     ${[...turn.files.entries()].slice(0, 8).map(([fp, action]) =>
-                        `<div class="zen-detail-file">${action === 'edited' ? '~' : action === 'read' ? '>' : '?'} ${fp.split('/').pop()}</div>`
+                        `<div class="zen-detail-file">${action === 'edited' ? '~' : action === 'read' ? '>' : '?'} ${basename(fp)}</div>`
                     ).join('')}
                 </div>
             ` : ''}
         `;
     } else if (node.type === 'file' && node.data) {
         html = `
-            <div class="zen-detail-title">${escapeHtml(node.data.path.split('/').pop())}</div>
+            <div class="zen-detail-title">${escapeHtml(basename(node.data.path))}</div>
             <div class="zen-detail-meta">${escapeHtml(node.data.path)}</div>
             <div class="zen-detail-meta" style="margin-top:4px;color:var(--zen-accent-dim)">${node.data.action}</div>
         `;
@@ -708,7 +709,7 @@ function renderChat(container, session) {
                 html += `<div class="zen-chat-tools">`;
                 for (const tool of block.tools) {
                     const icon = tool.name === 'Read' ? '&gt;' : tool.name === 'Edit' ? '~' : tool.name === 'Write' ? '+' : tool.name === 'Bash' ? '$' : '&bull;';
-                    const detail = tool.detail ? tool.detail.split('/').pop() : '';
+                    const detail = tool.detail ? basename(tool.detail) : '';
                     html += `<div class="zen-chat-tool"><span class="zen-tool-icon">${icon}</span><span class="zen-tool-name">${escapeHtml(tool.name)}</span>${detail ? `<span class="zen-tool-detail">${escapeHtml(detail)}</span>` : ''}</div>`;
                 }
                 html += `</div>`;
