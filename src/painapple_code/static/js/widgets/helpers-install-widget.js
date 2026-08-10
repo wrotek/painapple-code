@@ -221,9 +221,13 @@ function renderHelpersSection(status) {
             </li>`;
     }).join('');
     // Don't tell someone to run a helper we just told them isn't available.
+    // The invocation itself is platform-specific (PowerShell needs the bare
+    // name so PATHEXT finds the .cmd), so the server hands us the exact text.
     const anyUnsupported = (status.files || []).some(f => f.unsupported);
     const usageExample = anyUnsupported
-        ? M.helpers_usage_example_agent_only : M.helpers_usage_example;
+        ? M.helpers_usage_example_agent_only
+        : M.helpers_usage_example.replace(
+            '{cmd}', escapeHtml(status.usage_command || '~/.local/bin/shadow-git log'));
     // Subagent model selector — same picks as the main model selector (full
     // model IDs from models.yaml) plus "Inherit". Styled buttons (no native
     // select); labels come from formatModelLabel so they match the main selector.

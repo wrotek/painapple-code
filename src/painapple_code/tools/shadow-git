@@ -232,6 +232,16 @@ esac
 
 # Get project path (default to current directory)
 PROJECT_PATH="${SHADOW_PROJECT:-$(pwd)}"
+
+# Under Git Bash / MSYS the same directory has two spellings, and the hash is
+# taken over the STRING: bash sees /c/Users/me/proj, while the server (running
+# as a native Windows process) hashed C:\Users\me\proj. Different digest, so a
+# plain `shadow-git log` reported "No shadow git found" for a project that has
+# one. cygpath exists only on those shells, so this is a no-op elsewhere.
+if [ -z "${SHADOW_PROJECT:-}" ] && command -v cygpath >/dev/null 2>&1; then
+    PROJECT_PATH=$(cygpath -w "$PROJECT_PATH")
+fi
+
 HASH=$(project_hash "$PROJECT_PATH")
 SHADOW_GIT_DIR="${BRIDGE_DIR}/projects/${HASH}/shadow-git"
 

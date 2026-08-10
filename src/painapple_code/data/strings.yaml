@@ -1880,7 +1880,7 @@ helpers:
     section_project: "This project"
     section_helpers: "Optional helpers"
     section_helpers_hint: "Auto-journal records regardless. These helpers add ways to query it."
-    helpers_usage_example: "Type <code>#</code> in chat → pick <code>shadow-git-helper</code> to summon a subagent that searches your journal. Or run <code>~/.local/bin/shadow-git log</code> in the terminal."
+    helpers_usage_example: "Type <code>#</code> in chat → pick <code>shadow-git-helper</code> to summon a subagent that searches your journal. Or run <code>{cmd}</code> in the terminal."
     helpers_usage_example_agent_only: "Type <code>#</code> in chat → pick <code>shadow-git-helper</code> to summon a subagent that searches your journal."
     helpers_status_missing: "Not installed"
     helpers_status_unsupported: "Not available here"
