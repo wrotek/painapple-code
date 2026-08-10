@@ -61,6 +61,7 @@ Found a vulnerability? Please report it privately — see [`SECURITY.md`](SECURI
 
 - **Server:** Linux, macOS, or Windows 10/11 — natively, no WSL required. ([Windows notes](https://painapple.ai/getting-started/requirements/#windows-notes): install the Claude CLI with `irm https://claude.ai/install.ps1 | iex`, not npm.)
 - **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image ships Python and Node, and installs the agent CLIs itself on first start.)
+- **Git** on `PATH` — the auto-journal records every turn as a shadow-git commit, and the Git panel shells out to it. Without git the server runs but journals nothing. (Windows: [Git for Windows](https://git-scm.com/download/win), which also provides the bash the optional helpers run under.)
 - **Optional:** Docker or Podman, if you want the sandboxed `--in-docker` run mode and the named container instances.
 - **Optional:** the [OpenAI Codex CLI](https://github.com/openai/codex), if you want the Codex engine.
 - **Client:** any modern browser with network access to the server.

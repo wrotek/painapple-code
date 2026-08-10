@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import signal
 import sys
 import time
@@ -104,6 +105,24 @@ async def lifespan(app: FastAPI):
     # this process actually imported.
     from painapple_code.routes.api_bridge import capture_boot_version
     capture_boot_version()
+
+    # `git` is a hard requirement, not an optional extra: the auto-journal
+    # shells out to it for every turn, and the Git panel for every diff.
+    # Without it the failure is SILENT — ShadowGit.init_repo() catches the
+    # FileNotFoundError, logs at exception level and returns False, so the
+    # server comes up looking healthy and simply never journals anything.
+    # Say so once, loudly, at boot instead.
+    if shutil.which("git") is None:
+        hint = (
+            " Windows: install Git for Windows (https://git-scm.com/download/win),"
+            " which also provides the bash that the optional shadow-git/"
+            "shadow-query helpers run under."
+            if sys.platform == "win32" else ""
+        )
+        logger.warning(
+            "git not found on PATH — the auto-journal (shadow git) and the "
+            "Git panel are both disabled. Install git and restart." + hint
+        )
 
     # Bridge is created in main() before uvicorn.run() so --cwd is available
     if bridge:
