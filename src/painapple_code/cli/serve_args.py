@@ -21,6 +21,12 @@ import sys
 
 from painapple_code import __version__
 
+#: Default bind port. Shared with ``server.resolve_allowed_origins()``, which
+#: derives its no-config trusted-origin fallback from it — keep it a constant so
+#: the two can't drift (they did: a hardcoded origin list outlived a port
+#: renumber and shipped a stale port as a trusted default for months).
+DEFAULT_PORT = 8765
+
 
 def _subcommands_epilog():
     """Epilog for `serve --help` pointing back at the command overview
@@ -71,7 +77,7 @@ def build_parser():
     core.add_argument("--host", default="127.0.0.1",
                       help="Host interface to bind (default 127.0.0.1 — this machine "
                            "only; 0.0.0.0 = every interface, reachable on your LAN)")
-    core.add_argument("--port", type=int, default=8765, help="Port to bind to")
+    core.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port to bind to")
     core.add_argument("--workspace", "--cwd", dest="workspace", default=".",
                       help="Workspace root — the directory holding your projects. "
                            "You pick the actual project in-app from the welcome "
@@ -122,8 +128,9 @@ def build_parser():
     adv.add_argument("--public-origin", action="append", default=None, metavar="ORIGIN",
                      help="Trusted browser origin for a proxied deployment, e.g. "
                           "https://claude.example.com. Repeatable. Adds to the "
-                          "HTTP/WebSocket Origin allowlist (and replaces the loopback "
-                          "dev defaults). Also honoured via BRIDGE_ALLOWED_ORIGINS.")
+                          "HTTP/WebSocket Origin allowlist (and replaces the default, "
+                          "which trusts only loopback on the bound port). Also "
+                          "honoured via BRIDGE_ALLOWED_ORIGINS.")
     adv.add_argument("--enable-renderers", action="store_true",
                      help="Enable server-side Vega-Lite/Excalidraw rendering (off by "
                           "default: model-authored specs are rendered via a Node "

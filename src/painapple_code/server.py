@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Optional
 
 from painapple_code import PACKAGE_DIR, REPO_ROOT
-from painapple_code.cli.serve_args import build_parser
+from painapple_code.cli.serve_args import DEFAULT_PORT, build_parser
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -411,42 +411,43 @@ app.add_middleware(AccessLogMiddleware, logger=access_logger)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(AuthMiddleware)
-# Loopback dev origins — the default trust set when nothing is configured.
-_DEFAULT_CORS_ORIGINS = [
-    "http://localhost:8765",
-    "http://localhost:8800",
-    "http://localhost:8880",
-    "http://127.0.0.1:8765",
-    "http://127.0.0.1:8800",
-    "http://127.0.0.1:8880",
-]
+def _loopback_origins(port) -> set:
+    """This bridge's own loopback origins on ``port`` — the no-config default
+    trust set. Derived from the actual bind, never hardcoded per-deployment."""
+    return {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
 
 
-def resolve_allowed_origins(public_origins=(), host=None, port=None) -> set:
+def resolve_allowed_origins(public_origins=(), port=None) -> set:
     """Single source of truth for trusted browser origins — feeds both CORS
     and the HTTP/WebSocket Origin checks (auth_middleware).
 
+    This set is only an *exception list* for genuinely cross-origin callers. It
+    is NOT how the normal client is authorized: `check_csrf_origin` accepts any
+    request whose Origin matches the host it was reached on (config-free), so a
+    LAN bind or a proxied hostname works without appearing here.
+
     Precedence: explicit config (BRIDGE_ALLOWED_ORIGINS env + ``--public-origin``)
-    wins and REPLACES the loopback dev defaults (so a proxied production deploy
-    doesn't silently trust localhost dev ports). With no explicit config we fall
-    back to the loopback dev set. The exact bound loopback origin is always
-    included so direct localhost access and health checks keep working.
+    wins and REPLACES the loopback default. That replacement is deliberate and
+    load-bearing: ``Origin: http://127.0.0.1:PORT`` is asserted by the *browser*,
+    so on a remote/proxied deployment it means "a page served by whatever is
+    listening on the VICTIM's own localhost:PORT" — the hostile-local-app case
+    in the threat model, not this server. Once a deployment tells us its real
+    origin, the loopback guess is worse than useless.
+
+    With no explicit config we trust loopback on the port we actually bound
+    (falling back to DEFAULT_PORT when the caller has no argv yet, e.g. the
+    import-time CORS wiring). Non-loopback binds get the same derived pair:
+    the browser may well sit on the same machine as the bridge.
     """
     origins = set()
     env = os.environ.get("BRIDGE_ALLOWED_ORIGINS", "").strip()
     if env:
         origins.update(o.strip() for o in env.split(",") if o.strip())
     origins.update(o for o in (public_origins or ()) if o)
+    if origins:
+        return origins
 
-    if host and port:
-        loopback = host in ("127.0.0.1", "localhost", "::1", "0.0.0.0")
-        if loopback:
-            origins.add(f"http://127.0.0.1:{port}")
-            origins.add(f"http://localhost:{port}")
-
-    if not origins:
-        origins.update(_DEFAULT_CORS_ORIGINS)
-    return origins
+    return _loopback_origins(port or DEFAULT_PORT)
 
 
 def resolve_allowed_hosts() -> list:
@@ -1751,14 +1752,30 @@ def main(argv=None):
     # be told, not sniff navigator.platform — see static/js/path-utils.js.
     instance_config["path_style"] = "windows" if sys.platform == "win32" else "posix"
 
-    # Resolve the trusted-origin set now that host/port/--public-origin are
-    # known. The HTTP + WebSocket Origin checks read this.
+    # Resolve the trusted-origin set now that port/--public-origin are known.
+    # The HTTP + WebSocket Origin checks read this.
+    _configured_origins = bool(
+        args.public_origin or os.environ.get("BRIDGE_ALLOWED_ORIGINS", "").strip()
+    )
     app.state.allowed_origins = resolve_allowed_origins(
         public_origins=args.public_origin or (),
-        host=args.host,
         port=args.port,
     )
-    logger.info(f"Trusted origins: {sorted(app.state.allowed_origins)}")
+    # Only worth a startup line when someone configured it — that's the case
+    # where a wrong value locks out a real front-end and wants confirming. The
+    # derived loopback default is not "the origins that work" (same-origin
+    # traffic never consults this set), so announcing it at INFO just reads as
+    # a promise the list isn't making.
+    if _configured_origins:
+        logger.info(
+            "Trusted cross-origin exceptions (configured): %s",
+            sorted(app.state.allowed_origins),
+        )
+    else:
+        logger.debug(
+            "Trusted cross-origin exceptions (derived loopback default): %s",
+            sorted(app.state.allowed_origins),
+        )
 
     # Per-tier UI-state isolation — must run before any state file is read or
     # written (tab-state, shortcuts, presets, favorites, global config).
