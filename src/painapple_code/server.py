@@ -132,6 +132,18 @@ async def lifespan(app: FastAPI):
     if bridge:
         bridge.start_cleanup_task()
         logger.info("Painapple Code initialized")
+    # Deliberately a hint, not an auto-build: shelling out to npm on the boot
+    # path would put a network call (and a new failure mode) in front of
+    # serving, for what is only an optimisation. Gated on the build script
+    # being present, so it fires only where the fix is actually available —
+    # a from-source install, never a wheel (which ships a bundle already).
+    if not _bundle_path() and not os.environ.get("PAINAPPLE_NO_BUNDLE"):
+        if (REPO_ROOT / "build-frontend.sh").is_file():
+            logger.info(
+                "Frontend is not bundled — a cold page load fetches ~190 modules. "
+                "Run ./build-frontend.sh to serve a single bundle instead "
+                "(re-run it after frontend changes; --clean to undo)."
+            )
     yield
     if bridge and bridge._cleanup_task:
         bridge._cleanup_task.cancel()
