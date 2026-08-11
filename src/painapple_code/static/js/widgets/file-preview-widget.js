@@ -416,7 +416,7 @@ export function registerFilePreviewWidget() {
                                 if (w) {
                                     w.innerHTML = renderBody();
                                     setupEventHandlers(w);
-                                    if (content && window.hljs) {
+                                    if (content) {
                                         highlightContent(w);
                                     }
                                     // This path bypasses render()/rerenderContent(),
@@ -504,7 +504,13 @@ export function registerFilePreviewWidget() {
             container.innerHTML = renderPreview();
             setupEventHandlers(container);
 
-            if (state.content && !state.plugin && window.hljs) {
+            // No `!state.plugin` guard: a plugin owning the file says nothing
+            // about which view is on screen, and every plugin-backed type
+            // (.json, .csv, .md, .html, .jsonl) still has a Code tab. That
+            // guard is why JSON rendered all-white in Code view. highlightContent
+            // is already a no-op when there's no .preview-code-wrapper, so the
+            // view-mode check lives in exactly one place.
+            if (state.content) {
                 highlightContent(container);
             }
 

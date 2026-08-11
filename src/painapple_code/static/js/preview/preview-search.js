@@ -58,7 +58,10 @@ export function rerenderContent() {
         tabContainer.innerHTML = fns.renderBody();
         fns.setupEventHandlers(tabContainer);
 
-        if (state.content && !state.plugin && window.hljs) {
+        // See file-preview-widget.js: gating on `!state.plugin` skipped
+        // highlighting for the Code view of every plugin-backed file type.
+        // highlightContent() bails on its own when no code wrapper is rendered.
+        if (state.content) {
             fns.highlightContent(tabContainer);
         }
 
@@ -89,7 +92,7 @@ export function rerenderContent() {
         container.innerHTML = fns.renderBody();
         fns.setupEventHandlers(container);
 
-        if (state.content && !state.plugin && window.hljs) {
+        if (state.content) {
             fns.highlightContent(container);
         }
 

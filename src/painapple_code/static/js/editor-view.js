@@ -156,6 +156,12 @@ function buildAppHighlighter(cm) {
         { tag: [t.string, t.regexp, t.attributeName], class: 'tok-string' },
         { tag: [t.number, t.bool, t.atom], class: 'tok-number' },
         { tag: t.comment, class: 'tok-comment' },
+        // Bare t.propertyName needs its own rule. The parent-set lookup only
+        // walks UP (t.null → t.keyword is covered by the keyword rule above),
+        // so t.function(t.propertyName) below matches function-valued keys and
+        // nothing else. JSON tags every object key as plain propertyName, whose
+        // parent is t.name — which no rule claims — so keys rendered unstyled.
+        { tag: t.propertyName, class: 'tok-property' },
         { tag: [t.function(t.variableName), t.function(t.propertyName), t.heading], class: 'tok-function' },
         { tag: [t.typeName, t.className, t.namespace], class: 'tok-type' },
         { tag: t.tagName, class: 'tok-tag' },

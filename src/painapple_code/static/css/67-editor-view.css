@@ -739,6 +739,7 @@
 .tok-number { color: #d19a66; }              /* numbers, bools, atoms */
 .tok-comment { color: #5c6370; font-style: italic; }
 .tok-function { color: #61afef; }            /* function names, headings */
+.tok-property { color: #e06c75; }            /* object keys (JSON/JS property names) */
 .tok-type { color: #e5c07b; }                /* types, classes, namespaces */
 .tok-tag { color: #e06c75; }                 /* markup tag names */
 .tok-link { color: #61afef; }
