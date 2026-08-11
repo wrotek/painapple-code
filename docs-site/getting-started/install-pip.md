@@ -41,6 +41,15 @@ Then:
     painapple --workspace C:\Users\you\projects
     ```
 
+!!! warning "Windows on ARM needs one extra flag"
+    On ARM64 Windows (Surface, Snapdragon X), install with:
+
+    ```powershell
+    pipx install painapple-code --pip-args="--only-binary=cryptography"
+    ```
+
+    `cryptography` publishes no ARM64 Windows wheel past 46.0.3. Without the flag pip picks a newer version, finds no wheel, falls back to building it from Rust source, and fails unless you have the MSVC build tools installed. The flag holds it at the newest version that *does* ship a wheel. Keep it scoped to `cryptography` — `--only-binary=:all:` also rules out `claude-agent-sdk`, which is source-only, and breaks the install a different way. x64 needs none of this.
+
 The package drops a `painapple` console script on your PATH. Bare `painapple` serves the current directory (the explicit form is `painapple serve`); add `--in-docker` to run the same thing in a container — see [container mode](install-docker.md) and [Profiles & container mode](../reference/profiles.md).
 
 ## pip (into a venv)

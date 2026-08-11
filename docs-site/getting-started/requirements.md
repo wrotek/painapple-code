@@ -29,13 +29,13 @@ pAInapple Code runs natively on all three desktop platforms. No WSL required.
 - **The terminal tab runs PowerShell** through ConPTY. `pwsh` (PowerShell 7) is preferred when present, otherwise Windows PowerShell; override with `PAINAPPLE_CODE_SHELL`.
 - **`!bang` commands are PowerShell-flavored** on Windows, not `sh`.
 - **File permissions** are enforced with NTFS ACLs (owner-only, applied via `icacls`) rather than POSIX mode bits — see [security](security.md).
-- **Windows on ARM** (Surface, Snapdragon X) works, on a slightly slower HTTP stack: the optional `httptools` parser publishes no ARM64 wheel, so those machines use uvicorn's pure-Python parser. This is automatic; you don't have to do anything.
+- **Windows on ARM** (Surface, Snapdragon X) works, with two wheel caveats. The HTTP stack is slightly slower — the optional `httptools` parser publishes no ARM64 wheel, so those machines use uvicorn's pure-Python parser, automatically and with nothing for you to do. The install itself, though, needs one flag: `cryptography` stopped publishing ARM64 Windows wheels after 46.0.3, and without the flag pip tries to compile it from Rust source and fails. See [pip install](install-pip.md).
 - Data lives in `%USERPROFILE%\.painapple-code` — the same `~/.painapple-code` layout as the other platforms, deliberately, so the docs and support answers match everywhere.
 
 !!! tip "Docker skips most of this"
     Running in a container is the recommended way to start instances on Linux and macOS, and it moves most of this list off your host: the image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start. You still install pAInapple Code on the host with pipx — you just add `--in-docker` when you run it — so the host needs Python 3.12+ and a container runtime, and nothing else above. See [container mode](install-docker.md).
 
-    On Windows, prefer the native install above. Docker Desktop works, but it runs the server inside a **Linux** container, so your projects are bind-mounted across the Windows/Linux boundary — which brings back the path translation, line-ending and file-watching problems that running natively avoids.
+    On Windows, use the native install above — container mode is **unsupported** there. It has never been validated against a Docker daemon on a Windows host, so the bind-mount assembly, path translation and credential handling are all unverified. Beyond that it would run the server inside a **Linux** container, bind-mounting your projects across the Windows/Linux boundary, which brings back the path translation, line-ending and file-watching problems that running natively avoids.
 
 ### Client devices
 
