@@ -217,6 +217,21 @@ export function renderWelcomeScreen(container) {
     state.favoritesStartIndex = projectsRowCount;
     state.sessionStartIndex = projectsRowCount + visibleFavorites.length;
 
+    // While a search is running the first result is always selected. It's the
+    // only affordance that tells the user the list is arrow-navigable, and it
+    // makes type-then-Enter open the top hit like any other search box. Owned
+    // here rather than in the input handler so every path that moves the filter
+    // (typing, typeIntoQuickSearch, openQuickSearch with a seed) gets it — and
+    // so a narrowing search that pushed the selection past the end re-anchors
+    // instead of pointing at nothing.
+    if (quickSearchFilter && state.selectableItems.length > 0) {
+        if (state.selectedResultIndex < 0 || state.selectedResultIndex >= state.selectableItems.length) {
+            state.selectedResultIndex = 0;
+        }
+    } else if (state.selectedResultIndex >= state.selectableItems.length) {
+        state.selectedResultIndex = -1;
+    }
+
     // Section start indices for rendering
     const favoritesStartIndex = state.favoritesStartIndex;
     const sessionStartIndex = state.sessionStartIndex;
@@ -1046,7 +1061,7 @@ function attachEventListeners(container) {
         searchInput.addEventListener('input', (e) => {
             state.quickSearchFilter = e.target.value;
             state.quickSearchActive = !!e.target.value; // Mark as active if has value
-            state.selectedResultIndex = -1; // Reset selection when typing
+            state.selectedResultIndex = -1; // Re-anchor: the render re-selects the first result
             // No refocus/caret-restore needed: renderWelcomeScreen patches the bar
             // in place and never touches this input, so focus, caret and the
             // on-screen keyboard all stay exactly where they are.
@@ -1055,17 +1070,13 @@ function attachEventListeners(container) {
 
         // Handle Escape, Arrow keys for navigation, Enter to open
         searchInput.addEventListener('keydown', async (e) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                if (state.selectedResultIndex >= 0) {
-                    state.selectedResultIndex = -1;
-                    renderWelcomeScreen(container);
-                } else {
-                    state.quickSearchActive = false;
-                    state.quickSearchFilter = '';
-                    renderWelcomeScreen(container);
-                }
-            } else if (e.key === 'Backspace' && state.projectFilter && !searchInput.value) {
+            // Escape is deliberately NOT handled here. The global shortcut
+            // ladder (app.handleEscape → clearWelcomeSearch) fires for it even
+            // while this input has focus, so a local branch would run first and
+            // then get overrun by the ladder — which is how the old "clear the
+            // selection, keep the query" stage silently never held. One owner:
+            // clearWelcomeSearch().
+            if (e.key === 'Backspace' && state.projectFilter && !searchInput.value) {
                 e.preventDefault();
                 clearProjectFilter(container);
             } else if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
@@ -1095,6 +1106,7 @@ function attachEventListeners(container) {
                 state.quickSearchActive = false;
                 state.quickSearchFilter = '';
                 state.projectFilter = null;
+                state.selectedResultIndex = -1;
                 renderWelcomeScreen(container);
                 container.querySelector('.welcome-search-input')?.focus();
 
@@ -1588,9 +1600,22 @@ export function clearWelcomeSearch() {
     const container = document.getElementById('welcome-container');
     if (!container) return false;
 
+    // Two-stage Escape. During a search the first result is the resting
+    // selection (renderWelcomeScreen re-anchors it), so "deselect but keep the
+    // query" isn't a reachable state — an Escape that arrives after the user
+    // arrowed away steps back to the first result instead of throwing the
+    // query away. A second Escape then clears, as before.
+    if (state.quickSearchFilter && state.selectedResultIndex > 0) {
+        state.selectedResultIndex = 0;
+        renderWelcomeScreen(container);
+        scrollSelectedIntoView(container);
+        return true;
+    }
+
     state.quickSearchActive = false;
     state.quickSearchFilter = '';
     state.projectFilter = null;
+    state.selectedResultIndex = -1;
 
     renderWelcomeScreen(container);
 
