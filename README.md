@@ -59,7 +59,7 @@ Full reference: [Docker & container mode](https://painapple.ai/getting-started/i
 
 ## Requirements
 
-- **Server:** Linux, macOS, or Windows 10/11 — **natively, no WSL required**. ([Windows notes](https://painapple.ai/getting-started/requirements/#windows-notes): install the Claude CLI with `irm https://claude.ai/install.ps1 | iex`, not npm.)
+- **Server:** Linux, macOS, or Windows 11 (Windows 10 is untested, but will probably work)
 - **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image ships Python and Node, and installs the agent CLIs itself on first start.)
 - **Git** on `PATH` — the auto-journal records every turn as a shadow-git commit, and the Git panel shells out to it. **Without git the server still runs, but journals nothing.** (Windows: [Git for Windows](https://git-scm.com/download/win), which also provides the bash the optional helpers run under.)
 - **Optional:** Docker or Podman, if you want the sandboxed `--in-docker` run mode and the named container instances.
@@ -94,7 +94,7 @@ painapple --workspace /path/to/your/projects
 
 **Installing on the host doesn't mean running on the host.** One pipx install manages both: bare is the simplest setup, `--in-docker` gives each instance its own sandbox without a separate install.
 
-The console prints the **app URL with a generated password embedded** — open it once and a cookie keeps you logged in.
+The console prints the **app URL with a generated password embedded**
 
 Plain `pip install painapple-code` into a venv works too — see the [pip/pipx guide](https://painapple.ai/getting-started/install-pip/).
 
@@ -159,7 +159,7 @@ A selection — the full list is in the [feature docs](https://painapple.ai/feat
 
 After each turn, the session forks itself in the background to a fast summarizer model (Haiku by default) that reads the **whole turn, not just the diff**. Its structured write-up — work done, decisions, learnings, problems solved — becomes the commit message for a per-project shadow git repo holding that turn's file changes (respecting `.gitignore`), and the same fields land in a local DuckDB, so the project's own history is **queryable**: from the Journal widget, over a SQL endpoint, or by future sessions.
 
-That last case is what the optional **`shadow-git-helper`** agent is for — write **"consult shadow-git-helper about X"** and a sub-agent digs through past turns without loading them into your main context. It's **not a backup mechanism**; it's a **searchable record of what was done and why**.
+That last case is what the optional **`shadow-git-helper`** agent is for — say **"consult shadow-git-helper about X"** and a sub-agent digs through past turns without loading them into your main context. It's **not a backup mechanism**; it's a **searchable record of what was done and why**.
 
 <img src="docs-site/assets/shadow-journal.png" alt="Journal widget showing per-turn Haiku summaries, files changed and cost, grouped by session" width="500">
 
