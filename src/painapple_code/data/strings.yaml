@@ -160,6 +160,7 @@ preview:
     copied_pair: "Entry copied"
     copied_path: "Path copied"
     copied_document: "Document copied"
+    copied_line: "Line copied"
     copy_failed: "Copy failed"
 
 # ============================================================

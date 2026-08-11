@@ -12,6 +12,7 @@ import {
     initJsonToolbarState, normalizeToolbarState, treeOptions,
     renderJsonToolbar, bindJsonToolbar,
 } from '../preview/json-tree-toolbar.js';
+import { bindJsonTreeContextMenu } from '../preview/json-tree-menu.js';
 import S from '../strings.js';
 
 const treeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h4v4H3zM3 14h4v4H3zM11 6h10M11 10h7M11 14h10M11 18h7"/></svg>`;
@@ -74,7 +75,24 @@ export default {
         const toolbar = bindJsonToolbar(container, ps, helpers, '.json-tree');
 
         const tree = container.querySelector('.json-tree');
-        if (tree) bindJsonTreeEvents(tree, { onToggle: toolbar.onToggle });
+        if (tree) {
+            bindJsonTreeEvents(tree, { onToggle: toolbar.onToggle });
+            // Parsed lazily and cached per render — the menu only needs it when
+            // it actually opens, and re-parsing a large document on every
+            // right-click would be a visible stall.
+            let doc;
+            bindJsonTreeContextMenu(tree, {
+                getRoot: () => {
+                    if (doc === undefined) {
+                        try { doc = JSON.parse(state.content || 'null'); } catch (e) { doc = null; }
+                    }
+                    return doc;
+                },
+                onSearch: toolbar.setQuery,
+                onSetExpanded: toolbar.record,
+                onAfterExpand: () => toolbar.refresh({ scroll: false }),
+            });
+        }
 
         toolbar.refresh({ scroll: false });
     },

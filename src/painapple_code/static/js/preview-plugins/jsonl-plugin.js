@@ -12,6 +12,7 @@ import {
     initJsonToolbarState, normalizeToolbarState, treeOptions,
     renderJsonToolbar, bindJsonToolbar,
 } from '../preview/json-tree-toolbar.js';
+import { bindJsonTreeContextMenu } from '../preview/json-tree-menu.js';
 import S from '../strings.js';
 
 const treeIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h4v4H3zM3 14h4v4H3zM11 6h10M11 10h7M11 14h10M11 18h7"/></svg>`;
@@ -122,7 +123,29 @@ export default {
         const toolbar = bindJsonToolbar(container, ps, helpers, '.jsonl-rows');
 
         const rows = container.querySelector('.jsonl-rows');
-        if (rows) bindJsonTreeEvents(rows, { onToggle: toolbar.onToggle });
+        if (rows) {
+            bindJsonTreeEvents(rows, { onToggle: toolbar.onToggle });
+            // Each row is its own document; the `L<n>` path prefix says which
+            // source line to re-parse (split cached, parse on demand).
+            let lines;
+            bindJsonTreeContextMenu(rows, {
+                rootLabel: S.preview?.json_menu?.copy_line || 'Copy whole line',
+                rootToast: S.preview?.json_menu?.copied_line || 'Line copied',
+                getRoot: (path) => {
+                    const m = /^L(\d+)/.exec(path || '');
+                    if (!m) return undefined;
+                    if (!lines) lines = (state.content || '').split('\n');
+                    try {
+                        return JSON.parse(lines[Number(m[1]) - 1]);
+                    } catch (e) {
+                        return undefined;
+                    }
+                },
+                onSearch: toolbar.setQuery,
+                onSetExpanded: toolbar.record,
+                onAfterExpand: () => toolbar.refresh({ scroll: false }),
+            });
+        }
 
         toolbar.refresh({ scroll: false });
     },
