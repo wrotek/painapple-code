@@ -33,6 +33,12 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
 ]
 
+# Test-only deps. The suite drives the app in-process via FastAPI's
+# TestClient (httpx is already a runtime dep), so `pip install .[test]`
+# is all CI or a contributor needs — no live server, no port binding.
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
 [project.urls]
 Homepage = "https://painapple.ai"
 Documentation = "https://painapple.ai"

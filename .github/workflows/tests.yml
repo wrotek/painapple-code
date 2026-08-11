@@ -1,0 +1,59 @@
+name: Tests
+
+# Runs the tracked pytest suite — which is, deliberately, almost entirely
+# security regression tests: CSRF/Origin enforcement, security headers,
+# unsafe DOM sinks, path/icon traversal, process-chain collapse, text I/O
+# encoding.
+#
+# Why this exists: those tests were written to prove the S1-S4 / WP-02..WP-06
+# hardening actually holds, but for a while nothing ran them. A suite that
+# no pipeline executes is documentation, not a gate — a future PR could
+# reintroduce an XSS sink or drop the Origin check and every workflow would
+# still be green. This is the gate.
+#
+# The suite is in-process (FastAPI TestClient against create_app(), with
+# every fixture writing to tmp_path) so it needs no live server, no port,
+# and no ~/.config credentials. It runs in about a second.
+#
+# Note `tests/` is blanket-gitignored; the security modules are force-added
+# individually. If you add a test, `git add -f` it or CI will silently not
+# see it.
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: tests-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    pytest:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                python-version: ["3.12", "3.13"]
+        steps:
+            # fetch-depth: 0 so setuptools-scm can resolve a version from
+            # tags rather than falling back to 0.1.devN.
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ matrix.python-version }}
+                  cache: pip
+
+            - name: Install package + test deps
+              run: python -m pip install .[test]
+
+            - name: Run test suite
+              run: python -m pytest tests/ -q --durations=10
