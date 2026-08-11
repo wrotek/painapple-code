@@ -53,6 +53,14 @@
     color: #a5d6ff; /* Light blue for strings */
 }
 
+/* The parse button swaps preview ⇄ parsed tree via the `hidden` attribute, but
+   an explicit `display` beats the UA's [hidden] rule — so both were on screen
+   at once, and a search hit got counted twice. */
+.json-string-preview[hidden],
+.json-nested-content[hidden] {
+    display: none;
+}
+
 .json-string-preview {
     color: #a5d6ff;
     opacity: 0.7;
@@ -280,6 +288,48 @@
     color: var(--text-muted);
 }
 
+.json-search-count {
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.json-search-count.no-results {
+    color: var(--danger, #ff8080);
+}
+
+.json-search-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.json-search-nav svg {
+    width: 13px;
+    height: 13px;
+}
+
+.json-search-nav:hover:not(:disabled) {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.json-search-nav:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
 .json-search-clear {
     background: transparent;
     border: none;
@@ -289,11 +339,19 @@
     line-height: 1;
     padding: 0 var(--sp-4);
     border-radius: var(--radius-sm);
+    flex-shrink: 0;
 }
 
 .json-search-clear:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
+}
+
+/* Expand-all / collapse-all are sticky modes, so the active one stays lit */
+.json-ctrl-btn.active {
+    background: var(--bg-active, var(--bg-hover));
+    border-color: var(--accent);
+    color: var(--accent);
 }
 
 .json-ctrl-btn {
@@ -330,6 +388,15 @@
     border-radius: var(--radius-xs);
     padding: 0 1px;
     box-shadow: 0 0 0 1px var(--accent, rgba(255, 200, 60, 0.7));
+}
+
+/* The one match prev/next is parked on — distinct enough to spot in a wall of
+   equally-highlighted hits, which is the whole point of having navigation. */
+.json-match.current {
+    background: var(--accent);
+    color: var(--bg-primary);
+    box-shadow: 0 0 0 2px var(--accent);
+    scroll-margin: var(--sp-40, 40px);
 }
 
 .json-parse-error {

@@ -112,8 +112,12 @@ export function openSearch() {
         state.editor.openSearch?.();
         return;
     }
-    // JSON tree has its own search input — focus it instead of showing the generic bar.
-    if (state.plugin?.id === 'json' && state.viewMode === 'tree') {
+    // JSON *and* JSONL trees have their own search input (count, prev/next,
+    // auto-expand) — focus it instead of showing the generic bar, which scans
+    // .preview-line / .preview-rendered and finds neither in tree view. Keyed
+    // off the input's presence rather than a plugin-id list so any future tree
+    // plugin is covered.
+    if (state.viewMode === 'tree') {
         const input = fns.findPreviewContainer()?.querySelector('.json-search-input');
         if (input) {
             input.focus();

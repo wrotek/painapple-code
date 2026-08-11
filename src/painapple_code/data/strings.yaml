@@ -139,6 +139,28 @@ preview:
   json_search_placeholder: "Search keys and values…"
   json_expand_all: "Expand all"
   json_collapse_all: "Collapse all"
+  json_search_prev: "Previous match (Shift+Enter)"
+  json_search_next: "Next match (Enter)"
+  json_search_clear: "Clear (Escape)"
+  json_search_no_results: "No results"
+  json_menu:
+    copy_value: "Copy value"
+    copy_json: "Copy as JSON"
+    copy_key: "Copy key"
+    copy_pair: "Copy \"key\": value"
+    copy_path: "Copy path"
+    copy_document: "Copy whole document"
+    copy_line: "Copy whole line"
+    search_value: "Search for this value"
+    expand_subtree: "Expand subtree"
+    collapse_subtree: "Collapse subtree"
+    copied_value: "Value copied"
+    copied_json: "JSON copied"
+    copied_key: "Key copied"
+    copied_pair: "Entry copied"
+    copied_path: "Path copied"
+    copied_document: "Document copied"
+    copy_failed: "Copy failed"
 
 # ============================================================
 # Toast messages (brief notifications)
