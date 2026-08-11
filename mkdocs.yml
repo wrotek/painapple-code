@@ -74,8 +74,8 @@ nav:
   - Getting started:
       - Requirements: getting-started/requirements.md
       - Read this first (security): getting-started/security.md
-      - Install with Docker / Podman: getting-started/install-docker.md
       - Install with pip / pipx: getting-started/install-pip.md
+      - Run it in a container: getting-started/install-docker.md
       - Dev Containers & Codespaces: getting-started/install-devcontainer.md
       - First run & login: getting-started/first-run.md
   - Guides:

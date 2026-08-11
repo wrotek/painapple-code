@@ -1,11 +1,13 @@
 # Install with pip / pipx
 
-Run the server directly on the host — no container. This path needs Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated (see [Requirements](requirements.md)).
+This is the recommended way to **install** pAInapple Code. It needs Python 3.12+, `git` on `PATH`, and — for host-mode sessions — the [Claude Code CLI](https://github.com/anthropics/claude-code) installed and authenticated (see [Requirements](requirements.md)).
 
-!!! warning "No isolation"
-    Running bare on the host means Claude — and the built-in terminal — run as your user, on your machine. Read the [security notes](security.md) before choosing this path; the [Docker install](install-docker.md) is the recommended default.
+Installing on the host doesn't commit you to *running* on the host. The same `painapple` command runs sessions either way: bare for the simplest setup, or `painapple --in-docker` to put each instance in its own container — which is the recommended way to run it, and needs no separate install. See [container mode](install-docker.md).
 
-## pipx (recommended for direct installs)
+!!! warning "Running bare means no isolation"
+    Without `--in-docker`, Claude — and the built-in terminal — run as your user, on your machine, with your filesystem. That's fine for a throwaway VM or a project you'd trust with a shell, but read the [security notes](security.md) first, and prefer `--in-docker` for anything else.
+
+## pipx (recommended)
 
 No pipx yet? It's two lines (or `brew install pipx` on macOS):
 
@@ -39,7 +41,7 @@ Then:
     painapple --workspace C:\Users\you\projects
     ```
 
-The package drops a `painapple` console script on your PATH. Bare `painapple` serves the current directory (the explicit form is `painapple serve`); add `--in-docker` to run the same thing in a container — see the [Docker install](install-docker.md) and [Profiles & container mode](../reference/profiles.md).
+The package drops a `painapple` console script on your PATH. Bare `painapple` serves the current directory (the explicit form is `painapple serve`); add `--in-docker` to run the same thing in a container — see [container mode](install-docker.md) and [Profiles & container mode](../reference/profiles.md).
 
 ## pip (into a venv)
 

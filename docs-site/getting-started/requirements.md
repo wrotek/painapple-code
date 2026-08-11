@@ -33,7 +33,7 @@ pAInapple Code runs natively on all three desktop platforms. No WSL required.
 - Data lives in `%USERPROFILE%\.painapple-code` — the same `~/.painapple-code` layout as the other platforms, deliberately, so the docs and support answers match everywhere.
 
 !!! tip "Docker skips most of this"
-    The [Docker / Podman path](install-docker.md) is the recommended install on Linux and macOS. The image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start — so the only host requirement is a container runtime.
+    Running in a container is the recommended way to start instances on Linux and macOS, and it moves most of this list off your host: the image ships Python 3.13 and Node 20, and installs the Claude Code and Codex CLIs itself on first start. You still install pAInapple Code on the host with pipx — you just add `--in-docker` when you run it — so the host needs Python 3.12+ and a container runtime, and nothing else above. See [container mode](install-docker.md).
 
     On Windows, prefer the native install above. Docker Desktop works, but it runs the server inside a **Linux** container, so your projects are bind-mounted across the Windows/Linux boundary — which brings back the path translation, line-ending and file-watching problems that running natively avoids.
 

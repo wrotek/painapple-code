@@ -1,6 +1,6 @@
-# Install with Docker / Podman
+# Run it in a container (Docker / Podman)
 
-The recommended way to run pAInapple Code is in a container — it gives you the isolation the [security notes](security.md) call for, and the image bundles everything it needs.
+Containers are the recommended way to **run** pAInapple Code — they give you the isolation the [security notes](security.md) call for. This is a *run mode*, not a separate install: the usual path is to [install with pipx](install-pip.md) on the host and then add `--in-docker`, so one host install manages as many sandboxed instances as you like. Option A below is that path; Options B and C exist for when you'd rather drive the runtime yourself.
 
 The image ships Python 3.13, Node 20, `git`, and a baseline dev toolkit (ripgrep, fd, jq, tmux, vim, and more). The agent CLIs — `@anthropic-ai/claude-code` and `@openai/codex` — are **not** baked into the image; the entrypoint installs them from npm into the `/data` volume on first start, so the download happens under your own agreement with the vendor. That costs a few seconds once and needs npm-registry access on that first boot; see [Agent CLIs](#agent-clis) below to change or skip it. Application state persists in named volumes; your project and an isolated Claude CLI home are bind-mounted from the host. The Dockerfile is OCI-compliant, so it works with Docker, Podman, nerdctl, or any other OCI runtime.
 

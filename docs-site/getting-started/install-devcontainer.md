@@ -125,7 +125,7 @@ This won't survive a "Rebuild Container" — for persistent installs use the `fe
 
 ## The reverse direction: personalized images
 
-The Feature drops pAInapple Code *into your project's* dev container. The Docker install supports the mirror image of that: point `./painapple-docker.sh build --devcontainer PATH` at a `devcontainer.json` full of Features you want (Go, Terraform, AWS CLI, …) and they get baked *onto the pAInapple Code image*. See [Install with Docker / Podman](install-docker.md) and the `examples/personalize/` directory in the repo.
+The Feature drops pAInapple Code *into your project's* dev container. Container mode supports the mirror image of that: point `./painapple-docker.sh build --devcontainer PATH` at a `devcontainer.json` full of Features you want (Go, Terraform, AWS CLI, …) and they get baked *onto the pAInapple Code image*. See [container mode](install-docker.md) and the `examples/personalize/` directory in the repo.
 
 ## Next step
 

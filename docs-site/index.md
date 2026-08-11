@@ -27,8 +27,8 @@ The **server** runs natively on Linux, macOS, and Windows 10/11 — no WSL requi
 
 <div class="grid cards" markdown>
 
-- **[Install with Docker / Podman](getting-started/install-docker.md)** — the recommended path: isolation included, one command to start.
-- **[Install with pip / pipx](getting-started/install-pip.md)** — run directly on your machine if you know what you're doing.
+- **[Install with pip / pipx](getting-started/install-pip.md)** — the recommended install: `pipx install painapple-code`, on Linux, macOS, or Windows.
+- **[Run it in a container](getting-started/install-docker.md)** — the recommended way to *run* it: add `--in-docker` and each instance gets its own sandbox. Same install, no clone needed.
 - **[Dev Containers & Codespaces](getting-started/install-devcontainer.md)** — add it to any devcontainer as a Feature.
 - **[First run & login](getting-started/first-run.md)** — the generated password, the login URL, and your first session.
 

@@ -81,12 +81,18 @@ Then:
 
 ```bash
 pipx install painapple-code
-painapple --workspace /path/to/your/projects
-# …or cd into the project and run it bare — it serves the current directory:
-painapple
-# …or sandbox it in a container (see above):
+
+# Recommended: sandbox each instance in a container (see above).
+cd ~/code/my-project
 painapple --in-docker
+
+# …or run it straight on the host — it serves the current directory:
+painapple
+# …or point it at a workspace holding several projects:
+painapple --workspace /path/to/your/projects
 ```
+
+**Installing on the host doesn't mean running on the host.** One pipx install manages both: bare is the simplest setup, `--in-docker` gives each instance its own sandbox without a separate install.
 
 The console prints the **app URL with a generated password embedded** — open it once and a cookie keeps you logged in.
 
@@ -96,7 +102,7 @@ In container mode the image is pulled automatically on the first run; `painapple
 
 ### Desktop & mobile apps (in development)
 
-Native desktop and mobile apps are in development — stay tuned.
+Desktop and mobile apps are in development — stay tuned.
 
 ### More ways to run it
 

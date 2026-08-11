@@ -17,7 +17,7 @@ Every session runs on an **engine** — the AI CLI pAInapple Code drives under t
 The two "plain CLI" drivers exist mostly as fallbacks; the SDK and app-server engines are the recommended pair and the only ones offered out of the box. Enable or hide engines in **Settings → Engines**.
 
 !!! note "What Codex needs"
-    The Codex engines require the [Codex CLI](https://github.com/openai/codex) (`@openai/codex`) installed on the *server* and logged in. An engine whose CLI is missing shows up greyed-out with a hint; a CLI that isn't logged in gets a **Log in** button right in Settings (see [below](#logging-in)). The Docker image doesn't bundle Codex, but it doesn't need to: the entrypoint installs it on first start alongside the Claude CLI, onto the `/data` volume. Override the set with `PAINAPPLE_AGENT_CLIS`, or skip it entirely with `PAINAPPLE_SKIP_AGENT_CLI=1`. See [Install with Docker](../getting-started/install-docker.md).
+    The Codex engines require the [Codex CLI](https://github.com/openai/codex) (`@openai/codex`) installed on the *server* and logged in. An engine whose CLI is missing shows up greyed-out with a hint; a CLI that isn't logged in gets a **Log in** button right in Settings (see [below](#logging-in)). The Docker image doesn't bundle Codex, but it doesn't need to: the entrypoint installs it on first start alongside the Claude CLI, onto the `/data` volume. Override the set with `PAINAPPLE_AGENT_CLIS`, or skip it entirely with `PAINAPPLE_SKIP_AGENT_CLI=1`. See [container mode](../getting-started/install-docker.md).
 
 ## Picking an engine per session
 
