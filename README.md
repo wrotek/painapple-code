@@ -7,7 +7,7 @@ Thanks to the [**Auto Journal**](#auto-journal-shadow-git), you can easily **pul
 
 Right now it's a PWA, but **desktop and mobile apps are in development**.
 
-**[Documentation](https://painapple.ai/)** · [Install](#quick-start) · [Features](#highlighted-features) · [Security](#security-model)
+[What it is](#what-it-is-and-what-it-isnt) · [Requirements](#requirements) · [Quick start](#quick-start) · [Features](#highlighted-features) · [Security](#security-model) · [Known weaknesses](#known-weaknesses)
 
 ![pAInapple Code session with the Auto Journal widget open next to the chat](docs-site/assets/overview.png)
 
@@ -108,6 +108,8 @@ Desktop and mobile apps are in development — stay tuned.
 
 - **GitHub Codespaces / Dev Containers** — one line in `devcontainer.json` boots every Codespace with pAInapple Code installed, started, and port-forwarded → [Dev Container Feature](https://painapple.ai/getting-started/install-devcontainer/)
 - **From source** — `git clone`, `venv/bin/pip install -e .`, run with `venv/bin/painapple` → [source install](https://painapple.ai/getting-started/install-pip/#from-a-source-checkout)
+
+**Full documentation** — configuration, engines, every feature, and the CLI/API reference — lives at **[painapple.ai](https://painapple.ai/)**.
 
 ## Authentication
 
