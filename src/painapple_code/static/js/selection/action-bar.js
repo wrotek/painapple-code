@@ -11,7 +11,7 @@
  *     from here to centralise "exit selection mode" cleanup.
  */
 
-import { state, CONFIG, lateImports, ensureImports, debugLog } from './state.js';
+import { state, CONFIG, lateImports, ensureImports, debugLog, restoreFocusAfterSelection } from './state.js';
 import { Stash } from '../stash.js';
 import S from '../strings.js';
 
@@ -524,15 +524,8 @@ export function hideActionBar() {
     state.multiSelectMode = false;
     state.selections = [];
 
-    // Focus the chat input after closing action bar
-    // Force a reflow before focusing so the element is visible
-    const chatInput = document.getElementById('message-input');
-    if (chatInput) {
-        // Force reflow to ensure display:none is removed
-        void chatInput.offsetHeight;
-        chatInput.focus();
-        debugLog('Chat input focused', { activeElement: document.activeElement?.id });
-    }
+    // Return focus to the selection's origin (widget container or chat input)
+    restoreFocusAfterSelection();
 
     debugLog('Action bar hidden');
 }

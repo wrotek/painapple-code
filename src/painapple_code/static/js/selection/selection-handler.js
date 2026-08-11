@@ -19,7 +19,7 @@
 
 import { Stash } from '../stash.js';
 import S from '../strings.js';
-import { state, CONFIG, debugLog, getParentChain, ensureImports } from './state.js';
+import { state, CONFIG, debugLog, getParentChain, ensureImports, restoreFocusAfterSelection } from './state.js';
 import {
     initActionBar,
     showActionBar,
@@ -235,6 +235,7 @@ export function getSelectionState() {
     return {
         actionBarActive: state.actionBarActive,
         multiSelectMode: state.multiSelectMode,
+        activeContainer: state.activeContainer,
         inputText: state.selectionInput?.value || '',
         // Store serializable selection data (no DOM refs)
         selections: state.selections.map(s => ({
@@ -277,6 +278,9 @@ export function restoreSelectionState(savedState) {
     // Restore multi-select mode
     state.multiSelectMode = savedState.multiSelectMode;
     state.multiSelectBtn?.classList.toggle('active', state.multiSelectMode);
+
+    // Restore selection origin (focus returns there when the bar closes)
+    state.activeContainer = savedState.activeContainer || null;
 
     // Show action bar (class on body since selection-bar is outside #input-container)
     document.body.classList.add('selection-mode');
@@ -327,12 +331,8 @@ export function exitSelectionMode() {
         el.classList.remove('selected-for-comment');
     });
 
-    // Focus the chat input
-    const chatInput = document.getElementById('message-input');
-    if (chatInput) {
-        void chatInput.offsetHeight;
-        chatInput.focus();
-    }
+    // Return focus to the selection's origin (widget container or chat input)
+    restoreFocusAfterSelection();
 
     debugLog('Selection mode exited');
 
@@ -613,6 +613,7 @@ export function editStashById(stashId) {
     if (!item) return false;
 
     state.editingStashId = stashId;
+    state.activeContainer = null;  // No DOM origin (stash picker) → focus falls back to chat
 
     state.currentSelection = {
         text: item.selectedText || '',
@@ -705,6 +706,7 @@ function selectElementContent(element) {
     // Find which registered container this element belongs to
     let containerConfig = null;
     let containerId = null;
+    let containerEl = null;
 
     debugLog('Looking for container', {
         elementTag: element.tagName,
@@ -731,6 +733,7 @@ function selectElementContent(element) {
             if (containsElement) {
                 containerConfig = entry.config;
                 containerId = id;
+                containerEl = container;
                 break;
             }
         }
@@ -743,6 +746,7 @@ function selectElementContent(element) {
         if (discovered) {
             containerConfig = discovered.config;
             containerId = discovered.id;
+            containerEl = discovered.container;
             debugLog(`Using auto-discovered container: ${containerId}`);
         } else {
             debugLog('Element not in registered container - element parent chain:',
@@ -750,6 +754,13 @@ function selectElementContent(element) {
             return;
         }
     }
+
+    // Remember where this selection originated so focus can return there
+    // when the action bar closes (restoreFocusAfterSelection). The element ref
+    // covers auto-discovered containers (never in state.containers — e.g. the
+    // preview with "selection in preview" off, where bubbles still work).
+    state.activeContainer = containerId;
+    state.activeContainerEl = containerEl;
 
     // Build anchor data using the container's buildAnchor function
     const range = document.createRange();
