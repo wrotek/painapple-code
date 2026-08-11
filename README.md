@@ -7,7 +7,7 @@ Thanks to the [**Auto Journal**](#auto-journal-shadow-git), you can easily **pul
 
 Right now it's a PWA, but **desktop and mobile apps are in development**.
 
-**[Documentation](https://painapple.ai/)** · [Install](https://painapple.ai/getting-started/install-pip/) · [Features](https://painapple.ai/features/) · [Security](https://painapple.ai/getting-started/security/)
+**[Documentation](https://painapple.ai/)** · [Install](#quick-start) · [Features](#highlighted-features) · [Security](#security-model)
 
 ![pAInapple Code session with the Auto Journal widget open next to the chat](docs-site/assets/overview.png)
 
@@ -227,7 +227,7 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Everythi
 
 This is an MVP — there are tradeoffs.
 
-1. **Windows support is new** — the server now runs natively on Windows 10/11, no WSL: the terminal is ConPTY-backed, file locking and process control have Windows implementations, and CI smoke-tests install/import/boot on every push. But it is by far the **youngest and least-exercised platform** — Linux is where this is developed and used daily. Expect rougher edges than on Linux or macOS. Two deliberate differences: the terminal tab runs **PowerShell** (so `!bang` commands are PowerShell-flavored, not `sh`), and the optional `shadow-git`/`shadow-query` helpers are shell scripts that need **Git for Windows** to provide a bash.
+1. **Windows support is new** — the server now runs natively on Windows 10/11, no WSL: the terminal is ConPTY-backed, file locking and process control have Windows implementations, and CI smoke-tests install/import/boot on every push. But it is by far the **youngest and least-exercised platform** — Linux is where this is developed and used daily. Expect rougher edges than on Linux or macOS. Two deliberate differences: the terminal tab runs **PowerShell** (so `!bang` commands are PowerShell-flavored, not `sh`), and the optional `shadow-git`/`shadow-query` helpers are shell scripts that need **Git for Windows** to provide a bash. If you'd rather not be on the young path, **install it inside WSL2 instead** — that's the Linux build, running on the same code that's exercised daily here, and it sidesteps every caveat in this bullet.
 2. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
 3. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
 4. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
