@@ -233,7 +233,7 @@
     position: absolute;
     min-width: 120px;
     max-width: 60%;
-    padding: 0 var(--sp-1);
+    padding: 0 var(--sp-4);
     background: rgba(0, 0, 0, 0.45);
     border: 1px dashed var(--text-muted);
     border-radius: var(--radius-xs);
@@ -255,10 +255,10 @@
     position: absolute;
     display: flex;
     align-items: flex-start;   /* delete btn tops-align as the textarea grows */
-    gap: var(--sp-1);
+    gap: var(--sp-4);
     width: 240px;
     max-width: 45%;
-    padding: var(--sp-1) var(--sp-2);
+    padding: var(--sp-4) var(--sp-8);
     background: var(--bg-secondary);
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
@@ -271,7 +271,7 @@
 .ia-marker-input {
     flex: 1 1 auto;
     min-width: 0;
-    padding: var(--sp-1) 0;
+    padding: var(--sp-2) 0;
     background: transparent;
     border: none;
     outline: none;
@@ -320,7 +320,7 @@
 .ia-marker-note {
     position: absolute;
     max-width: 240px;
-    padding: var(--sp-1) var(--sp-2);
+    padding: var(--sp-4) var(--sp-8);
     background: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
     border-radius: var(--radius-sm);

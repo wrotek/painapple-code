@@ -88,7 +88,7 @@
 .preview-breadcrumb {
     display: flex;
     align-items: center;
-    gap: var(--sp-1);
+    gap: var(--sp-2);
     flex: 1;
     min-width: 0;
     overflow-x: auto;
