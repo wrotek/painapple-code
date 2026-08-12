@@ -18,6 +18,24 @@ import S from './strings.js';
 const AUTO_DRAFT_SYNC_MS = 2500;
 const AUTO_DRAFT_MIN_CHARS = 12;
 
+// Cap on session.promptHistory (oldest entries fall off the end)
+const PROMPT_HISTORY_LIMIT = 50;
+
+// A prompt-history entry is `{ text, stashRefs }` — the typed text plus the
+// compact stash references that rode along with it, so recall can tell the
+// user what was actually sent. Entries with empty text are legitimate: a
+// stash-only send is a real prompt with no words in it. Plain strings are
+// still accepted on read (older in-memory sessions, forks made before the
+// object shape landed) so navigation never breaks on a legacy array.
+export function historyEntryText(entry) {
+    return typeof entry === 'string' ? entry : (entry?.text ?? '');
+}
+
+export function historyEntryRefs(entry) {
+    const refs = typeof entry === 'string' ? null : entry?.stashRefs;
+    return Array.isArray(refs) && refs.length > 0 ? refs : null;
+}
+
 // Tab-cycle: order matches the input toolbar (#, /, @, $).
 // Tab in the input rotates through these trigger pickers without pre-selecting
 // any entry, so the user can browse what each picker offers and arrow-down to commit.
@@ -167,6 +185,7 @@ export class InputHandler {
         if (this.historyIndex !== -1) {
             this.historyIndex = -1;
             this.historyDraft = '';
+            this._renderHistoryRefsHint(null);
         }
 
         // Enable/disable send button (considers images too)
@@ -504,8 +523,9 @@ export class InputHandler {
                 return; // Already at oldest
             }
 
-            this.els.messageInput.value = history[this.historyIndex];
-            this._updateInputAfterHistoryNav();
+            const entry = history[this.historyIndex];
+            this.els.messageInput.value = historyEntryText(entry);
+            this._updateInputAfterHistoryNav(entry);
             return;
         }
 
@@ -513,11 +533,13 @@ export class InputHandler {
         if (e.key === 'ArrowDown' && !autocomplete?.visible && this.historyIndex !== -1) {
             e.preventDefault();
 
+            let entry = null;
             if (this.historyIndex > 0) {
                 // Go forward in history
                 this.historyIndex--;
                 const history = this.getHistory();
-                this.els.messageInput.value = history[this.historyIndex];
+                entry = history[this.historyIndex];
+                this.els.messageInput.value = historyEntryText(entry);
             } else {
                 // Restore draft and exit history mode
                 this.els.messageInput.value = this.historyDraft;
@@ -525,7 +547,7 @@ export class InputHandler {
                 this.historyDraft = '';
             }
 
-            this._updateInputAfterHistoryNav();
+            this._updateInputAfterHistoryNav(entry);
             return;
         }
 
@@ -534,6 +556,7 @@ export class InputHandler {
             ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
             this.historyIndex = -1;
             this.historyDraft = '';
+            this._renderHistoryRefsHint(null);
             // Don't prevent default - let the cursor move
         }
 
@@ -557,6 +580,7 @@ export class InputHandler {
             this._consumePendingDraft();
             this.historyIndex = -1;
             this.historyDraft = '';
+            this._renderHistoryRefsHint(null);
             this.onSendInNewSession(value);
             return;
         }
@@ -590,7 +614,13 @@ export class InputHandler {
     /**
      * Update input field state after history navigation
      */
-    _updateInputAfterHistoryNav() {
+    _updateInputAfterHistoryNav(entry = null) {
+        // Surface the stash references this prompt was sent with. Recall is
+        // deliberately display-only — re-arming items that were already sent
+        // (and may since have been edited or removed) would be worse than the
+        // ambiguity this hint exists to remove.
+        this._renderHistoryRefsHint(entry);
+
         // Check if navigated to a prefixed command — apply input mode
         const wasMode = this.inputMode;
         const val = this.els.messageInput.value;
@@ -610,6 +640,34 @@ export class InputHandler {
         this.els.messageInput.selectionStart = len;
         this.els.messageInput.selectionEnd = len;
         this.onAutoResize();
+    }
+
+    /**
+     * Render (or hide) the "sent with N references" hint under the input.
+     * Pass null to hide — every exit from history mode does.
+     */
+    _renderHistoryRefsHint(entry) {
+        const el = this.els.historyRefsHint;
+        if (!el) return;
+
+        const refs = historyEntryRefs(entry);
+        if (!refs) {
+            el.classList.remove('visible');
+            el.textContent = '';
+            return;
+        }
+
+        // A stash-only send recalls as an empty input — that is the case this
+        // hint exists for, so it gets its own wording rather than looking like
+        // the recall silently failed.
+        const isEmpty = historyEntryText(entry).trim() === '';
+        const strings = S.ui.stash;
+        const key = isEmpty
+            ? (refs.length === 1 ? 'recall_hint_empty_one' : 'recall_hint_empty_many')
+            : (refs.length === 1 ? 'recall_hint_one' : 'recall_hint_many');
+        el.textContent = strings[key].replace('{count}', refs.length);
+        el.dataset.tooltip = strings.recall_hint_tooltip;
+        el.classList.add('visible');
     }
 
     /**
@@ -839,6 +897,7 @@ export class InputHandler {
         // Reset history navigation state
         this.historyIndex = -1;
         this.historyDraft = '';
+        this._renderHistoryRefsHint(null);
 
         // Exit input mode on send
         this.inputMode = null;
@@ -879,20 +938,33 @@ export class InputHandler {
     }
 
     /**
-     * Add a message to session history (in-memory) for up/down navigation
+     * Add a message to session history (in-memory) for up/down navigation.
+     *
+     * @param {string} content - the text the user typed (may be empty)
+     * @param {Array|null} stashRefs - compact stash references sent with it
      */
-    addToHistory(content) {
+    addToHistory(content, stashRefs = null) {
         const session = this.getSession();
-        if (!content.trim()) return;
+        if (!session) return;
 
-        if (session) {
-            // Remove duplicates and add to front
-            session.promptHistory = session.promptHistory.filter(h => h !== content);
-            session.promptHistory.unshift(content);
-            // Cap at 50 entries
-            if (session.promptHistory.length > 50) {
-                session.promptHistory.length = 50;
-            }
+        const text = content || '';
+        const refs = Array.isArray(stashRefs) && stashRefs.length > 0 ? stashRefs : null;
+        // Neither words nor references — nothing was sent, nothing to recall
+        if (!text.trim() && !refs) return;
+
+        // Dedup on the typed text, so re-sending the same prompt moves it to
+        // the front instead of stacking (and so the enriched write from the
+        // send path replaces the bare one written on keypress). Empty-text
+        // entries are exempt: two stash-only sends carry different references
+        // and are genuinely different prompts — collapsing them would hide one.
+        if (text.trim()) {
+            session.promptHistory = session.promptHistory.filter(
+                h => historyEntryText(h) !== text
+            );
+        }
+        session.promptHistory.unshift({ text, stashRefs: refs });
+        if (session.promptHistory.length > PROMPT_HISTORY_LIMIT) {
+            session.promptHistory.length = PROMPT_HISTORY_LIMIT;
         }
     }
 
@@ -979,6 +1051,7 @@ export class InputHandler {
     resetHistoryState() {
         this.historyIndex = -1;
         this.historyDraft = '';
+        this._renderHistoryRefsHint(null);
     }
 
     // ─────────────────────────────────────────────────────────────────

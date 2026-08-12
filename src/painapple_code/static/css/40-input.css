@@ -1581,6 +1581,32 @@
     color: #ef4444;
 }
 
+/* Recall hint — what the history entry under the cursor was sent with.
+   Read-only sibling of .stash-preview: same column, deliberately quieter
+   (no border, muted text) so it reads as annotation, not as pending state. */
+.history-refs-hint {
+    display: none;
+    align-items: center;
+    gap: var(--sp-6);
+    padding: var(--sp-4) var(--sp-8);
+    margin-bottom: var(--sp-8);
+    border-radius: var(--radius-sm);
+    background: rgba(139, 92, 246, 0.06);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    cursor: default;
+}
+
+.history-refs-hint.visible {
+    display: flex;
+}
+
+.history-refs-hint::before {
+    content: "↑";
+    color: var(--accent);
+    font-weight: 600;
+}
+
 /* Stash preview in input (shown above input when items exist) */
 .stash-preview {
     display: none;

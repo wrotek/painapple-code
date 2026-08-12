@@ -286,10 +286,20 @@ export const syncMethods = {
 
             const data = await response.json();
             if (data.messages && data.messages.length > 0) {
-                // Extract just the content strings (most recent first)
+                // Rebuild recall entries (most recent first). `stashRefs` is
+                // already persisted alongside the prompt by the send handler,
+                // so a refresh restores what each prompt was sent with instead
+                // of flattening it to bare text. A row with no text but with
+                // references is a stash-only send and is kept — dropping it is
+                // what made those prompts vanish from recall after a reload.
                 this.promptHistory = data.messages
-                    .map(msg => msg.content)
-                    .filter(content => content && typeof content === 'string' && content.trim());
+                    .map(msg => ({
+                        text: typeof msg.content === 'string' ? msg.content : '',
+                        stashRefs: Array.isArray(msg.stashRefs) && msg.stashRefs.length > 0
+                            ? msg.stashRefs
+                            : null,
+                    }))
+                    .filter(entry => entry.text.trim() || entry.stashRefs);
 
                 debug.log(`[PromptHistory] ${this.name}: Loaded ${this.promptHistory.length} prompts from server`);
             }
