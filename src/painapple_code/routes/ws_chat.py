@@ -469,7 +469,19 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
             db_turn_id = db.start_turn(
                 session_id=store_id,
                 project_hash=bridge_paths.get_project_hash(agent_session.cwd),
-                user_prompt=display_content or content,
+                # display_content, NOT `display_content or content`: the two
+                # are different KINDS of value — display_content is what the
+                # user typed, content is the composed, model-facing text with
+                # the stash block prepended. The falsy fallback only ever fired
+                # on a stash-only send (typed text empty), which is exactly the
+                # case where it swapped in the composed blob — so messages.jsonl
+                # recorded "" while this column recorded the full stash text for
+                # the same turn. One rule now: user_prompt is what the user
+                # typed. The composed text is still preserved in the shadow-git
+                # commit body via the turn_tracker.set_prompt(content) above.
+                # (An empty user_prompt is already a normal state here — an
+                # image-only send has produced one since long before stash.)
+                user_prompt=display_content,
                 has_images=len(images) > 0,
                 git_branch=git_branch,
                 git_repo_hash=bridge_paths.get_git_repo_hash(agent_session.cwd),
