@@ -10,6 +10,15 @@ import pytest
 import yaml
 
 
+# test_cli_compat.py is NOT a pytest module — it's a standalone, paid
+# CLI-upgrade harness (run explicitly: `python tests/test_cli_compat.py`).
+# It needs an authenticated Claude CLI and each full run costs real API
+# tokens. Its test_* functions return TestResult objects for the script's
+# own runner instead of asserting, so pytest collection would count them
+# as vacuous passes. Keep it out of collection entirely.
+collect_ignore = ["test_cli_compat.py"]
+
+
 TEST_PASSWORD = "unit-test-password-do-not-reuse"
 
 
