@@ -1,0 +1,28 @@
+# Weekly dependency-update PRs. Kept weekly (not daily) and grouped where
+# possible so the solo maintainer gets one reviewable PR per ecosystem, not
+# a trickle. Security updates ignore the schedule and open immediately.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      python-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

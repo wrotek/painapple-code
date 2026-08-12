@@ -1,0 +1,14 @@
+# Blank issues stay enabled — this is a young project and a free-form
+# report beats no report. The contact links exist mainly to catch security
+# reports before they become public issues.
+blank_issues_enabled: true
+contact_links:
+  - name: "\U0001F512 Security vulnerability"
+    url: https://github.com/wrotek/painapple-code/security/advisories/new
+    about: >-
+      Please report security issues privately — never as a public issue.
+      This opens a private advisory thread visible only to you and the
+      maintainer. See SECURITY.md for the threat model.
+  - name: "\U0001F4D6 Documentation"
+    url: https://painapple.ai/
+    about: Install guides, first-run walkthrough, and the full reference.

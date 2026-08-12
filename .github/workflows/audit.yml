@@ -1,0 +1,61 @@
+name: Dependency audit
+
+# pip-audit over the resolved (installed) dependency tree — requirements.txt
+# holds floors, not pins, so auditing the file itself would be ambiguous;
+# installing and auditing the environment checks what users actually get.
+#
+# Strict on purpose: the tree was verified clean when this landed, so a red
+# run means a NEW advisory. If one lands with no fixed release available,
+# add a documented `--ignore-vuln PYSEC-XXXX-YYYY` here rather than letting
+# the workflow stay red (and remove it once the fix ships).
+#
+# The weekly schedule is the real value — a CVE published between commits
+# still emails the maintainer within a week, not at the next push.
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - requirements*.txt
+            - pyproject.toml
+            - .github/workflows/audit.yml
+    pull_request:
+        branches: [main]
+        paths:
+            - requirements*.txt
+            - pyproject.toml
+            - .github/workflows/audit.yml
+    schedule:
+        - cron: "30 5 * * 1"   # Mondays 05:30 UTC
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    pip-audit:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.13"
+                  cache: pip
+
+            # Upgrade pip first: pip-audit also flags the environment's own
+            # tooling, and runner images lag behind pip releases.
+            - name: Install package
+              run: |
+                  python -m pip install --upgrade pip
+                  python -m pip install .
+
+            # A dev/rc version of painapple-code itself can't be matched on
+            # PyPI — pip-audit reports it as skipped (a warning, not a
+            # failure). The dependencies are what this job is for.
+            - name: Audit resolved dependencies
+              run: |
+                  python -m pip install pip-audit
+                  python -m pip_audit
