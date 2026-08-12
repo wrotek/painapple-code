@@ -103,13 +103,22 @@ def build_parser():
                           "host. 'on' forces TLS. 'off' disables it. Self-signed cert is "
                           "auto-generated; clients accept it without verification (TLS here "
                           "guards against passive snooping only).")
-    net.add_argument("--no-password", "--no-passwd", dest="no_password",
-                     action="store_true",
-                     help="Don't print credentials to stdout: the startup box hides "
-                          "the password and strips the ?tkn= from the login URL. "
-                          "Retrieve them later with `painapple password` or from the "
-                          "auth config file. Useful when the console is visible to "
-                          "others (screen shares, recorded demos, shared logs).")
+    pw = net.add_mutually_exclusive_group()
+    pw.add_argument("--no-password", "--no-passwd", dest="no_password",
+                    action="store_true",
+                    help="Never print credentials to stdout: the startup box hides "
+                         "the password and strips the ?tkn= from the login URL. "
+                         "Retrieve them later with `painapple password` or from the "
+                         "auth config file. Useful when the console is visible to "
+                         "others (screen shares, recorded demos, shared logs). "
+                         "This is already the default on non-loopback binds.")
+    pw.add_argument("--show-password", dest="show_password",
+                    action="store_true",
+                    help="Print credentials even on a non-loopback bind. By default "
+                         "only loopback binds (127.0.0.1/::1/localhost) show the "
+                         "password and ?tkn= login URL — a LAN/public server's "
+                         "stdout tends to outlive the terminal (journald, docker "
+                         "logs), so there they're hidden unless you opt in.")
     net.add_argument("--tls-cert", default=None, metavar="PATH",
                      help="TLS cert path (default: <config-dir>/cert.pem, auto-generated)")
     net.add_argument("--tls-key", default=None, metavar="PATH",

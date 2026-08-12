@@ -166,12 +166,17 @@ def _spawn_env(target):
 
 
 def _print_login_url(*logs):
-    """Echo the login URL the server just printed (scheme + tkn included)
-    so a background start is as usable as a foreground one.
+    """Echo the login URL so a background start is as usable as a
+    foreground one.
 
     Scans each log in turn: the URL lives in the startup box on stdout
     (console.log), with server.log kept as a fallback for older builds
-    that logged it as an INFO line instead."""
+    that logged it as an INFO line instead. Non-loopback binds hide the
+    ?tkn= URL from their own stdout by default, so when only the bare
+    box URL is found we rebuild the full login URL from the auth config
+    — `painapple start` runs as the operator on this box, who can read
+    that file anyway (it's exactly what `painapple password` prints)."""
+    bare = None
     for log in logs:
         try:
             text = log.read_text(encoding="utf-8", errors="replace")[-8000:]
@@ -182,6 +187,15 @@ def _print_login_url(*logs):
             if m:
                 say(f"  {BOLD}Log in:{RESET} {BOLD}{GREEN}{m.group(0)}{RESET}")
                 return
+            if bare is None and "pAInapple Code:" in line:
+                b = re.search(r"https?://\S+", line)
+                if b:
+                    bare = b.group(0).rstrip("/")
+    if bare:
+        from painapple_code.cli.manage_cmd import _host_password_value
+        pw = _host_password_value()
+        url = f"{bare}/?tkn={pw}" if pw else f"{bare}/"
+        say(f"  {BOLD}Log in:{RESET} {BOLD}{GREEN}{url}{RESET}")
 
 
 def _tail(path, n=15):

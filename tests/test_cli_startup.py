@@ -153,3 +153,42 @@ def test_gate_and_server_share_parser():
     import painapple_code.server as server
 
     assert server.build_parser is build_parser
+
+
+# ---------------------------------------------------------------------------
+# Startup credential visibility (WP-02 stopgap)
+# ---------------------------------------------------------------------------
+
+def test_credentials_hidden_on_non_loopback_bind():
+    """The ?tkn= login URL / password print only on loopback binds by
+    default: a LAN/public server's stdout tends to outlive the terminal
+    (journald, docker logs, supervisor consoles)."""
+    from painapple_code.server import credentials_visible
+
+    for host in ("127.0.0.1", "::1", "localhost"):
+        assert credentials_visible(host, no_password=False, show_password=False)
+    for host in ("0.0.0.0", "::", "192.168.1.10", "example.com"):
+        assert not credentials_visible(host, no_password=False, show_password=False)
+
+
+def test_show_password_opts_back_in_no_password_always_wins():
+    from painapple_code.server import credentials_visible
+
+    assert credentials_visible("0.0.0.0", no_password=False, show_password=True)
+    assert not credentials_visible("127.0.0.1", no_password=True, show_password=False)
+    assert not credentials_visible("0.0.0.0", no_password=True, show_password=False)
+
+
+def test_password_flags_parse_and_exclude():
+    import pytest
+    from painapple_code.cli.serve_args import build_parser
+
+    args = build_parser().parse_args([])
+    assert args.no_password is False
+    assert args.show_password is False
+
+    assert build_parser().parse_args(["--show-password"]).show_password is True
+    assert build_parser().parse_args(["--no-password"]).no_password is True
+
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--no-password", "--show-password"])

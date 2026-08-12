@@ -1694,6 +1694,27 @@ def _preflight_port(host: str, port: int) -> None:
     sys.exit(1)
 
 
+LOOPBACK_HOSTS = ("127.0.0.1", "::1", "localhost")
+
+
+def credentials_visible(host: str, no_password: bool, show_password: bool) -> bool:
+    """Decide whether startup output may include the password / ?tkn= URL.
+
+    Loopback binds print credentials: the only reader is someone on the same
+    machine, and the ?tkn= login URL is THE onboarding step. Non-loopback
+    binds hide them by default — a LAN/public server's stdout tends to end up
+    in journald, docker logs, or a supervisor console that outlives the
+    terminal session — and print how to retrieve them instead.
+    --no-password always hides; --show-password opts a non-loopback bind
+    back in (the parser rejects combining the two).
+    """
+    if no_password:
+        return False
+    if show_password:
+        return True
+    return host in LOOPBACK_HOSTS
+
+
 def main(argv=None):
     if sys.platform == "win32":  # idempotent; direct-entry safety (cli.main already did it)
         from painapple_code.utils.proc import force_utf8_stdio
@@ -1853,8 +1874,10 @@ def main(argv=None):
     # TLS: 'auto' enables when binding non-loopback. Clients accept the
     # self-signed cert without verification (no pinning, no OS trust install)
     # — TLS here guards against passive snooping only; MITM is accepted.
-    loopback_hosts = ("127.0.0.1", "::1", "localhost")
+    loopback_hosts = LOOPBACK_HOSTS
     use_tls = args.tls == "on" or (args.tls == "auto" and args.host not in loopback_hosts)
+    show_credentials = credentials_visible(
+        args.host, args.no_password, getattr(args, "show_password", False))
     tls_cert_path: Optional[Path] = None
     tls_key_path: Optional[Path] = None
     config_dir = Path(app.state.auth_config_file).parent
@@ -1874,8 +1897,8 @@ def main(argv=None):
     if app.state.auth_newly_created:
         logger.warning(
             f"Auth config generated at {app.state.auth_config_file}. "
-            + ("Credentials hidden (--no-password) — run `painapple password` to reveal."
-               if args.no_password else f"Log in once via: {login_url}")
+            + (f"Log in once via: {login_url}" if show_credentials
+               else "Credentials hidden — run `painapple password` to reveal.")
         )
     # (the config path, the password and the login URL are all in the startup
     #  box below — no need to repeat them as INFO lines here)
@@ -1917,15 +1940,18 @@ def main(argv=None):
     # The login URL is THE line users need — labelled with the product name
     # (it IS where the app lives, token included) and painted bold green so it
     # stands out from the rest of the box (TTY-only; cli.ui's constants
-    # are empty strings when piped or NO_COLOR is set). With
-    # --no-password the box still shows WHERE to log in, but the
+    # are empty strings when piped or NO_COLOR is set). When credentials
+    # are hidden (--no-password, or any non-loopback bind without
+    # --show-password) the box still shows WHERE to log in, but the
     # password and the ?tkn= query are withheld from stdout.
     # NOTE: every label in the box is padded to a 16-char field so the values
     # line up — "pAInapple Code:" is the longest and sets that width.
     from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET as _ANSI_RESET
-    if args.no_password:
+    if not show_credentials:
+        why = ("--no-password" if args.no_password
+               else "non-loopback bind; --show-password overrides")
         auth_lines = (
-            f"\n║  Password:       {DIM}(hidden — run `painapple password` to reveal){_ANSI_RESET}"
+            f"\n║  Password:       {DIM}(hidden: {why} — run `painapple password` to reveal){_ANSI_RESET}"
             f"\n║  {BOLD}pAInapple Code:{_ANSI_RESET} {BOLD}{GREEN}{scheme}://{args.host}:{args.port}/{_ANSI_RESET}"
         )
     else:

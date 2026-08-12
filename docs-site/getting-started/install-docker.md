@@ -41,7 +41,10 @@ docker run -d --name painapple-code \
     -v "$HOME/.painapple-code/.claude:/home/app/.claude" \
     -v painapple-data:/data \
     wrotek/painapple-code:latest
-docker logs painapple-code 2>&1 | grep -E 'http(s)?://' | head -1   # bootstrap URL
+# Bootstrap URL — the container hides credentials from its own logs, so
+# read the generated password from its config instead:
+echo "http://localhost:8765/?tkn=$(docker exec painapple-code \
+    awk '/^password:/ {print $2}' /home/app/.config/painapple-code/config.yaml)"
 ```
 
 **Image tags:**
@@ -80,7 +83,7 @@ To layer your own tooling on top of the base image:
 ./painapple-docker.sh build --dockerfile ~/my-project/Dockerfile
 ```
 
-Open `http://localhost:8765/` in a browser. The first run logs a bootstrap URL with the auth password embedded as `?tkn=…` — open that link once and the cookie keeps you logged in. See [First run & login](first-run.md).
+Open `http://localhost:8765/` in a browser. The first run generates an auth password — the container keeps it out of `docker logs` (they persist), so reveal the bootstrap URL with `painapple password` (pip CLI) or the `docker exec … awk` one-liner above, and open it once; the cookie keeps you logged in. See [First run & login](first-run.md).
 
 ## Manual Compose / Podman (no wrapper)
 

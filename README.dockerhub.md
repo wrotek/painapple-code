@@ -15,7 +15,7 @@ The image ships Python 3.13 and Node 20; the agent CLIs (`@anthropic-ai/claude-c
 **pAInapple Code effectively gives whoever holds its password a remote shell on the host.** Claude Code can execute commands, edit files, and reach the network on the user that started the container. The built-in auth is a single-password gate — useful, but not a substitute for proper network controls.
 
 - The default `docker run` example below binds **`127.0.0.1:8765`**. Don't change that to `0.0.0.0` (or a public IP) without putting a reverse proxy with TLS and ideally a VPN / Tailscale / SSH-tunnel layer in front.
-- The first run logs a bootstrap URL with the auth password embedded as `?tkn=…`. Capture it from `docker logs` and open it once — the cookie keeps you logged in afterwards.
+- The auth password is generated on first start but **not printed to the container's logs** (inside the container the bind is non-loopback, so credentials are hidden from stdout by default — `docker logs` persists). Reveal the login URL with `painapple password` (pip CLI), or read it directly: `docker exec painapple-code awk '/^password:/ {print $2}' /home/app/.config/painapple-code/config.yaml`. Open it once — the cookie keeps you logged in afterwards.
 - The terminal widget is a real PTY running as the container user. In `YOLO` permission mode anyone with the password can run arbitrary commands.
 
 **Agent CLIs are installed on first start, not bundled.** The image ships Node.js but no agent CLI. On first boot the entrypoint runs `npm install -g` for `@anthropic-ai/claude-code@2` and `@openai/codex@latest` into the `/data` volume, so the download is yours under your own agreement with the vendor — `@anthropic-ai/claude-code` is proprietary (© Anthropic PBC, all rights reserved) and using it means accepting [Anthropic's Commercial Terms](https://www.anthropic.com/legal/commercial-terms). Supply your own credentials (`ANTHROPIC_API_KEY` env var, or an OAuth login persisted via the `~/.claude` volume). First start therefore needs network access to the npm registry and takes a few seconds longer; set `PAINAPPLE_SKIP_AGENT_CLI=1` to opt out, or `PAINAPPLE_AGENT_CLIS` to change the set.
@@ -129,7 +129,7 @@ For the strongest guarantee, pin by digest: `wrotek/painapple-code@sha256:…`.
 
 ## Authentication
 
-**Every HTTP and WebSocket request needs a password.** The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; **owner-only either way** — mode 0600 on Unix, an owner-only NTFS ACL on Windows), and logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest.
+**Every HTTP and WebSocket request needs a password.** The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; **owner-only either way** — mode 0600 on Unix, an owner-only NTFS ACL on Windows), and — on a loopback bind — logs a bootstrap URL with the token embedded as `?tkn=…`: open it once, the cookie does the rest. Non-loopback binds (LAN, `0.0.0.0`, inside the container) hide the credentials from stdout by default, since a server's console tends to end up in journald or `docker logs`; retrieve them with `painapple password`, or opt back in with `--show-password`.
 
 ```bash
 # Reveal the password — prints ready-to-open login URLs

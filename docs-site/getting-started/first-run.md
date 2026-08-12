@@ -10,13 +10,15 @@ The password lives in a config file at `~/.config/painapple-code/config.yaml` (m
 password: <generated-token>
 ```
 
-Every start logs a **login URL** with the password embedded as `?tkn=…` — on the very first run it's flagged as newly generated:
+On a **loopback bind** (the default `127.0.0.1`) every start logs a **login URL** with the password embedded as `?tkn=…` — on the very first run it's flagged as newly generated:
 
 ```
 Auth config generated at ~/.config/painapple-code/config.yaml. Log in once via: http://127.0.0.1:8765/?tkn=…
 ```
 
 Open that URL once in your browser and you're in.
+
+On a **non-loopback bind** (`--host 0.0.0.0`, a LAN address, or inside the Docker container) the startup box hides the password instead — a server's stdout tends to outlive the terminal in journald, `docker logs`, or a supervisor console. Retrieve the login URL with `painapple password` (see below), or pass `--show-password` to opt back in.
 
 ### Reveal the password later
 

@@ -40,11 +40,17 @@ def _apply_serve_flags(cfg, argv):
         value = _flag(argv, flag)
         if value is not None:
             _try_assign(cfg, key, value, flag)
-    if "--no-password" in argv or "--no-passwd" in argv:
-        # The container invocation is assembled from DockerSettings, not
-        # the host argv — don't let the user believe stdout is clean.
-        warn("--no-password is not forwarded into the container; the "
-             "container's startup box will still print credentials")
+    # The container invocation is assembled from DockerSettings, not the
+    # host argv, so the password-visibility flags don't forward. That's
+    # fine for --no-password: the container binds non-loopback internally,
+    # so its startup box hides credentials by default anyway. --show-password
+    # would need forwarding to have any effect — warn instead of silently
+    # dropping it (the host-side bootstrap block prints the URL regardless).
+    if "--show-password" in argv:
+        warn("--show-password is not forwarded into the container; its "
+             "startup box hides credentials (non-loopback bind). The "
+             "login URL is printed host-side after start, or via "
+             "`painapple password`.")
     ws = _flag(argv, "--workspace", "--cwd")
     if ws is not None:
         _try_assign(cfg, "WORKSPACE", ws, "--workspace")
