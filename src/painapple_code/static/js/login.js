@@ -1,0 +1,131 @@
+/**
+ * Login page behaviour. Extracted from an inline <script> in login.html so
+ * the CSP can keep script-src free of 'unsafe-inline'.
+ *
+ * Config arrives in the <script type="application/json" id="login-config">
+ * data block the server fills in — a non-JS type is never executed, so CSP
+ * does not gate it.
+ */
+(function () {
+    const form = document.getElementById('login-form');
+    const input = document.getElementById('password');
+    const error = document.getElementById('error');
+    const revealCmd = document.getElementById('reveal-cmd');
+
+    // Pick an environment-appropriate "reveal password" command. The server
+    // fills the #login-config data block with the detected environment and
+    // the resolved auth-config path (correct for local, Docker and the
+    // Codespaces Feature's /workspaces/.painapple-code/auth.yaml alike).
+    function loginConfig() {
+        try {
+            const el = document.getElementById('login-config');
+            const raw = el && el.textContent && el.textContent.trim();
+            const cfg = raw ? JSON.parse(raw) : null;
+            if (cfg && typeof cfg === 'object') return cfg;
+        } catch (e) { /* fall through to defaults */ }
+        return {};
+    }
+
+    (function setupRevealCmd() {
+        const cfg = loginConfig();
+        const env = cfg.environment || 'local';
+        const path = cfg.configPath || '~/.config/painapple-code/config.yaml';
+        const awkCmd = "awk '/^password:/ {print $2}' " + path;
+        const CMDS = {
+            local: awkCmd,
+            codespaces: awkCmd,
+            devcontainer: awkCmd,
+            docker: "docker exec painapple-code " + awkCmd,
+            podman: "podman exec painapple-code " + awkCmd,
+            container: "painapple password --in-docker",
+            kubernetes: "kubectl exec deploy/painapple-code -- " + awkCmd,
+        };
+        const LABELS = {
+            docker: 'Reveal the password from the Docker host:',
+            podman: 'Reveal the password from the host:',
+            container: 'Reveal the password from the host:',
+            kubernetes: 'Reveal the password from the cluster:',
+        };
+        // A launcher can inject the exact command (it knows the host-side
+        // container name / store / engine this page can't). Prefer it
+        // verbatim; otherwise fall back to the per-environment guess.
+        const cmd = cfg.revealCmd || CMDS[env] || awkCmd;
+        revealCmd.setAttribute('data-cmd', cmd);
+        const code = revealCmd.querySelector('code');
+        if (code) code.textContent = cmd;
+        const label = document.getElementById('reveal-label');
+        const labelText = cfg.revealCmd ? 'Reveal the password from the host:' : LABELS[env];
+        if (label && labelText) label.textContent = labelText;
+    })();
+
+    const rawNext = new URLSearchParams(location.search).get('next') || '';
+
+    let copyResetTimer = null;
+    revealCmd.addEventListener('click', async function () {
+        const cmd = revealCmd.getAttribute('data-cmd');
+        const status = revealCmd.querySelector('.login-cmd-status');
+        let ok = false;
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(cmd);
+                ok = true;
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = cmd;
+                ta.setAttribute('readonly', '');
+                ta.style.position = 'absolute';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+        } catch (_) { ok = false; }
+
+        revealCmd.classList.toggle('copied', ok);
+        revealCmd.classList.toggle('copy-failed', !ok);
+        status.textContent = ok ? 'Copied' : 'Press ⌘C';
+        clearTimeout(copyResetTimer);
+        copyResetTimer = setTimeout(function () {
+            revealCmd.classList.remove('copied', 'copy-failed');
+            status.textContent = 'Copy';
+        }, 1600);
+    });
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        error.hidden = true;
+        input.classList.remove('shake');
+
+        const pw = input.value;
+        if (!pw) return;
+
+        try {
+            const r = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ password: pw, next: rawNext }),
+                credentials: 'same-origin',
+            });
+            if (r.ok) {
+                const body = await r.json();
+                // Redirect only to the server-sanitized next — never
+                // location.search directly.
+                location.href = body.next || '/app';
+                return;
+            }
+            if (r.status === 401) {
+                error.textContent = 'Incorrect password';
+            } else {
+                error.textContent = 'Login failed (' + r.status + ')';
+            }
+            error.hidden = false;
+            input.classList.add('shake');
+            input.select();
+        } catch (err) {
+            error.textContent = 'Network error';
+            error.hidden = false;
+            input.classList.add('shake');
+        }
+    });
+})();

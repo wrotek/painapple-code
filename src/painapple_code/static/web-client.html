@@ -44,17 +44,16 @@
     <script src="/static/vendor/highlight-lang-properties.min.js"></script>
     <link rel="stylesheet" href="/static/vendor/highlight-github-dark.min.css">
 
-    <!-- Layout density before first paint — the config module that owns
-         applyLayout() loads much later, which flashes normal-density UI
-         for compact/spacious users. Normal is the :root default. -->
-    <script>
-        try {
-            var cfg = JSON.parse(localStorage.getItem('claude-code-user-config') || '{}');
-            if (cfg.layout === 'compact' || cfg.layout === 'spacious') {
-                document.documentElement.dataset.layout = cfg.layout;
-            }
-        } catch (e) { /* corrupt config — keep normal */ }
-    </script>
+    <!-- Instance identity config. The server replaces the `null` body with its
+         JSON; a non-JS `type` makes this a data block the browser never
+         executes, so CSP's script-src does not gate it. boot.js reads it into
+         window.INSTANCE_CONFIG and MUST stay after this element. -->
+    <script type="application/json" id="instance-config">null</script>
+
+    <!-- Pre-app boot: instance config, layout density before first paint, and
+         service-worker registration. Classic script, deliberately synchronous
+         and render-blocking — see js/boot.js. -->
+    <script src="/static/js/boot.js"></script>
 
     <!-- App Styles -->
     <link rel="stylesheet" href="/static/styles.css">
@@ -625,40 +624,6 @@
     <!-- App JavaScript (ES Modules) -->
     <script type="module" src="/static/js/app.js"></script>
 
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js', { scope: '/' })
-                    .then((registration) => {
-                        console.log('SW registered:', registration.scope);
-
-                        // Check for updates
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // New version available - auto-apply it
-                                    console.log('New version available - activating...');
-                                    newWorker.postMessage('skipWaiting');
-                                }
-                            });
-                        });
-
-                        // Reload when new SW takes control (ensures fresh code)
-                        let refreshing = false;
-                        navigator.serviceWorker.addEventListener('controllerchange', () => {
-                            if (refreshing) return;
-                            refreshing = true;
-                            console.log('New SW controlling page - reloading...');
-                            window.location.reload();
-                        });
-                    })
-                    .catch((err) => {
-                        console.error('SW registration failed:', err);
-                    });
-            });
-        }
-    </script>
+    <!-- Service-worker registration moved into js/boot.js (CSP: no inline scripts). -->
 </body>
 </html>

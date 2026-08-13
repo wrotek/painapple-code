@@ -342,8 +342,20 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# CSP Stage 1 (WP-04 B4): everything locked down except script/style, which
-# keep 'unsafe-inline' until the app's inline handlers are removed (Stage 3).
+def _json_for_html(value) -> str:
+    """Serialize ``value`` for embedding inside an HTML <script> data block.
+
+    A raw ``</script>`` sequence anywhere in the JSON would close the element
+    early and let the remainder be parsed as markup. Escaping ``<`` sidesteps
+    that (and ``<!--``) without changing what ``JSON.parse`` sees: ``\\u003c``
+    is just ``<`` to any JSON reader. ``&`` is left alone — script data blocks
+    are CDATA-ish and do not run entity decoding.
+    """
+    return json.dumps(value).replace("<", "\\u003c")
+
+
+# CSP Stage 1 (WP-04 B4): everything locked down except style, which keeps
+# 'unsafe-inline' (see the note in the style-src line below).
 # `ws:`/`wss:` in connect-src keeps WebSocket reconnect working same-origin.
 _CSP_STAGE1 = (
     "default-src 'self'; "
@@ -959,9 +971,13 @@ async def login_page(request: Request):
     reveal_cmd = os.environ.get("PAINAPPLE_REVEAL_CMD", "").strip()
     if reveal_cmd:
         login_config["revealCmd"] = reveal_cmd
+    # Written into the page's <script type="application/json"> data block —
+    # not an executable inline script, so the CSP can keep script-src free of
+    # 'unsafe-inline'. login.js reads it. Mirrors /app's instance-config.
     html = html_path.read_text(encoding="utf-8").replace(
-        "</head>",
-        f"    <script>window.LOGIN_CONFIG={json.dumps(login_config)};</script>\n</head>",
+        '<script type="application/json" id="login-config">null</script>',
+        '<script type="application/json" id="login-config">'
+        f"{_json_for_html(login_config)}</script>",
     )
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
@@ -1376,11 +1392,16 @@ async def web_client():
         html = re.sub(r'(/static/[^"]+\.css)"', rf'\1{cache_bust}"', html)
         html = re.sub(r'(/static/[^"]+\.js)"', rf'\1{cache_bust}"', html)
 
-        # Inject instance identity config for frontend
+        # Inject instance identity config for the frontend, into the
+        # <script type="application/json"> data block the page ships with.
+        # A non-JS type is never executed, so CSP's script-src does not gate
+        # it — which is what lets the CSP drop 'unsafe-inline' for scripts.
+        # boot.js parses it into window.INSTANCE_CONFIG.
         if instance_config:
-            config_json = json.dumps(instance_config)
-            html = html.replace('</head>',
-                f'    <script>window.INSTANCE_CONFIG={config_json};</script>\n</head>')
+            html = html.replace(
+                '<script type="application/json" id="instance-config">null</script>',
+                '<script type="application/json" id="instance-config">'
+                f'{_json_for_html(instance_config)}</script>')
 
         # Update HTML meta tags for instance
         if instance_config.get("name"):
@@ -1443,6 +1464,9 @@ async def service_worker():
         precache = [
             "/app",
             f"/static/styles.css?v={version}",
+            # boot.js is render-blocking on every load and is never part of the
+            # module graph, so it is not covered by either arm of `shell`.
+            f"/static/js/boot.js?v={version}",
             *[f"/static/{rel}?v={version}" for rel in shell],
             "/static/icons/icon-192.png",
             "/static/icons/icon-512.png",
