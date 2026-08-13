@@ -314,6 +314,81 @@ async function markSent(itemIds, meta = {}) {
 }
 
 /**
+ * Re-arm previously sent items so they ride along with the next message.
+ *
+ * Restores the ORIGINAL items by id rather than rebuilding them from a
+ * message's stored `stashRefs`: those are display copies with `selectedText`
+ * truncated to 300 chars, so reconstructing from them would silently attach a
+ * clipped snippet. Items that have aged out of the sent-history cap (or belong
+ * to another session) are reported back as missing instead of being faked —
+ * the caller tells the user rather than quietly attaching less than they asked
+ * for.
+ *
+ * Items already pending are re-enabled but not double-counted as restored.
+ *
+ * @param {string[]} itemIds
+ * @returns {Promise<{restored: number, missing: number}>}
+ */
+async function reattach(itemIds) {
+    if (!itemIds || itemIds.length === 0) return { restored: 0, missing: 0 };
+
+    const wanted = new Set(itemIds);
+    const touched = [];
+    let restored = 0;
+    for (const item of state.items) {
+        if (!wanted.has(item.id)) continue;
+        if (item.status === 'sent') restored++;
+        item.status = null;
+        item.enabled = true;
+        item.sentAt = null;
+        item.sentWithMessageId = null;
+        item.sentInSessionId = null;
+        touched.push(item.id);
+    }
+
+    const missing = itemIds.length - touched.length;
+    if (touched.length === 0) return { restored: 0, missing };
+    notify();
+
+    if (state.sessionId) {
+        const body = JSON.stringify({
+            status: null,
+            enabled: true,
+            sentAt: null,
+            sentWithMessageId: null,
+            sentInSessionId: null,
+        });
+        await Promise.all(touched.map(id =>
+            fetch(`${CONFIG.API_BASE}/api/session/${state.sessionId}/stash/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body,
+            }).catch(err => console.error('[Stash] Re-attach sync error:', err))
+        ));
+    }
+
+    return { restored, missing };
+}
+
+/**
+ * Which of these ids are still in this session's stash AND would actually
+ * change state if re-armed. An item already pending and enabled is a no-op, so
+ * it is excluded — that is what lets the caller hide a "Re-attach" affordance
+ * once there is nothing left for it to do.
+ *
+ * @param {string[]} itemIds
+ * @returns {string[]}
+ */
+function restorableIds(itemIds) {
+    if (!itemIds || itemIds.length === 0) return [];
+    const byId = new Map(state.items.map(i => [i.id, i]));
+    return itemIds.filter(id => {
+        const item = byId.get(id);
+        return item ? !(isPending(item) && item.enabled) : false;
+    });
+}
+
+/**
  * Move all enabled items to another session's stash
  * @param {string} targetSessionId - Session ID to move items to
  * @returns {number} Number of items moved
@@ -684,6 +759,8 @@ export const Stash = {
     clear,
     clearHistory,
     markSent,
+    reattach,
+    restorableIds,
     reset,
     setPaused,
     moveToSession,

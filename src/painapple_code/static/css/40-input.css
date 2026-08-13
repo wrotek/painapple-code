@@ -1606,6 +1606,24 @@
     overflow-y: auto;
 }
 
+.history-refs-reattach {
+    margin-top: var(--sp-4);
+    padding: var(--sp-4) var(--sp-10);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: var(--radius-sm);
+    background: rgba(139, 92, 246, 0.10);
+    color: var(--accent);
+    font-size: var(--font-size-xs);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.history-refs-reattach:hover {
+    background: rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.55);
+}
+
 /* Stash preview in input (shown above input when items exist) */
 .stash-preview {
     display: none;

@@ -382,6 +382,10 @@ export const inputEventMethods = {
         if (Stash.hasEnabled() && !Stash.isPaused()) {
             // Save compact version of stash items for message display
             stashRefs = Stash.getEnabled().map(item => ({
+                // The originating stash item, so recall can re-arm the real
+                // item instead of rebuilding it from the truncated copy below.
+                // Rides along to messages.jsonl, so it survives a reload.
+                id: item.id,
                 type: item.type,
                 selectedText: item.selectedText?.slice(0, 300), // Truncate for storage
                 note: item.note || '',

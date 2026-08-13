@@ -3,7 +3,7 @@
  * Manages message input, history navigation, drafts, and autocomplete integration
  */
 
-import { Storage } from './utils.js';
+import { Storage, escapeHtml, escapeAttr } from './utils.js';
 import { CONFIG } from './config.js';
 import { Stash } from './stash.js';
 import { ShortcutHints } from './shortcut-hints.js';
@@ -672,12 +672,59 @@ export class InputHandler {
         // being able to see which. Expanded when there is nothing else to look
         // at (no typed text) or when there is only one; collapsed otherwise so
         // a large stash cannot shove the input off screen.
+        // Re-attach is offered only for refs whose ORIGINAL stash items are
+        // still around and not already armed. Rebuilding them from the refs
+        // themselves would be a trap: `selectedText` is truncated to 300 chars
+        // for display, so a rebuilt item would quietly send a clipped snippet.
+        const ids = refs.map(r => r.id).filter(Boolean);
+        const restorable = Stash.restorableIds(ids);
+        const actionHtml = restorable.length > 0
+            ? `<button type="button" class="history-refs-reattach" data-action="reattach"
+                       data-tooltip="${escapeAttr(strings.reattach_tooltip)}">${escapeHtml(strings.reattach)}</button>`
+            : '';
+
         el.innerHTML = renderStashRefs(refs, {
             label: strings[key].replace('{count}', refs.length),
             open: isEmpty || refs.length === 1,
-        });
+        }) + actionHtml;
         el.dataset.tooltip = strings.recall_hint_tooltip;
         el.classList.add('visible');
+
+        el.querySelector('[data-action="reattach"]')
+            ?.addEventListener('click', (e) => this._reattachRecalledRefs(e, ids, entry));
+    }
+
+    /**
+     * Re-arm the stash items a recalled prompt was sent with.
+     * @private
+     */
+    async _reattachRecalledRefs(e, ids, entry) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const strings = S.ui.stash;
+        const { restored, missing } = await Stash.reattach(ids);
+
+        if (restored === 0 && missing > 0) {
+            showToast(strings.reattach_none);
+        } else {
+            const parts = [
+                (restored === 1 ? strings.reattached_one : strings.reattached_many)
+                    .replace('{count}', restored),
+            ];
+            if (missing > 0) {
+                parts.push(
+                    (missing === 1 ? strings.reattach_missing_one : strings.reattach_missing_many)
+                        .replace('{count}', missing)
+                );
+            }
+            showToast(parts.join(' · '));
+        }
+
+        // Re-render: the button drops out now that the items are armed, and
+        // the stash preview bar above the input picks them up on its own.
+        this._renderHistoryRefsHint(entry);
+        this.els.messageInput.focus();
     }
 
     /**
