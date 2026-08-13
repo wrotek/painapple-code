@@ -19,8 +19,21 @@ pyyaml>=6.0
 Pillow>=12.3.0
 python-multipart>=0.0.31
 cryptography>=43.0.1
-httpx>=0.28.0
-httpcore>=1.0  # imported directly for the browser-proxy SSRF-guard transport
+# httpx/httpcore are upper-capped because the browser-proxy SSRF guard
+# (routes/api_browser.py) reaches into private internals: it sets
+# httpx's `transport._pool._network_backend` and subclasses
+# httpcore.AsyncNetworkBackend (`connect_tcp`). Those are exactly what a major
+# release may rename or reshape. Caps match the boundary each project signals
+# for breaking changes (FastAPI itself pins `httpx<1.0.0`); the 0.x/1.x lines
+# stay open so Dependabot's weekly PRs still flow and resolvers don't fight.
+# There is NO "httpx 2"/migration — 0.28 is current; this is breakage
+# insurance, not a port. Raise the ceiling deliberately (re-check the
+# `_pool._network_backend` poke + the backend subclass) when httpx 1.0 /
+# httpcore 2.0 ship. A hard-coded AttributeError fallback in
+# `_guarded_async_client` already degrades to pre-checks-only if the httpx
+# internal shape shifts within the allowed range.
+httpx>=0.28.0,<1.0
+httpcore>=1.0,<2.0  # imported directly for the browser-proxy SSRF-guard transport
 questionary>=2.1
 psutil>=5.9  # utils/proc.py liveness + process discovery — os.kill(pid,0) lies on win32 and /proc doesn't exist on macOS/Windows
 pywinpty>=2.0; sys_platform == "win32"  # utils/pty_windows.py — ConPTY for the terminal tab (POSIX uses stdlib pty)
