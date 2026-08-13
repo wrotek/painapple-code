@@ -31,6 +31,15 @@ export const escapeHtml = (text) => {
 export const escapeAttr = (text) =>
     escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
+// Base64-encode arbitrary (UTF-8) text for carrying in a `data-` attribute that
+// inline JS reads back with atob(). Base64's alphabet is [A-Za-z0-9+/=] — no
+// quote, `&` or `<` — so the value cannot terminate the attribute or the
+// surrounding script no matter what the payload is. Prefer plain escapeAttr +
+// dataset; reach for this when the text must survive a round-trip through a
+// handler (clipboard copy of a command or tool output).
+export const b64Attr = (text) =>
+    btoa(unescape(encodeURIComponent(String(text ?? ''))));
+
 // Sanitize server-produced SVG before it goes into innerHTML. The chart /
 // excalidraw renderers build SVG from model-authored specs, so it can carry
 // <foreignObject>, onerror/onbegin handlers, or xlink:href="javascript:".

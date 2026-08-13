@@ -7,7 +7,7 @@
  */
 
 import S from './strings.js';
-import { escapeHtml, escapeAttr, parseTaskUsage, formatTokensBadge, formatDuration } from './utils.js';
+import { escapeHtml, escapeAttr, b64Attr, parseTaskUsage, formatTokensBadge, formatDuration } from './utils.js';
 import { generateSmartDiff, renderSmartDiff } from './diff-utils.js';
 import { parseBackgroundTaskOutput } from './background-tasks.js';
 import { cleanToolError, ansiToHtml, colorizeBashLine, getLangForExt } from './tool-renderer.js';
@@ -332,9 +332,19 @@ ${expandBtn}
         const isMultiline = command.includes('\n');
         const isLongCommand = command.length > 60 || isMultiline;
 
-        // Escape command and output for JS onclick
-        const cmdEscaped = JSON.stringify(command).replace(/"/g, '&quot;');
-        const outputEscaped = JSON.stringify(output).replace(/"/g, '&quot;');
+        // Command and output are model/tool text and go into a `data-` attribute
+        // as base64, NOT interpolated into the handler.
+        //
+        // This previously used JSON.stringify(x).replace(/"/g, '&quot;') and was
+        // an XSS: that replace maps the JSON string's own delimiters AND any
+        // literal `&quot;` in the payload to the same sequence, and the HTML
+        // parser decodes every `&quot;` back to `"` before the JS is compiled —
+        // so a payload containing `&quot;` closed the string early and the rest
+        // ran as script. Tool *output* reaches this path, so a `cat` of an
+        // attacker-controlled file was enough. Base64's alphabet has no quote,
+        // `&` or `<`, so it cannot break out of an attribute at all.
+        const cmdEncoded = b64Attr(command);
+        const outputEncoded = b64Attr(output);
 
         // Parse output lines
         const outputLines = output.split('\n');
@@ -393,13 +403,13 @@ ${expandBtn}
             : '';
 
         // Copy command button (inside command wrapper, shows on hover)
-        const copyCmdBtn = `<button class="bash-copy-cmd" onclick="event.stopPropagation(); navigator.clipboard.writeText(${cmdEscaped}); const t=this; t.classList.add('copied'); t.querySelector('.copy-label').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('.copy-label').textContent='Copy'; }, 1500)" data-tooltip="Copy command">
+        const copyCmdBtn = `<button class="bash-copy-cmd" data-copy="${cmdEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); const t=this; t.classList.add('copied'); t.querySelector('.copy-label').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('.copy-label').textContent='Copy'; }, 1500)" data-tooltip="Copy command">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span class="copy-label">Copy</span>
         </button>`;
 
         // Copy output button (inside output area with label)
-        const copyOutputBtn = `<button class="bash-copy-output" onclick="event.stopPropagation(); navigator.clipboard.writeText(${outputEscaped}); const t=this; t.classList.add('copied'); t.querySelector('span').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('span').textContent='Copy output'; }, 1500)">
+        const copyOutputBtn = `<button class="bash-copy-output" data-copy="${outputEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); const t=this; t.classList.add('copied'); t.querySelector('span').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('span').textContent='Copy output'; }, 1500)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Copy output</span>
         </button>`;
@@ -471,8 +481,10 @@ ${siblingError
             : '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>';
 
         // Copy output button
-        const outputEscaped = JSON.stringify(output).replace(/"/g, '&quot;');
-        const copyOutputBtn = output ? `<button class="bash-copy-output" onclick="event.stopPropagation(); navigator.clipboard.writeText(${outputEscaped}); const t=this; t.classList.add('copied'); t.querySelector('span').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('span').textContent='Copy'; }, 1500)">
+        // Base64 into a data- attribute, never interpolated into the handler
+        // (this is WebFetch/WebSearch output — remote, attacker-influenced).
+        const outputEncoded = b64Attr(output);
+        const copyOutputBtn = output ? `<button class="bash-copy-output" data-copy="${outputEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); const t=this; t.classList.add('copied'); t.querySelector('span').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('span').textContent='Copy'; }, 1500)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Copy</span>
         </button>` : '';
@@ -613,9 +625,14 @@ ${outputHtml}
         // Helper to make a file path clickable
         const makeFileLink = (filePath, displayName, lineNum = null) => {
             const resolvedPath = verifiedFiles[filePath] || filePath;
-            const escapedPath = resolvedPath.replace(/'/g, "\\'");
-            const lineOpts = lineNum ? `{scrollToLine: ${lineNum}, flash: true}` : '{}';
-            return `<a href="#" class="file-path-link" data-tooltip="${escapeHtml(resolvedPath)}" onclick="event.preventDefault(); window.app?.openFileLink('${escapedPath}', ${lineOpts}, event)">${escapeHtml(displayName)}</a>`;
+            // Path rides in a data- attribute and is read back via dataset —
+            // never interpolated into the handler. The old
+            // `resolvedPath.replace(/'/g, "\\'")` escaped ONLY apostrophes, so a
+            // filename containing `"` terminated the onclick=" attribute itself
+            // and could inject sibling attributes (and a trailing `\` defeated
+            // the escape). Mirrors the reference impl in tool-renderer.js.
+            const lineOpts = lineNum ? JSON.stringify({ scrollToLine: lineNum, flash: true }) : '{}';
+            return `<a href="#" class="file-path-link" data-file="${escapeAttr(resolvedPath)}" data-line-opts="${escapeAttr(lineOpts)}" data-tooltip="${escapeHtml(resolvedPath)}" onclick="event.preventDefault(); window.app?.openFileLink(this.dataset.file, JSON.parse(this.dataset.lineOpts || '{}'), event)">${escapeHtml(displayName)}</a>`;
         };
 
         // Parse grep results - filter out summary/metadata lines
@@ -805,8 +822,9 @@ ${totalMatches > 0 ? `<div class="grep-results">${resultsHtml}${expandBtn}</div>
 
             // Make files clickable (not directories)
             if (!isDir && resolvedPath) {
-                const escapedPath = resolvedPath.replace(/'/g, "\\'");
-                return `<div class="glob-file${hidden}"><a href="#" class="file-path-link" data-tooltip="${escapeHtml(resolvedPath)}" onclick="event.preventDefault(); window.app?.openFileLink('${escapedPath}', {}, event)">${escapeHtml(displayFile)}</a></div>`;
+                // Path via dataset, not interpolated into the handler — see the
+                // note on makeFileLink above for what the old escape missed.
+                return `<div class="glob-file${hidden}"><a href="#" class="file-path-link" data-file="${escapeAttr(resolvedPath)}" data-tooltip="${escapeHtml(resolvedPath)}" onclick="event.preventDefault(); window.app?.openFileLink(this.dataset.file, {}, event)">${escapeHtml(displayFile)}</a></div>`;
             }
             return `<div class="glob-file${hidden}${isDir ? ' glob-dir' : ''}">${escapeHtml(displayFile)}</div>`;
         }).join('');

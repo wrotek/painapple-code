@@ -6,7 +6,7 @@
  */
 
 import S from './strings.js';
-import { escapeHtml, escapeAttr } from './utils.js';
+import { escapeHtml, escapeAttr, b64Attr } from './utils.js';
 import { cleanToolError, getLangForExt } from './tool-renderer.js';
 import { basename, dirname, isAbsolutePath, isUnder, parentOf, relativeTo } from './path-utils.js';
 
@@ -68,10 +68,12 @@ export const thinkingMethods = {
             case 'Shell': {
                 icon = '<polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>';
                 const cmd = toolInput?.command || '';
-                const cmdEscaped = JSON.stringify(cmd).replace(/"/g, '&quot;');
+                // Base64 into a data- attribute, never interpolated into the
+                // handler — model-authored text cannot break out of base64.
+                const cmdEncoded = b64Attr(cmd);
                 // Simplify command display
                 const cmdShort = cmd.length > 50 ? cmd.slice(0, 47) + '...' : cmd;
-                desc = `<code class="ta-bash-cmd" onclick="event.stopPropagation(); navigator.clipboard.writeText(${cmdEscaped}); this.classList.add('copied'); setTimeout(() => this.classList.remove('copied'), 600)" data-tooltip="Click to copy">${escapeHtml(cmdShort)}</code>`;
+                desc = `<code class="ta-bash-cmd" data-copy="${cmdEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); this.classList.add('copied'); setTimeout(() => this.classList.remove('copied'), 600)" data-tooltip="Click to copy">${escapeHtml(cmdShort)}</code>`;
                 // Smart result parsing
                 if (output) {
                     result = this._parseBashResult(cmd, output);
