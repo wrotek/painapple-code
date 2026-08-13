@@ -314,6 +314,8 @@ ui:
     moved_to_session: "Moved {count} items to {name}"
     moving: "Moving…"
     no_other_sessions: "No other sessions open"
+    refs_attached_one: "1 reference attached"
+    refs_attached_many: "{count} references attached"
     recall_hint_one: "Sent with 1 stashed reference"
     recall_hint_many: "Sent with {count} stashed references"
     recall_hint_empty_one: "No message text — sent with 1 stashed reference only"

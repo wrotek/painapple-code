@@ -9,6 +9,7 @@ import { Stash } from './stash.js';
 import { ShortcutHints } from './shortcut-hints.js';
 import { DraftsPill } from './drafts-pill.js';
 import { showToast } from './context-menu.js';
+import { renderStashRefs } from './stash-refs-view.js';
 import S from './strings.js';
 
 // Auto-sync of in-progress input to a server-side draft (/api/drafts):
@@ -653,7 +654,7 @@ export class InputHandler {
         const refs = historyEntryRefs(entry);
         if (!refs) {
             el.classList.remove('visible');
-            el.textContent = '';
+            el.innerHTML = '';
             return;
         }
 
@@ -665,7 +666,16 @@ export class InputHandler {
         const key = isEmpty
             ? (refs.length === 1 ? 'recall_hint_empty_one' : 'recall_hint_empty_many')
             : (refs.length === 1 ? 'recall_hint_one' : 'recall_hint_many');
-        el.textContent = strings[key].replace('{count}', refs.length);
+
+        // Same block the sent-message bubble draws, from the same refs — the
+        // count alone left the user knowing a prompt had references without
+        // being able to see which. Expanded when there is nothing else to look
+        // at (no typed text) or when there is only one; collapsed otherwise so
+        // a large stash cannot shove the input off screen.
+        el.innerHTML = renderStashRefs(refs, {
+            label: strings[key].replace('{count}', refs.length),
+            open: isEmpty || refs.length === 1,
+        });
         el.dataset.tooltip = strings.recall_hint_tooltip;
         el.classList.add('visible');
     }

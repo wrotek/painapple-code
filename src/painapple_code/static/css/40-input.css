@@ -1586,25 +1586,24 @@
    (no border, muted text) so it reads as annotation, not as pending state. */
 .history-refs-hint {
     display: none;
-    align-items: center;
-    gap: var(--sp-6);
-    padding: var(--sp-4) var(--sp-8);
     margin-bottom: var(--sp-8);
-    border-radius: var(--radius-sm);
-    background: rgba(139, 92, 246, 0.06);
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    cursor: default;
 }
 
 .history-refs-hint.visible {
-    display: flex;
+    display: block;
 }
 
-.history-refs-hint::before {
-    content: "↑";
-    color: var(--accent);
-    font-weight: 600;
+/* Reuses the message bubble's .stash-refs-* block (20-messages.css) so the
+   recalled prompt previews its references exactly as the sent one did. */
+.history-refs-hint .stash-refs-block {
+    margin: 0;
+}
+
+/* A prompt can carry a large stash — keep the preview from pushing the
+   textarea off screen. */
+.history-refs-hint .stash-refs-content {
+    max-height: 30vh;
+    overflow-y: auto;
 }
 
 /* Stash preview in input (shown above input when items exist) */
