@@ -85,10 +85,6 @@ export const panelMethods = {
         WidgetManager.toggle('debug-logs');
     },
 
-    toggleEruda() {
-        QuickActionsRegistry.execute('eruda');
-    },
-
     toggleHistoryExplorer() {
         WidgetManager.toggle('history-explorer');
     },

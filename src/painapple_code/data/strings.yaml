@@ -1422,7 +1422,6 @@ shortcuts:
   toggle_browser: "Toggle browser"
   toggle_debug: "Toggle debug logs"
   toggle_history: "Toggle Journal"
-  toggle_eruda: "Toggle DOM inspector (Eruda)"
   toggle_zen: "Zen Mode"
   quick_actions: "Quick actions menu"
   toggle_prompts: "Toggle prompt history"
@@ -1717,7 +1716,6 @@ quick_actions_registry:
     storage_info: { label: "Storage", desc: "Show local storage usage" }
     storage_cleanup: { label: "Storage Cleanup", desc: "Free storage by trimming message history" }
     fullscreen: { label: "Fullscreen", desc: "Toggle fullscreen mode" }
-    eruda: { label: "Eruda", desc: "In-browser DevTools (console, DOM, network, storage)" }
     reload: { label: "Reload", desc: "Reload the app (like Cmd+R)" }
     hard_reset: { label: "Hard Reset", desc: "Clear all local data (tabs, messages, caches) and reload fresh" }
     capture_snapshot: { label: "Snapshot", desc: "Capture browser state for perf benchmarks" }

@@ -412,16 +412,6 @@ export const SHORTCUTS = [
         category: 'panels'
     },
     {
-        id: 'toggleEruda',
-        // Alt+Shift+D fits the Alt-family of feature panels and leaves
-        // Ctrl+Shift+D free for a future Debug/Diagnostics view (the
-        // VS Code / Cursor / Zed consensus binding).
-        keys: ['Alt+Shift+D'],
-        action: 'toggleEruda',
-        label: S.shortcuts.toggle_eruda,
-        category: 'panels'
-    },
-    {
         id: 'toggleHistoryExplorer',
         keys: ['Alt+H'],
         action: 'toggleHistoryExplorer',

@@ -61,7 +61,6 @@ set is built and when you need this flag.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--default-provider` | `claude-sdk` | Default [AI engine](../guides/engines.md) for new sessions (existing sessions keep their recorded engine). Pinning it here also hides the UI's "Make default" button |
-| `--enable-eruda` | off | Enable the Eruda mobile-devtools quick action (loads from a CDN) |
 | `--enable-renderers` | off | Enable **server-side** chart/diagram rendering (Vega-Lite / Excalidraw). Off by default because a model-authored spec is rendered through a Node subprocess whose data loader can fetch external/`file:` URLs (SSRF / local-file read). Client-side rendering is unaffected. Also settable via `PAINAPPLE_ENABLE_RENDERERS=1`. |
 | `-v`, `--version` | — | Print version and exit |
 

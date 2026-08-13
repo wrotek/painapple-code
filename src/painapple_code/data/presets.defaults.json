@@ -26,7 +26,7 @@
   },
   "debug": {
     "name": "Debug",
-    "description": "Debugging tools: devtools, logs, snapshots, storage",
-    "slots": ["eruda", "debug-logs", "reload", "log-explorer", "capture-snapshot", "storage-info", "active-sessions", "hard-reset"]
+    "description": "Debugging tools: logs, snapshots, storage",
+    "slots": ["debug-logs", "reload", "log-explorer", "capture-snapshot", "storage-info", "active-sessions", "hard-reset"]
   }
 }

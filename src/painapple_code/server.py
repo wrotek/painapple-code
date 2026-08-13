@@ -1804,9 +1804,6 @@ def main(argv=None):
                 logger.warning(f"Instance icons skipped ({type(e).__name__}: {e}) "
                                f"— serving the default icon set")
 
-    if args.enable_eruda:
-        instance_config["eruda_enabled"] = True
-
     # Server-side chart/excalidraw rendering is OFF by default: model-authored
     # specs auto-render through a Node subprocess whose Vega data loader will
     # fetch external/file: URLs (SSRF / local-file read). Opt in explicitly.

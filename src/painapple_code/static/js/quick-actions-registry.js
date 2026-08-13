@@ -906,47 +906,6 @@ QuickActionsRegistry.register('fullscreen', {
     },
 });
 
-// Opt-in: Eruda loads from a CDN, so the server gates it behind --enable-eruda.
-if (window.INSTANCE_CONFIG?.eruda_enabled) {
-    QuickActionsRegistry.register('eruda', {
-        keywords: ['devtools', 'mobile dev', 'inspector', 'console', 'debug'],
-        icon: 'code',
-        label: S.quick_actions_registry.actions.eruda.label,
-        description: S.quick_actions_registry.actions.eruda.desc,
-        category: S.quick_actions_registry.categories.utilities,
-        execute: () => {
-            if (window.eruda) {
-                try {
-                    if (eruda._devTools?._isShow) eruda.hide();
-                    else eruda.show();
-                } catch(e) {}
-                return;
-            }
-            // First time: load from CDN, init, and show
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/eruda';
-            script.onload = () => {
-                if (window.eruda) {
-                    eruda.init();
-                    setTimeout(() => eruda.show(), 100);
-                    try {
-                        const pos = JSON.parse(localStorage.getItem('eruda-pos'));
-                        if (pos) eruda.position(pos);
-                    } catch(e) {}
-                    // Periodically save position
-                    setInterval(() => {
-                        try {
-                            const pos = eruda.position();
-                            if (pos) localStorage.setItem('eruda-pos', JSON.stringify(pos));
-                        } catch(e) {}
-                    }, 5000);
-                }
-            };
-            document.head.appendChild(script);
-        },
-    });
-}
-
 QuickActionsRegistry.register('reload', {
     keywords: ['refresh', 'f5', 'restart page'],
     icon: 'refresh-cw',

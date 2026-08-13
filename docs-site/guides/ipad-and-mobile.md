@@ -56,5 +56,4 @@ pAInapple Code handles this for you: tab state (open sessions, widget tabs, stri
 No dev tools on an iPad? The app ships its own:
 
 - **Debug console** (++alt+d++) — a widget that captures `console.log`/`warn`/`error` output with per-entry copy and multi-select copy. The everyday "why did that fail" tool.
-- **Eruda dev tools** (++alt+shift+d++) — full mobile devtools (DOM inspector, network, console), only available when the server is started with `--enable-eruda`.
 - **Capture snapshot** — a quick action that dumps full client state (localStorage, runtime sessions, memory, metrics) to the server as a JSON file, so a desktop session — or Claude itself — can dig through what the device was seeing.

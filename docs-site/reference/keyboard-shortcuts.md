@@ -48,7 +48,6 @@ Some shortcuts bind different keys per platform: **Mac / iPad** uses ++cmd++, **
 | Discussion thread | ++alt+slash++ | ++alt+slash++ |
 | Browser widget | ++alt+b++ | ++alt+b++ |
 | Debug console | ++alt+d++ | ++alt+d++ |
-| Eruda dev tools | ++alt+shift+d++ | ++alt+shift+d++ |
 | Toggle Journal | ++alt+h++ | ++alt+h++ |
 | Zen mode | ++alt+z++ | ++alt+z++ |
 | Quick actions (radial menu) | ++ctrl+q++ | ++ctrl+q++ |

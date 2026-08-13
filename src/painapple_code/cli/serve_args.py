@@ -132,8 +132,6 @@ def build_parser():
                           "global-config key. E.g. 'claude-sdk' (Agent SDK driver — "
                           "interactive permission cards, live mode/model switching; "
                           "default) or 'claude' (line protocol).")
-    adv.add_argument("--enable-eruda", action="store_true",
-                     help="Enable the Eruda mobile devtools quick action (loads from CDN; off by default)")
     adv.add_argument("--public-origin", action="append", default=None, metavar="ORIGIN",
                      help="Trusted browser origin for a proxied deployment, e.g. "
                           "https://claude.example.com. Repeatable. Adds to the "

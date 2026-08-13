@@ -95,8 +95,8 @@ self.addEventListener('fetch', (event) => {
   // Intercepting cross-origin module imports has historically caused Safari
   // to mis-cache or reject responses, surfacing as a fake 503 from our
   // catch handler and a `TypeError: Importing a module script failed`.
-  // (CodeMirror is now bundled at /static/vendor/codemirror.js; xterm and
-  // eruda are the remaining cross-origin loaders.)
+  // (All third-party libs are now vendored under /static/vendor/, so the app
+  // itself no longer loads anything cross-origin; this guard stays defensive.)
   if (url.origin !== self.location.origin) {
     return;
   }
