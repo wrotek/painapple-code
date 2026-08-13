@@ -65,7 +65,7 @@ export const blockMethods = {
         const hiddenRows = needsExpand ? totalRows - MAX_VISIBLE_ROWS : 0;
         const diffLines = renderSmartDiff(diffEntries, { hideAfter: needsExpand ? MAX_VISIBLE_ROWS : Infinity });
         const expandBtn = needsExpand
-            ? `<button class="diff-expand-btn" onclick="this.closest('.edit-diff').classList.toggle('expanded'); this.textContent = this.closest('.edit-diff').classList.contains('expanded') ? '▲ Collapse' : '▼ ${hiddenRows} more lines'">▼ ${hiddenRows} more lines</button>`
+            ? `<button class="diff-expand-btn" data-act="toggle-expand" data-block=".edit-diff" data-more-label="▼ ${hiddenRows} more lines">▼ ${hiddenRows} more lines</button>`
             : '';
 
         // Calculate stats from actual diff entries (not raw line counts)
@@ -79,7 +79,7 @@ export const blockMethods = {
 
         // Calculate line range for preview highlighting (only when the position is real)
         const previewOpts = lineNumsKnown
-            ? JSON.stringify({ start: startLine, end: startLine + newLines.length - 1 }).replace(/"/g, '&quot;')
+            ? JSON.stringify({ start: startLine, end: startLine + newLines.length - 1 })
             : '{}';
 
         // Cache edit data for side-by-side viewer (avoids large strings in onclick)
@@ -95,13 +95,13 @@ export const blockMethods = {
     <span class="edit-diff-stats">${statsText}</span>
     <div class="edit-actions">
         ${wrapToggleBtn('edit-action')}
-        <button class="edit-action" data-file="${escapeAttr(file_path)}" onclick="window.app?.previewFile(this.dataset.file, ${previewOpts})" data-tooltip="Preview">
+        <button class="edit-action" data-act="preview-file" data-file="${escapeAttr(file_path)}" data-preview-opts="${escapeAttr(previewOpts)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <button class="edit-action" data-file="${escapeAttr(file_path)}" onclick="window.app?.openFileInEditor(this.dataset.file)" data-tooltip="Open in editor">
+        <button class="edit-action" data-act="open-in-editor" data-file="${escapeAttr(file_path)}" data-tooltip="Open in editor">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
-        ${sbsCacheId ? `<button class="edit-action" onclick="window.DiffViewerWidget?.openFromCache('${sbsCacheId}')" data-tooltip="Side-by-side">
+        ${sbsCacheId ? `<button class="edit-action" data-act="open-diff-cache" data-cache-id="${escapeAttr(sbsCacheId)}" data-tooltip="Side-by-side">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="18" rx="1"/><rect x="13" y="3" width="8" height="18" rx="1"/></svg>
         </button>` : ''}
     </div>
@@ -141,7 +141,7 @@ ${expandBtn}
     ${this.fileLink(filePath, filename, 'read-filename')}
     <span class="read-lang">image</span>
     <div class="read-actions">
-        <button class="read-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file)" data-tooltip="Preview">
+        <button class="read-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
     </div>
@@ -199,7 +199,7 @@ ${expandBtn}
     ${this.fileLink(filePath, filename, 'read-filename')}
     <span class="read-lang">${displayLang}</span>
     <div class="read-actions">
-        <button class="read-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file)" data-tooltip="Preview">
+        <button class="read-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
     </div>
@@ -219,7 +219,7 @@ ${expandBtn}
     ${this.fileLink(filePath, filename, 'read-filename')}
     <span class="read-lang">excalidraw</span>
     <div class="read-actions">
-        <button class="read-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file)" data-tooltip="Preview">
+        <button class="read-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
     </div>
@@ -269,12 +269,12 @@ ${expandBtn}
 
         // Build preview options for line range
         const previewOpts = firstLine && lastLine && firstLine !== lastLine
-            ? JSON.stringify({ start: firstLine, end: lastLine }).replace(/"/g, '&quot;')
-            : firstLine ? JSON.stringify({ line: firstLine }).replace(/"/g, '&quot;') : '{}';
+            ? JSON.stringify({ start: firstLine, end: lastLine })
+            : firstLine ? JSON.stringify({ line: firstLine }) : '{}';
 
         // Expand button if needed
         const expandBtn = needsExpand
-            ? `<button class="read-expand-btn" onclick="this.closest('.read-block').classList.toggle('expanded'); this.textContent = this.closest('.read-block').classList.contains('expanded') ? '▲ Collapse' : '▼ ${hiddenCount} more lines'">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
+            ? `<button class="read-expand-btn" data-act="toggle-expand" data-block=".read-block" data-more-label="▼ ${hiddenCount} more lines">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
             : '';
 
         const expandedClass = defaultExpanded ? ' expanded' : '';
@@ -287,14 +287,14 @@ ${expandBtn}
     <span class="read-line-count">${totalLines}</span>
     <span class="read-lang">${displayLang}</span>
     <div class="read-actions">
-        <button class="read-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file, ${previewOpts})" data-tooltip="Preview">
+        <button class="read-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-preview-opts="${escapeAttr(previewOpts)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <button class="read-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.openFileInEditor(this.dataset.file)" data-tooltip="Open in editor">
+        <button class="read-action" data-act="open-in-editor" data-file="${escapeAttr(filePath)}" data-tooltip="Open in editor">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
         ${wrapToggleBtn('read-action')}
-        <button class="read-action" onclick="navigator.clipboard.writeText(document.querySelector('#tool-${msg.id} .read-code')?.textContent || '')" data-tooltip="Copy">
+        <button class="read-action" data-act="copy-b64" data-copy="${b64Attr(lines.map(l => l.content).join('\n'))}" data-tooltip="Copy">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
     </div>
@@ -399,17 +399,17 @@ ${expandBtn}
         }).join('');
 
         const expandBtn = needsExpand
-            ? `<button class="bash-expand-btn" onclick="this.closest('.bash-block').classList.toggle('expanded'); this.textContent = this.closest('.bash-block').classList.contains('expanded') ? '▲ Collapse' : '▼ ${hiddenCount} more lines'">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
+            ? `<button class="bash-expand-btn" data-act="toggle-expand" data-block=".bash-block" data-more-label="▼ ${hiddenCount} more lines">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
             : '';
 
         // Copy command button (inside command wrapper, shows on hover)
-        const copyCmdBtn = `<button class="bash-copy-cmd" data-copy="${cmdEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); const t=this; t.classList.add('copied'); t.querySelector('.copy-label').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('.copy-label').textContent='Copy'; }, 1500)" data-tooltip="Copy command">
+        const copyCmdBtn = `<button class="bash-copy-cmd" data-act="copy-b64" data-copy="${cmdEncoded}" data-label-sel=".copy-label" data-tooltip="Copy command">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span class="copy-label">Copy</span>
         </button>`;
 
         // Copy output button (inside output area with label)
-        const copyOutputBtn = `<button class="bash-copy-output" data-copy="${outputEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); const t=this; t.classList.add('copied'); t.querySelector('span').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('span').textContent='Copy output'; }, 1500)">
+        const copyOutputBtn = `<button class="bash-copy-output" data-act="copy-b64" data-copy="${outputEncoded}" data-label-sel="span">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Copy output</span>
         </button>`;
@@ -418,7 +418,7 @@ ${expandBtn}
         if (!isCompleted) {
             return `<div class="tool-block bash-block bash-loading${isLongCommand ? ' has-long-cmd' : ''}" id="tool-${msg.id}">
 <div class="bash-header">
-    <div class="bash-cmd-wrapper"${isLongCommand ? ` onclick="this.closest('.bash-block').classList.toggle('cmd-expanded')"` : ''}>
+    <div class="bash-cmd-wrapper"${isLongCommand ? ` data-act="toggle-class" data-block=".bash-block" data-cls="cmd-expanded"` : ''}>
         <code class="bash-cmd">${escapeHtml(command)}</code>
         ${copyCmdBtn}
     </div>
@@ -430,7 +430,7 @@ ${expandBtn}
         const expandedClass = defaultExpanded ? ' expanded' : '';
         return `<div class="tool-block bash-block${isError ? ' bash-error' : ''}${isLongCommand ? ' has-long-cmd' : ''}${expandedClass}" id="tool-${msg.id}">
 <div class="bash-header">
-    <div class="bash-cmd-wrapper"${isLongCommand ? ` onclick="this.closest('.bash-block').classList.toggle('cmd-expanded')"` : ''}>
+    <div class="bash-cmd-wrapper"${isLongCommand ? ` data-act="toggle-class" data-block=".bash-block" data-cls="cmd-expanded"` : ''}>
         <code class="bash-cmd">${escapeHtml(command)}</code>
         ${copyCmdBtn}
     </div>
@@ -484,7 +484,7 @@ ${siblingError
         // Base64 into a data- attribute, never interpolated into the handler
         // (this is WebFetch/WebSearch output — remote, attacker-influenced).
         const outputEncoded = b64Attr(output);
-        const copyOutputBtn = output ? `<button class="bash-copy-output" data-copy="${outputEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); const t=this; t.classList.add('copied'); t.querySelector('span').textContent='Copied!'; setTimeout(() => { t.classList.remove('copied'); t.querySelector('span').textContent='Copy'; }, 1500)">
+        const copyOutputBtn = output ? `<button class="bash-copy-output" data-act="copy-b64" data-copy="${outputEncoded}" data-label-sel="span">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Copy</span>
         </button>` : '';
@@ -527,7 +527,7 @@ ${siblingError
             }).join('');
 
             const expandBtn = needsExpand
-                ? `<button class="webfetch-expand-btn" onclick="this.closest('.webfetch-block').classList.toggle('expanded'); this.textContent = this.closest('.webfetch-block').classList.contains('expanded') ? '▲ Collapse' : '▼ ${hiddenCount} more lines'">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
+                ? `<button class="webfetch-expand-btn" data-act="toggle-expand" data-block=".webfetch-block" data-more-label="▼ ${hiddenCount} more lines">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
                 : '';
 
             outputHtml = `<div class="webfetch-output">${copyOutputBtn}${linesHtml}${expandBtn}</div>`;
@@ -536,7 +536,7 @@ ${siblingError
         // Domain display - clickable link for WebFetch, plain text for WebSearch
         const domainDisplay = isSearch
             ? `<span class="webfetch-domain">${escapeHtml(domain)}</span>`
-            : `<a class="webfetch-domain" href="${escapeAttr(MarkdownRenderer.sanitizeHref(fullUrl))}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(domain)}</a>`;
+            : `<a class="webfetch-domain" href="${escapeAttr(MarkdownRenderer.sanitizeHref(fullUrl))}" target="_blank" rel="noopener">${escapeHtml(domain)}</a>`;
 
         const expandedClass = defaultExpanded ? ' expanded' : '';
         return `<div class="tool-block webfetch-block${isSearch ? ' websearch-block' : ''}${isError ? ' webfetch-error' : ''}${expandedClass}" id="tool-${msg.id}">
@@ -573,7 +573,7 @@ ${outputHtml}
             <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
         </svg>
     </span>
-    <div class="bash-cmd-wrapper"${isLongCommand ? ` onclick="this.closest('.bg-task-card').classList.toggle('cmd-expanded')"` : ''}>
+    <div class="bash-cmd-wrapper"${isLongCommand ? ` data-act="toggle-class" data-block=".bg-task-card" data-cls="cmd-expanded"` : ''}>
         <code class="bash-cmd">${escapeHtml(cmdDisplay)}</code>
     </div>
     <span class="bg-task-badge bg-task-badge-running" id="bg-task-${escapeHtml(taskId)}-badge">
@@ -586,7 +586,7 @@ ${outputHtml}
 </div>
 <div class="bg-task-actions">
     <span class="bg-task-id" data-tooltip="Task ID">${escapeHtml(taskId)}</span>
-    <button class="bg-task-btn" data-task-id="${escapeAttr(taskId)}" onclick="window.app?.openBackgroundTask?.(this.dataset.taskId)">
+    <button class="bg-task-btn" data-act="open-bg-task" data-task-id="${escapeAttr(taskId)}">
         View Full Output
     </button>
 </div>
@@ -628,11 +628,11 @@ ${outputHtml}
             // Path rides in a data- attribute and is read back via dataset —
             // never interpolated into the handler. The old
             // `resolvedPath.replace(/'/g, "\\'")` escaped ONLY apostrophes, so a
-            // filename containing `"` terminated the onclick=" attribute itself
-            // and could inject sibling attributes (and a trailing `\` defeated
+            // filename containing `"` terminated the inline handler attribute
+            // itself and could inject siblings (and a trailing `\` defeated
             // the escape). Mirrors the reference impl in tool-renderer.js.
             const lineOpts = lineNum ? JSON.stringify({ scrollToLine: lineNum, flash: true }) : '{}';
-            return `<a href="#" class="file-path-link" data-file="${escapeAttr(resolvedPath)}" data-line-opts="${escapeAttr(lineOpts)}" data-tooltip="${escapeHtml(resolvedPath)}" onclick="event.preventDefault(); window.app?.openFileLink(this.dataset.file, JSON.parse(this.dataset.lineOpts || '{}'), event)">${escapeHtml(displayName)}</a>`;
+            return `<a href="#" class="file-path-link" data-act="open-file-link" data-file="${escapeAttr(resolvedPath)}" data-line-opts="${escapeAttr(lineOpts)}" data-tooltip="${escapeHtml(resolvedPath)}">${escapeHtml(displayName)}</a>`;
         };
 
         // Parse grep results - filter out summary/metadata lines
@@ -712,7 +712,7 @@ ${outputHtml}
         }).join('');
 
         const expandBtn = needsExpand
-            ? `<button class="grep-expand-btn" onclick="this.closest('.grep-block').classList.toggle('expanded'); this.textContent = this.closest('.grep-block').classList.contains('expanded') ? '▲ Collapse' : '▼ ${hiddenCount} more'">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more`}</button>`
+            ? `<button class="grep-expand-btn" data-act="toggle-expand" data-block=".grep-block" data-more-label="▼ ${hiddenCount} more">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more`}</button>`
             : '';
 
         // Loading state
@@ -737,7 +737,7 @@ ${outputHtml}
     <code class="grep-pattern">/${escapeHtml(pattern.length > 40 ? pattern.slice(0, 37) + '...' : pattern)}/</code>
     <span class="grep-match-count">${totalMatches} match${totalMatches !== 1 ? 'es' : ''}</span>
     <div class="grep-actions">
-        <button class="grep-action" onclick="navigator.clipboard.writeText(document.querySelector('#tool-${msg.id} .grep-results')?.textContent || '')" data-tooltip="Copy results">
+        <button class="grep-action" data-act="copy-b64" data-copy="${b64Attr(results.join('\n'))}" data-tooltip="Copy results">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
     </div>
@@ -824,13 +824,13 @@ ${totalMatches > 0 ? `<div class="grep-results">${resultsHtml}${expandBtn}</div>
             if (!isDir && resolvedPath) {
                 // Path via dataset, not interpolated into the handler — see the
                 // note on makeFileLink above for what the old escape missed.
-                return `<div class="glob-file${hidden}"><a href="#" class="file-path-link" data-file="${escapeAttr(resolvedPath)}" data-tooltip="${escapeHtml(resolvedPath)}" onclick="event.preventDefault(); window.app?.openFileLink(this.dataset.file, {}, event)">${escapeHtml(displayFile)}</a></div>`;
+                return `<div class="glob-file${hidden}"><a href="#" class="file-path-link" data-act="open-file-link" data-file="${escapeAttr(resolvedPath)}" data-tooltip="${escapeHtml(resolvedPath)}">${escapeHtml(displayFile)}</a></div>`;
             }
             return `<div class="glob-file${hidden}${isDir ? ' glob-dir' : ''}">${escapeHtml(displayFile)}</div>`;
         }).join('');
 
         const expandBtn = needsExpand
-            ? `<button class="glob-expand-btn" onclick="this.closest('.glob-block').classList.toggle('expanded'); this.textContent = this.closest('.glob-block').classList.contains('expanded') ? '▲ Collapse' : '▼ ${hiddenCount} more'">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more`}</button>`
+            ? `<button class="glob-expand-btn" data-act="toggle-expand" data-block=".glob-block" data-more-label="▼ ${hiddenCount} more">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more`}</button>`
             : '';
 
         // Loading state
@@ -855,7 +855,7 @@ ${totalMatches > 0 ? `<div class="grep-results">${resultsHtml}${expandBtn}</div>
     <code class="glob-pattern">${escapeHtml(pattern.length > 50 ? pattern.slice(0, 47) + '...' : pattern)}</code>
     <span class="glob-file-count">${totalFiles} file${totalFiles !== 1 ? 's' : ''}</span>
     <div class="glob-actions">
-        <button class="glob-action" onclick="navigator.clipboard.writeText(document.querySelector('#tool-${msg.id} .glob-files')?.textContent || '')" data-tooltip="Copy file list">
+        <button class="glob-action" data-act="copy-b64" data-copy="${b64Attr(files.join('\n'))}" data-tooltip="Copy file list">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
     </div>
@@ -922,7 +922,7 @@ ${totalFiles > 0 ? `<div class="glob-files">${filesHtml}${expandBtn}</div>` : `<
     <span class="write-lang">${displayLang}</span>
     <span class="write-status ${statusClass}">${statusText}</span>
     <div class="write-actions">
-        <button class="write-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file)" data-tooltip="Preview">
+        <button class="write-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
     </div>
@@ -945,13 +945,13 @@ ${totalFiles > 0 ? `<div class="glob-files">${filesHtml}${expandBtn}</div>` : `<
     <span class="write-lang">${displayLang}</span>
     <span class="write-status ${statusClass}">${statusText}</span>
     <div class="write-actions">
-        <button class="write-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file)" data-tooltip="Preview">
+        <button class="write-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <button class="write-action write-chart-toggle-json" data-tooltip="Show JSON" onclick="this.closest('.write-chart').classList.toggle('show-json'); this.querySelector('span')?.remove(); const s=document.createElement('span'); s.textContent=this.closest('.write-chart').classList.contains('show-json')?'Show chart':'Show JSON'; this.setAttribute('data-tooltip',s.textContent)">
+        <button class="write-action write-chart-toggle-json" data-act="toggle-json-view" data-block=".write-chart" data-cls="show-json" data-on-label="Show chart" data-off-label="Show JSON" data-tooltip="Show JSON">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         </button>
-        <button class="write-action" onclick="navigator.clipboard.writeText(atob('${encoded}'))" data-tooltip="Copy JSON">
+        <button class="write-action" data-act="copy-b64" data-copy="${encoded}" data-tooltip="Copy JSON">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
     </div>
@@ -982,13 +982,13 @@ ${totalFiles > 0 ? `<div class="glob-files">${filesHtml}${expandBtn}</div>` : `<
     <span class="write-lang">${displayLang}</span>
     <span class="write-status ${statusClass}">${statusText}</span>
     <div class="write-actions">
-        <button class="write-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file)" data-tooltip="Preview">
+        <button class="write-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <button class="write-action write-excalidraw-toggle-json" data-tooltip="Show JSON" onclick="this.closest('.write-excalidraw').classList.toggle('show-json'); this.setAttribute('data-tooltip', this.closest('.write-excalidraw').classList.contains('show-json') ? 'Show diagram' : 'Show JSON')">
+        <button class="write-action write-excalidraw-toggle-json" data-act="toggle-json-view" data-block=".write-excalidraw" data-cls="show-json" data-on-label="Show diagram" data-off-label="Show JSON" data-tooltip="Show JSON">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
         </button>
-        <button class="write-action" onclick="navigator.clipboard.writeText(atob('${encoded}'))" data-tooltip="Copy JSON">
+        <button class="write-action" data-act="copy-b64" data-copy="${encoded}" data-tooltip="Copy JSON">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
     </div>
@@ -1034,7 +1034,7 @@ ${totalFiles > 0 ? `<div class="glob-files">${filesHtml}${expandBtn}</div>` : `<
 
         // Expand button if needed
         const expandBtn = needsExpand
-            ? `<button class="write-expand-btn" onclick="this.closest('.write-block').classList.toggle('expanded'); this.textContent = this.closest('.write-block').classList.contains('expanded') ? '▲ Collapse' : '▼ ${hiddenCount} more lines'">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
+            ? `<button class="write-expand-btn" data-act="toggle-expand" data-block=".write-block" data-more-label="▼ ${hiddenCount} more lines">${defaultExpanded ? '▲ Collapse' : `▼ ${hiddenCount} more lines`}</button>`
             : '';
 
         const expandedClass = defaultExpanded ? ' expanded' : '';
@@ -1047,14 +1047,14 @@ ${totalFiles > 0 ? `<div class="glob-files">${filesHtml}${expandBtn}</div>` : `<
     <span class="write-lang">${displayLang}</span>
     <span class="write-status ${statusClass}">${statusText}</span>
     <div class="write-actions">
-        <button class="write-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file)" data-tooltip="Preview">
+        <button class="write-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
-        <button class="write-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.openFileInEditor(this.dataset.file)" data-tooltip="Open in editor">
+        <button class="write-action" data-act="open-in-editor" data-file="${escapeAttr(filePath)}" data-tooltip="Open in editor">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
         ${wrapToggleBtn('write-action')}
-        <button class="write-action" onclick="navigator.clipboard.writeText(document.querySelector('#tool-${msg.id} .write-code')?.textContent || '')" data-tooltip="Copy">
+        <button class="write-action" data-act="copy-b64" data-copy="${b64Attr(content)}" data-tooltip="Copy">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
     </div>
@@ -1125,7 +1125,7 @@ ${totalFiles > 0 ? `<div class="glob-files">${filesHtml}${expandBtn}</div>` : `<
         const hasExpandableContent = agentResponse || isError;
 
         return `<div class="tool-block task-block" id="tool-${msg.id}" data-complete="${isCompleted}" data-tool-use-id="${msg.toolId || ''}">
-<div class="task-block-header" onclick="app.toggleTaskBlock && app.toggleTaskBlock('${msg.id}')">
+<div class="task-block-header" data-act="toggle-task-block" data-id="${escapeAttr(msg.id)}">
     <span class="task-block-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -1192,7 +1192,7 @@ ${errorHtml}
         }
 
         return `<div class="tool-block skill-block" id="tool-${msg.id}">
-<div class="skill-block-header" onclick="app.toggleSkillBlock && app.toggleSkillBlock('${msg.id}')">
+<div class="skill-block-header" data-act="toggle-skill-block" data-id="${escapeAttr(msg.id)}">
     <span class="skill-block-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -1284,7 +1284,7 @@ ${errorHtml}
         const hasExpandableContent = !!taskLog || isError;
 
         return `<div class="tool-block tob tob-shell" id="tool-${msg.id}">
-<div class="tob-header" onclick="app.toggleTaskOutputBlock && app.toggleTaskOutputBlock('${msg.id}')">
+<div class="tob-header" data-act="toggle-task-output-block" data-id="${escapeAttr(msg.id)}">
     <span class="tob-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
@@ -1362,7 +1362,7 @@ ${errorHtml}
         let truncatedHtml = '';
         if (isTruncated) {
             const viewBtn = truncatedTaskId
-                ? ` <button class="tob-view-full-btn" data-task-id="${escapeAttr(truncatedTaskId)}" onclick="event.stopPropagation(); window.app?.openBackgroundTask?.(this.dataset.taskId)" data-tooltip="Open in Background Tasks widget">${S.tool_renderer.buttons.view_full}</button>`
+                ? ` <button class="tob-view-full-btn" data-act="open-bg-task" data-task-id="${escapeAttr(truncatedTaskId)}" data-tooltip="Open in Background Tasks widget">${S.tool_renderer.buttons.view_full}</button>`
                 : '';
             truncatedHtml = `<div class="tob-truncated">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -1400,7 +1400,7 @@ ${errorHtml}
 
         // Icon: agent/users icon (matches Task block)
         return `<div class="tool-block tob tob-agent" id="tool-${msg.id}">
-<div class="tob-header" onclick="app.toggleTaskOutputBlock && app.toggleTaskOutputBlock('${msg.id}')">
+<div class="tob-header" data-act="toggle-task-output-block" data-id="${escapeAttr(msg.id)}">
     <span class="tob-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>

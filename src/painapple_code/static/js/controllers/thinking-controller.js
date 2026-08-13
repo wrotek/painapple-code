@@ -8,7 +8,7 @@
  * - Preserves chronological order: thought1 + tools1, thought2 + tools2, etc.
  */
 
-import { $, escapeHtml, parseTaskUsage, formatTokensBadge, formatDuration } from '../utils.js';
+import { $, escapeHtml, escapeAttr, parseTaskUsage, formatTokensBadge, formatDuration } from '../utils.js';
 import { getToolCollapseMode, getToolCategory } from '../widgets/config-widget.js';
 
 export class ThinkingController {
@@ -90,7 +90,7 @@ export class ThinkingController {
         // Double chevrons indicate "collapse ALL" vs single chevron for individual tools
         const hasTools = thinkingMsgs.some(msg => msg.tools && msg.tools.length > 0);
         const collapseBtn = hasTools ? `
-            <button class="thinking-collapse-tools-btn" onclick="app.toggleThinkingTools('${sectionId}')" data-tooltip="Collapse/expand all tool outputs">
+            <button class="thinking-collapse-tools-btn" data-act="toggle-thinking-tools" data-id="${escapeAttr(sectionId)}" data-tooltip="Collapse/expand all tool outputs">
                 <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
                     <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
                 </svg>
@@ -133,7 +133,7 @@ export class ThinkingController {
         // looks up by data-msg-id when tools stream in afterwards. CSS keeps a
         // header-less, tool-less step hidden until a tool card actually lands.
         const headerHtml = hasContent
-            ? `<div class="thinking-step-header" onclick="app.toggleThinkingStep('${sectionId}', ${stepNum})">
+            ? `<div class="thinking-step-header" data-act="toggle-thinking-step" data-id="${escapeAttr(sectionId)}" data-step="${stepNum}">
                     ${previewHtml}
                     <span class="thinking-step-expand">›</span>
                 </div>`
@@ -306,7 +306,7 @@ export class ThinkingController {
 
         // Gutter icon for per-tool collapse (positioned in right margin via CSS)
         const gutterIcon = `
-            <button class="tool-gutter-icon" onclick="event.stopPropagation(); app.toggleToolCollapse('${tool.toolId}')" data-tooltip="Collapse/expand this tool">
+            <button class="tool-gutter-icon" data-act="toggle-tool-collapse" data-id="${escapeAttr(tool.toolId)}" data-tooltip="Collapse/expand this tool">
                 <svg class="gutter-collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                     <path d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -377,8 +377,8 @@ export class ThinkingController {
         const hasExpandableContent = childCount > 0 || agentResponse;
 
         return `
-            <div class="task-group" data-task-id="${task.toolId}" data-complete="${isComplete}">
-                <div class="task-group-header" onclick="app.toggleTaskGroup('${task.toolId}')">
+            <div class="task-group" data-task-id="${escapeAttr(task.toolId)}" data-complete="${isComplete}">
+                <div class="task-group-header" data-act="toggle-task-group" data-id="${escapeAttr(task.toolId)}">
                     <span class="task-group-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -654,7 +654,7 @@ export class ThinkingController {
         // Double chevrons indicate "collapse ALL"
         const sectionId = section.id;
         const btnHtml = `
-            <button class="thinking-collapse-tools-btn" onclick="app.toggleThinkingTools('${sectionId}')" data-tooltip="Collapse/expand all tool outputs">
+            <button class="thinking-collapse-tools-btn" data-act="toggle-thinking-tools" data-id="${escapeAttr(sectionId)}" data-tooltip="Collapse/expand all tool outputs">
                 <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
                     <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
                 </svg>

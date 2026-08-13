@@ -73,7 +73,7 @@ export const thinkingMethods = {
                 const cmdEncoded = b64Attr(cmd);
                 // Simplify command display
                 const cmdShort = cmd.length > 50 ? cmd.slice(0, 47) + '...' : cmd;
-                desc = `<code class="ta-bash-cmd" data-copy="${cmdEncoded}" onclick="event.stopPropagation(); navigator.clipboard.writeText(atob(this.dataset.copy)); this.classList.add('copied'); setTimeout(() => this.classList.remove('copied'), 600)" data-tooltip="Click to copy">${escapeHtml(cmdShort)}</code>`;
+                desc = `<code class="ta-bash-cmd" data-act="copy-b64" data-copy="${cmdEncoded}" data-copied-ms="600" data-tooltip="Click to copy">${escapeHtml(cmdShort)}</code>`;
                 // Smart result parsing
                 if (output) {
                     result = this._parseBashResult(cmd, output);
@@ -87,12 +87,11 @@ export const thinkingMethods = {
                 colorClass = 'ta-blue';
                 const filePath = toolInput?.file_path || '';
                 const filename = basename(filePath) || '';
-                const previewOpts = JSON.stringify({}).replace(/"/g, '&quot;');
                 desc = `<span class="ta-file">${escapeHtml(filename)}</span>`;
                 if (output) {
                     const lineCount = (output.match(/^\s*\d+(?:→|\t)/gm) || []).length;
                     result = `<span class="ta-result">${lineCount} lines</span>
-                        <button class="ta-action" data-file="${escapeAttr(filePath)}" onclick="window.app?.previewFile(this.dataset.file, ${previewOpts})" data-tooltip="Preview">
+                        <button class="ta-action" data-act="preview-file" data-file="${escapeAttr(filePath)}" data-tooltip="Preview">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         </button>`;
                 } else if (!isComplete) {

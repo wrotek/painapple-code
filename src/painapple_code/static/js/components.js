@@ -437,13 +437,23 @@ export class MarkdownRenderer {
             }
             const fileLink = event.target.closest?.('.file-path-link');
             if (fileLink) {
+                // Links carrying data-act are owned by the action-delegate
+                // (tool-renderer file links, which may call previewFile rather
+                // than openFileLink). Only markdown-linkified paths — which
+                // have no data-act — are handled here.
+                if (fileLink.dataset.act) return;
                 event.preventDefault();
                 let opts = {};
                 try {
                     opts = fileLink.dataset.lineOpts ? JSON.parse(fileLink.dataset.lineOpts) : {};
                 } catch { /* malformed opts — open without line targeting */ }
-                if (fileLink.dataset.resolved) {
-                    window.app?.openFileLink(fileLink.dataset.resolved, opts, event);
+                // data-resolved (verified path) preferred; data-file is the
+                // fallback for tool-renderer links that carry only the raw
+                // path. Those links used to have their own inline onclick and
+                // double-fired this delegate; now this is their only handler.
+                const target = fileLink.dataset.resolved || fileLink.dataset.file;
+                if (target) {
+                    window.app?.openFileLink(target, opts, event);
                 }
             }
         });

@@ -215,7 +215,7 @@ export class ToolRenderer {
      */
     _getGutterIconHtml(toolId) {
         return `
-            <button class="tool-gutter-icon" onclick="event.stopPropagation(); app.toggleNormalToolCollapse('${toolId}')" data-tooltip="Collapse/expand this tool">
+            <button class="tool-gutter-icon" data-act="toggle-normal-tool-collapse" data-id="${escapeAttr(toolId)}" data-tooltip="Collapse/expand this tool">
                 <svg class="gutter-collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                     <path d="M19 9l-7 7-7-7"/>
                 </svg>
@@ -392,26 +392,26 @@ ExitPlanMode<span class="tool-header-path">Plan ready for approval</span></span>
 
         // "Open in Editor" button - opens file in editor tab
         const editorButton = isFileViewable
-            ? `<button class="tool-action-btn" data-file="${filePathAttr}" onclick="event.stopPropagation(); window.app?.openFileInEditor(this.dataset.file)" data-tooltip="Open in editor">
+            ? `<button class="tool-action-btn" data-act="open-in-editor" data-file="${filePathAttr}" data-tooltip="Open in editor">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 9.5-9.5z"/></svg>
 </button>`
             : '';
 
         // "View" button - opens file preview widget
         const viewButton = isFileViewable
-            ? `<button class="tool-action-btn" data-file="${filePathAttr}" onclick="event.stopPropagation(); window.app?.previewFile(this.dataset.file)" data-tooltip="Preview file">
+            ? `<button class="tool-action-btn" data-act="preview-file" data-file="${filePathAttr}" data-tooltip="Preview file">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
 </button>`
             : '';
 
         html = `<div class="tool-block" id="${toolId}">
-<div class="tool-header" onclick="app.toggleTool('${msg.id}')">
+<div class="tool-header" data-act="toggle-tool" data-id="${escapeAttr(msg.id)}">
 <span class="tool-name">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
 ${escapeHtml(msg.toolName)}${headerPreview ? `<span class="tool-header-path">${headerPreview}</span>` : ''}
 </span>
 <div class="tool-actions">
-${editorButton}${viewButton}<button class="tool-action-btn" onclick="event.stopPropagation(); app.copyToolOutput('${msg.id}')" data-tooltip="Copy">
+${editorButton}${viewButton}<button class="tool-action-btn" data-act="copy-tool-output" data-id="${escapeAttr(msg.id)}" data-tooltip="Copy">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
 </button>
 </div>
@@ -491,7 +491,7 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
         // quotes; escapeHtml only covers & < >.
         const attrPath = escapeAttr(fullPath);
         const classes = `file-path-link${extraClass ? ' ' + extraClass : ''}`;
-        return `<a href="#" class="${classes}" data-file="${attrPath}" data-tooltip="${attrPath}" onclick="event.preventDefault(); event.stopPropagation(); window.app?.previewFile(this.dataset.file)">${escapeHtml(displayName)}</a>`;
+        return `<a href="#" class="${classes}" data-act="preview-file" data-file="${attrPath}" data-tooltip="${attrPath}">${escapeHtml(displayName)}</a>`;
     }
 
     /**
@@ -644,7 +644,7 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
                 replacements.push({
                     start,
                     end,
-                    html: `<a href="#" class="file-path-link" data-file="${escapeAttr(path)}"${resolvedAttr} data-tooltip="${escapeAttr(resolved || path)}"${optsAttr} onclick="event.preventDefault(); const opts = this.dataset.lineOpts ? JSON.parse(this.dataset.lineOpts) : {}; window.app?.openFileLink(this.dataset.resolved || this.dataset.file, opts, event)">${escapeHtml(fullDisplay)}</a>`
+                    html: `<a href="#" class="file-path-link" data-act="open-file-link" data-file="${escapeAttr(path)}"${resolvedAttr} data-tooltip="${escapeAttr(resolved || path)}"${optsAttr}>${escapeHtml(fullDisplay)}</a>`
                 });
             }
         }
@@ -671,7 +671,7 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
                 replacements.push({
                     start: matchObj.index,
                     end: matchObj.index + fullMatch.length,
-                    html: `<a href="#" class="file-path-link" data-file="${escapeAttr(path)}" data-resolved="${escapeAttr(resolvedPath)}" data-tooltip="${escapeAttr(resolvedPath)}"${optsAttr} onclick="event.preventDefault(); const opts = this.dataset.lineOpts ? JSON.parse(this.dataset.lineOpts) : {}; window.app?.openFileLink(this.dataset.resolved || this.dataset.file, opts, event)">${escapeHtml(fullDisplay)}</a>`
+                    html: `<a href="#" class="file-path-link" data-act="open-file-link" data-file="${escapeAttr(path)}" data-resolved="${escapeAttr(resolvedPath)}" data-tooltip="${escapeAttr(resolvedPath)}"${optsAttr}>${escapeHtml(fullDisplay)}</a>`
                 });
             };
 
@@ -1372,7 +1372,7 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
             })
             .then(svg => {
                 const fp = el.closest('.write-excalidraw')?.dataset?.filePath || '';
-                el.innerHTML = `<div class="excalidraw-inline-rendered"><div class="excalidraw-inline-svg excalidraw-clickable" data-file="${escapeAttr(fp)}" onclick="window.app?.previewFile(this.dataset.file)">${sanitizeSvg(svg)}</div></div>`;
+                el.innerHTML = `<div class="excalidraw-inline-rendered"><div class="excalidraw-inline-svg excalidraw-clickable" data-act="preview-file" data-file="${escapeAttr(fp)}">${sanitizeSvg(svg)}</div></div>`;
             })
             .catch(err => {
                 console.error('Write excalidraw render error:', err);
@@ -1405,7 +1405,7 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
             })
             .then(svg => {
                 const fp = svgDiv.closest('.read-excalidraw')?.dataset?.filePath || '';
-                svgDiv.innerHTML = `<div class="excalidraw-inline-svg excalidraw-clickable" data-file="${escapeAttr(fp)}" onclick="window.app?.previewFile(this.dataset.file)">${sanitizeSvg(svg)}</div>`;
+                svgDiv.innerHTML = `<div class="excalidraw-inline-svg excalidraw-clickable" data-act="preview-file" data-file="${escapeAttr(fp)}">${sanitizeSvg(svg)}</div>`;
                 svgDiv.style.display = '';
                 loading.remove();
             })
@@ -1439,9 +1439,11 @@ ${isCompleted ? `<div class="${outputClass}">${outputContent}</div>` : '<div cla
 
         // Show first few lines with expand option
         const preview = lines.slice(0, threshold).join('\n');
-        return `<div class="tool-output-preview">${escapeHtml(preview)}</div>
+        return `<div class="tool-output-expandable">
+<div class="tool-output-preview">${escapeHtml(preview)}</div>
 <div class="tool-output-full hidden">${escapeHtml(content)}</div>
-<button class="tool-output-expand" onclick="this.previousElementSibling.classList.toggle('hidden'); this.previousElementSibling.previousElementSibling.classList.toggle('hidden'); this.textContent = this.textContent === 'Show more' ? 'Show less' : 'Show more'">Show more</button>`;
+<button class="tool-output-expand" data-act="toggle-tool-output" data-block=".tool-output-expandable">Show more</button>
+</div>`;
     }
 
     /**

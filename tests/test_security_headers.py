@@ -18,6 +18,20 @@ def test_csp_locks_down_object_and_framing(client):
     assert "script-src" in csp
 
 
+def test_csp_script_src_has_no_unsafe_inline_or_eval(client):
+    # WP-04: scripts are locked to 'self'. Every inline <script> was
+    # externalized and every inline on* handler replaced by a delegated
+    # data-act dispatch, so 'unsafe-inline' must not reappear in script-src
+    # (that would re-enable the XSS vector this work closed). 'unsafe-eval'
+    # was never granted; no app or vendor code needs the Function constructor.
+    csp = client.get("/health").headers["content-security-policy"]
+    script_directive = next(
+        d.strip() for d in csp.split(";") if d.strip().startswith("script-src")
+    )
+    assert "'unsafe-inline'" not in script_directive, script_directive
+    assert "'unsafe-eval'" not in script_directive, script_directive
+
+
 def test_csp_allows_remote_images_and_https_frames(client):
     # M2/M3: remote images (badges, model output) and browser-widget direct
     # mode need https: in img-src/frame-src; scripts must stay locked.

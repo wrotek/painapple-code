@@ -9,7 +9,7 @@
 
 import { CONFIG, HAS_PHYSICAL_KEYBOARD, debug } from '../config.js';
 import { MarkdownRenderer } from '../components.js';
-import { escapeHtml, formatTime, formatRelativeTime, highlightThinkingKeywords } from '../utils.js';
+import { escapeHtml, escapeAttr, formatTime, formatRelativeTime, highlightThinkingKeywords } from '../utils.js';
 import { isThinkingKeywordsHighlightingEnabled } from '../widgets/config-widget.js';
 import {
     initWelcomeScreen,
@@ -159,7 +159,7 @@ export class ChatController {
 
         return `
             <div class="context-block collapsed" id="${id}">
-                <div class="context-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                <div class="context-header" data-act="toggle-class" data-block=".context-block" data-cls="collapsed">
                     <span class="context-icon">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10"/>
@@ -501,7 +501,7 @@ export class ChatController {
                         error
                     </span>
                     <span class="message-time">${formatTime(msg.timestamp)}</span>
-                    <button class="message-copy-btn" data-msg-id="${msg.id}" onclick="app.copyMessage('${msg.id}')" data-tooltip="Copy message">
+                    <button class="message-copy-btn" data-msg-id="${msg.id}" data-id="${escapeAttr(msg.id)}" data-act="copy-message" data-tooltip="Copy message">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -692,7 +692,7 @@ export class ChatController {
         const content = this._renderMessageContent(msg);
 
         const copyButton = (msg.role === 'assistant' || msg.role === 'user') ? `
-            <button class="message-copy-btn" data-msg-id="${msg.id}" onclick="app.copyMessage('${msg.id}')" data-tooltip="Copy message">
+            <button class="message-copy-btn" data-msg-id="${msg.id}" data-id="${escapeAttr(msg.id)}" data-act="copy-message" data-tooltip="Copy message">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -706,7 +706,7 @@ export class ChatController {
             <button class="message-favorite-btn${msg.isFavorite ? ' active' : ''}${msg.promptId ? '' : ' hidden'}"
                     data-msg-id="${msg.id}"
                     data-prompt-id="${msg.promptId || ''}"
-                    onclick="app.toggleMessageFavorite(this)"
+                    data-act="toggle-message-favorite"
                     data-tooltip="${msg.isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
                 <svg class="heart-outline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -1945,7 +1945,7 @@ export class ChatController {
 
         // Add collapse-all button at the START for sticky positioning
         const collapseAllBtn = `
-            <button class="tool-group-collapse-btn" onclick="event.stopPropagation(); app.toggleToolGroup('${groupId}')" data-tooltip="Collapse/expand all tools">
+            <button class="tool-group-collapse-btn" data-act="toggle-tool-group" data-id="${escapeAttr(groupId)}" data-tooltip="Collapse/expand all tools">
                 <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                     <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
                 </svg>
@@ -1986,7 +1986,7 @@ export class ChatController {
 
         // Add collapse-all button at the START
         const collapseAllBtn = `
-            <button class="tool-group-collapse-btn" onclick="event.stopPropagation(); app.toggleToolGroup('${groupId}')" data-tooltip="Collapse/expand all tools">
+            <button class="tool-group-collapse-btn" data-act="toggle-tool-group" data-id="${escapeAttr(groupId)}" data-tooltip="Collapse/expand all tools">
                 <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                     <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
                 </svg>
@@ -2065,7 +2065,7 @@ export class ChatController {
 
             // Add collapse-all button
             const collapseAllBtn = `
-                <button class="tool-group-collapse-btn" onclick="event.stopPropagation(); app.toggleToolGroup('${groupId}')" data-tooltip="Collapse/expand all tools">
+                <button class="tool-group-collapse-btn" data-act="toggle-tool-group" data-id="${escapeAttr(groupId)}" data-tooltip="Collapse/expand all tools">
                     <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                         <path d="M7 13l5 5 5-5M7 6l5 5 5-5"/>
                     </svg>
@@ -2752,7 +2752,7 @@ export class ChatController {
             const content = this._renderMessageContent(msg);
 
             const copyButton = (msg.role === 'assistant' || msg.role === 'user') ? `
-                <button class="message-copy-btn" data-msg-id="${msg.id}" onclick="app.copyMessage('${msg.id}')" data-tooltip="Copy message">
+                <button class="message-copy-btn" data-msg-id="${msg.id}" data-id="${escapeAttr(msg.id)}" data-act="copy-message" data-tooltip="Copy message">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -2766,7 +2766,7 @@ export class ChatController {
                 <button class="message-favorite-btn${msg.isFavorite ? ' active' : ''}${msg.promptId ? '' : ' hidden'}"
                         data-msg-id="${msg.id}"
                         data-prompt-id="${msg.promptId || ''}"
-                        onclick="app.toggleMessageFavorite(this)"
+                        data-act="toggle-message-favorite"
                         data-tooltip="${msg.isFavorite ? 'Remove from favorites' : 'Add to favorites'}">
                     <svg class="heart-outline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -3217,7 +3217,7 @@ export class ChatController {
             </div>
             <div class="message-content">
                 <div class="auth-error-reason">${escapeHtml(msg.content)}</div>
-                <button class="auth-error-login-btn" onclick="app.openLoginTerminal(this.dataset.command || null)">
+                <button class="auth-error-login-btn" data-act="open-login-terminal">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
                         <polyline points="10 17 15 12 10 7"/>
@@ -3245,7 +3245,7 @@ export class ChatController {
         // Preview Plan button (disabled if no plan file found)
         const hasPlanFile = !!msg.planFile;
         const previewBtn = `
-            <button class="plan-preview-btn" onclick="app.previewPlan()"${hasPlanFile ? '' : ' disabled'}>
+            <button class="plan-preview-btn" data-act="preview-plan"${hasPlanFile ? '' : ' disabled'}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
@@ -3292,7 +3292,7 @@ export class ChatController {
                     Revising — provide feedback below
                 </div>
                 <div class="plan-approval-actions">
-                    <button class="plan-approve-btn" onclick="app.approvePlan('${msg.id}')">
+                    <button class="plan-approve-btn" data-act="approve-plan" data-id="${escapeAttr(msg.id)}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"/>
                         </svg>
@@ -3303,13 +3303,13 @@ export class ChatController {
         } else {
             statusHtml = `
                 <div class="plan-approval-actions">
-                    <button class="plan-approve-btn" onclick="app.approvePlan('${msg.id}')">
+                    <button class="plan-approve-btn" data-act="approve-plan" data-id="${escapeAttr(msg.id)}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"/>
                         </svg>
                         Approve & Proceed
                     </button>
-                    <button class="plan-reject-btn" onclick="app.rejectPlan('${msg.id}')">
+                    <button class="plan-reject-btn" data-act="reject-plan" data-id="${escapeAttr(msg.id)}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M1 4v6h6M23 20v-6h-6"/>
                             <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
@@ -3402,7 +3402,7 @@ export class ChatController {
                 .map((s, i) => {
                     const label = this._permissionSuggestionLabel(s);
                     if (!label) return '';
-                    return `<button class="permission-suggestion-btn" onclick="app.respondPermission('${msg.id}', 'allow', ${i})">
+                    return `<button class="permission-suggestion-btn" data-act="respond-permission" data-id="${escapeAttr(msg.id)}" data-decision="allow" data-i="${i}">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"/><line x1="12" y1="18" x2="20" y2="18"/>
                         </svg>
@@ -3411,16 +3411,15 @@ export class ChatController {
                 }).join('');
             statusHtml = `
                 <input type="text" class="permission-feedback" id="perm-feedback-${msg.id}"
-                       placeholder="${escapeHtml(PC.feedback_placeholder)}"
-                       onkeydown="event.stopPropagation()">
+                       placeholder="${escapeHtml(PC.feedback_placeholder)}">
                 <div class="permission-actions">
-                    <button class="permission-allow-btn" onclick="app.respondPermission('${msg.id}', 'allow')">
+                    <button class="permission-allow-btn" data-act="respond-permission" data-id="${escapeAttr(msg.id)}" data-decision="allow">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="20 6 9 17 4 12"/>
                         </svg>
                         ${PC.allow}
                     </button>
-                    <button class="permission-deny-btn" onclick="app.respondPermission('${msg.id}', 'deny')">
+                    <button class="permission-deny-btn" data-act="respond-permission" data-id="${escapeAttr(msg.id)}" data-decision="deny">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
@@ -3766,7 +3765,7 @@ export class ChatController {
                        ${S.question_form.status_skipped}
                    </div>`;
             } else {
-                statusHtml = `<button class="question-edit" onclick="app.editQuestionAnswer('${msg.id}')" data-tooltip="${S.question_form.edit_hint}">
+                statusHtml = `<button class="question-edit" data-act="edit-question-answer" data-id="${escapeAttr(msg.id)}" data-tooltip="${S.question_form.edit_hint}">
                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                            <path d="M12 20h9"/>
                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
@@ -3785,14 +3784,14 @@ export class ChatController {
             // When editing an already-answered card the left button cancels the
             // edit (restores the answered view) instead of ignoring the question.
             const leftBtn = isEditing
-                ? `<button class="question-ignore" onclick="app.cancelEditQuestion('${msg.id}')" data-tooltip="${S.question_form.cancel_edit_hint}">
+                ? `<button class="question-ignore" data-act="cancel-edit-question" data-id="${escapeAttr(msg.id)}" data-tooltip="${S.question_form.cancel_edit_hint}">
                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                            <line x1="18" y1="6" x2="6" y2="18"/>
                            <line x1="6" y1="6" x2="18" y2="18"/>
                        </svg>
                        ${S.question_form.cancel_edit}
                    </button>`
-                : `<button class="question-ignore" onclick="app.ignoreQuestion('${msg.id}')" data-tooltip="${S.question_form.ignore_hint}">
+                : `<button class="question-ignore" data-act="ignore-question" data-id="${escapeAttr(msg.id)}" data-tooltip="${S.question_form.ignore_hint}">
                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                            <circle cx="12" cy="12" r="10"/>
                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
@@ -3800,7 +3799,7 @@ export class ChatController {
                        Ignore
                    </button>`;
             statusHtml = `${leftBtn}
-               <button class="question-submit" onclick="app.submitQuestionAnswers('${msg.id}')">
+               <button class="question-submit" data-act="submit-question-answers" data-id="${escapeAttr(msg.id)}">
                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                        <line x1="22" y1="2" x2="11" y2="13"/>
                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>

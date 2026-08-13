@@ -551,7 +551,7 @@ function renderContent() {
             <div class="cost-error">
                 <span>${ICONS.warning}</span>
                 <span>${escapeHtml(state.error)}</span>
-                <button class="cost-retry-btn" onclick="window.costAnalyticsRetry()">Retry</button>
+                <button class="cost-retry-btn" data-act="cost-retry">Retry</button>
             </div>
         `;
         return;

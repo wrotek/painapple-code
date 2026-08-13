@@ -354,9 +354,15 @@ def _json_for_html(value) -> str:
     return json.dumps(value).replace("<", "\\u003c")
 
 
-# CSP Stage 1 (WP-04 B4): everything locked down except style, which keeps
-# 'unsafe-inline' (see the note in the style-src line below).
-# `ws:`/`wss:` in connect-src keeps WebSocket reconnect working same-origin.
+# CSP (WP-04): scripts are fully locked to 'self' — no 'unsafe-inline'. Every
+# executable inline <script> was externalized (boot.js/login.js/
+# feature-triage.js) and every inline on* handler replaced by a delegated
+# data-act dispatch (action-delegate.js), so a script injected into
+# model/tool output cannot execute. Server-injected config rides in
+# <script type="application/json"> data blocks, which are not script-src
+# subjects. style-src still needs 'unsafe-inline' — inline style="" attributes
+# remain across the widgets (Stage 2, lower value: style injection is not code
+# execution). `ws:`/`wss:` in connect-src keeps WebSocket reconnect working.
 _CSP_STAGE1 = (
     "default-src 'self'; "
     "base-uri 'self'; "
@@ -367,7 +373,7 @@ _CSP_STAGE1 = (
     "img-src 'self' data: blob: https:; "
     "font-src 'self' data:; "
     "style-src 'self' 'unsafe-inline'; "
-    "script-src 'self' 'unsafe-inline'; "
+    "script-src 'self'; "
     "connect-src 'self' ws: wss:; "
     # https: framing keeps the browser-widget's direct (non-proxy) mode working.
     "frame-src 'self' https:"

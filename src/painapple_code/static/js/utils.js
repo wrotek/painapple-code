@@ -40,6 +40,17 @@ export const escapeAttr = (text) =>
 export const b64Attr = (text) =>
     btoa(unescape(encodeURIComponent(String(text ?? ''))));
 
+// Inverse of b64Attr. Note plain atob() alone is NOT the inverse — it yields
+// a byte-string, mojibake for any non-ASCII payload (the old inline
+// `atob('${encoded}')` copy handlers had exactly that bug).
+export const b64AttrDecode = (encoded) => {
+    try {
+        return decodeURIComponent(escape(atob(encoded)));
+    } catch {
+        return '';
+    }
+};
+
 // Sanitize server-produced SVG before it goes into innerHTML. The chart /
 // excalidraw renderers build SVG from model-authored specs, so it can carry
 // <foreignObject>, onerror/onbegin handlers, or xlink:href="javascript:".

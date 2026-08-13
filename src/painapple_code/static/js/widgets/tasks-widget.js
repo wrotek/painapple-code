@@ -138,7 +138,7 @@ async function renderList() {
             : '';
 
         return `
-            <div class="bt-item" data-task-id="${escapeAttr(task.id)}" onclick="window._btWidget?.selectTask(this.dataset.taskId)">
+            <div class="bt-item" data-task-id="${escapeAttr(task.id)}" data-act="bt-select-task">
                 <div class="bt-item-status">
                     <div class="bt-item-status-dot ${isRunning ? 'running' : 'done'}"></div>
                 </div>
@@ -190,7 +190,7 @@ async function renderDetail() {
     state.currentContainer.innerHTML = `
         <div class="bt-detail">
             <div class="bt-detail-header">
-                <button class="bt-back-btn" onclick="window._btWidget?.backToList()">
+                <button class="bt-back-btn" data-act="bt-back">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
                         <path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/>
                     </svg>
@@ -204,7 +204,7 @@ async function renderDetail() {
             </div>
             <div class="bt-detail-footer">
                 <span>${formatSize(data.size)}</span>
-                <button onclick="window._btWidget?.copyOutput()">Copy Output</button>
+                <button data-act="bt-copy-output">Copy Output</button>
             </div>
         </div>`;
 

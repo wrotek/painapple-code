@@ -4,6 +4,7 @@
 
 // Import first so window.fetch is wrapped before any module's poll fires.
 import './auth-fetch.js';
+import './action-delegate.js';
 import S from './strings.js';
 import { CONFIG, COMMANDS, HAS_PHYSICAL_KEYBOARD, debug, setServerHome, setServerWorkspace, INSTANCE } from './config.js';
 import { $, genId, escapeHtml, formatTime, formatRelativeTime, Storage, highlightThinkingKeywords, hasThinkingKeywords, terminalAvailable } from './utils.js';
