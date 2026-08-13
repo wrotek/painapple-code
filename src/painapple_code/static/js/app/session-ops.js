@@ -248,11 +248,6 @@ export const sessionOpsMethods = {
             return;
         }
 
-        if (this.sessionManager.sessions.length >= CONFIG.MAX_SESSIONS) {
-            this.activeSession?.addSystemLog(S.errors.max_sessions.replace('{max}', CONFIG.MAX_SESSIONS), 'error');
-            return;
-        }
-
         const sourceName = this.activeSession?.name || 'Session';
         // Clone runs on the source session's engine (bound provider, or the
         // pending pick on a not-yet-bound tab) — rides the create WS URL.

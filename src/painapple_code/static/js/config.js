@@ -50,28 +50,17 @@ export const CLIENT_BUILD = (() => {
 
 // Default system settings
 const DEFAULTS = {
-    MAX_SESSIONS: 10,
     SESSION_LIST_LIMIT: 100,
 };
 
 // User config storage key (shared with config-panel.js)
 const CONFIG_STORAGE_KEY = 'claude-code-user-config';
 
-// Load max sessions from user config
-function getMaxSessions() {
-    try {
-        const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
-        if (saved) {
-            const config = JSON.parse(saved);
-            if (config.maxSessions && Number.isInteger(config.maxSessions) && config.maxSessions >= 1 && config.maxSessions <= 20) {
-                return config.maxSessions;
-            }
-        }
-    } catch (e) {
-        console.error('Failed to load maxSessions from config:', e);
-    }
-    return DEFAULTS.MAX_SESSIONS;
-}
+// NOTE: there is deliberately no cap on concurrent session tabs. The old
+// CONFIG.MAX_SESSIONS (default 10, user-settable 1-20) refused createSession()
+// once the strip was full; nothing about the client actually breaks past that
+// number, so the guard was pure friction. The legacy `maxSessions` key may
+// still sit in localStorage on old profiles — it is simply ignored.
 
 // Load session list limit from user config
 function getSessionListLimit() {
@@ -96,8 +85,6 @@ const httpProtocol = isSecure ? 'https:' : 'http:';
 
 export const CONFIG = {
     DEBUG,
-    get MAX_SESSIONS() { return getMaxSessions(); },
-    DEFAULT_MAX_SESSIONS: DEFAULTS.MAX_SESSIONS,
     get SESSION_LIST_LIMIT() { return getSessionListLimit(); },
     DEFAULT_SESSION_LIST_LIMIT: DEFAULTS.SESSION_LIST_LIMIT,
     WS_URL: `${wsProtocol}//${window.location.host}/chat`,

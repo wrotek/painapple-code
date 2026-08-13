@@ -98,7 +98,6 @@ errors:
   no_messages_trim: "No messages to trim"
   copy_failed: "Failed to copy"
   update_favorite: "Failed to update favorite"
-  max_sessions: "Maximum {max} sessions allowed"
   session_not_found: "Session not found: {id}"
   failed_load_session: "Failed to load session: {error}"
   fork_failed: "Fork failed: {error}"
@@ -823,9 +822,6 @@ settings:
   permissions:
     default_label: "Default Permission Level"
   system:
-    max_sessions:
-      label: "Maximum Sessions"
-      desc: "Number of concurrent tabs allowed (1-20)"
     autocorrect:
       label: "Disable autocorrect"
       desc: "Turn off iOS autocorrect, autocapitalize, and spellcheck in chat input"

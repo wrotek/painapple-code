@@ -487,11 +487,6 @@ class App {
     createNewSession(cwd, opts = {}) {
         const { toast = S.toast.session_cloned } = opts;
 
-        if (this.sessionManager.sessions.length >= CONFIG.MAX_SESSIONS) {
-            showToast(S.errors.max_sessions.replace('{max}', CONFIG.MAX_SESSIONS));
-            return;
-        }
-
         const session = this.sessionManager.create({ name: 'New Session' });
         if (session) {
             session.cwd = cwd;

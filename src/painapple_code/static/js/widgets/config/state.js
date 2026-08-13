@@ -48,7 +48,7 @@ export function loadUserConfig() {
     } catch (e) {
         console.error('Failed to load user config:', e);
     }
-    return { shortcuts: {}, layout: 'normal', railExpanded: false, maxSessions: CONFIG.DEFAULT_MAX_SESSIONS, sessionListLimit: CONFIG.DEFAULT_SESSION_LIST_LIMIT, disableAutocorrect: false, highlightThinkingKeywords: false, annotateOnPaste: false, terminalClipboardWrite: true, floatingButtonsOpacity: 0.7, selectionInPreview: false, downloadMode: 'auto', toolCollapseMode: 'compact', thinkingToolCollapseMode: 'collapsed', toolCollapseModes: structuredClone(DEFAULT_COLLAPSE_MODES) };
+    return { shortcuts: {}, layout: 'normal', railExpanded: false, sessionListLimit: CONFIG.DEFAULT_SESSION_LIST_LIMIT, disableAutocorrect: false, highlightThinkingKeywords: false, annotateOnPaste: false, terminalClipboardWrite: true, floatingButtonsOpacity: 0.7, selectionInPreview: false, downloadMode: 'auto', toolCollapseMode: 'compact', thinkingToolCollapseMode: 'collapsed', toolCollapseModes: structuredClone(DEFAULT_COLLAPSE_MODES) };
 }
 
 /**
@@ -403,14 +403,6 @@ class ConfigState {
     setRailExpanded(expanded) {
         this.config.railExpanded = !!expanded;
         this.save();
-    }
-
-    setMaxSessions(value) {
-        const num = parseInt(value, 10);
-        if (num >= 1 && num <= 20) {
-            this.config.maxSessions = num;
-            this.save();
-        }
     }
 
     setSessionListLimit(value) {

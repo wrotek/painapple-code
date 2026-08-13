@@ -19,11 +19,6 @@ export const sessionSwitchMethods = {
     createSession(options = {}) {
         const { background = false } = options;
 
-        if (this.sessionManager.sessions.length >= CONFIG.MAX_SESSIONS) {
-            this.activeSession?.addSystemLog(`Maximum ${CONFIG.MAX_SESSIONS} sessions allowed`);
-            return null;
-        }
-
         // Use saved welcome tab position so new session replaces it visually
         const atIndex = this._welcomeReplaceIndex;
         delete this._welcomeReplaceIndex;

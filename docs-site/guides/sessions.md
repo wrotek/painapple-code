@@ -4,7 +4,7 @@ Each tab in pAInapple Code is its own Claude Code session — its own conversati
 
 ## The tab strip
 
-Press ++cmd+t++ / ++ctrl+t++ (or the **+** button) to open a new tab. It lands on the [welcome screen](welcome-screen.md), where you pick a project and type your first prompt. While a session is still empty, a **setup panel** above the input offers one-tap rows for the [AI engine](engines.md), model, permission mode, effort, and account — tune the session, then just start typing. By default you can have up to 10 sessions open at once; raise or lower the limit (1–20) in **Settings → Max sessions**.
+Press ++cmd+t++ / ++ctrl+t++ (or the **+** button) to open a new tab. It lands on the [welcome screen](welcome-screen.md), where you pick a project and type your first prompt. While a session is still empty, a **setup panel** above the input offers one-tap rows for the [AI engine](engines.md), model, permission mode, effort, and account — tune the session, then just start typing. There is no limit on how many sessions you can have open at once — once the tab strip runs out of room it collapses the overflow into a **+N** chip.
 
 Session tabs share one strip with *widget tabs* — terminals, file previews, and scratch editors opened as tabs interleave freely with sessions, so a terminal can sit right between two conversations. Each session tab shows a status dot (lit while Claude or the auto-journal is working), an unread dot for background activity, and a **?** badge when Claude is waiting for [an answer from you](#when-claude-asks-you-a-question).
 

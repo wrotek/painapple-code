@@ -508,17 +508,6 @@ function renderConfigPanel(container, context) {
                     <h3 class="system-section-title">${S.settings.sections.sessions}</h3>
                     <div class="system-setting">
                         <label class="system-setting-label">
-                            <span class="system-setting-name">Maximum Sessions</span>
-                            <span class="system-setting-desc">Number of concurrent tabs allowed (1-20)</span>
-                        </label>
-                        <div class="system-setting-control">
-                            <input type="number" id="max-sessions-input" min="1" max="20"
-                                   value="${state.config.maxSessions || CONFIG.DEFAULT_MAX_SESSIONS}"
-                                   class="system-number-input">
-                        </div>
-                    </div>
-                    <div class="system-setting">
-                        <label class="system-setting-label">
                             <span class="system-setting-name">${S.settings.system_labels.session_list_limit}</span>
                             <span class="system-setting-desc">${S.settings.system_labels.session_list_limit_desc}</span>
                         </label>
@@ -710,19 +699,6 @@ function attachConfigEventHandlers(container) {
             state.setLayout(e.target.value);
         });
     });
-
-    // Max sessions input
-    const maxSessionsInput = container.querySelector('#max-sessions-input');
-    if (maxSessionsInput) {
-        maxSessionsInput.addEventListener('change', (e) => {
-            const value = parseInt(e.target.value, 10);
-            if (value >= 1 && value <= 20) {
-                state.setMaxSessions(value);
-            } else {
-                e.target.value = state.config.maxSessions || CONFIG.DEFAULT_MAX_SESSIONS;
-            }
-        });
-    }
 
     // Session list limit input
     const sessionListLimitInput = container.querySelector('#session-list-limit-input');

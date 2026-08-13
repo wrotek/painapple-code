@@ -978,10 +978,6 @@ export class SessionManager {
     }
 
     create(options = {}) {
-        if (this.sessions.length >= CONFIG.MAX_SESSIONS) {
-            return null;
-        }
-
         const { atIndex, ...sessionOptions } = options;
         const session = new Session(sessionOptions);
         if (atIndex !== undefined && atIndex >= 0 && atIndex <= this.sessions.length) {
