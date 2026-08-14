@@ -78,6 +78,7 @@ set is built and when you need this flag.
 - `--tls auto` (the default) enables TLS **only when binding to a non-loopback host**. On `127.0.0.1`, `::1`, or `localhost` the server stays plain HTTP.
 - `--tls on` forces TLS; `--tls off` disables it even on non-loopback binds (the server logs a loud warning — your auth token and chat contents travel the LAN unencrypted).
 - When TLS is enabled, a self-signed certificate is auto-generated at `<config-dir>/cert.pem` / `key.pem` (next to the auth config file). There is no OS trust-store install; browsers show a one-time certificate warning.
+- On **ARM64 Windows** and **Intel Macs**, generating that certificate needs a package that isn't installed by default (`cryptography` publishes no wheel for those platforms). The server refuses to start rather than silently downgrade, and prints the exact command to fix it — see [pip install](../getting-started/install-pip.md). `--tls off` is the explicit opt-out.
 
 !!! warning "Non-loopback binds"
     A non-loopback bind puts your traffic on the network, so prefer a reverse proxy (Caddy, nginx) over exposing the server directly — see [Read this first](../getting-started/security.md). `X-Forwarded-*` headers are trusted only from loopback (`127.0.0.1,::1`), regardless of what you bind to; if your proxy runs on another host, set `FORWARDED_ALLOW_IPS` to its address.

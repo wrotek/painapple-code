@@ -38,6 +38,28 @@ classifiers = [
 # is all CI or a contributor needs — no live server, no port binding.
 [project.optional-dependencies]
 test = ["pytest>=8.0"]
+# TLS support on the platforms pyca/cryptography abandoned. On every other
+# platform cryptography is already a base dependency and this extra just
+# restates the same floor (a test asserts the two stay in sync) — so
+# `painapple-code[tls]` is a no-op there and the correct thing to install
+# anywhere.
+#
+# On the abandoned platforms it pins the last version that still publishes a
+# wheel, which means NO Rust toolchain is needed but DOES mean cryptography
+# versions with known advisories. That trade is why this is opt-in: the
+# default install simply omits cryptography there and `--tls` explains itself
+# (see _tls_unavailable in server.py). None of those advisories are reachable
+# through tls_cert.py, which only generates a self-signed ECDSA P-256 cert —
+# they are in the X.509 verifier, PKCS#7 and symmetric-cipher paths we never
+# call — but "unreachable today" is not a promise we want in a default install.
+tls = [
+    "cryptography>=50.0.0; (platform_machine != \"ARM64\" or sys_platform != \"win32\") and (platform_machine != \"x86_64\" or sys_platform != \"darwin\")",
+    # Windows/ARM64: 46.0.3 is the last win_arm64 wheel. Expected to be
+    # unnecessary once pyca/cryptography#15350 lands and restores the platform.
+    "cryptography>=43.0.1,<=46.0.3; platform_machine == \"ARM64\" and sys_platform == \"win32\"",
+    # macOS/Intel: 48.0.1 is the last universal2 wheel; 49.0.0 went arm64-only.
+    "cryptography>=43.0.1,<49; platform_machine == \"x86_64\" and sys_platform == \"darwin\"",
+]
 
 [project.urls]
 Homepage = "https://painapple.ai"

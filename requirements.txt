@@ -3,7 +3,8 @@
 #   python-multipart>=0.0.31 -> CVE-2024-53981 (multipart boundary DoS, fixed 0.0.18)
 #   Pillow>=12.3.0  -> clears the 10.x/11.x image-parsing CVE run (e.g. CVE-2023-50447,
 #                      CVE-2024-28219, CVE-2025-48379)
-#   cryptography>=43.0.1 -> CVE-2024-26130 / GHSA-h4gh (NULL-deref + Bleichenbacher fixes)
+#   cryptography         -> floor raised again 2026-08-14; see its own block below
+#                           (it also became platform-conditional there)
 fastapi>=0.115.0
 # uvicorn's [standard] extra pulls httptools, which publishes no
 # win_arm64 wheel — pip would try to build it from source and fail on a
@@ -18,7 +19,27 @@ pytz
 pyyaml>=6.0
 Pillow>=12.3.0
 python-multipart>=0.0.31
-cryptography>=43.0.1
+# cryptography is used by exactly one module — tls_cert.py, which mints the
+# self-signed cert for `--tls` and is imported lazily, only when TLS is on.
+# It is therefore REQUIRED only on the platforms upstream still ships wheels
+# for, and OPTIONAL (the `[tls]` extra) on the ones it abandoned:
+#   * Windows/ARM64 — no wheel after 46.0.3. Suspended at 46.0.4 over CI
+#     instability, restoration planned but unreleased (pyca/cryptography#15350).
+#   * macOS/x86_64  — no wheel after 48.0.1. Removed in 49.0.0 (deprecated in
+#     47.0.0); macOS wheels are arm64-only now. Permanent.
+# Without the marker pip resolves the newest version, finds no wheel, and falls
+# back to the sdist — a Rust/maturin build that fails on a stock box. (pip
+# ranks candidates by version BEFORE wheel-vs-sdist unless --prefer-binary, so
+# a newer sdist genuinely beats an older wheel.) Holding those platforms at
+# their last wheel instead would pin cryptography versions with known
+# advisories (46.0.3 has six, fixed across 46.0.5-50.0.0), so that pin lives in
+# the opt-in `[tls]` extra in pyproject.toml rather than in the default install.
+# Floor is the current release: every supported platform has a 50.0.0 wheel and
+# it clears every advisory open against the 43.x-49.x line.
+# 32-bit Windows was dropped in 49.0.0 too, but `platform_machine` can't
+# express "32-bit interpreter" (it reports the OS arch), so that one is a
+# docs-only note: use 64-bit Python, which is upstream's own advice.
+cryptography>=50.0.0; (platform_machine != "ARM64" or sys_platform != "win32") and (platform_machine != "x86_64" or sys_platform != "darwin")
 # httpx/httpcore are upper-capped because the browser-proxy SSRF guard
 # (routes/api_browser.py) reaches into private internals: it sets
 # httpx's `transport._pool._network_backend` and subclasses

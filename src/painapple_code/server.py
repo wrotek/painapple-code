@@ -28,7 +28,7 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 from starlette.middleware.base import BaseHTTPMiddleware
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, NoReturn, Optional
 
 from painapple_code import PACKAGE_DIR, REPO_ROOT
 from painapple_code.cli.serve_args import DEFAULT_PORT, build_parser
@@ -1724,6 +1724,62 @@ def _preflight_port(host: str, port: int) -> None:
     sys.exit(1)
 
 
+# Platforms pyca/cryptography no longer publishes wheels for, mapped to the
+# pin that still resolves to one. Keep in sync with the `[tls]` extra in
+# pyproject.toml and the cryptography block in requirements.txt.
+_CRYPTOGRAPHY_GAP = {
+    ("ARM64", "win32"): (
+        'cryptography<=46.0.3',
+        "Windows-on-ARM wheels were suspended upstream at 46.0.4 over CI "
+        "instability; restoration is planned but not yet released.",
+    ),
+    ("x86_64", "darwin"): (
+        'cryptography<49',
+        "Intel-macOS support was removed upstream in 49.0.0 — macOS wheels "
+        "are Apple-Silicon-only now.",
+    ),
+}
+
+
+def _tls_unavailable(tls_mode: str, host: str) -> NoReturn:
+    """Explain a missing `cryptography` instead of dying on an ImportError.
+
+    On the platforms upstream abandoned we deliberately omit cryptography from
+    the default install (see requirements.txt), so this is the expected — not
+    exceptional — path for a Windows/ARM64 or Intel-macOS user who binds a
+    non-loopback address and trips `--tls auto`.
+    """
+    import platform
+    pin, why = _CRYPTOGRAPHY_GAP.get(
+        (platform.machine(), sys.platform),
+        # Not a platform we exclude — cryptography is a required dependency
+        # here, so its absence means a broken/partial install rather than the
+        # deliberate opt-out below.
+        ('cryptography',
+         "It is a required dependency on this platform, so the install looks "
+         "incomplete — reinstalling painapple-code should restore it."),
+    )
+    trigger = (f"--tls auto turned TLS on because {host} is not loopback."
+               if tls_mode == "auto" else "TLS was requested with --tls on.")
+    print(f"""
+╔══════════════════════════════════════════════════════════════╗
+║           pAInapple Code Server — cannot start
+╠══════════════════════════════════════════════════════════════╣
+║  TLS needs the `cryptography` package, which is not installed.
+║  {trigger}
+║  {why}
+║
+║  Install it:  pipx inject painapple-code "{pin}"
+║          or:  pip install "painapple-code[tls]"
+║
+║  Or start without TLS:  painapple --tls off
+╚══════════════════════════════════════════════════════════════╝
+""", file=sys.__stderr__ or sys.stdout)
+    logger.error("TLS requested but `cryptography` is not installed "
+                 f"({platform.machine()}/{sys.platform}) — not starting")
+    sys.exit(1)
+
+
 LOOPBACK_HOSTS = ("127.0.0.1", "::1", "localhost")
 
 
@@ -1912,7 +1968,14 @@ def main(argv=None):
     # pinning is gone, so clear any stale copy external tools might read.
     (config_dir / "fingerprint").unlink(missing_ok=True)
     if use_tls:
-        from painapple_code.tls_cert import ensure_cert
+        try:
+            from painapple_code.tls_cert import ensure_cert
+        except ImportError as exc:
+            # Only the optional-dependency case gets the friendly box; anything
+            # else importing badly is a real bug and should keep its traceback.
+            if not (exc.name or "").startswith("cryptography"):
+                raise
+            _tls_unavailable(args.tls, args.host)
         tls_cert_path = Path(args.tls_cert).expanduser() if args.tls_cert else config_dir / "cert.pem"
         tls_key_path = Path(args.tls_key).expanduser() if args.tls_key else config_dir / "key.pem"
         ensure_cert(tls_cert_path, tls_key_path)

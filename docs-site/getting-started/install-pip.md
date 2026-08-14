@@ -41,14 +41,34 @@ Then:
     painapple --workspace C:\Users\you\projects
     ```
 
-!!! warning "Windows on ARM needs one extra flag"
-    On ARM64 Windows (Surface, Snapdragon X), install with:
+!!! note "TLS is opt-in on ARM64 Windows and Intel Macs"
+    Installing needs no extra flags on any platform. But on **ARM64 Windows** (Surface, Snapdragon X) and **Intel Macs**, `--tls` doesn't work until you add one package.
 
-    ```powershell
-    pipx install painapple-code --pip-args="--only-binary=cryptography"
-    ```
+    pAInapple Code uses [`cryptography`](https://cryptography.io/) for exactly one thing: minting the self-signed cert for `--tls`. Upstream stopped publishing wheels for those two platforms — Windows on ARM after 46.0.3, Intel macOS after 48.0.1 — so installing it there means either compiling it from Rust source or pinning a version with known advisories. The default install leaves it out rather than make that choice for you. Everything except TLS works normally, and if you ask for TLS without it the server says so and tells you what to run.
 
-    `cryptography` publishes no ARM64 Windows wheel past 46.0.3. Without the flag pip picks a newer version, finds no wheel, falls back to building it from Rust source, and fails unless you have the MSVC build tools installed. The flag holds it at the newest version that *does* ship a wheel. Keep it scoped to `cryptography` — `--only-binary=:all:` also rules out `claude-agent-sdk`, which is source-only, and breaks the install a different way. x64 needs none of this.
+    To enable TLS, opt in. This pins the last version that still ships a wheel for your platform, so there's nothing to compile:
+
+    === "Windows on ARM"
+
+        ```powershell
+        pipx inject painapple-code "cryptography<=46.0.3"
+        ```
+
+    === "Intel Mac"
+
+        ```bash
+        pipx inject painapple-code "cryptography<49"
+        ```
+
+    === "pip / venv (any platform)"
+
+        ```bash
+        pip install "painapple-code[tls]"
+        ```
+
+        The `[tls]` extra picks the right pin for the platform it's installed on, and is a no-op everywhere `cryptography` is already a dependency.
+
+    Windows on ARM is expected to get wheels again — [upstream is planning to restore it](https://github.com/pyca/cryptography/pull/15350) — at which point this stops being necessary. Intel macOS support was removed deliberately and won't come back. On 32-bit Windows, use a 64-bit Python instead; `cryptography` dropped 32-bit builds in 49.0.0.
 
 The package drops a `painapple` console script on your PATH. Bare `painapple` serves the current directory (the explicit form is `painapple serve`); add `--in-docker` to run the same thing in a container — see [container mode](install-docker.md) and [Profiles & container mode](../reference/profiles.md).
 

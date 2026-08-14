@@ -19,7 +19,7 @@ pAInapple Code runs natively on all three desktop platforms. No WSL required.
 | Platform | Status | Notes |
 |---|---|---|
 | **Linux** | Fully supported | The primary development and deployment target. |
-| **macOS** | Fully supported | Intel and Apple Silicon. |
+| **macOS** | Fully supported | Intel and Apple Silicon. On Intel, TLS needs [one extra package](install-pip.md) — `cryptography` is Apple-Silicon-only from 49.0.0. |
 | **Windows 10/11** | Fully supported | Native — no WSL, no VM. See the Windows notes below. |
 
 #### Windows notes
@@ -29,7 +29,7 @@ pAInapple Code runs natively on all three desktop platforms. No WSL required.
 - **The terminal tab runs PowerShell** through ConPTY. `pwsh` (PowerShell 7) is preferred when present, otherwise Windows PowerShell; override with `PAINAPPLE_CODE_SHELL`.
 - **`!bang` commands are PowerShell-flavored** on Windows, not `sh`.
 - **File permissions** are enforced with NTFS ACLs (owner-only, applied via `icacls`) rather than POSIX mode bits — see [security](security.md).
-- **Windows on ARM** (Surface, Snapdragon X) works, with two wheel caveats. The HTTP stack is slightly slower — the optional `httptools` parser publishes no ARM64 wheel, so those machines use uvicorn's pure-Python parser, automatically and with nothing for you to do. The install itself, though, needs one flag: `cryptography` stopped publishing ARM64 Windows wheels after 46.0.3, and without the flag pip tries to compile it from Rust source and fails. See [pip install](install-pip.md).
+- **Windows on ARM** (Surface, Snapdragon X) installs with no extra flags, with two wheel caveats — both handled automatically, neither needing anything from you. The HTTP stack is slightly slower: the optional `httptools` parser publishes no ARM64 wheel, so those machines use uvicorn's pure-Python parser. And TLS is opt-in: `cryptography` stopped publishing ARM64 Windows wheels after 46.0.3, so it isn't installed by default and `--tls` needs one extra package. See [pip install](install-pip.md). Use a **64-bit** Python — `cryptography` dropped 32-bit Windows builds in 49.0.0.
 - Data lives in `%USERPROFILE%\.painapple-code` — the same `~/.painapple-code` layout as the other platforms, deliberately, so the docs and support answers match everywhere.
 
 !!! tip "Docker skips most of this"
