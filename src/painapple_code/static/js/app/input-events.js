@@ -252,8 +252,8 @@ export const inputEventMethods = {
     },
 
     /** @deprecated Use inputHandler.addToHistory() */
-    addToInputHistory(content) {
-        this.inputHandler?.addToHistory(content);
+    addToInputHistory(content, stashRefs = null) {
+        this.inputHandler?.addToHistory(content, stashRefs);
     },
 
     /** @deprecated Use inputHandler.getDraftKey() */
@@ -341,9 +341,6 @@ export const inputEventMethods = {
             // Fall through to normal message sending below
         }
 
-        // Save to persistent per-project history
-        this.addToInputHistory(content);
-
         // Build message content - include buffered bang outputs but don't show them in UI
         let messageToSend = content;
         const pendingOutputs = this.activeSession.pendingBangOutputs;
@@ -385,6 +382,10 @@ export const inputEventMethods = {
         if (Stash.hasEnabled() && !Stash.isPaused()) {
             // Save compact version of stash items for message display
             stashRefs = Stash.getEnabled().map(item => ({
+                // The originating stash item, so recall can re-arm the real
+                // item instead of rebuilding it from the truncated copy below.
+                // Rides along to messages.jsonl, so it survives a reload.
+                id: item.id,
                 type: item.type,
                 selectedText: item.selectedText?.slice(0, 300), // Truncate for storage
                 note: item.note || '',
@@ -398,6 +399,14 @@ export const inputEventMethods = {
             // to stash history instead of being deleted
             sentStashIds = Stash.getEnabled().map(item => item.id);
         }
+
+        // Record in the up/down recall history. Deliberately here and not at
+        // the top of sendMessage: this is the first point where the typed text
+        // and the references that rode with it both exist, and it still runs
+        // before Stash.markSent disarms them. A bare entry may already have
+        // been written on keypress (InputHandler.handleInput) — addToHistory
+        // dedups on text, so this upgrades it in place rather than doubling.
+        this.addToInputHistory(content, stashRefs);
 
         // Collect pending images
         const images = this.pendingImages.map(img => img.imageData);

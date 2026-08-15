@@ -1581,6 +1581,49 @@
     color: #ef4444;
 }
 
+/* Recall hint — what the history entry under the cursor was sent with.
+   Read-only sibling of .stash-preview: same column, deliberately quieter
+   (no border, muted text) so it reads as annotation, not as pending state. */
+.history-refs-hint {
+    display: none;
+    margin-bottom: var(--sp-8);
+}
+
+.history-refs-hint.visible {
+    display: block;
+}
+
+/* Reuses the message bubble's .stash-refs-* block (20-messages.css) so the
+   recalled prompt previews its references exactly as the sent one did. */
+.history-refs-hint .stash-refs-block {
+    margin: 0;
+}
+
+/* A prompt can carry a large stash — keep the preview from pushing the
+   textarea off screen. */
+.history-refs-hint .stash-refs-content {
+    max-height: 30vh;
+    overflow-y: auto;
+}
+
+.history-refs-reattach {
+    margin-top: var(--sp-4);
+    padding: var(--sp-4) var(--sp-10);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: var(--radius-sm);
+    background: rgba(139, 92, 246, 0.10);
+    color: var(--accent);
+    font-size: var(--font-size-xs);
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.history-refs-reattach:hover {
+    background: rgba(139, 92, 246, 0.18);
+    border-color: rgba(139, 92, 246, 0.55);
+}
+
 /* Stash preview in input (shown above input when items exist) */
 .stash-preview {
     display: none;

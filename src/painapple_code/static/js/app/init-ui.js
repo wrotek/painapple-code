@@ -64,6 +64,7 @@ export const initUiMethods = {
             inputContainer: $('#input-container'),
             inputResizeHandle: $('#input-resize-handle'),
             messageInput: $('#message-input'),
+            historyRefsHint: $('#history-refs-hint'),
             sendBtn: $('#send-btn'),
             followupBtn: $('#followup-btn'),
             stopBtn: $('#stop-btn'),
@@ -216,7 +217,8 @@ export const initUiMethods = {
             {
                 messageInput: this.els.messageInput,
                 sendBtn: this.els.sendBtn,
-                followupBtn: this.els.followupBtn
+                followupBtn: this.els.followupBtn,
+                historyRefsHint: this.els.historyRefsHint
             },
             { hasPhysicalKeyboard: HAS_PHYSICAL_KEYBOARD },
             {

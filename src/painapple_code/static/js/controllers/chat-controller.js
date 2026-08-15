@@ -26,6 +26,7 @@ import { showToast } from '../context-menu.js';
 import { engineAuthorLabel } from '../status-bar.js';
 import S from '../strings.js';
 import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
+import { renderStashRefs } from '../stash-refs-view.js';
 
 // Turn-summary files row: current-turn pills (changed files + image thumbs)
 // always render in full; session-accumulated pills (changed first, then image
@@ -819,54 +820,10 @@ export class ChatController {
 
         // Render stash references if attached
         if (msg.hasRefs && msg.stashRefs && msg.stashRefs.length > 0) {
-            displayText += this._renderStashRefs(msg.stashRefs);
+            displayText += renderStashRefs(msg.stashRefs);
         }
 
         return displayText;
-    }
-
-    /**
-     * Render stash references as collapsible block
-     * @private
-     */
-    _renderStashRefs(refs) {
-        const count = refs.length;
-        const refsHtml = refs.map(ref => {
-            const text = ref.selectedText || '';
-            const preview = text.length > 100 ? text.slice(0, 100) + '...' : text;
-            const noteHtml = ref.note ? `<div class="ref-note">💬 ${escapeHtml(ref.note)}</div>` : '';
-            let sourceLabel;
-            if (ref.type === 'file') {
-                sourceLabel = `📄 ${escapeHtml(basename(ref.filePath) || 'file')}`;
-            } else if (ref.type === 'image') {
-                const name = escapeHtml(basename(ref.filePath) || 'image');
-                sourceLabel = ref.markerIndex != null ? `📍 ${name} · marker ${ref.markerIndex}` : `📍 ${name}`;
-            } else {
-                sourceLabel = `💬 Message #${ref.messageIndex || '?'}`;
-            }
-            // Image-marker refs have no quoted selection — the note carries it
-            const textHtml = preview ? `<div class="ref-text">"${escapeHtml(preview)}"</div>` : '';
-
-            return `
-                <div class="stash-ref-item">
-                    <div class="ref-source">${sourceLabel}</div>
-                    ${textHtml}
-                    ${noteHtml}
-                </div>
-            `;
-        }).join('');
-
-        return `
-            <details class="stash-refs-block" ${count === 1 ? 'open' : ''}>
-                <summary class="stash-refs-header">
-                    <span class="refs-icon">📎</span>
-                    <span class="refs-count">${count} reference${count > 1 ? 's' : ''} attached</span>
-                </summary>
-                <div class="stash-refs-content">
-                    ${refsHtml}
-                </div>
-            </details>
-        `;
     }
 
     // ═══════════════════════════════════════════════════════════════

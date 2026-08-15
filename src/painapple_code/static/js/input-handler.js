@@ -3,12 +3,13 @@
  * Manages message input, history navigation, drafts, and autocomplete integration
  */
 
-import { Storage } from './utils.js';
+import { Storage, escapeHtml, escapeAttr } from './utils.js';
 import { CONFIG } from './config.js';
 import { Stash } from './stash.js';
 import { ShortcutHints } from './shortcut-hints.js';
 import { DraftsPill } from './drafts-pill.js';
 import { showToast } from './context-menu.js';
+import { renderStashRefs } from './stash-refs-view.js';
 import S from './strings.js';
 
 // Auto-sync of in-progress input to a server-side draft (/api/drafts):
@@ -17,6 +18,62 @@ import S from './strings.js';
 // pollute the Drafts list; the localStorage auto-draft still covers them)
 const AUTO_DRAFT_SYNC_MS = 2500;
 const AUTO_DRAFT_MIN_CHARS = 12;
+
+// Cap on session.promptHistory (oldest entries fall off the end)
+const PROMPT_HISTORY_LIMIT = 50;
+
+// A prompt-history entry is `{ text, stashRefs }` — the typed text plus the
+// compact stash references that rode along with it, so recall can tell the
+// user what was actually sent. Entries with empty text are legitimate: a
+// stash-only send is a real prompt with no words in it. Plain strings are
+// still accepted on read (older in-memory sessions, forks made before the
+// object shape landed) so navigation never breaks on a legacy array.
+export function historyEntryText(entry) {
+    return typeof entry === 'string' ? entry : (entry?.text ?? '');
+}
+
+export function historyEntryRefs(entry) {
+    const refs = typeof entry === 'string' ? null : entry?.stashRefs;
+    return Array.isArray(refs) && refs.length > 0 ? refs : null;
+}
+
+/**
+ * Push a prompt into a SPECIFIC session's arrow-up recall history.
+ *
+ * This is the single write path for `session.promptHistory` — the
+ * InputHandler's own addToHistory delegates here with the active session,
+ * and the `message_stored` broadcast handler calls it directly so prompts
+ * sent from ANOTHER tab/device become recallable in this one without a
+ * page reload (the send-path write only ever runs on the originating
+ * client).
+ *
+ * @param {Object} session - the Session whose history to write
+ * @param {string} content - the text the user typed (may be empty)
+ * @param {Array|null} stashRefs - compact stash references sent with it
+ */
+export function pushHistoryEntry(session, content, stashRefs = null) {
+    if (!session) return;
+
+    const text = content || '';
+    const refs = Array.isArray(stashRefs) && stashRefs.length > 0 ? stashRefs : null;
+    // Neither words nor references — nothing was sent, nothing to recall
+    if (!text.trim() && !refs) return;
+
+    // Dedup on the typed text, so re-sending the same prompt moves it to
+    // the front instead of stacking (and so the enriched write from the
+    // send path replaces the bare one written on keypress). Empty-text
+    // entries are exempt: two stash-only sends carry different references
+    // and are genuinely different prompts — collapsing them would hide one.
+    if (text.trim()) {
+        session.promptHistory = session.promptHistory.filter(
+            h => historyEntryText(h) !== text
+        );
+    }
+    session.promptHistory.unshift({ text, stashRefs: refs });
+    if (session.promptHistory.length > PROMPT_HISTORY_LIMIT) {
+        session.promptHistory.length = PROMPT_HISTORY_LIMIT;
+    }
+}
 
 // Tab-cycle: order matches the input toolbar (#, /, @, $).
 // Tab in the input rotates through these trigger pickers without pre-selecting
@@ -167,6 +224,7 @@ export class InputHandler {
         if (this.historyIndex !== -1) {
             this.historyIndex = -1;
             this.historyDraft = '';
+            this._renderHistoryRefsHint(null);
         }
 
         // Enable/disable send button (considers images too)
@@ -504,8 +562,9 @@ export class InputHandler {
                 return; // Already at oldest
             }
 
-            this.els.messageInput.value = history[this.historyIndex];
-            this._updateInputAfterHistoryNav();
+            const entry = history[this.historyIndex];
+            this.els.messageInput.value = historyEntryText(entry);
+            this._updateInputAfterHistoryNav(entry);
             return;
         }
 
@@ -513,11 +572,13 @@ export class InputHandler {
         if (e.key === 'ArrowDown' && !autocomplete?.visible && this.historyIndex !== -1) {
             e.preventDefault();
 
+            let entry = null;
             if (this.historyIndex > 0) {
                 // Go forward in history
                 this.historyIndex--;
                 const history = this.getHistory();
-                this.els.messageInput.value = history[this.historyIndex];
+                entry = history[this.historyIndex];
+                this.els.messageInput.value = historyEntryText(entry);
             } else {
                 // Restore draft and exit history mode
                 this.els.messageInput.value = this.historyDraft;
@@ -525,7 +586,7 @@ export class InputHandler {
                 this.historyDraft = '';
             }
 
-            this._updateInputAfterHistoryNav();
+            this._updateInputAfterHistoryNav(entry);
             return;
         }
 
@@ -534,6 +595,7 @@ export class InputHandler {
             ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
             this.historyIndex = -1;
             this.historyDraft = '';
+            this._renderHistoryRefsHint(null);
             // Don't prevent default - let the cursor move
         }
 
@@ -557,6 +619,7 @@ export class InputHandler {
             this._consumePendingDraft();
             this.historyIndex = -1;
             this.historyDraft = '';
+            this._renderHistoryRefsHint(null);
             this.onSendInNewSession(value);
             return;
         }
@@ -590,7 +653,13 @@ export class InputHandler {
     /**
      * Update input field state after history navigation
      */
-    _updateInputAfterHistoryNav() {
+    _updateInputAfterHistoryNav(entry = null) {
+        // Surface the stash references this prompt was sent with. Recall is
+        // deliberately display-only — re-arming items that were already sent
+        // (and may since have been edited or removed) would be worse than the
+        // ambiguity this hint exists to remove.
+        this._renderHistoryRefsHint(entry);
+
         // Check if navigated to a prefixed command — apply input mode
         const wasMode = this.inputMode;
         const val = this.els.messageInput.value;
@@ -610,6 +679,90 @@ export class InputHandler {
         this.els.messageInput.selectionStart = len;
         this.els.messageInput.selectionEnd = len;
         this.onAutoResize();
+    }
+
+    /**
+     * Render (or hide) the "sent with N references" hint under the input.
+     * Pass null to hide — every exit from history mode does.
+     */
+    _renderHistoryRefsHint(entry) {
+        const el = this.els.historyRefsHint;
+        if (!el) return;
+
+        const refs = historyEntryRefs(entry);
+        if (!refs) {
+            el.classList.remove('visible');
+            el.innerHTML = '';
+            return;
+        }
+
+        // A stash-only send recalls as an empty input — that is the case this
+        // hint exists for, so it gets its own wording rather than looking like
+        // the recall silently failed.
+        const isEmpty = historyEntryText(entry).trim() === '';
+        const strings = S.ui.stash;
+        const key = isEmpty
+            ? (refs.length === 1 ? 'recall_hint_empty_one' : 'recall_hint_empty_many')
+            : (refs.length === 1 ? 'recall_hint_one' : 'recall_hint_many');
+
+        // Same block the sent-message bubble draws, from the same refs — the
+        // count alone left the user knowing a prompt had references without
+        // being able to see which. Expanded when there is nothing else to look
+        // at (no typed text) or when there is only one; collapsed otherwise so
+        // a large stash cannot shove the input off screen.
+        // Re-attach is offered only for refs whose ORIGINAL stash items are
+        // still around and not already armed. Rebuilding them from the refs
+        // themselves would be a trap: `selectedText` is truncated to 300 chars
+        // for display, so a rebuilt item would quietly send a clipped snippet.
+        const ids = refs.map(r => r.id).filter(Boolean);
+        const restorable = Stash.restorableIds(ids);
+        const actionHtml = restorable.length > 0
+            ? `<button type="button" class="history-refs-reattach" data-action="reattach"
+                       data-tooltip="${escapeAttr(strings.reattach_tooltip)}">${escapeHtml(strings.reattach)}</button>`
+            : '';
+
+        el.innerHTML = renderStashRefs(refs, {
+            label: strings[key].replace('{count}', refs.length),
+            open: isEmpty || refs.length === 1,
+        }) + actionHtml;
+        el.dataset.tooltip = strings.recall_hint_tooltip;
+        el.classList.add('visible');
+
+        el.querySelector('[data-action="reattach"]')
+            ?.addEventListener('click', (e) => this._reattachRecalledRefs(e, ids, entry));
+    }
+
+    /**
+     * Re-arm the stash items a recalled prompt was sent with.
+     * @private
+     */
+    async _reattachRecalledRefs(e, ids, entry) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const strings = S.ui.stash;
+        const { restored, missing } = await Stash.reattach(ids);
+
+        if (restored === 0 && missing > 0) {
+            showToast(strings.reattach_none);
+        } else {
+            const parts = [
+                (restored === 1 ? strings.reattached_one : strings.reattached_many)
+                    .replace('{count}', restored),
+            ];
+            if (missing > 0) {
+                parts.push(
+                    (missing === 1 ? strings.reattach_missing_one : strings.reattach_missing_many)
+                        .replace('{count}', missing)
+                );
+            }
+            showToast(parts.join(' · '));
+        }
+
+        // Re-render: the button drops out now that the items are armed, and
+        // the stash preview bar above the input picks them up on its own.
+        this._renderHistoryRefsHint(entry);
+        this.els.messageInput.focus();
     }
 
     /**
@@ -839,6 +992,7 @@ export class InputHandler {
         // Reset history navigation state
         this.historyIndex = -1;
         this.historyDraft = '';
+        this._renderHistoryRefsHint(null);
 
         // Exit input mode on send
         this.inputMode = null;
@@ -879,21 +1033,13 @@ export class InputHandler {
     }
 
     /**
-     * Add a message to session history (in-memory) for up/down navigation
+     * Add a message to session history (in-memory) for up/down navigation.
+     *
+     * @param {string} content - the text the user typed (may be empty)
+     * @param {Array|null} stashRefs - compact stash references sent with it
      */
-    addToHistory(content) {
-        const session = this.getSession();
-        if (!content.trim()) return;
-
-        if (session) {
-            // Remove duplicates and add to front
-            session.promptHistory = session.promptHistory.filter(h => h !== content);
-            session.promptHistory.unshift(content);
-            // Cap at 50 entries
-            if (session.promptHistory.length > 50) {
-                session.promptHistory.length = 50;
-            }
-        }
+    addToHistory(content, stashRefs = null) {
+        pushHistoryEntry(this.getSession(), content, stashRefs);
     }
 
     /**
@@ -979,6 +1125,7 @@ export class InputHandler {
     resetHistoryState() {
         this.historyIndex = -1;
         this.historyDraft = '';
+        this._renderHistoryRefsHint(null);
     }
 
     // ─────────────────────────────────────────────────────────────────
