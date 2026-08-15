@@ -30,6 +30,13 @@ version only; there are no long-term support branches yet.
 | Latest release (`:latest` / newest PyPI) | ✅ |
 | Older releases | ❌ — upgrade to the latest |
 
+PyPI and Docker Hub are published by separate pipelines, so a fix can
+briefly be available on one channel before the other. A fix counts as
+released only once it is on **both**. When it matters, verify the version
+you are actually running: `painapple --version` on a pip install, or the
+`org.opencontainers.image.version` label on the image (printed by
+`painapple pull`, or via `docker inspect`).
+
 ## Reporting a vulnerability
 
 **Please report privately — do not open a public issue for security bugs.**
