@@ -507,7 +507,12 @@ function bindActions(container, status, projectConfig, projectInfo, cwd, commitS
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
             WidgetManager.close('helpers-install');
-            WidgetManager.open('config', { tab: 'system' });
+            // Name the section too — it's the last block on the System tab, so
+            // a bare tab switch leaves the user hunting for what the link named.
+            WidgetManager.open('config', {
+                tab: 'system',
+                section: 'shadow-git-defaults-section',
+            });
         });
     }
 

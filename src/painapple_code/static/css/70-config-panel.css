@@ -789,6 +789,24 @@
     border-bottom: none;
 }
 
+/* Deep-link landing highlight — a cross-link that names a section (e.g. the
+   Auto-journal panel's "Configure defaults for new projects →") scrolls here
+   and flashes, so the arrival is visible on a dense tab. Purely additive: the
+   class is added for ~1.6s and removed. */
+@keyframes config-section-flash {
+    0%   { background: transparent; }
+    25%  { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); }
+    100% { background: transparent; }
+}
+.system-section.config-section-flash {
+    animation: config-section-flash 1.6s ease-out;
+    border-radius: var(--radius-sm);
+}
+/* Respect a reduced-motion preference — the scroll still happens. */
+@media (prefers-reduced-motion: reduce) {
+    .system-section.config-section-flash { animation: none; }
+}
+
 .system-section-title {
     margin: 0 0 var(--sp-16) 0;
     font-size: var(--font-size-base);

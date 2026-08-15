@@ -612,20 +612,26 @@ function renderConfigPanel(container, context) {
                         <button class="extra-dir-add-btn" id="global-extra-dir-add-btn">Add</button>
                     </div>
                 </div>
-                <div class="system-section">
+                <div class="system-section" id="shadow-git-defaults-section">
                     <h3 class="system-section-title">${S.settings.sections.shadow_git_defaults}</h3>
                     <p class="config-hint">${S.settings.hints.shadow_defaults_hint}</p>
                     <div class="system-setting">
                         <label class="project-toggle">
+                            <!-- Strict === true, not !== false: these render the
+                                 GLOBAL default, which the server always sends
+                                 as an explicit boolean. Absent state means "not
+                                 loaded yet / fetch failed", and a checkbox that
+                                 claims capture is on when we don't know is the
+                                 wrong way to be wrong. Resynced in onOpen. -->
                             <input type="checkbox" id="shadow-git-default-enabled"
-                                   ${state.shadowGitDefaults?.enabled !== false ? 'checked' : ''}>
+                                   ${state.shadowGitDefaults?.enabled === true ? 'checked' : ''}>
                             <span class="project-toggle-label">${S.settings.toggles.shadow_git_default}</span>
                         </label>
                     </div>
                     <div class="system-setting">
                         <label class="project-toggle">
                             <input type="checkbox" id="shadow-git-default-rich-commits"
-                                   ${state.shadowGitDefaults?.rich_commits !== false ? 'checked' : ''}>
+                                   ${state.shadowGitDefaults?.rich_commits === true ? 'checked' : ''}>
                             <span class="project-toggle-label">${S.settings.toggles.rich_commits_default}</span>
                             <span class="project-toggle-hint">${subModel(S.settings.toggles.rich_commits_default_hint)}</span>
                         </label>
@@ -1182,6 +1188,11 @@ export function registerConfigWidget() {
             // Check for tab requested via WidgetManager.open context (works across module instances)
             const widget = WidgetManager.get('config');
             const contextTab = widget?._openContext?.tab;
+            // Captured HERE, next to the tab, not where it is used at the end
+            // of onOpen: base-widget clears _openContext after the first render,
+            // and onOpen may trigger a full re-render in between — reading it
+            // later gets null. Same reason contextTab is read up here.
+            const contextSection = widget?._openContext?.section;
             const requestedTab = contextTab || (state._tabSelected ? state.activeTab : null);
             state._tabSelected = false;
 
@@ -1241,8 +1252,10 @@ export function registerConfigWidget() {
                     const defEnabled = container.querySelector('#shadow-git-default-enabled');
                     const defRich = container.querySelector('#shadow-git-default-rich-commits');
 
-                    if (defEnabled) defEnabled.checked = state.shadowGitDefaults.enabled !== false;
-                    if (defRich) defRich.checked = state.shadowGitDefaults.rich_commits !== false;
+                    // `=== true` for the same reason as the markup above — the
+                    // server sends explicit booleans; anything else is "unknown".
+                    if (defEnabled) defEnabled.checked = state.shadowGitDefaults.enabled === true;
+                    if (defRich) defRich.checked = state.shadowGitDefaults.rich_commits === true;
                 }
 
                 // Sync extra dirs lists (they may have loaded after initial render)
@@ -1288,6 +1301,33 @@ export function registerConfigWidget() {
             // Switch to requested tab (e.g. "Customize..." → quickactions)
             if (requestedTab && state.container) {
                 switchTab(state.container, requestedTab);
+            }
+
+            // Deep-link to a section within the tab. Without this, a caller
+            // like the Auto-journal panel's "Configure defaults for new
+            // projects →" lands the user at the TOP of the System tab while
+            // the section it promised is the last block down the page — the
+            // link appears to do nothing. Runs after the tab switch (a hidden
+            // section has no scrollable geometry) and after the render/resync
+            // above, so the target exists.
+            // Re-queried on each attempt rather than captured once: onOpen may
+            // have triggered a full WidgetManager.update() above, which swaps
+            // the whole subtree — scrolling the node we found before that
+            // replacement moves a detached element and looks like a no-op.
+            // Scrolling is idempotent, so a few spaced attempts is the cheapest
+            // way to be correct regardless of when the re-render lands.
+            if (contextSection) {
+                let flashed = false;
+                [0, 60, 200, 500].forEach((delay) => setTimeout(() => {
+                    const target = state.container?.querySelector(`#${contextSection}`);
+                    if (!target) return;
+                    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    if (flashed) return;
+                    flashed = true;
+                    // The scroll alone is easy to miss on a dense page.
+                    target.classList.add('config-section-flash');
+                    setTimeout(() => target.classList.remove('config-section-flash'), 1600);
+                }, delay));
             }
 
             // Auto-focus search input if on shortcuts tab

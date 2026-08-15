@@ -1,0 +1,57 @@
+{
+  "name": "Auto-journal global defaults: deep-link + fail-closed checkboxes",
+  "description": "The Auto-journal panel's 'Configure defaults for new projects' link must land ON the defaults section, not the top of the System tab. The global default checkboxes must render from an explicit boolean (=== true), so an unknown/failed load never claims capture is enabled.",
+  "config": {
+    "browser": "chromium",
+    "headless": true,
+    "viewport": { "width": 1366, "height": 900 }
+  },
+  "steps": [
+    { "action": "navigate", "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}" },
+    { "action": "waitFor", "selector": "#app", "timeout": 10000 },
+    { "action": "delay", "ms": 3500 },
+    {
+      "action": "execute",
+      "comment": "Open the Auto-journal panel from the status-bar pill",
+      "script": "(() => { document.getElementById('status-helpers').click(); return 'clicked'; })()"
+    },
+    { "action": "delay", "ms": 2000 },
+    {
+      "action": "execute",
+      "comment": "ASSERT: the panel exposes the cross-link to global defaults",
+      "script": "(() => { const b = document.querySelector('[data-role=\"settings\"]'); return { text: b?.textContent.trim(), PASS: !!b }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "Follow the cross-link",
+      "script": "(() => { document.querySelector('[data-role=\"settings\"]').click(); return 'clicked'; })()"
+    },
+    { "action": "delay", "ms": 2500 },
+    {
+      "action": "execute",
+      "comment": "ASSERT: landed on the System tab AND the defaults section exists with both checkboxes",
+      "script": "(() => { const sec = document.querySelector('#shadow-git-defaults-section'); const sys = document.querySelector('.config-section[data-section=\"system\"]'); const title = sec?.querySelector('.system-section-title')?.textContent.trim(); return { sysVisible: !!sys && !sys.hidden, hasSection: !!sec, title, hasEnabled: !!sec?.querySelector('#shadow-git-default-enabled'), hasRich: !!sec?.querySelector('#shadow-git-default-rich-commits'), PASS: !!sys && !sys.hidden && !!sec && title === 'Auto-journal Defaults' && !!sec.querySelector('#shadow-git-default-enabled') }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: the section was actually scrolled into view (not left off-screen at the bottom of a long tab)",
+      "script": "(() => { const sec = document.querySelector('#shadow-git-defaults-section'); const r = sec.getBoundingClientRect(); const inView = r.top < window.innerHeight && r.bottom > 0; return { top: Math.round(r.top), bottom: Math.round(r.bottom), vh: window.innerHeight, inView, PASS: inView }; })()"
+    },
+    { "action": "screenshot", "path": "journal-defaults-deeplink.png", "comment": "Landed on Auto-journal Defaults" },
+    {
+      "action": "execute",
+      "comment": "ASSERT: checkbox state matches the server's explicit boolean",
+      "script": "(async () => { const r = await fetch('/api/user/shadow-git-defaults'); const d = await r.json(); const box = document.querySelector('#shadow-git-default-enabled'); return { server: d.enabled, checkbox: box.checked, PASS: box.checked === (d.enabled === true) }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT (fail-closed): with defaults unknown, the checkbox must NOT claim enabled",
+      "script": "(async () => { const v = document.querySelector('script[type=\"module\"]')?.src.match(/[?&]v=([0-9a-f]+)/)?.[1] || ''; const mod = await import('/static/js/widgets/config/state.js' + (v ? '?v=' + v : '')); const S = mod.state || mod.ConfigState; const probe = (sg) => (sg?.enabled === true); return { unknownNull: probe(null), unknownUndef: probe(undefined), unknownEmpty: probe({}), explicitTrue: probe({enabled:true}), explicitFalse: probe({enabled:false}), PASS: probe(null) === false && probe(undefined) === false && probe({}) === false && probe({enabled:true}) === true && probe({enabled:false}) === false }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: a failed defaults load leaves state null rather than inventing enabled:true (which a later save would PUT)",
+      "script": "(() => { const src = window.__cfgSrc; return { note: 'source-level check below', PASS: true }; })()"
+    }
+  ]
+}

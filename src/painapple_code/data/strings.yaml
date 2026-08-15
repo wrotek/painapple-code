@@ -887,7 +887,12 @@ settings:
     sessions: "Sessions"
     permissions: "Permissions"
     file_downloads: "File Downloads"
-    shadow_git_defaults: "Shadow Git Defaults"
+    # Section title uses the FEATURE name ("Auto-journal") because that is what
+    # the status-bar pill and the panel that cross-links here call it, and it is
+    # what someone hunting for the setting will scan for. The toggles inside
+    # keep the LAYER names (Shadow Git / Rich Commits) so they read identically
+    # to the per-project toggles they set the default for.
+    shadow_git_defaults: "Auto-journal Defaults"
     extra_dirs_global: "Extra Directories (Global)"
   # Quick actions editor sub-sections
   qa_editor:

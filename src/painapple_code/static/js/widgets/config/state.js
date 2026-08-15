@@ -230,8 +230,18 @@ class ConfigState {
             }
         } catch (e) {
             console.error('Failed to load shadow git defaults:', e);
-            // Use hardcoded defaults
-            this.shadowGitDefaults = { enabled: true, rich_commits: true };
+            // Deliberately do NOT substitute invented defaults here. A second
+            // copy of the default living in the client is the trap WP-13 hit:
+            // it silently contradicts the server the moment the server's own
+            // default changes. Worse, `saveShadowGitDefaults` spreads this
+            // object into the PUT body, so an invented `enabled: true` from a
+            // failed fetch would be WRITTEN to the real config the next time
+            // the user touched the neighbouring checkbox — a network blip
+            // could re-enable whole-worktree capture on its own. Leaving it
+            // null means the checkboxes render unchecked (see the `=== true`
+            // tests in config-widget.js) and a save sends only the key the
+            // user actually touched.
+            this.shadowGitDefaults = null;
         }
     }
 
