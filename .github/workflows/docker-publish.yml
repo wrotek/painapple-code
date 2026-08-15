@@ -25,6 +25,11 @@ name: Publish Docker Image
 #   - DOCKERHUB_TOKEN      (Hub access token, NOT account password)
 #
 # Multi-arch: builds linux/amd64 + linux/arm64 via buildx + QEMU.
+#
+# Job graph: test → build-stage → smoke-test → promote. The build pushes
+# only an ephemeral :staging-<run_id> tag; the smoke test verifies that
+# digest; promote re-tags the verified digest onto the public tags. A
+# failure anywhere before promote publishes nothing a user can pull.
 
 on:
     push:
@@ -53,13 +58,22 @@ jobs:
         with:
             ref: ${{ inputs.tag || '' }}
 
-    build-and-push:
+    # Builds the multi-arch image and pushes it ONLY to an ephemeral
+    # :staging-<run_id> tag. Nothing public moves here — the version tag,
+    # :latest, :rc and :edge are all assigned by `promote`, after the smoke
+    # test has verified this exact digest. (buildx can't --load a
+    # multi-arch build for local testing, so push-to-staging is the only
+    # way to test before promoting.)
+    build-stage:
         needs: test
         runs-on: ubuntu-latest
         permissions:
             contents: read
         outputs:
             tag: ${{ steps.relref.outputs.tag }}
+            prerelease: ${{ steps.relref.outputs.prerelease }}
+            stable: ${{ steps.rel.outputs.stable }}
+            digest: ${{ steps.build.outputs.digest }}
         steps:
             # fetch-depth: 0 so setuptools-scm can `git describe` against
             # all tags. Default shallow clone hides everything but HEAD.
@@ -137,27 +151,15 @@ jobs:
                   username: ${{ secrets.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            # Tag policy (driven by steps.relref, so a dispatch-with-tag run
-            # behaves exactly like the original tag push):
-            #   release tag v0.1.0         → :v0.1.0, :latest
-            #   release tag v0.1.0-rc1     → :v0.1.0-rc1, :rc
-            #                                (+ :latest only while NO stable
-            #                                 release exists — see above)
-            #   no release tag (dispatch)  → :edge               (skip :latest)
+            # Only the ephemeral staging tag is assigned at build time. The
+            # public tag policy lives in the `promote` job below. The OCI
+            # labels ARE baked here — they ride the manifest through the
+            # digest promotion unchanged.
             #
-            # :rc is the moving pre-release pointer — it keeps working after
-            # v1.0.0 ships, when :latest correctly stops tracking rcs.
-            #
-            # The version tag is a raw entry with the tag name verbatim
-            # (keeps the leading `v`). We deliberately don't use type=semver —
-            # it would auto-emit :0.1 and :0 alias tags, which is library
-            # ergonomics we don't want for an end-user app.
-            #
-            # flavor latest=false is required: the default (latest=auto)
-            # would mark tag-ish builds as :latest — including pre-releases —
-            # with no semver awareness. Our enable-gated raw entry below is
-            # the only :latest source.
-            - name: Derive image tags
+            # flavor latest=false: the default (latest=auto) would mark
+            # tag-ish builds as :latest with no semver awareness; nothing in
+            # this workflow may assign :latest except promote.
+            - name: Derive staging tag + OCI labels
               id: meta
               uses: docker/metadata-action@v5
               with:
@@ -165,10 +167,7 @@ jobs:
                   flavor: |
                       latest=false
                   tags: |
-                      type=raw,value=${{ steps.relref.outputs.tag }},enable=${{ steps.relref.outputs.tag != '' }}
-                      type=raw,value=latest,enable=${{ steps.relref.outputs.tag != '' && (steps.relref.outputs.prerelease == 'false' || steps.rel.outputs.stable == 'false') }}
-                      type=raw,value=rc,enable=${{ steps.relref.outputs.tag != '' && steps.relref.outputs.prerelease == 'true' }}
-                      type=raw,value=edge,enable=${{ steps.relref.outputs.tag == '' }}
+                      type=raw,value=staging-${{ github.run_id }}
                   # metadata-action ALSO auto-derives description/licenses/url from
                   # the GitHub repo's About field + detected SPDX id, and everything
                   # it emits is passed to build-push-action as --label below, which
@@ -212,25 +211,19 @@ jobs:
                   cache-to: type=gha,mode=max
 
     smoke-test:
-        # Pulls the freshly-pushed image on a clean runner and verifies the
-        # bridge boots: /health must return HTTP 200 within 30 s. Runs only
-        # for amd64 — buildx publishes the same code for both arches, so
-        # one platform is sufficient to catch packaging regressions.
-        needs: build-and-push
+        # Pulls the staged image BY DIGEST on a clean runner and verifies
+        # the bridge boots: /health must return HTTP 200 within 30 s. At
+        # this point no public tag has moved — a failure here leaves
+        # :latest/:rc/:<version> exactly where they were. Runs only for
+        # amd64 — buildx publishes the same code for both arches, so one
+        # platform is sufficient to catch packaging regressions.
+        needs: build-stage
         runs-on: ubuntu-latest
         steps:
-            - name: Pick the tag we just published
-              id: tag
-              run: |
-                  # The build job's resolved release tag; empty means an
-                  # :edge build (bare workflow_dispatch).
-                  tag="${{ needs.build-and-push.outputs.tag }}"
-                  echo "ref=${tag:-edge}" >> "$GITHUB_OUTPUT"
-
             - name: Boot container and curl /health
               run: |
                   set -euo pipefail
-                  IMG="${{ env.IMAGE }}:${{ steps.tag.outputs.ref }}"
+                  IMG="${{ env.IMAGE }}@${{ needs.build-stage.outputs.digest }}"
                   echo "→ Pulling $IMG"
                   docker pull "$IMG"
 
@@ -267,6 +260,77 @@ jobs:
             - name: Cleanup
               if: always()
               run: docker rm -f papple-smoke 2>/dev/null || true
+
+    promote:
+        # The ONLY place public tags move. `imagetools create` is a pure
+        # manifest copy — no rebuild — so what ships is bit-for-bit the
+        # digest the smoke test verified, and re-running this job cannot
+        # change an existing version's digest.
+        #
+        # Tag policy (driven by build-stage outputs, so a dispatch-with-tag
+        # run behaves exactly like the original tag push):
+        #   release tag v0.1.0         → :v0.1.0, :latest
+        #   release tag v0.1.0-rc1     → :v0.1.0-rc1, :rc
+        #                                (+ :latest only while NO stable
+        #                                 release exists — see build-stage)
+        #   no release tag (dispatch)  → :edge          (never moves :latest)
+        #
+        # :rc is the moving pre-release pointer — it keeps working after
+        # v1.0.0 ships, when :latest correctly stops tracking rcs. The
+        # version tag keeps the leading `v`; we deliberately emit no :0.1 /
+        # :0 semver aliases — library ergonomics an end-user app doesn't
+        # want.
+        needs: [build-stage, smoke-test]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Promote verified digest to public tags
+              run: |
+                  set -euo pipefail
+                  digest="${{ needs.build-stage.outputs.digest }}"
+                  tag="${{ needs.build-stage.outputs.tag }}"
+                  prerelease="${{ needs.build-stage.outputs.prerelease }}"
+                  stable="${{ needs.build-stage.outputs.stable }}"
+
+                  args=()
+                  if [[ -n "$tag" ]]; then
+                      args+=(-t "$IMAGE:$tag")
+                      if [[ "$prerelease" == "true" ]]; then
+                          args+=(-t "$IMAGE:rc")
+                          if [[ "$stable" == "false" ]]; then
+                              args+=(-t "$IMAGE:latest")
+                          fi
+                      else
+                          args+=(-t "$IMAGE:latest")
+                      fi
+                  else
+                      args+=(-t "$IMAGE:edge")
+                  fi
+
+                  echo "→ promoting $digest to:"
+                  printf '   %s\n' "${args[@]}"
+                  docker buildx imagetools create "${args[@]}" "$IMAGE@$digest"
+
+            # Housekeeping, not correctness: drop the ephemeral staging tag.
+            # Tag deletion goes through the Hub account API, which a
+            # Read & Write PAT may refuse (403) — hence continue-on-error; a
+            # lingering staging-* tag is harmless and can be pruned by hand.
+            - name: Delete staging tag
+              continue-on-error: true
+              run: |
+                  repo="${IMAGE#docker.io/}"
+                  token=$(curl -fsS -H "Content-Type: application/json" \
+                      -d '{"username": "${{ secrets.DOCKERHUB_USERNAME }}", "password": "${{ secrets.DOCKERHUB_TOKEN }}"}' \
+                      https://hub.docker.com/v2/users/login \
+                      | python3 -c "import sys, json; print(json.load(sys.stdin)['token'])")
+                  curl -fsS -X DELETE -H "Authorization: JWT $token" \
+                      "https://hub.docker.com/v2/repositories/$repo/tags/staging-${{ github.run_id }}/"
+                  echo "→ staging-${{ github.run_id }} deleted"
 
 # The Docker Hub Overview tab is synced by dockerhub-readme.yml, which
 # tracks main rather than release tags. It lived here as a job gated on
