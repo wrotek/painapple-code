@@ -104,6 +104,40 @@ jobs:
                       > third-party-licenses.md
                   cat third-party-licenses.md >> "$GITHUB_STEP_SUMMARY"
 
+            # Behavioral gate on the exact wheel about to publish, using the
+            # same clean venv as the license gate: metadata sanity (twine),
+            # the version importable at RUNTIME matches the tag (the check
+            # above only reads the filename), and the server genuinely boots
+            # and answers /health from an installed wheel — no repo
+            # checkout, no node_modules. This is also the Gate-A half of
+            # WP-15 (installed-artifact smoke).
+            - name: Smoke-test the installed wheel
+              run: |
+                  set -euo pipefail
+                  tag="${GITHUB_REF#refs/tags/v}"
+                  expected=$(python -c "from packaging.version import Version; import sys; print(Version(sys.argv[1]))" "$tag")
+
+                  pip install --quiet twine
+                  twine check --strict dist/*
+
+                  EXPECTED="$expected" /tmp/licvenv/bin/python - <<'PY'
+                  import os
+                  import painapple_code
+                  expected = os.environ["EXPECTED"]
+                  got = painapple_code.__version__
+                  assert got == expected, f"installed {got} != tag {expected}"
+                  print("runtime version ok:", expected)
+                  PY
+
+                  echo "→ Booting the installed wheel"
+                  /tmp/licvenv/bin/painapple --host 127.0.0.1 --port 8799 &
+                  srv=$!
+                  trap 'kill "$srv" 2>/dev/null || true' EXIT
+                  curl -fsS --retry 30 --retry-delay 1 --retry-connrefused \
+                      http://127.0.0.1:8799/health
+                  echo
+                  echo "✓ /health responded from the installed wheel"
+
             - uses: actions/upload-artifact@v4
               with:
                   name: dist
