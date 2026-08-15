@@ -44,7 +44,17 @@ env:
     IMAGE: docker.io/wrotek/painapple-code
 
 jobs:
+    # Release gate: the full security regression suite must pass on the
+    # tree being shipped before anything is built or published. The ref
+    # passthrough matters for dispatch-with-tag recovery runs — without it
+    # the gate would test the branch, not the tag being rebuilt.
+    test:
+        uses: ./.github/workflows/tests.yml
+        with:
+            ref: ${{ inputs.tag || '' }}
+
     build-and-push:
+        needs: test
         runs-on: ubuntu-latest
         permissions:
             contents: read

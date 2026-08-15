@@ -20,7 +20,15 @@ on:
             - "v*.*.*"
 
 jobs:
+    # Release gate: the full security regression suite must pass on the
+    # tagged tree before anything is built or published. Without this, a
+    # tag push never ran the tests at all — tests.yml triggers on
+    # branches/PRs, and a tag push matches neither.
+    test:
+        uses: ./.github/workflows/tests.yml
+
     build:
+        needs: test
         runs-on: ubuntu-latest
         steps:
             # fetch-depth: 0 so setuptools-scm can `git describe` against

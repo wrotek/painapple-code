@@ -25,12 +25,28 @@ on:
     pull_request:
         branches: [main]
     workflow_dispatch:
+    # Reusable entry point: both publish workflows call this suite as their
+    # release gate (needs: test), so a tag push cannot reach PyPI or Docker
+    # Hub without the security regression tests passing. The push/PR
+    # triggers above are unchanged — this is additive.
+    workflow_call:
+        inputs:
+            ref:
+                description: >-
+                    Ref to test. Callers rebuilding an existing tag via
+                    dispatch pass it here so the gate tests the tag's tree,
+                    not the branch. Empty = the triggering ref, as always.
+                required: false
+                type: string
 
 permissions:
     contents: read
 
+# github.workflow is the CALLER's workflow name in a workflow_call run, so
+# the two publish workflows testing the same tag get distinct groups and
+# cannot cancel each other's gate (ref alone would collide them).
 concurrency:
-    group: tests-${{ github.ref }}
+    group: tests-${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 
 jobs:
@@ -43,9 +59,12 @@ jobs:
         steps:
             # fetch-depth: 0 so setuptools-scm can resolve a version from
             # tags rather than falling back to 0.1.devN.
+            # ref is empty for every trigger except a workflow_call that
+            # passes one — checkout treats empty as "the triggering ref".
             - uses: actions/checkout@v4
               with:
                   fetch-depth: 0
+                  ref: ${{ inputs.ref }}
 
             - uses: actions/setup-python@v5
               with:
