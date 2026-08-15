@@ -37,6 +37,44 @@ export function historyEntryRefs(entry) {
     return Array.isArray(refs) && refs.length > 0 ? refs : null;
 }
 
+/**
+ * Push a prompt into a SPECIFIC session's arrow-up recall history.
+ *
+ * This is the single write path for `session.promptHistory` — the
+ * InputHandler's own addToHistory delegates here with the active session,
+ * and the `message_stored` broadcast handler calls it directly so prompts
+ * sent from ANOTHER tab/device become recallable in this one without a
+ * page reload (the send-path write only ever runs on the originating
+ * client).
+ *
+ * @param {Object} session - the Session whose history to write
+ * @param {string} content - the text the user typed (may be empty)
+ * @param {Array|null} stashRefs - compact stash references sent with it
+ */
+export function pushHistoryEntry(session, content, stashRefs = null) {
+    if (!session) return;
+
+    const text = content || '';
+    const refs = Array.isArray(stashRefs) && stashRefs.length > 0 ? stashRefs : null;
+    // Neither words nor references — nothing was sent, nothing to recall
+    if (!text.trim() && !refs) return;
+
+    // Dedup on the typed text, so re-sending the same prompt moves it to
+    // the front instead of stacking (and so the enriched write from the
+    // send path replaces the bare one written on keypress). Empty-text
+    // entries are exempt: two stash-only sends carry different references
+    // and are genuinely different prompts — collapsing them would hide one.
+    if (text.trim()) {
+        session.promptHistory = session.promptHistory.filter(
+            h => historyEntryText(h) !== text
+        );
+    }
+    session.promptHistory.unshift({ text, stashRefs: refs });
+    if (session.promptHistory.length > PROMPT_HISTORY_LIMIT) {
+        session.promptHistory.length = PROMPT_HISTORY_LIMIT;
+    }
+}
+
 // Tab-cycle: order matches the input toolbar (#, /, @, $).
 // Tab in the input rotates through these trigger pickers without pre-selecting
 // any entry, so the user can browse what each picker offers and arrow-down to commit.
@@ -1001,28 +1039,7 @@ export class InputHandler {
      * @param {Array|null} stashRefs - compact stash references sent with it
      */
     addToHistory(content, stashRefs = null) {
-        const session = this.getSession();
-        if (!session) return;
-
-        const text = content || '';
-        const refs = Array.isArray(stashRefs) && stashRefs.length > 0 ? stashRefs : null;
-        // Neither words nor references — nothing was sent, nothing to recall
-        if (!text.trim() && !refs) return;
-
-        // Dedup on the typed text, so re-sending the same prompt moves it to
-        // the front instead of stacking (and so the enriched write from the
-        // send path replaces the bare one written on keypress). Empty-text
-        // entries are exempt: two stash-only sends carry different references
-        // and are genuinely different prompts — collapsing them would hide one.
-        if (text.trim()) {
-            session.promptHistory = session.promptHistory.filter(
-                h => historyEntryText(h) !== text
-            );
-        }
-        session.promptHistory.unshift({ text, stashRefs: refs });
-        if (session.promptHistory.length > PROMPT_HISTORY_LIMIT) {
-            session.promptHistory.length = PROMPT_HISTORY_LIMIT;
-        }
+        pushHistoryEntry(this.getSession(), content, stashRefs);
     }
 
     /**

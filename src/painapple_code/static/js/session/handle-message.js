@@ -16,6 +16,7 @@ import S from '../strings.js';
 import { debug, setServerHome, setServerWorkspace } from '../config.js';
 import { genId } from '../utils.js';
 import { refreshAgentsForCwd } from '../snippets-autocomplete.js';
+import { pushHistoryEntry } from '../input-handler.js';
 import { WidgetBus } from '../widget-system/event-bus.js';
 import { basename } from '../path-utils.js';
 
@@ -502,6 +503,14 @@ export const wsHandlerMethods = {
                     }
                 } else {
                     this.addMessage(stored);
+                    // A prompt sent from another tab/device must also enter
+                    // arrow-up recall history — the send-path write only ever
+                    // ran on the originating client. (Question answers are
+                    // user-role rows but not prompts.)
+                    if (stored.role === 'user'
+                        && !stored.is_question_answer && !stored.isQuestionAnswer) {
+                        pushHistoryEntry(this, stored.content, stored.stashRefs);
+                    }
                 }
                 this.updateSyncTimestamp(stored.timestamp);
                 break;

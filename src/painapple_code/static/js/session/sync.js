@@ -13,6 +13,7 @@
 
 import { CONFIG, debug } from '../config.js';
 import { genId } from '../utils.js';
+import { pushHistoryEntry } from '../input-handler.js';
 
 const getApp = () => window.app;
 
@@ -96,6 +97,11 @@ export const syncMethods = {
             const newMessages = app.transformServerMessages(data.messages, this.storeId);
             let addedCount = 0;
             let updatedCount = 0;
+            // User prompts this sync ADDS (they were missed — sent from
+            // another device/tab while this one was detached) also belong in
+            // arrow-up recall history; the send-path write only ran on the
+            // originating client. Collected here, fed after the loop.
+            const recallCandidates = [];
 
             // For fullSync: determine boundaries to decide what to add
             // - Messages NEWER than our newest → add (genuinely new from server)
@@ -150,6 +156,9 @@ export const syncMethods = {
                             timestamp: msg.timestamp || new Date().toISOString()
                         });
                         addedCount++;
+                        if (msg.role === 'user' && !msg.is_question_answer && !msg.isQuestionAnswer) {
+                            recallCandidates.push(msg);
+                        }
                         debug.log(`[Sync] Added missing message from fullSync:`, msg.role);
                     }
                     // else: message is older than our oldest - it was trimmed, don't re-add
@@ -161,11 +170,21 @@ export const syncMethods = {
                         timestamp: msg.timestamp || new Date().toISOString()
                     });
                     addedCount++;
+                    if (msg.role === 'user' && !msg.is_question_answer && !msg.isQuestionAnswer) {
+                        recallCandidates.push(msg);
+                    }
                 }
                 // Update sync timestamp for both fullSync and incremental
                 // This ensures future incremental syncs know where to start
                 this.updateSyncTimestamp(msg.timestamp);
             }
+
+            // Oldest first, so the newest missed prompt ends up at the front
+            // of the recall stack (pushHistoryEntry unshifts). fullSync
+            // fetches desc, incremental asc — sorting makes both safe.
+            recallCandidates
+                .sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
+                .forEach(m => pushHistoryEntry(this, m.content, m.stashRefs));
 
             if (addedCount > 0 || updatedCount > 0) {
                 // Sort and deduplicate messages
