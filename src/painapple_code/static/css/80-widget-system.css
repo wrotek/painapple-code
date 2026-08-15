@@ -772,13 +772,21 @@
     backdrop-filter: blur(2px);
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--widget-transition-normal);
+    /* See the .widget-modal-dialog note below — a closed backdrop is a
+       full-viewport fixed box, so it needs visibility:hidden for the same
+       reason the dialog does. */
+    visibility: hidden;
+    transition: opacity var(--widget-transition-normal),
+                visibility 0s var(--widget-transition-normal);
     z-index: var(--z-widget-modal-backdrop);
 }
 
 .widget-modal-backdrop-visible {
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
+    transition: opacity var(--widget-transition-normal),
+                visibility 0s 0s;
 }
 
 .widget-modal-dialog {
@@ -793,7 +801,28 @@
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     opacity: 0;
     pointer-events: none;
-    transition: all var(--widget-transition-normal);
+
+    /* visibility:hidden is load-bearing — same bug .widget-floating documents
+       above, and modals are the worse case: a closed modal is never removed
+       from the DOM and stays laid out at up to 95vw x 95vh dead-centre, so it
+       blankets nearly the whole viewport. `opacity:0` + `pointer-events:none`
+       is not enough on WebKit/iPadOS, where the inherited pointer-events does
+       not reliably suppress hit-testing (it never cascades into iframes at
+       all). The symptom: right-clicking a .turn-file-pill in the chat behind
+       a closed image gallery hit the GALLERY's capture-phase contextmenu
+       listener instead, serving the image menu for the last-viewed image, and
+       hover/tooltips died anywhere the ghost overlapped. `visibility` IS
+       inherited and removes the subtree from hit-testing in every engine.
+
+       The 0s delay matches the fade so the close animation still plays before
+       visibility snaps to hidden; the visible rule flips it back with no
+       delay so the 0->1 fade is actually painted. Note this replaces the old
+       `transition: all` — it must be an explicit property list for the
+       visibility delay to be expressible. */
+    visibility: hidden;
+    transition: opacity var(--widget-transition-normal),
+                transform var(--widget-transition-normal),
+                visibility 0s var(--widget-transition-normal);
     z-index: var(--z-widget-modal);
 }
 
@@ -801,6 +830,16 @@
     transform: translate(-50%, -50%) scale(1);
     opacity: 1;
     pointer-events: auto;
+    visibility: visible;
+    transition: opacity var(--widget-transition-normal),
+                transform var(--widget-transition-normal),
+                visibility 0s 0s;
+}
+
+/* Defense-in-depth cascade, mirroring the .widget-floating rule above —
+   costs nothing if visibility:hidden already did the job. */
+.widget-modal-dialog:not(.widget-visible) * {
+    pointer-events: none;
 }
 
 .widget-modal-dialog .widget-drag-handle {

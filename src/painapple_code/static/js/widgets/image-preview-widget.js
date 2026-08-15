@@ -558,6 +558,13 @@ export function registerImagePreviewWidget() {
             // fires. (Mouse right-click works via contextmenu once pan/zoom
             // stops capturing the secondary button — see plugin-helpers.js.)
             container.addEventListener('contextmenu', (e) => {
+                // A closed modal is never removed from the DOM — it just goes
+                // transparent, still laid out at 90vw x 90vh dead-centre. If an
+                // engine leaks a hit-test into it (see the visibility:hidden
+                // note on .widget-modal-dialog), this capture-phase listener
+                // would answer for the chat BEHIND the gallery: right-clicking
+                // a file pill served the image menu for the last-viewed image.
+                if (!container.closest('.widget-visible')) return;
                 const src = srcAt(e.target);
                 if (!src) return;
                 // On touch, yield to the native iOS callout. Its "Copy Image"
