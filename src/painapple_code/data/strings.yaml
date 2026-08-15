@@ -201,7 +201,7 @@ toast:
   # shown, deliberately: a silent clipboard overwrite is an attack.
   terminal_clipboard_written: "Terminal copied {n} chars to clipboard"
   terminal_clipboard_failed: "Terminal tried to copy, but the browser refused"
-  terminal_clipboard_blocked: "Terminal tried to copy — off by default. Allow in Settings → Appearance"
+  terminal_clipboard_blocked: "Terminal tried to copy — off by default. Allow in Settings → Terminal"
   terminal_clipboard_too_large: "Terminal clipboard write too large — ignored"
   annotate_open_failed: "Couldn't open the annotation editor"
   annotate_gif_unsupported: "GIFs can't be annotated"
@@ -854,6 +854,7 @@ settings:
     commands: "Commands"
     quick_actions: "Quick Actions"
     appearance: "Appearance"
+    terminal: "Terminal"
     project: "Project"
     system: "System"
   # Section headings in config tabs
@@ -873,6 +874,9 @@ settings:
     widget_sizes: "Widget Sizes"
     widgets: "Widgets"
     input: "Input"
+    # Terminal tab
+    terminal_clipboard: "Clipboard"
+    terminal_floating: "Floating Window"
     # Engines tab (internally data-tab="models")
     engines: "Engines"
     engine_defaults: "New Session Defaults"
@@ -1044,6 +1048,7 @@ settings:
     font_desc: "Adjust text size for chat and terminal."
     tool_blocks_desc: "Default collapse state per context and tool type"
     widget_sizes_desc: "Default size for floating widgets. Double-click title bar to restore."
+    terminal_size_desc: "Default size when the terminal opens as a floating window. Double-click its title bar to restore this size."
     floating_desc: "Opacity of FAB and chat navigator when inactive."
     engines_hint: "Engines offered when starting a session. Disabling one hides it from the picker — sessions already running on it keep working."
     engines_default_locked: "Default engine for new sessions — always available"

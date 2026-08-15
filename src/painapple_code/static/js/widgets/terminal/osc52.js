@@ -23,7 +23,7 @@
  *   3. OFF BY DEFAULT (WP-13). A fresh profile must not be clipboard-
  *      writable by anything that can print to the terminal — output from a
  *      local command or a remote SSH host could replace what the user just
- *      copied. The user opts in once via Settings → Appearance ("Terminal
+ *      copied. The user opts in once via Settings → Terminal ("Terminal
  *      apps may write to clipboard"); a blocked attempt toasts, so the
  *      setting is discoverable at exactly the moment it's wanted.
  *

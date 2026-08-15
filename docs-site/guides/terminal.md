@@ -51,7 +51,7 @@ Resolution is context-aware: it tracks the shell's *live* working directory (you
 
 Programs running in the terminal can ask to put text on your system clipboard via the OSC 52 escape sequence — it's what makes `y` in vim (Neovim 0.10+ speaks it natively; tmux needs `set -g set-clipboard on`) reach your real clipboard even over SSH.
 
-**This is off by default**, because it cuts both ways: *anything* that prints to the terminal — a script you run, output `cat`-ed from a file, a process on a remote SSH host — can use it to silently replace what you just copied. Classic move: swap the command you copied for a malicious one and wait for you to paste it into a shell. Turn it on in **Settings → Appearance → "Terminal apps may write to clipboard"**; a blocked attempt shows a toast pointing at the setting, so you'll find it exactly when you want it.
+**This is off by default**, because it cuts both ways: *anything* that prints to the terminal — a script you run, output `cat`-ed from a file, a process on a remote SSH host — can use it to silently replace what you just copied. Classic move: swap the command you copied for a malicious one and wait for you to paste it into a shell. Turn it on in **Settings → Terminal → "Terminal apps may write to clipboard"**; a blocked attempt shows a toast pointing at the setting, so you'll find it exactly when you want it.
 
 With it enabled, three guardrails stay on unconditionally:
 

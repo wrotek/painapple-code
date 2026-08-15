@@ -211,6 +211,13 @@ function renderConfigPanel(container, context) {
                 </svg>
                 Appearance
             </button>
+            <button class="config-tab ${state.activeTab === 'terminal' ? 'active' : ''}" data-tab="terminal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="4 17 10 11 4 5"/>
+                    <line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+                ${S.settings.tabs.terminal}
+            </button>
             <button class="config-tab ${state.activeTab === 'quickactions' ? 'active' : ''}" data-tab="quickactions">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -391,19 +398,6 @@ function renderConfigPanel(container, context) {
                     <p class="config-hint">${S.settings.hints.widget_sizes_desc}</p>
                     <div class="system-setting">
                         <label class="system-setting-label">
-                            <span class="system-setting-name">Terminal</span>
-                        </label>
-                        <div class="system-setting-control widget-size-inputs">
-                            <input type="number" id="terminal-size-w" class="size-input" min="400" max="2000" step="50"
-                                   value="${TerminalWidget.getConfiguredSize().width}">
-                            <span class="size-separator">&times;</span>
-                            <input type="number" id="terminal-size-h" class="size-input" min="200" max="1200" step="50"
-                                   value="${TerminalWidget.getConfiguredSize().height}">
-                            <button class="system-reset-btn" id="reset-terminal-size">Reset</button>
-                        </div>
-                    </div>
-                    <div class="system-setting">
-                        <label class="system-setting-label">
                             <span class="system-setting-name">File Preview</span>
                             <span class="system-setting-desc" id="preview-size-desc">
                                 ${getPreviewSizeDescription()}
@@ -445,14 +439,6 @@ function renderConfigPanel(container, context) {
                     </div>
                     <div class="system-setting">
                         <label class="project-toggle">
-                            <input type="checkbox" id="terminal-clipboard-write"
-                                   ${state.config.terminalClipboardWrite === true ? 'checked' : ''}>
-                            <span class="project-toggle-label">${S.settings.toggles.terminal_clipboard}</span>
-                            <span class="project-toggle-hint">${S.settings.toggles.terminal_clipboard_hint}</span>
-                        </label>
-                    </div>
-                    <div class="system-setting">
-                        <label class="project-toggle">
                             <input type="checkbox" id="shortcut-hints-enabled"
                                    ${getHintsConfig().enabled ? 'checked' : ''}>
                             <span class="project-toggle-label">${S.settings.toggles.shortcut_hints}</span>
@@ -468,6 +454,38 @@ function renderConfigPanel(container, context) {
                         </div>
                         <div class="shortcut-hints-picker-list">
                             ${renderShortcutHintsPicker()}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal tab — settings for the embedded PTY terminal. The
+                 control IDs (#terminal-clipboard-write, #terminal-size-w/h,
+                 #reset-terminal-size) are queried on the whole container in
+                 attachConfigEventHandlers, so the wiring is location-agnostic. -->
+            <div class="config-section" data-section="terminal" ${state.activeTab !== 'terminal' ? 'hidden' : ''}>
+                <div class="appearance-section">
+                    <h3 class="appearance-section-title">${S.settings.sections.terminal_clipboard}</h3>
+                    <div class="system-setting">
+                        <label class="project-toggle">
+                            <input type="checkbox" id="terminal-clipboard-write"
+                                   ${state.config.terminalClipboardWrite === true ? 'checked' : ''}>
+                            <span class="project-toggle-label">${S.settings.toggles.terminal_clipboard}</span>
+                            <span class="project-toggle-hint">${S.settings.toggles.terminal_clipboard_hint}</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="appearance-section">
+                    <h3 class="appearance-section-title">${S.settings.sections.terminal_floating}</h3>
+                    <p class="config-hint">${S.settings.hints.terminal_size_desc}</p>
+                    <div class="system-setting">
+                        <div class="system-setting-control widget-size-inputs">
+                            <input type="number" id="terminal-size-w" class="size-input" min="400" max="2000" step="50"
+                                   value="${TerminalWidget.getConfiguredSize().width}">
+                            <span class="size-separator">&times;</span>
+                            <input type="number" id="terminal-size-h" class="size-input" min="200" max="1200" step="50"
+                                   value="${TerminalWidget.getConfiguredSize().height}">
+                            <button class="system-reset-btn" id="reset-terminal-size">Reset</button>
                         </div>
                     </div>
                 </div>
