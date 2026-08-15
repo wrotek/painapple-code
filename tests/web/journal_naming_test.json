@@ -1,0 +1,48 @@
+{
+  "name": "Auto-journal naming + in-widget global defaults",
+  "description": "The Auto-journal widget and Settings must speak one name (Auto-journal, never Shadow Git), and the widget itself must expose the global 'new projects' default so users need not detour into Settings.",
+  "config": { "browser": "chromium", "headless": true, "viewport": { "width": 1366, "height": 950 } },
+  "steps": [
+    { "action": "navigate", "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}" },
+    { "action": "waitFor", "selector": "#app", "timeout": 10000 },
+    { "action": "delay", "ms": 3500 },
+    { "action": "execute", "script": "(() => { document.getElementById('status-helpers').click(); return 'x'; })()" },
+    { "action": "delay", "ms": 2500 },
+    {
+      "action": "execute",
+      "comment": "ASSERT: no user-visible 'Shadow Git' branding anywhere in the widget",
+      "script": "(() => { const w = document.querySelector('.helpers-install-widget'); const txt = w?.innerText || ''; const bad = [...txt.matchAll(/shadow[ -]?git/gi)].map(m=>{ const i=m.index; return txt.slice(Math.max(0,i-40), i+40).replace(/\\n/g,' '); }); const allowed = bad.filter(s => !/shadow-git-helper|\\/shadow-git|bin\\/shadow/i.test(s)); return { total: bad.length, disallowed: allowed, PASS: allowed.length === 0 }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: the per-project master toggle is named Auto-journal",
+      "script": "(() => { const w = document.querySelector('.helpers-install-widget'); const lbl = w.querySelector('[data-role=\"proj-shadow\"]')?.closest('.helpers-toggle')?.querySelector('.helpers-toggle-label')?.textContent.trim(); return { lbl, PASS: lbl === 'Enable Auto-journal' }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: the widget exposes the GLOBAL default section with both toggles",
+      "script": "(() => { const w = document.querySelector('.helpers-install-widget'); const ds = w.querySelector('[data-role=\"default-shadow\"]'); const dr = w.querySelector('[data-role=\"default-rich\"]'); const title = [...w.querySelectorAll('.helpers-section-title')].map(e=>e.textContent.trim()); return { title, hasDefaultShadow: !!ds, hasDefaultRich: !!dr, PASS: !!ds && !!dr && title.includes('New projects') }; })()"
+    },
+    { "action": "screenshot", "path": "journal-widget-defaults.png" },
+    {
+      "action": "execute",
+      "comment": "ASSERT: the global toggle reflects the server value",
+      "script": "(async () => { const r = await fetch('/api/user/shadow-git-defaults'); const d = await r.json(); const ds = document.querySelector('[data-role=\"default-shadow\"]'); return { server: d.enabled, box: ds.checked, PASS: ds.checked === (d.enabled !== false) }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "Flip the GLOBAL default off from inside the widget and confirm it persisted server-side",
+      "script": "(async () => { document.querySelector('[data-role=\"default-shadow\"]').click(); await new Promise(r=>setTimeout(r,1500)); const d = await (await fetch('/api/user/shadow-git-defaults')).json(); return { server: d.enabled, richUntouched: d.rich_commits, PASS: d.enabled === false && d.rich_commits === true }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "Restore the default to ON (auto-journal is a core feature; leave dev as found)",
+      "script": "(async () => { document.querySelector('[data-role=\"default-shadow\"]').click(); await new Promise(r=>setTimeout(r,1500)); const d = await (await fetch('/api/user/shadow-git-defaults')).json(); return { server: d.enabled, PASS: d.enabled === true }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: Settings project section is also renamed, and its default toggles agree",
+      "script": "(async () => { document.querySelector('.helpers-install-widget [data-role=\"settings\"]').click(); await new Promise(r=>setTimeout(r,2500)); const secTitle = document.querySelector('#shadow-git-defaults-section .system-section-title')?.textContent.trim(); const lbl = document.querySelector('#shadow-git-default-enabled')?.closest('.project-toggle')?.querySelector('.project-toggle-label')?.textContent.trim(); const box = document.querySelector('#shadow-git-default-enabled'); return { secTitle, lbl, checked: box?.checked, PASS: secTitle === 'Auto-journal Defaults' && lbl === 'Enable Auto-journal for new projects' && box.checked === true }; })()"
+    }
+  ]
+}

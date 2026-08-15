@@ -230,17 +230,14 @@ class ConfigState {
             }
         } catch (e) {
             console.error('Failed to load shadow git defaults:', e);
-            // Deliberately do NOT substitute invented defaults here. A second
-            // copy of the default living in the client is the trap WP-13 hit:
-            // it silently contradicts the server the moment the server's own
-            // default changes. Worse, `saveShadowGitDefaults` spreads this
-            // object into the PUT body, so an invented `enabled: true` from a
-            // failed fetch would be WRITTEN to the real config the next time
-            // the user touched the neighbouring checkbox — a network blip
-            // could re-enable whole-worktree capture on its own. Leaving it
-            // null means the checkboxes render unchecked (see the `=== true`
-            // tests in config-widget.js) and a save sends only the key the
-            // user actually touched.
+            // Deliberately do NOT substitute invented defaults here. This
+            // object is spread into the PUT body by saveShadowGitDefaults, so
+            // a guessed value isn't display-only — it would be WRITTEN to the
+            // real config the next time the user touched the neighbouring
+            // checkbox, turning a failed GET into a silent config write for a
+            // key the user never set. Leaving it null keeps the save partial
+            // (only the touched key is sent, and the server preserves the
+            // rest); the checkboxes fall back to the default-on reading.
             this.shadowGitDefaults = null;
         }
     }

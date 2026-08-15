@@ -617,21 +617,21 @@ function renderConfigPanel(container, context) {
                     <p class="config-hint">${S.settings.hints.shadow_defaults_hint}</p>
                     <div class="system-setting">
                         <label class="project-toggle">
-                            <!-- Strict === true, not !== false: these render the
-                                 GLOBAL default, which the server always sends
-                                 as an explicit boolean. Absent state means "not
-                                 loaded yet / fetch failed", and a checkbox that
-                                 claims capture is on when we don't know is the
-                                 wrong way to be wrong. Resynced in onOpen. -->
+                            <!-- !== false, matching every other read of these
+                                 flags: auto-journal is ON by default and is a
+                                 core feature, so an unknown state reads as on.
+                                 (The server always sends explicit booleans, so
+                                 this only differs while loading or after a
+                                 failed fetch.) Resynced in onOpen. -->
                             <input type="checkbox" id="shadow-git-default-enabled"
-                                   ${state.shadowGitDefaults?.enabled === true ? 'checked' : ''}>
+                                   ${state.shadowGitDefaults?.enabled !== false ? 'checked' : ''}>
                             <span class="project-toggle-label">${S.settings.toggles.shadow_git_default}</span>
                         </label>
                     </div>
                     <div class="system-setting">
                         <label class="project-toggle">
                             <input type="checkbox" id="shadow-git-default-rich-commits"
-                                   ${state.shadowGitDefaults?.rich_commits === true ? 'checked' : ''}>
+                                   ${state.shadowGitDefaults?.rich_commits !== false ? 'checked' : ''}>
                             <span class="project-toggle-label">${S.settings.toggles.rich_commits_default}</span>
                             <span class="project-toggle-hint">${subModel(S.settings.toggles.rich_commits_default_hint)}</span>
                         </label>
@@ -1252,10 +1252,8 @@ export function registerConfigWidget() {
                     const defEnabled = container.querySelector('#shadow-git-default-enabled');
                     const defRich = container.querySelector('#shadow-git-default-rich-commits');
 
-                    // `=== true` for the same reason as the markup above — the
-                    // server sends explicit booleans; anything else is "unknown".
-                    if (defEnabled) defEnabled.checked = state.shadowGitDefaults.enabled === true;
-                    if (defRich) defRich.checked = state.shadowGitDefaults.rich_commits === true;
+                    if (defEnabled) defEnabled.checked = state.shadowGitDefaults.enabled !== false;
+                    if (defRich) defRich.checked = state.shadowGitDefaults.rich_commits !== false;
                 }
 
                 // Sync extra dirs lists (they may have loaded after initial render)

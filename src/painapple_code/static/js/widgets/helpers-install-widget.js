@@ -49,6 +49,26 @@ async function patchProjectConfig(cwd, updates) {
     return resp.json();
 }
 
+// Global defaults for NEW projects. Same endpoint the Settings → System
+// panel drives; surfaced here too because this widget is where users form
+// the intent ("I want this on everywhere"), and sending them to a settings
+// tab to act on it is a needless detour.
+async function fetchGlobalDefaults() {
+    const resp = await fetch(`${CONFIG.API_BASE}/api/user/shadow-git-defaults`);
+    if (!resp.ok) throw new Error(`shadow-git-defaults ${resp.status}`);
+    return resp.json();
+}
+
+async function saveGlobalDefaults(updates) {
+    const resp = await fetch(`${CONFIG.API_BASE}/api/user/shadow-git-defaults`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+    });
+    if (!resp.ok) throw new Error(`shadow-git-defaults PUT ${resp.status}`);
+    return resp.json();
+}
+
 async function fetchCommitSections(hash) {
     const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/projects/${hash}/commit-sections`);
     if (!resp.ok) throw new Error(`commit-sections ${resp.status}`);
@@ -191,6 +211,37 @@ function renderProjectSection(projectConfig, cwd, commitSections) {
         </section>`;
 }
 
+/**
+ * Global defaults for projects opened from now on. Deliberately a separate
+ * section from "This project" and placed after it: the per-project switch is
+ * what a user came here for, the default is the follow-up thought ("...and
+ * for everything else too"). Both toggles read `!== false` — auto-journal is
+ * on by default, so an unknown state reads as on.
+ */
+function renderDefaultsSection(globalDefaults) {
+    const M = S.helpers.modal;
+    if (!globalDefaults) return '';
+    const enabled = globalDefaults.enabled !== false;
+    const rich = globalDefaults.rich_commits !== false;
+    return `
+        <section class="helpers-section">
+            <h4 class="helpers-section-title">${escapeHtml(M.section_defaults)}</h4>
+            <p class="helpers-section-hint">${escapeHtml(M.section_defaults_hint)}</p>
+            <label class="helpers-toggle">
+                <input type="checkbox" data-role="default-shadow" ${enabled ? 'checked' : ''}>
+                <div class="helpers-toggle-text">
+                    <span class="helpers-toggle-label">${escapeHtml(S.settings.toggles.shadow_git_default)}</span>
+                </div>
+            </label>
+            <label class="helpers-toggle">
+                <input type="checkbox" data-role="default-rich" ${rich ? 'checked' : ''}>
+                <div class="helpers-toggle-text">
+                    <span class="helpers-toggle-label">${escapeHtml(subModel(S.settings.toggles.rich_commits_default))}</span>
+                </div>
+            </label>
+        </section>`;
+}
+
 function renderHelpersSection(status) {
     const M = S.helpers.modal;
     // Aggregate state for the section header tag — single label that
@@ -300,7 +351,7 @@ function renderActionRow(helpersState) {
         </div>`;
 }
 
-function renderBody(container, status, projectConfig, cwd, commitSections) {
+function renderBody(container, status, projectConfig, cwd, commitSections, globalDefaults) {
     const helpersState = status.all_current ? 'current'
         : status.any_outdated ? 'outdated'
         : 'missing';
@@ -323,11 +374,12 @@ function renderBody(container, status, projectConfig, cwd, commitSections) {
             </div>
             <div class="helpers-install-body">
                 <p class="helpers-body-lead">${escapeHtml(subModel(M.body_intro_lead))}</p>
-                <p class="helpers-body-feature"><strong>Shadow git</strong> ${escapeHtml(subModel(M.body_intro_shadow).replace(/^Shadow git\s+/, ''))}</p>
+                <p class="helpers-body-feature"><strong>File history</strong> ${escapeHtml(subModel(M.body_intro_shadow).replace(/^File history\s+/, ''))}</p>
                 <p class="helpers-body-feature"><strong>Rich commits</strong> ${escapeHtml(subModel(M.body_intro_rich).replace(/^Rich commits\s+/, ''))}</p>
                 <p class="helpers-body-outro">${escapeHtml(subModel(M.body_intro_outro))}</p>
             </div>
             ${renderProjectSection(projectConfig, cwd, commitSections)}
+            ${renderDefaultsSection(globalDefaults)}
             ${renderHelpersSection(status)}
             ${renderActionRow(helpersState)}
             <div class="helpers-install-result" hidden>
@@ -348,11 +400,17 @@ async function rerender(container, cwd) {
     let projectConfig = null;
     let projectInfo = null;
     let commitSections = null;
+    let globalDefaults = null;
     try {
         status = await fetchStatus();
     } catch (e) {
         return;
     }
+    // Not fatal — the defaults section simply omits itself if this fails,
+    // rather than rendering toggles whose state we'd be guessing at.
+    try {
+        globalDefaults = await fetchGlobalDefaults();
+    } catch (e) { /* fall through with null */ }
     if (cwd) {
         try {
             const data = await fetchProjectConfig(cwd);
@@ -365,8 +423,8 @@ async function rerender(container, cwd) {
             commitSections = await fetchCommitSections(projectInfo.hash);
         } catch (e) { /* fall through with null */ }
     }
-    renderBody(container, status, projectConfig, cwd, commitSections);
-    bindActions(container, status, projectConfig, projectInfo, cwd, commitSections);
+    renderBody(container, status, projectConfig, cwd, commitSections, globalDefaults);
+    bindActions(container, status, projectConfig, projectInfo, cwd, commitSections, globalDefaults);
     if (window.app?.refreshHelpersStatus) {
         window.app.refreshHelpersStatus();
     }
@@ -376,7 +434,7 @@ async function rerender(container, cwd) {
     refreshAgentsForCwd(cwd).catch(() => {});
 }
 
-function bindActions(container, status, projectConfig, projectInfo, cwd, commitSections) {
+function bindActions(container, status, projectConfig, projectInfo, cwd, commitSections, globalDefaults) {
     const M = S.helpers.modal;
     const result = container.querySelector('.helpers-install-result');
     const statusEl = container.querySelector('.helpers-install-status');
@@ -415,6 +473,24 @@ function bindActions(container, status, projectConfig, projectInfo, cwd, commitS
             }
         });
     }
+
+    // Global default toggles. Each PUT carries ONLY the key the user touched:
+    // the endpoint merges per-key, so a partial body can't clobber the other
+    // flag with a stale value read at render time.
+    const bindDefault = (role, key) => {
+        const el = container.querySelector(`[data-role="${role}"]`);
+        if (!el) return;
+        el.addEventListener('change', async (e) => {
+            try {
+                await saveGlobalDefaults({ [key]: e.target.checked });
+                await rerender(container, cwd);
+            } catch (err) {
+                showLog(String(err?.message || err), 'failure');
+            }
+        });
+    };
+    bindDefault('default-shadow', 'enabled');
+    bindDefault('default-rich', 'rich_commits');
 
     // Cancel (only present in missing/outdated state)
     const cancelBtn = container.querySelector('[data-role="cancel"]');
@@ -612,6 +688,10 @@ export function registerHelpersInstallWidget() {
             let projectConfig = null;
             let projectInfo = null;
             let commitSections = null;
+            let globalDefaults = null;
+            try {
+                globalDefaults = await fetchGlobalDefaults();
+            } catch (e) { /* section omits itself rather than guess */ }
             if (cwd) {
                 try {
                     const data = await fetchProjectConfig(cwd);
@@ -627,8 +707,8 @@ export function registerHelpersInstallWidget() {
 
             // Bail if a newer render started while we awaited.
             if (gen !== renderGen) return;
-            renderBody(container, status, projectConfig, cwd, commitSections);
-            bindActions(container, status, projectConfig, projectInfo, cwd, commitSections);
+            renderBody(container, status, projectConfig, cwd, commitSections, globalDefaults);
+            bindActions(container, status, projectConfig, projectInfo, cwd, commitSections, globalDefaults);
         },
     });
 }
