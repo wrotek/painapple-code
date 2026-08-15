@@ -120,8 +120,15 @@ jobs:
                   name: dist
                   path: dist/
 
+            # skip-existing makes a tag re-push idempotent: recovering from a
+            # partial release (e.g. the Docker half failed) by re-pushing the
+            # tag must not turn this workflow red on "file already exists".
+            # The mistake it could mask — tagging a version that already
+            # shipped — is still caught by the version-matches-tag gate above.
             - name: Publish to PyPI
               uses: pypa/gh-action-pypi-publish@release/v1
+              with:
+                  skip-existing: true
 
     github-release:
         needs: publish-pypi

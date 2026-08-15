@@ -13,7 +13,12 @@ name: Publish Docker Image
 #                                       publish :<tag> and :rc, and move
 #                                       :latest only until the first stable
 #                                       release exists to hold it)
-#   - workflow_dispatch              → publishes :edge (does not move :latest)
+#   - workflow_dispatch, tag input   → re-runs the FULL tag pipeline for an
+#                                       existing tag, without any git
+#                                       operation. This is the recovery path
+#                                       when a release half-failed: re-pushing
+#                                       the tag would re-trigger PyPI too.
+#   - workflow_dispatch, no input    → publishes :edge (does not move :latest)
 #
 # Required repository secrets:
 #   - DOCKERHUB_USERNAME   (wrotek)
@@ -26,6 +31,14 @@ on:
         tags:
             - "v*.*.*"
     workflow_dispatch:
+        inputs:
+            tag:
+                description: >-
+                    Existing release tag to (re)build and publish
+                    (e.g. v1.0.0-rc37). Leave empty for an :edge build
+                    off the current branch.
+                required: false
+                type: string
 
 env:
     IMAGE: docker.io/wrotek/painapple-code
@@ -35,12 +48,38 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: read
+        outputs:
+            tag: ${{ steps.relref.outputs.tag }}
         steps:
             # fetch-depth: 0 so setuptools-scm can `git describe` against
             # all tags. Default shallow clone hides everything but HEAD.
+            # ref: a dispatch with a tag input builds THAT tag's tree; a tag
+            # push or bare dispatch checks out the triggering ref as before.
             - uses: actions/checkout@v4
               with:
                   fetch-depth: 0
+                  ref: ${{ inputs.tag || github.ref }}
+
+            # One canonical "which release is this?" answer, instead of every
+            # step re-deriving it from github.ref (which is wrong for a
+            # dispatch-with-tag run). Empty tag == :edge build.
+            - name: Resolve release tag
+              id: relref
+              run: |
+                  if [[ "${{ github.event_name }}" == "push" ]]; then
+                      tag="${GITHUB_REF#refs/tags/}"
+                  else
+                      tag="${{ inputs.tag }}"
+                  fi
+                  if [[ -n "$tag" && ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+                      echo "✗ '$tag' is not a vX.Y.Z[-pre] release tag"
+                      exit 1
+                  fi
+                  prerelease=false
+                  [[ "$tag" == *-* ]] && prerelease=true
+                  echo "tag=$tag" >> "$GITHUB_OUTPUT"
+                  echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+                  echo "→ release tag: '${tag:-<none — edge build>}' (prerelease: $prerelease)"
 
             - name: Set up Python
               uses: actions/setup-python@v5
@@ -88,25 +127,26 @@ jobs:
                   username: ${{ secrets.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-            # Tag policy:
-            #   tag push v0.1.0            → :v0.1.0, :latest
-            #   tag push v0.1.0-rc1        → :v0.1.0-rc1, :rc
+            # Tag policy (driven by steps.relref, so a dispatch-with-tag run
+            # behaves exactly like the original tag push):
+            #   release tag v0.1.0         → :v0.1.0, :latest
+            #   release tag v0.1.0-rc1     → :v0.1.0-rc1, :rc
             #                                (+ :latest only while NO stable
             #                                 release exists — see above)
-            #   workflow_dispatch          → :edge               (skip :latest)
+            #   no release tag (dispatch)  → :edge               (skip :latest)
             #
             # :rc is the moving pre-release pointer — it keeps working after
             # v1.0.0 ships, when :latest correctly stops tracking rcs.
             #
-            # type=ref,event=tag takes the tag name verbatim (keeps the
-            # leading `v`). We deliberately don't use type=semver — it
-            # would auto-emit :0.1 and :0 alias tags, which is library
+            # The version tag is a raw entry with the tag name verbatim
+            # (keeps the leading `v`). We deliberately don't use type=semver —
+            # it would auto-emit :0.1 and :0 alias tags, which is library
             # ergonomics we don't want for an end-user app.
             #
             # flavor latest=false is required: the default (latest=auto)
-            # makes type=ref,event=tag mark EVERY tag push as :latest —
-            # including pre-releases — with no semver awareness. Our
-            # enable-gated raw entry below is the only :latest source.
+            # would mark tag-ish builds as :latest — including pre-releases —
+            # with no semver awareness. Our enable-gated raw entry below is
+            # the only :latest source.
             - name: Derive image tags
               id: meta
               uses: docker/metadata-action@v5
@@ -115,10 +155,10 @@ jobs:
                   flavor: |
                       latest=false
                   tags: |
-                      type=ref,event=tag
-                      type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && (!contains(github.ref, '-') || steps.rel.outputs.stable == 'false') }}
-                      type=raw,value=rc,enable=${{ startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '-') }}
-                      type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
+                      type=raw,value=${{ steps.relref.outputs.tag }},enable=${{ steps.relref.outputs.tag != '' }}
+                      type=raw,value=latest,enable=${{ steps.relref.outputs.tag != '' && (steps.relref.outputs.prerelease == 'false' || steps.rel.outputs.stable == 'false') }}
+                      type=raw,value=rc,enable=${{ steps.relref.outputs.tag != '' && steps.relref.outputs.prerelease == 'true' }}
+                      type=raw,value=edge,enable=${{ steps.relref.outputs.tag == '' }}
                   # metadata-action ALSO auto-derives description/licenses/url from
                   # the GitHub repo's About field + detected SPDX id, and everything
                   # it emits is passed to build-push-action as --label below, which
@@ -172,12 +212,10 @@ jobs:
             - name: Pick the tag we just published
               id: tag
               run: |
-                  if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-                      echo "ref=edge" >> "$GITHUB_OUTPUT"
-                  else
-                      # strip refs/tags/ prefix → vMAJOR.MINOR.PATCH[-prerelease]
-                      echo "ref=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-                  fi
+                  # The build job's resolved release tag; empty means an
+                  # :edge build (bare workflow_dispatch).
+                  tag="${{ needs.build-and-push.outputs.tag }}"
+                  echo "ref=${tag:-edge}" >> "$GITHUB_OUTPUT"
 
             - name: Boot container and curl /health
               run: |
