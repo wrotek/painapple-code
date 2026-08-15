@@ -8,7 +8,7 @@
  * (see the vim-oscyank plugin, or Neovim 0.10+ which speaks it natively).
  * tmux additionally needs `set -g set-clipboard on` to pass it through.
  *
- * Two deliberate restrictions:
+ * Three deliberate restrictions:
  *
  *   1. WRITE ONLY. `Pt = "?"` is the *read* form — it asks the terminal to
  *      send the clipboard back to the program. We consume that request and
@@ -20,6 +20,12 @@
  *      the deploy command the user just copied for something else and wait.
  *      So every accepted write toasts. The toast is the security boundary,
  *      not decoration; don't make it conditional on anything.
+ *   3. OFF BY DEFAULT (WP-13). A fresh profile must not be clipboard-
+ *      writable by anything that can print to the terminal — output from a
+ *      local command or a remote SSH host could replace what the user just
+ *      copied. The user opts in once via Settings → Appearance ("Terminal
+ *      apps may write to clipboard"); a blocked attempt toasts, so the
+ *      setting is discoverable at exactly the moment it's wanted.
  *
  * Chunking is not our problem: xterm's OSC parser is stateful across
  * `write()` calls, so the handler only fires once the whole payload has
@@ -59,19 +65,21 @@ let _pendingText = null;
 let _flushTimer = null;
 
 /**
- * Whether programs may write to the clipboard. Read straight from
- * localStorage rather than through config/state.js — that module pulls in
- * status-bar.js, and the terminal tree has no business importing that.
- * Same lightweight-consumer pattern as shortcut-hints.js.
- * @returns {boolean} default true
+ * Whether programs may write to the clipboard. Requires an explicit
+ * opt-in (`=== true`): absent, malformed or unreadable config all mean
+ * OFF — this gate must fail closed, see restriction 3 above. Read
+ * straight from localStorage rather than through config/state.js — that
+ * module pulls in status-bar.js, and the terminal tree has no business
+ * importing that. Same lightweight-consumer pattern as shortcut-hints.js.
+ * @returns {boolean} default false
  */
 export function isTerminalClipboardWriteEnabled() {
     try {
         const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
-        if (!raw) return true;
-        return (JSON.parse(raw) || {}).terminalClipboardWrite !== false;
+        if (!raw) return false;
+        return (JSON.parse(raw) || {}).terminalClipboardWrite === true;
     } catch (e) {
-        return true;
+        return false;
     }
 }
 

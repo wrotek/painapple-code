@@ -48,7 +48,7 @@ export function loadUserConfig() {
     } catch (e) {
         console.error('Failed to load user config:', e);
     }
-    return { shortcuts: {}, layout: 'normal', railExpanded: false, sessionListLimit: CONFIG.DEFAULT_SESSION_LIST_LIMIT, disableAutocorrect: false, highlightThinkingKeywords: false, annotateOnPaste: false, terminalClipboardWrite: true, floatingButtonsOpacity: 0.7, selectionInPreview: false, downloadMode: 'auto', toolCollapseMode: 'compact', thinkingToolCollapseMode: 'collapsed', toolCollapseModes: structuredClone(DEFAULT_COLLAPSE_MODES) };
+    return { shortcuts: {}, layout: 'normal', railExpanded: false, sessionListLimit: CONFIG.DEFAULT_SESSION_LIST_LIMIT, disableAutocorrect: false, highlightThinkingKeywords: false, annotateOnPaste: false, terminalClipboardWrite: false, floatingButtonsOpacity: 0.7, selectionInPreview: false, downloadMode: 'auto', toolCollapseMode: 'compact', thinkingToolCollapseMode: 'collapsed', toolCollapseModes: structuredClone(DEFAULT_COLLAPSE_MODES) };
 }
 
 /**
@@ -430,9 +430,13 @@ class ConfigState {
     }
 
     // OSC 52: whether programs in the terminal may write to the clipboard.
-    // Stored inverted-default (absent === on) so existing configs get the
-    // feature; widgets/terminal/osc52.js reads the same field straight from
-    // localStorage rather than importing this module.
+    // Off by default (WP-13, was inverted-default on until 2026-08-15):
+    // absent === off, only an explicit opt-in stores true. The default
+    // here MUST match the fail-closed read in widgets/terminal/osc52.js —
+    // it reads this field straight from localStorage rather than
+    // importing this module, and a `true` baked into the defaults object
+    // would be persisted by any unrelated save() and silently re-enable
+    // the feature for users who never opted in.
     setTerminalClipboardWrite(enabled) {
         this.config.terminalClipboardWrite = enabled;
         this.save();

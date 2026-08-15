@@ -201,7 +201,7 @@ toast:
   # shown, deliberately: a silent clipboard overwrite is an attack.
   terminal_clipboard_written: "Terminal copied {n} chars to clipboard"
   terminal_clipboard_failed: "Terminal tried to copy, but the browser refused"
-  terminal_clipboard_blocked: "Terminal tried to copy — blocked by settings"
+  terminal_clipboard_blocked: "Terminal tried to copy — off by default. Allow in Settings → Appearance"
   terminal_clipboard_too_large: "Terminal clipboard write too large — ignored"
   annotate_open_failed: "Couldn't open the annotation editor"
   annotate_gif_unsupported: "GIFs can't be annotated"
@@ -978,7 +978,7 @@ settings:
     annotate_on_paste: "Annotate images on paste"
     annotate_on_paste_hint: "Pasting a screenshot opens the drawing editor before upload. Shift+paste always does the opposite of this setting."
     terminal_clipboard: "Terminal apps may write to clipboard"
-    terminal_clipboard_hint: "Lets programs in the terminal copy via OSC 52 — vim's y reaches your real clipboard over SSH and tmux. Every write is announced by a toast. Reading the clipboard is never allowed."
+    terminal_clipboard_hint: "Off by default: anything that prints to the terminal — including a remote SSH host — could replace what you just copied. Enabling lets programs copy via OSC 52 (vim's y reaches your real clipboard over SSH and tmux). Every write is announced by a toast. Reading the clipboard is never allowed."
     code_block_wrap: "Wrap long lines"
     code_block_wrap_hint: "Wrap instead of scrolling sideways in code blocks, diffs and file previews. Each block's own wrap button flips this too."
     selection_in_preview: "Enable selection in file preview"

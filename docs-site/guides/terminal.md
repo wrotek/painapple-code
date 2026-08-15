@@ -47,6 +47,18 @@ Resolution is context-aware: it tracks the shell's *live* working directory (you
 !!! note "Live `cd` tracking under PowerShell"
     PowerShell's `cd` changes its own *provider location*, which it never pushes down to the Win32 process working directory — so on Windows the terminal reports the directory it was started in rather than following your `cd`s. Paths still resolve; they're just anchored to the session's directory. (`cmd.exe` does update the process CWD, if you set `PAINAPPLE_CODE_SHELL` to it.)
 
+## Clipboard writes from terminal programs (OSC 52)
+
+Programs running in the terminal can ask to put text on your system clipboard via the OSC 52 escape sequence — it's what makes `y` in vim (Neovim 0.10+ speaks it natively; tmux needs `set -g set-clipboard on`) reach your real clipboard even over SSH.
+
+**This is off by default**, because it cuts both ways: *anything* that prints to the terminal — a script you run, output `cat`-ed from a file, a process on a remote SSH host — can use it to silently replace what you just copied. Classic move: swap the command you copied for a malicious one and wait for you to paste it into a shell. Turn it on in **Settings → Appearance → "Terminal apps may write to clipboard"**; a blocked attempt shows a toast pointing at the setting, so you'll find it exactly when you want it.
+
+With it enabled, three guardrails stay on unconditionally:
+
+- **Every write is announced** by a toast with the character count — a clipboard change you didn't ask for is never silent.
+- **Reading the clipboard is never allowed.** The OSC 52 read form is consumed and refused, so a terminal program can't see what you've copied.
+- **Reconnects never replay writes.** Scrollback replayed after a reconnect (which iPad PWAs do constantly) is stripped of clipboard sequences server-side, so an hour-old yank can't re-hijack your clipboard when a tab wakes up.
+
 ## Logging into Claude from the terminal
 
 The Claude CLI's OAuth login is interactive, so the `/login` slash command drops you into a terminal tab pre-typed with `claude auth login` — follow the prompts there. If the CLI hits an expired or missing token mid-session, the error card in the chat includes a one-click **Login** button that opens the same terminal. `/logout` mirrors this with `claude auth logout`.

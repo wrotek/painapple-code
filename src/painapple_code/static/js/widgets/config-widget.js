@@ -446,7 +446,7 @@ function renderConfigPanel(container, context) {
                     <div class="system-setting">
                         <label class="project-toggle">
                             <input type="checkbox" id="terminal-clipboard-write"
-                                   ${state.config.terminalClipboardWrite !== false ? 'checked' : ''}>
+                                   ${state.config.terminalClipboardWrite === true ? 'checked' : ''}>
                             <span class="project-toggle-label">${S.settings.toggles.terminal_clipboard}</span>
                             <span class="project-toggle-hint">${S.settings.toggles.terminal_clipboard_hint}</span>
                         </label>
