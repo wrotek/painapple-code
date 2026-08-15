@@ -1,0 +1,56 @@
+{
+  "name": "Status bar: connection text + auto-journal state pill",
+  "description": "Marker 1: #status-connection renders a coloured WORD (Connected/Connecting/Disconnected), not a bare dot. Marker 2: #status-helpers renders its own dot + an explicit auto-journal state label, coloured, reflecting shadow_git.enabled for the active project.",
+  "config": {
+    "browser": "chromium",
+    "headless": true,
+    "viewport": { "width": 1366, "height": 900 }
+  },
+  "steps": [
+    { "action": "navigate", "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}" },
+    { "action": "waitFor", "selector": "#app", "timeout": 10000 },
+    { "action": "delay", "ms": 4000 },
+    {
+      "action": "execute",
+      "comment": "ASSERT: connection indicator is text, not an svg dot",
+      "script": "(() => { const el = document.getElementById('status-connection'); const txt = el?.textContent.trim(); const svg = el?.querySelector('svg'); const cls = [...(el?.classList||[])]; return { txt, hasSvg: !!svg, cls, PASS: !!el && !svg && ['Connected','Connecting…','Disconnected'].includes(txt) }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: the connection word is coloured by state (success/warning/error), not the default muted grey",
+      "script": "(() => { const el = document.getElementById('status-connection'); const bar = document.getElementById('status-bar'); const c = getComputedStyle(el).color; const base = getComputedStyle(bar).color; return { color: c, barColor: base, cls: [...el.classList], PASS: c !== base }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: connected state carries no redundant tooltip",
+      "script": "(() => { const el = document.getElementById('status-connection'); const connected = el.classList.contains('connected'); const tip = el.getAttribute('data-tooltip'); return { connected, tip, PASS: connected ? tip === null : typeof tip === 'string' }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: auto-journal pill has its OWN dot inside it plus a state label",
+      "script": "(() => { const p = document.getElementById('status-helpers'); const dot = p?.querySelector('.status-pill-dot'); const txt = p?.textContent.trim(); const kinds = ['unknown','recording','basic','off','outdated','missing']; const kind = kinds.find(k => p?.classList.contains(k)); return { txt, hasDot: !!dot, kind, hidden: p?.hidden, PASS: !!p && !p.hidden && !!dot && !!kind && txt.startsWith('Auto-journal') }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "ASSERT: pill dot is colour-matched to the pill text (currentColor), so it cannot be read as the connection indicator",
+      "script": "(() => { const p = document.getElementById('status-helpers'); const dot = p.querySelector('.status-pill-dot'); const dotBg = getComputedStyle(dot).backgroundColor; const txtColor = getComputedStyle(p).color; return { dotBg, txtColor, PASS: dotBg.replace(/\\s/g,'') === txtColor.replace(/\\s/g,'') || dotBg.startsWith('rgba') }; })()"
+    },
+    { "action": "screenshot", "path": "status-bar-before-toggle.png", "comment": "Status bar with the project recording" },
+    {
+      "action": "execute",
+      "comment": "Read the live shadow_git.enabled for the active project and check the pill agrees",
+      "script": "(async () => { const cwd = window.app?.activeSession?.cwd; if (!cwd) return { skipped: 'no cwd', PASS: true }; const r = await fetch(`/api/project/config?cwd=${encodeURIComponent(cwd)}`); const d = await r.json(); const sg = d.config?.shadow_git || {}; const p = document.getElementById('status-helpers'); const enabled = sg.enabled !== false; const rich = sg.rich_commits !== false; const kind = ['unknown','recording','basic','off','outdated','missing'].find(k => p.classList.contains(k)); const expectOff = !enabled; return { cwd, enabled, rich, kind, text: p.textContent.trim(), PASS: expectOff ? kind === 'off' : kind !== 'off' && kind !== 'unknown' }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "Flip shadow_git.enabled OFF for this project and re-sync the pill",
+      "script": "(async () => { const cwd = window.app?.activeSession?.cwd; if (!cwd) return { skipped: 'no cwd', PASS: true }; await fetch(`/api/project/config?cwd=${encodeURIComponent(cwd)}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ shadow_git: { enabled: false } }) }); await window.app._syncJournalPill(cwd, { force: true }); const p = document.getElementById('status-helpers'); return { text: p.textContent.trim(), kind: [...p.classList].join(' '), PASS: p.classList.contains('off') && p.textContent.trim() === 'Auto-journal off' }; })()"
+    },
+    { "action": "screenshot", "path": "status-bar-journal-off.png", "comment": "Auto-journal off" },
+    {
+      "action": "execute",
+      "comment": "Restore shadow_git.enabled and confirm the pill goes back to on",
+      "script": "(async () => { const cwd = window.app?.activeSession?.cwd; if (!cwd) return { skipped: 'no cwd', PASS: true }; await fetch(`/api/project/config?cwd=${encodeURIComponent(cwd)}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ shadow_git: { enabled: true } }) }); await window.app._syncJournalPill(cwd, { force: true }); const p = document.getElementById('status-helpers'); return { text: p.textContent.trim(), cls: [...p.classList].join(' '), PASS: !p.classList.contains('off') }; })()"
+    }
+  ]
+}

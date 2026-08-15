@@ -586,7 +586,10 @@
    docs-ai/2026-02-12-ipados-tooltip-behavior.md */
 #status-bar #status-connection.clickable {
     cursor: pointer;
-    border-radius: 50%;
+    /* A pill, not a circle — the element is a word now, not a dot. */
+    border-radius: var(--radius-sm);
+    padding: 0 var(--sp-4);
+    margin: 0 calc(var(--sp-4) * -1);
     transition: background-color 120ms ease, transform 120ms ease;
 }
 #status-bar #status-connection.clickable:hover {
@@ -605,15 +608,34 @@
     animation: status-connection-pulse 1.6s ease-in-out infinite;
 }
 
+/* Auto-journal pill — its own dot + word. Colours mirror the install
+   widget's status banner (.pair-* in 68-helpers-install-widget.css) so the
+   pill and the panel it opens read as one feature. The dot lives INSIDE the
+   pill: previously the only dot nearby was the connection indicator sitting
+   flush to the left, which made a green "connected" look like an
+   "auto-journal on" light. */
 #status-bar #status-helpers {
     font-size: 10px;
     cursor: pointer;
     padding: 0 var(--sp-4);
     border-radius: var(--radius-sm);
+    gap: var(--sp-4);
 }
-#status-bar #status-helpers.current  { color: var(--text-muted); }
-#status-bar #status-helpers.outdated { color: var(--warning); }
-#status-bar #status-helpers.missing  { color: var(--error); }
+#status-bar #status-helpers .status-pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex: 0 0 auto;
+}
+#status-bar #status-helpers.unknown   { color: var(--text-muted); }
+#status-bar #status-helpers.unknown .status-pill-dot { opacity: 0.4; }
+#status-bar #status-helpers.recording { color: var(--success); }
+#status-bar #status-helpers.basic     { color: var(--text-muted); }
+#status-bar #status-helpers.off       { color: var(--text-muted); }
+#status-bar #status-helpers.off .status-pill-dot { opacity: 0.4; }
+#status-bar #status-helpers.outdated  { color: var(--warning); }
+#status-bar #status-helpers.missing   { color: var(--error); }
 #status-bar #status-helpers:hover {
     background: var(--bg-elevated, rgba(255, 255, 255, 0.04));
 }

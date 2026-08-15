@@ -537,9 +537,11 @@
                 <div id="input-hint"></div>
                 <div id="status-bar">
                     <div class="status-left">
-                        <span class="status-item" id="status-connection" data-tooltip-key="ui.tooltips.status_connection">
-                            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
-                        </span>
+                        <!-- Text, not a dot: a bare dot here sat immediately left
+                             of the "Auto-journal" pill and read as that pill's
+                             status light. StatusBar.updateStatus() fills in the
+                             label; the tooltip key is only the pre-JS value. -->
+                        <span class="status-item" id="status-connection" data-tooltip-key="ui.tooltips.status_connection"></span>
                         <span class="status-item" id="status-helpers" hidden></span>
                         <span class="status-item" id="status-engine"></span>
                         <span class="status-item" id="status-model"></span>

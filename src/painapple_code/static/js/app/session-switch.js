@@ -306,6 +306,10 @@ export const sessionSwitchMethods = {
         // Update status bar git branch and project name
         this.fetchGitBranch(session.cwd);
         this.statusBar.updateProject(session.cwd || null);
+        // Auto-journal is a per-project setting, so the pill has to follow the
+        // project. Deduped on cwd inside, so switching between tabs of the
+        // same project costs nothing.
+        this._syncJournalPill(session.cwd || null);
 
         // Hide file autocomplete and clear cache on session switch
         this.fileAutocomplete?.hide();

@@ -166,7 +166,11 @@ export class StatusBar {
         const session = this.getSession();
         if (!session) return;
 
-        // Connection status — three states (connected | connecting | disconnected)
+        // Connection status — three states (connected | connecting | disconnected).
+        // Rendered as a coloured WORD, not a dot: the dot used to sit flush
+        // against the "Auto-journal" pill and was read as that pill's status
+        // light. The colour still carries the state at a glance; the word says
+        // which state it is without a hover.
         const dot = this.els.statusConnection;
         if (dot) {
             const state = session.status === 'connected' || session.status === 'connecting'
@@ -174,14 +178,20 @@ export class StatusBar {
                 : 'disconnected';
             dot.classList.remove('connected', 'connecting', 'disconnected');
             dot.classList.add(state);
+            dot.textContent = S.connection?.[state] || state;
             // When clickable (disconnected/connecting), advertise the action in
-            // the tooltip; when connected, just say "Connected".
+            // the tooltip. When connected the label already says "Connected",
+            // so a tooltip repeating it is pure noise — drop it.
             const clickable = state !== 'connected';
             const tooltipKey = state === 'disconnected'
                 ? 'disconnected_click'
-                : state === 'connecting' ? 'connecting_click' : 'connected';
-            dot.setAttribute('data-tooltip',
-                S.connection?.[tooltipKey] || S.connection?.[state] || state);
+                : 'connecting_click';
+            if (clickable) {
+                dot.setAttribute('data-tooltip',
+                    S.connection?.[tooltipKey] || S.connection?.[state] || state);
+            } else {
+                dot.removeAttribute('data-tooltip');
+            }
             dot.classList.toggle('clickable', clickable);
             // role/tabindex so trackpad-/keyboard-only users get the affordance too.
             if (clickable) {

@@ -573,7 +573,9 @@ export function registerHelpersInstallWidget() {
     let renderGen = 0;
 
     WidgetManager.register('helpers-install', {
-        title: S.helpers.pill.current,
+        // The state-neutral pill label — a window title must not claim
+        // on/off, the banner inside does that.
+        title: S.helpers.pill.unknown,
         icon: 'tool',
         type: 'floating',
         scope: 'global',

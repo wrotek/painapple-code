@@ -1886,9 +1886,21 @@ models:
 # ============================================================
 helpers:
   pill:
-    current: "Auto-journal"
+    # The pill names the RECORDING state, not the helper-file state — a
+    # project that isn't journalling says so regardless of what's installed.
+    # Helper labels only surface while recording is on.
+    recording: "Auto-journal on"
+    basic: "Auto-journal basic"
+    # Key is `disabled`, not `off`: YAML 1.1 coerces a bare `off:` key into
+    # the boolean False, which PyYAML then serialises as the JSON key
+    # "false" — the string silently disappears from S.helpers.pill.off.
+    disabled: "Auto-journal off"
+    # Shown before the project's config is known (first paint, no project
+    # open) — states no opinion on whether recording is happening.
+    unknown: "Auto-journal"
     not_installed: "Helpers not installed"
     outdated: "Helpers outdated"
+    tooltip: "Auto-journal — tap to configure"
   modal:
     title_current: "Auto-journal is active"
     title_missing: "Set up auto-journal"

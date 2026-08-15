@@ -180,27 +180,101 @@ export const settingsHelperMethods = {
     },
 
     _updateHelpersPill(status) {
+        this._helpersStatus = status;
+        this._renderHelpersPill();
+    },
+
+    /**
+     * Render the #status-helpers pill from the two inputs it depends on:
+     * the helper install status and this project's shadow-git settings.
+     *
+     * The pill names the state of AUTO-JOURNAL, not of the helper files —
+     * "Auto-journal off" when the project isn't recording, whatever the
+     * helpers say. Recording is the headline; helpers are a footnote that
+     * only matters while something is actually being recorded (they add
+     * ways to *query* the journal, they don't produce it). So the recording
+     * state wins the pill whenever it's off, and helpers speak only when
+     * recording is on and they need attention.
+     *
+     * `kind` values and colours mirror the install widget's own status
+     * banner (getRecordingState / .pair-* in 68-helpers-install-widget.css)
+     * so the pill and the panel it opens can never disagree.
+     */
+    _renderHelpersPill() {
         const pill = document.getElementById('status-helpers');
         if (!pill) return;
-        const state = status.all_current ? 'current'
-            : status.any_outdated ? 'outdated'
-            : 'missing';
-        const label = state === 'current'  ? S.helpers.pill.current
-                    : state === 'outdated' ? S.helpers.pill.outdated
-                    :                        S.helpers.pill.not_installed;
+        const status = this._helpersStatus;
+        if (!status) return;
+
+        const P = S.helpers.pill;
+        const sg = this._journalShadowGit;
+
+        let kind, label;
+        if (!sg) {
+            // Not fetched yet, or no project open. Claim NOTHING about
+            // on/off — the first paint happens before the project config
+            // lands, and guessing either way is a lie for half the users
+            // (guess "on" and an opted-out profile flashes green; guess
+            // "off" and a recording one flashes dead). Neutral until known.
+            kind = 'unknown';
+            label = P.unknown;
+        } else {
+            const enabled = sg.enabled !== false;
+            const rich = sg.rich_commits !== false;
+            if (!enabled)                   { kind = 'off';       label = P.disabled; }
+            else if (!status.all_installed) { kind = 'missing';   label = P.not_installed; }
+            else if (status.any_outdated)   { kind = 'outdated';  label = P.outdated; }
+            else if (!rich)                 { kind = 'basic';     label = P.basic; }
+            else                            { kind = 'recording'; label = P.recording; }
+        }
+
         pill.hidden = false;
-        pill.classList.remove('current', 'outdated', 'missing');
-        pill.classList.add(state);
-        pill.textContent = label;
-        pill.setAttribute('data-tooltip', label);
+        pill.classList.remove('unknown', 'recording', 'basic', 'off', 'outdated', 'missing');
+        pill.classList.add(kind);
+        // Dot + word, same shape as the widget banner. The dot is INSIDE the
+        // pill and colour-matched to its text, so it can't be misread as the
+        // neighbouring connection indicator the way the old bare dot was.
+        pill.innerHTML = '<span class="status-pill-dot"></span><span></span>';
+        pill.lastElementChild.textContent = label;
+        pill.setAttribute('data-tooltip', P.tooltip || label);
         pill.onclick = () => WidgetManager.open('helpers-install', { status });
     },
 
     /**
+     * Pull this project's shadow-git settings so the pill can say whether
+     * auto-journal is actually recording. Deduped on cwd: called on every
+     * session switch, and forced (`{ force: true }`) after a toggle.
+     */
+    async _syncJournalPill(cwd, { force = false } = {}) {
+        if (!force && cwd === this._journalPillCwd) return;
+        this._journalPillCwd = cwd;
+        if (!cwd) {
+            // No project — nothing is being journalled, but "off" would
+            // overstate it (nothing is configured either). Leave the last
+            // known state rather than inventing one.
+            return;
+        }
+        try {
+            const resp = await fetch(
+                `${CONFIG.API_BASE}/api/project/config?cwd=${encodeURIComponent(cwd)}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            // A switch that landed while this was in flight owns the pill now.
+            if (this._journalPillCwd !== cwd) return;
+            this._journalShadowGit = data.config?.shadow_git || {};
+            this._renderHelpersPill();
+        } catch { /* silent — the pill keeps its last good state */ }
+    },
+
+    /**
      * Public: re-fetch helper status and update the pill. Called by the
-     * install widget after a successful install/update so the pill clears.
+     * install widget after a successful install/update so the pill clears,
+     * and after a shadow-git toggle so "off"/"on" tracks the checkbox.
      */
     async refreshHelpersStatus() {
-        await this._checkHelpersInstall({ promptIfNeeded: false });
+        await Promise.all([
+            this._checkHelpersInstall({ promptIfNeeded: false }),
+            this._syncJournalPill(this.activeSession?.cwd || null, { force: true }),
+        ]);
     },
 };
