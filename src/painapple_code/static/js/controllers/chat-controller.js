@@ -1309,12 +1309,12 @@ export class ChatController {
                 const dels = stats.dels || 0;
                 const isNew = stats.created || false;
 
-                let pillContent = `<span class="file-name">${fileName}</span>`;
+                let pillContent = `<span class="file-name">${escHtml(fileName)}</span>`;
                 if (isNew) pillContent += `<span class="file-new">new</span>`;
                 if (adds > 0) pillContent += `<span class="file-adds">+${adds}</span>`;
                 if (dels > 0) pillContent += `<span class="file-dels">-${dels}</span>`;
 
-                html += `<span class="turn-file-pill" data-file-path="${filePath}"${isNew ? ' data-file-created="true"' : ''} data-tooltip="${filePath}">${pillContent}</span>`;
+                html += `<span class="turn-file-pill" data-file-path="${escHtml(filePath)}"${isNew ? ' data-file-created="true"' : ''} data-tooltip="${escHtml(filePath)}">${pillContent}</span>`;
             }
         }
         if (sessionChanged.length > 0) {
