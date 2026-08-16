@@ -449,6 +449,33 @@
     color: var(--project-color, var(--accent));
 }
 
+/* The project the welcome screen is currently filtered to. Pinned into the
+   row regardless of rank, so it needs to read as "this is the one" rather
+   than as just another chip. */
+.welcome-project-chip--active {
+    border-color: var(--project-color, var(--accent));
+    background: var(--bg-tertiary);
+}
+
+.welcome-project-chip--active svg {
+    color: var(--project-color, var(--accent));
+}
+
+/* Overflow toggle for the visited-projects row. Shares the italic muted
+   treatment of the unvisited toggle, but keeps a solid border — it sits
+   among solid chips, not dashed ones. */
+.welcome-project-chip--more-toggle {
+    color: var(--text-muted);
+    font-style: italic;
+    opacity: 0.85;
+}
+
+.welcome-project-chip--more-toggle:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    opacity: 1;
+}
+
 /* Small per-project color dot (project pickers, group headers).
    True circle — allowed to stay round per design guidelines. */
 .project-color-dot {

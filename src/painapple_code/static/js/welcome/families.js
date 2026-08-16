@@ -678,17 +678,30 @@ export function renderTaskMode(results, task, totalCount = 0) {
  * @param {number} workspaceStartIndex - Keyboard nav index for the first workspace chip
  * @param {number} unvisitedTotal - Total available unvisited dirs (pre-slice)
  * @param {boolean} unvisitedExpanded - Whether the "show all" toggle is on
+ * @param {Object} [opts] - Visited-row overflow state
+ * @param {number} [opts.projectsTotal] - Total projects available (pre-slice)
+ * @param {boolean} [opts.projectsCollapsible] - Whether the total exceeds the cap
+ * @param {boolean} [opts.projectsExpanded] - Whether the visited "show all" toggle is on
+ * @param {string} [opts.activeProjectPath] - Path of the currently filtered project
  */
-export function renderProjectsQuickStart(projects, startIndex = 0, workspaceDirs = [], workspaceStartIndex = 0, unvisitedTotal = 0, unvisitedExpanded = false) {
+export function renderProjectsQuickStart(projects, startIndex = 0, workspaceDirs = [], workspaceStartIndex = 0, unvisitedTotal = 0, unvisitedExpanded = false, opts = {}) {
     const hasProjects = projects && projects.length > 0;
     const hasUnvisited = workspaceDirs && workspaceDirs.length > 0;
     if (!hasProjects && !hasUnvisited) return '';
 
+    const {
+        projectsTotal = projects?.length || 0,
+        projectsCollapsible = false,
+        projectsExpanded = false,
+        activeProjectPath = '',
+    } = opts;
+
     const projectChips = hasProjects ? projects.map((p, i) => {
         const idx = startIndex + i;
         const isSelected = state.selectedResultIndex === idx;
+        const isActive = !!activeProjectPath && p.path === activeProjectPath;
         return `
-            <button class="welcome-project-chip ${isSelected ? 'selected' : ''}"
+            <button class="welcome-project-chip ${isActive ? 'welcome-project-chip--active' : ''} ${isSelected ? 'selected' : ''}"
                     data-action="quick-start-project"
                     data-project-path="${escapeHtml(p.path)}"
                     data-project-name="${escapeHtml(p.name)}"
@@ -702,6 +715,27 @@ export function renderProjectsQuickStart(projects, startIndex = 0, workspaceDirs
             </button>
         `;
     }).join('') : '';
+
+    // Overflow toggle for the visited row. Without it the cap is a silent
+    // truncation — the chips row has no scroll and no wrap-overflow, so a
+    // project past the cap simply isn't reachable. Not keyboard-selectable.
+    const projectsHidden = Math.max(0, projectsTotal - (projects?.length || 0));
+    let projectsToggle = '';
+    if (projectsExpanded && projectsCollapsible) {
+        projectsToggle = `
+            <button class="welcome-project-chip welcome-project-chip--more-toggle"
+                    data-action="toggle-projects">
+                <span>${escapeHtml(S.ui.welcome.projects_show_less)}</span>
+            </button>
+        `;
+    } else if (projectsHidden > 0) {
+        projectsToggle = `
+            <button class="welcome-project-chip welcome-project-chip--more-toggle"
+                    data-action="toggle-projects">
+                <span>${escapeHtml(S.ui.welcome.projects_show_more.replace('{count}', projectsHidden))}</span>
+            </button>
+        `;
+    }
 
     const unvisitedChips = hasUnvisited ? workspaceDirs.map((d, i) => {
         const idx = workspaceStartIndex + i;
@@ -760,7 +794,7 @@ export function renderProjectsQuickStart(projects, startIndex = 0, workspaceDirs
                     <span class="section-nav-hint"><kbd>&#x2325;</kbd> <kbd>&#x21B5;</kbd> ${escapeHtml(S.ui.welcome.projects_filter_hint)}</span>
                 </span>
             </div>
-            ${hasProjects ? `<div class="welcome-projects-chips">${projectChips}</div>` : ''}
+            ${hasProjects ? `<div class="welcome-projects-chips">${projectChips}${projectsToggle}</div>` : ''}
             ${unvisitedBlock}
         </div>
     `;

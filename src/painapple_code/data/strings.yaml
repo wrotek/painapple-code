@@ -356,6 +356,8 @@ ui:
     projects_header: "Projects"
     projects_nav_hint: "to browse"
     projects_filter_hint: "to filter"
+    projects_show_more: "+{count} more"
+    projects_show_less: "Show less"
     unvisited_separator: "Unvisited"
     unvisited_show_more: "+{count} more"
     unvisited_show_less: "Show less"

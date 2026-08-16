@@ -56,6 +56,7 @@ export const state = {
     workspaceDirs: [],
     workspaceRoot: null,
     unvisitedExpanded: false, // Toggled by the "+N more" / "Show less" chip
+    projectsExpanded: false,  // Same, for the visited-projects chip row
 };
 
 // ═══════════════════════════════════════════════════════════════════════════

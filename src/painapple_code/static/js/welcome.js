@@ -77,6 +77,10 @@ export { closeSessionPreview, closeWelcomeContextMenu };
 // MAIN WELCOME SCREEN
 // ═══════════════════════════════════════════════════════════════════════════
 
+// How many project chips the row shows before collapsing behind "+N more".
+// Matches the unvisited row's own default cap so the two read as one grid.
+const PROJECTS_DEFAULT_CAP = 8;
+
 /**
  * Render the full welcome screen.
  */
@@ -156,10 +160,27 @@ export function renderWelcomeScreen(container) {
 
     // Build selectable items list for keyboard navigation:
     // Projects first, then unvisited workspace siblings, then favorites, then recent sessions
-    const topFilteredProjects = filteredProjects
+    // Projects are ranked by session count and capped, same as the unvisited
+    // row below — but with an expand toggle, because otherwise project #9 is
+    // unreachable from the UI entirely (no overflow, no scroll, nothing).
+    const sortedProjects = filteredProjects
         .slice()
-        .sort((a, b) => (b.session_count || 0) - (a.session_count || 0))
-        .slice(0, 8);
+        .sort((a, b) => (b.session_count || 0) - (a.session_count || 0));
+    const projectsTotal = sortedProjects.length;
+    const projectsCollapsible = projectsTotal > PROJECTS_DEFAULT_CAP;
+    let topFilteredProjects = state.projectsExpanded
+        ? sortedProjects
+        : sortedProjects.slice(0, PROJECTS_DEFAULT_CAP);
+
+    // The actively filtered project always gets a chip, wherever it ranks.
+    // Session count is a poor proxy for "what the user cares about right now",
+    // and the filtered project is precisely the one they've told us about — a
+    // row that omits it while showing eight others reads as "this project
+    // doesn't exist".
+    if (projectFilter && !topFilteredProjects.some(p => p.path === projectFilter.path)) {
+        const pinned = sortedProjects.find(p => p.path === projectFilter.path);
+        if (pinned) topFilteredProjects = [pinned, ...topFilteredProjects];
+    }
 
     // Filter workspace dirs by quick search too (name + path match like projects)
     let filteredWorkspaceDirs = state.workspaceDirs || [];
@@ -244,7 +265,12 @@ export function renderWelcomeScreen(container) {
     ` : '';
 
     const bodyHtml = `
-            ${renderProjectsQuickStart(topFilteredProjects, 0, topWorkspaceDirs, topFilteredProjects.length, unvisitedTotal, state.unvisitedExpanded)}
+            ${renderProjectsQuickStart(topFilteredProjects, 0, topWorkspaceDirs, topFilteredProjects.length, unvisitedTotal, state.unvisitedExpanded, {
+                projectsTotal,
+                projectsCollapsible,
+                projectsExpanded: state.projectsExpanded,
+                activeProjectPath: projectFilter?.path || '',
+            })}
 
             ${renderFavoritesSection(favoritesStartIndex)}
 
@@ -1134,6 +1160,12 @@ function attachEventListeners(container) {
     container.querySelector('[data-action="toggle-unvisited"]')?.addEventListener('click', (e) => {
         e.stopPropagation();
         state.unvisitedExpanded = !state.unvisitedExpanded;
+        renderWelcomeScreen(container);
+    });
+
+    container.querySelector('[data-action="toggle-projects"]')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        state.projectsExpanded = !state.projectsExpanded;
         renderWelcomeScreen(container);
     });
 
