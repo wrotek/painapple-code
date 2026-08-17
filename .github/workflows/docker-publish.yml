@@ -38,12 +38,12 @@ jobs:
         steps:
             # fetch-depth: 0 so setuptools-scm can `git describe` against
             # all tags. Default shallow clone hides everything but HEAD.
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 
             - name: Set up Python
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v7
               with:
                   python-version: "3.12"
 
@@ -77,13 +77,13 @@ jobs:
                   fi
 
             - name: Set up QEMU
-              uses: docker/setup-qemu-action@v3
+              uses: docker/setup-qemu-action@v4
 
             - name: Set up Buildx
-              uses: docker/setup-buildx-action@v3
+              uses: docker/setup-buildx-action@v4
 
             - name: Log in to Docker Hub
-              uses: docker/login-action@v3
+              uses: docker/login-action@v4
               with:
                   username: ${{ secrets.DOCKERHUB_USERNAME }}
                   password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -109,7 +109,7 @@ jobs:
             # enable-gated raw entry below is the only :latest source.
             - name: Derive image tags
               id: meta
-              uses: docker/metadata-action@v5
+              uses: docker/metadata-action@v6
               with:
                   images: ${{ env.IMAGE }}
                   flavor: |
@@ -138,7 +138,7 @@ jobs:
             # static/dist/ ships. Doing it here also keeps it out of the
             # per-architecture builds — the bundle is plain JS, arch-agnostic.
             - name: Set up Node
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v7
               with:
                   node-version: "20"
 
@@ -149,7 +149,7 @@ jobs:
 
             - name: Build and push
               id: build
-              uses: docker/build-push-action@v6
+              uses: docker/build-push-action@v7
               with:
                   context: .
                   platforms: linux/amd64,linux/arm64

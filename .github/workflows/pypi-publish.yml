@@ -25,12 +25,12 @@ jobs:
         steps:
             # fetch-depth: 0 so setuptools-scm can `git describe` against
             # all tags. Default shallow clone hides everything but HEAD.
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 
             - name: Set up Python
-              uses: actions/setup-python@v5
+              uses: actions/setup-python@v7
               with:
                   python-version: "3.12"
 
@@ -39,7 +39,7 @@ jobs:
             # gitignored, so it must be generated here — package-data globs the
             # filesystem, so a present static/dist/ lands in the wheel.
             - name: Set up Node
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@v7
               with:
                   node-version: "20"
 
@@ -96,12 +96,12 @@ jobs:
                       > third-party-licenses.md
                   cat third-party-licenses.md >> "$GITHUB_STEP_SUMMARY"
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               with:
                   name: dist
                   path: dist/
 
-            - uses: actions/upload-artifact@v4
+            - uses: actions/upload-artifact@v7
               with:
                   name: third-party-licenses
                   path: third-party-licenses.md
@@ -115,7 +115,7 @@ jobs:
         permissions:
             id-token: write # OIDC token for Trusted Publishing
         steps:
-            - uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v8
               with:
                   name: dist
                   path: dist/
@@ -129,7 +129,7 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/download-artifact@v4
+            - uses: actions/download-artifact@v8
               with:
                   name: dist
                   path: dist/
