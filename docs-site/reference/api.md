@@ -12,10 +12,19 @@ For scripts and `curl`, send the password as a Bearer token — it lives in `~/.
 # Liveness check — no auth required
 curl http://localhost:8765/health
 
-# Authenticated request
+# Authenticated request — credential on stdin, never in argv
 TOKEN=$(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8765/api/welcome/projects
+printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" |
+    curl -sS --config - http://localhost:8765/api/welcome/projects
 ```
+
+!!! warning "Don't put the password in `-H`"
+    `curl -H "Authorization: Bearer $TOKEN"` places the secret in the process
+    command line, and `ps` shows that to **every user on the machine** unless
+    `/proc` is mounted with `hidepid`. That's a wider exposure than the `0600`
+    config file the password came from. `--config -` reads the same header from
+    stdin, so it never reaches argv. The same applies to any tool you script
+    against this API.
 
 Browsers use the `bridge_auth` cookie or a one-time `?tkn=<password>` query parameter instead; the `Authorization` header is the HTTP-only path meant for scripts. See [First run & login](../getting-started/first-run.md).
 
@@ -135,9 +144,12 @@ Each session gets its own persistent PTY that survives disconnects; `cwd` is onl
 - **Read-only:** a validator rejects mutation keywords (INSERT, UPDATE, DROP, ATTACH, …) and file-access functions.
 
 ```bash
-shadow-query() { curl -sS -X POST "${BRIDGE_URL:-http://localhost:8765}/api/shadow-db/sql?format=tsv" \
-  -H "Authorization: Bearer $(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)" \
-  -H "Content-Type: text/plain" --data-binary "$1"; }
+shadow-query() {
+  printf 'header = "Authorization: Bearer %s"\n' \
+    "$(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)" |
+  curl -sS --config - -X POST "${BRIDGE_URL:-http://localhost:8765}/api/shadow-db/sql?format=tsv" \
+    -H "Content-Type: text/plain" --data-binary "$1"
+}
 
 shadow-query 'SELECT started_at, user_prompt[:80], cost, model FROM turns ORDER BY started_at DESC LIMIT 10'
 ```

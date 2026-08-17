@@ -101,8 +101,17 @@ else
     exit 1
 fi
 
-exec curl -sS --fail-with-body \
+# The credential goes in on STDIN, never in argv. `curl -H "Authorization:
+# Bearer $password"` puts the secret in the process command line, which `ps`
+# exposes to every user on the box unless /proc is mounted with hidepid — a
+# strictly WIDER exposure than the 0600 config file the secret came from.
+# curl's --config accepts the same header from a file, and `-` means stdin.
+# (In `-` mode stdin was already drained by $(cat) above, so it's free here.)
+escaped=${password//\\/\\\\}
+escaped=${escaped//\"/\\\"}
+
+printf 'header = "Authorization: Bearer %s"\n' "$escaped" | curl -sS --fail-with-body \
+    --config - \
     -X POST "${bridge_url}/api/shadow-db/sql?format=${format}" \
-    -H "Authorization: Bearer ${password}" \
     -H "Content-Type: text/plain" \
     --data-binary "$sql"

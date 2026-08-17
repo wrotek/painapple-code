@@ -59,10 +59,18 @@ Three auth paths are accepted:
 So in practice: open the login URL once, the cookie takes over, and you stay logged in. If you land on a page without auth, you're redirected to `/login`, where you can paste the password instead.
 
 ```bash
-# Scripting example
-curl -H "Authorization: Bearer $(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)" \
-    http://localhost:8765/api/welcome/projects
+# Scripting example — the credential goes in on stdin, not the command line
+printf 'header = "Authorization: Bearer %s"\n' \
+    "$(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)" |
+    curl -sS --config - http://localhost:8765/api/welcome/projects
 ```
+
+!!! warning "Keep the password out of `-H`"
+    Passing it as `curl -H "Authorization: Bearer …"` puts the secret in the
+    process command line, which `ps` exposes to every user on the machine —
+    a wider audience than the `0600` config file it lives in. `--config -`
+    reads the header from stdin instead. See the
+    [API reference](../reference/api.md#authentication-for-scripts).
 
 !!! note "`/health` needs no auth"
     `GET /health` is on the public allowlist (along with the login page and PWA manifest), so liveness checks and monitoring work without a token:
