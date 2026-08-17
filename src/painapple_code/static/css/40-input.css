@@ -545,6 +545,30 @@
     display: none;
 }
 
+/* Send pressed while an attachment was still uploading — the send is parked
+   until the upload lands, so keep the button reading as "working", not as the
+   dead grey of a plain :disabled. Overrides the :disabled rule above. */
+#send-btn.awaiting-upload:disabled,
+#send-btn.awaiting-upload {
+    background: var(--accent);
+    color: white;
+    cursor: progress;
+    opacity: 0.65;
+    animation: send-awaiting-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes send-awaiting-pulse {
+    0%, 100% { opacity: 0.45; }
+    50%      { opacity: 0.85; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #send-btn.awaiting-upload {
+        animation: none;
+        opacity: 0.65;
+    }
+}
+
 /* Follow-up button - shown when Claude is processing (queues message) */
 #followup-btn {
     width: var(--layout-btn-md);

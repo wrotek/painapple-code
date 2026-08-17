@@ -1428,7 +1428,11 @@ class App {
                 getSessionId: () => this.activeSession?.storeId,
                 isConnected: () => this.activeSession?.status === 'connected',
                 onError: (msg) => this.activeSession?.addSystemLog(msg, 'error'),
-                onStateChange: () => this.updateSendButtonState()
+                onStateChange: () => {
+                    this.updateSendButtonState();
+                    // Uploads settled — release a send that was parked mid-upload
+                    this.inputHandler?.flushDeferredSend();
+                }
             }
         );
     }
@@ -1454,8 +1458,12 @@ class App {
     }
 
     updateSendButtonState() {
+        // In-flight uploads count as content: the user should be able to hit
+        // send mid-upload and have it queue (InputHandler defers it) rather
+        // than face a dead button or send the message without the attachment.
         const hasContent = this.els.messageInput.value.trim() ||
                           this.uploadManager?.hasPending ||
+                          this.uploadManager?.isUploading ||
                           Stash.hasEnabled();
         const connected = this.activeSession?.status === 'connected';
 
@@ -1463,7 +1471,14 @@ class App {
         const welcomeSearchEnabled = this.chatCtrl?.isWelcomeShowing() &&
                                      this.els.messageInput.value.trim();
 
-        this.els.sendBtn.disabled = !hasContent || (!connected && !welcomeSearchEnabled);
+        // A send parked on an in-flight upload keeps the button disabled. This
+        // method runs on every upload progress tick, so without the check it
+        // would re-enable the button underneath the parked send and invite a
+        // second Enter that only re-arms the same deferral.
+        const awaitingUpload = this.inputHandler?.isAwaitingUpload() || false;
+
+        this.els.sendBtn.disabled = awaitingUpload || !hasContent ||
+                                    (!connected && !welcomeSearchEnabled);
         if (this.els.followupBtn) this.els.followupBtn.disabled = this.els.sendBtn.disabled;
     }
 
@@ -1715,6 +1730,18 @@ class App {
         // key, so close it deterministically in the chain too.
         if (this.statusBar?._modelPopupOpen) {
             this.statusBar._closeModelPopup();
+            return;
+        }
+
+        // 1.6. Abandon a send parked on an in-flight upload. Ranked below the
+        // popups (those are what the user is looking at) but above panels and
+        // Stop: Escape here means "don't send that", and every branch below
+        // would leave the send armed to fire when the upload lands. Has to live
+        // in this chain rather than the textarea's own keydown listener —
+        // ShortcutManager claims Escape in the capture phase and calls
+        // stopImmediatePropagation(), so the input never sees the key.
+        if (this.inputHandler?.isAwaitingUpload?.()) {
+            this.inputHandler.cancelDeferredSend();
             return;
         }
 

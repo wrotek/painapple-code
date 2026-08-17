@@ -59,6 +59,19 @@ export class UploadManager {
         this.pendingFiles = [];
         this.uploadingFiles = [];
 
+        // Session ids of upload batches (a multi-file paste/drop) still being
+        // walked. handleImages()/_uploadFiles() upload sequentially, so between
+        // one file finishing and the next being pushed, uploading* is
+        // momentarily empty — without this, isUploading() would blink false
+        // mid-batch and a send parked on the batch would fire with only the
+        // first file.
+        //
+        // Keyed by session because this manager is a singleton shared by every
+        // tab: a batch started in session A keeps running after a switch to B,
+        // and counting it as "B is uploading" would park B's send behind an
+        // upload that will never belong to it.
+        this._activeBatchSessions = [];
+
         // Context menu for file chips
         this._contextMenu = new ContextMenu();
         this._longPressTimer = null;
@@ -188,7 +201,20 @@ export class UploadManager {
      */
     async handleImages(files) {
         const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+        if (!imageFiles.length) return;
 
+        const batch = this._beginBatch();
+        try {
+            await this._handleImagesBatch(imageFiles);
+        } finally {
+            this._endBatch(batch);
+            // Batch fully settled — let listeners (e.g. a send parked on this
+            // batch) act now that isUploading() is honestly false.
+            this._notifyChange();
+        }
+    }
+
+    async _handleImagesBatch(imageFiles) {
         for (const file of imageFiles) {
             const preview = URL.createObjectURL(file);
             const uploadId = genId();
@@ -216,10 +242,23 @@ export class UploadManager {
                     const error = await response.json();
                     this.onError(`Upload failed: ${error.detail}`);
                     this._renderImagePreviews();
+                    this._notifyChange();
                     continue;
                 }
 
                 const data = await response.json();
+
+                // The user switched tabs while this was in flight. pendingImages
+                // now belongs to a different session (switchSession saved the
+                // outgoing arrays off before we resolved), so pushing here would
+                // silently attach this image to someone else's next message.
+                if (this._isForeignSession(sessionId)) {
+                    URL.revokeObjectURL(preview);
+                    this._renderImagePreviews();
+                    this._notifyChange();
+                    continue;
+                }
+
                 this.pendingImages.push({
                     file,
                     preview,
@@ -234,6 +273,7 @@ export class UploadManager {
                 this.uploadingImages = this.uploadingImages.filter(img => img.id !== uploadId);
                 this.onError(`Upload error: ${error.message}`);
                 this._renderImagePreviews();
+                this._notifyChange();
             }
         }
     }
@@ -383,6 +423,7 @@ export class UploadManager {
         } catch (err) {
             this.uploadingImages = this.uploadingImages.filter(i => i.id !== uploadId);
             this._renderImagePreviews();
+            this._notifyChange();
             this.onError(S.uploads.attach_failed.replace('{name}', entry.name));
             return false;
         }
@@ -432,6 +473,18 @@ export class UploadManager {
      * Handle non-image file uploads
      */
     async _uploadFiles(files) {
+        if (!files.length) return;
+
+        const batch = this._beginBatch();
+        try {
+            await this._uploadFilesBatch(files);
+        } finally {
+            this._endBatch(batch);
+            this._notifyChange();
+        }
+    }
+
+    async _uploadFilesBatch(files) {
         const sessionId = this.getSessionId();
 
         for (const file of files) {
@@ -455,6 +508,7 @@ export class UploadManager {
                     const error = await response.json();
                     this.onError(`File upload failed: ${error.detail}`);
                     this._renderFilePreviews();
+                    this._notifyChange();
                     continue;
                 }
 
@@ -465,6 +519,17 @@ export class UploadManager {
                     size: data.size,
                     originalName: data.filename,
                 };
+
+                // Switched tabs mid-flight — pendingFiles is the new session's
+                // list now, so don't attach this file to it. The upload itself
+                // still succeeded under the original session (it's on disk
+                // there), which the WidgetBus event below reports.
+                if (this._isForeignSession(sessionId)) {
+                    this._renderFilePreviews();
+                    this._notifyChange();
+                    WidgetBus.emit('uploads:changed', { sessionId });
+                    continue;
+                }
 
                 // Replace existing entry with same name, or append
                 const existingIdx = this.pendingFiles.findIndex(f => f.name === data.stored_name);
@@ -485,6 +550,7 @@ export class UploadManager {
                 this.uploadingFiles = this.uploadingFiles.filter(f => f.id !== uploadId);
                 this.onError(`File upload error: ${error.message}`);
                 this._renderFilePreviews();
+                this._notifyChange();
             }
         }
     }
@@ -703,6 +769,31 @@ export class UploadManager {
         this.onStateChange();
     }
 
+    /** Register an in-flight batch against the session that started it. */
+    _beginBatch() {
+        const batch = { session: this.getSessionId() };
+        this._activeBatchSessions.push(batch);
+        return batch;
+    }
+
+    _endBatch(batch) {
+        const i = this._activeBatchSessions.indexOf(batch);
+        if (i !== -1) this._activeBatchSessions.splice(i, 1);
+    }
+
+    /**
+     * Does `session` belong to a different session than the one on screen?
+     *
+     * Deliberately false when either id is missing: a fresh tab has no storeId
+     * until it connects, so an image pasted into it starts a batch with a null
+     * session and would otherwise be judged "foreign" the moment the id is
+     * assigned mid-upload — dropping a perfectly good attachment.
+     */
+    _isForeignSession(session) {
+        const current = this.getSessionId();
+        return !!(session && current && session !== current);
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // File preview & context menu
     // ─────────────────────────────────────────────────────────────────
@@ -919,6 +1010,10 @@ export class UploadManager {
      * Check if there are active uploads
      */
     get isUploading() {
-        return this.uploadingImages.length > 0 || this.uploadingFiles.length > 0;
+        // Only batches belonging to the session on screen count — see
+        // _activeBatchSessions in the constructor.
+        return this._activeBatchSessions.some(b => !this._isForeignSession(b.session)) ||
+               this.uploadingImages.length > 0 ||
+               this.uploadingFiles.length > 0;
     }
 }

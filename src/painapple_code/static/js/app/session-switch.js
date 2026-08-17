@@ -61,6 +61,9 @@ export const sessionSwitchMethods = {
             this.activeSession.inputText = this.els.messageInput.value;
             // Save selection state (returns serializable state, then clears)
             this.activeSession.selectionState = exitSelectionMode();
+            // Drop a send parked on an in-flight upload — saveState() discards
+            // the in-flight uploads, so replaying it would fire into the new session
+            this.inputHandler?.cancelDeferredSend();
             // Save upload state (images/files) to prevent cross-session attachment leaks
             if (this.uploadManager) {
                 const uploadState = this.uploadManager.saveState();

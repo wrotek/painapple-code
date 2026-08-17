@@ -1991,6 +1991,8 @@ uploads:
   attach_failed: "Couldn't attach {name}"
   attach_no_path: "This upload has no path on disk — reload the widget"
   attach_no_session: "Open a session first to attach uploads"
+  send_waiting: "Finishing upload — your message will send automatically"
+  send_waiting_failed: "Upload failed — message not sent. Press send to try again."
 
 # ============================================================
 # Zen Mode (OLED focus view)

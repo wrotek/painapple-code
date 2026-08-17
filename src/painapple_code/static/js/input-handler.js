@@ -103,6 +103,8 @@ export class InputHandler {
      * @param {Function} callbacks.getSnippetsAutocomplete - Returns snippets autocomplete instance
      * @param {Function} callbacks.getSkillsAutocomplete - Returns skills autocomplete instance ($ trigger)
      * @param {Function} callbacks.getPendingImages - Returns pending images array
+     * @param {Function} callbacks.isUploading - True while attachment uploads are in flight
+     * @param {Function} callbacks.hasPendingUploads - True if any upload (image or file) completed and is attached
      * @param {Function} callbacks.onSendMessage - Called to send a message
      * @param {Function} callbacks.onSlashCommand - Called for slash commands
      * @param {Function} callbacks.onBangCommand - Called for bang commands
@@ -123,6 +125,8 @@ export class InputHandler {
         this.getSkillsAutocomplete = callbacks.getSkillsAutocomplete || (() => null);
         this.getCwd = callbacks.getCwd || (() => window.app?.activeSession?.cwd || null);
         this.getPendingImages = callbacks.getPendingImages || (() => []);
+        this.isUploading = callbacks.isUploading || (() => false);
+        this.hasPendingUploads = callbacks.hasPendingUploads || (() => this.getPendingImages().length > 0);
         this.onSendMessage = callbacks.onSendMessage || (() => {});
         this.onSlashCommand = callbacks.onSlashCommand || (() => {});
         this.onBangCommand = callbacks.onBangCommand || (() => {});
@@ -140,6 +144,12 @@ export class InputHandler {
 
         // Input mode: null, 'shell' (! bang commands), or 'plan' (/plan prompt)
         this.inputMode = null;
+
+        // Send pressed while attachment uploads were still in flight. Holds the
+        // original handleInput options until the uploads settle, then replays
+        // the send so the message goes out WITH its attachments rather than as
+        // text-only. Cleared by flushDeferredSend() or cancelDeferredSend().
+        this._deferredSend = null;
 
         // Id of the server-side draft mirroring the current input — set by
         // the auto-sync once it creates one, or by Prompt Explorer → Drafts
@@ -188,6 +198,12 @@ export class InputHandler {
         // Sync hint overlay + drafts pill visibility (hidden with any content)
         ShortcutHints.updateVisibility(value);
         DraftsPill.updateVisibility(value);
+
+        // Emptying the box while a send is parked on an upload backs that send
+        // out — otherwise the upload landing later fires a turn the user just
+        // deleted. Nothing is lost: the attachment stays pending, so the next
+        // send still picks it up.
+        if (this._deferredSend && !value.trim()) this.cancelDeferredSend();
 
         // Input mode detection: shell (!) and plan (/plan )
         const wasMode = this.inputMode;
@@ -538,6 +554,12 @@ export class InputHandler {
             this._advanceTabCycle(e.shiftKey ? -1 : 1);
             return;
         }
+
+        // NOTE: Escape is deliberately NOT handled here. ShortcutManager binds
+        // document keydown in the CAPTURE phase and calls
+        // stopImmediatePropagation() (shortcuts.js), so an Escape branch in this
+        // listener is unreachable dead code. Cancelling a parked send lives in
+        // app.handleEscape()'s priority chain instead.
 
         // Input history navigation (fish-shell style)
         // Up arrow: go back in history (when input empty OR already browsing)
@@ -965,6 +987,77 @@ export class InputHandler {
     // ─────────────────────────────────────────────────────────────────
 
     /**
+     * True while a send is parked waiting on an in-flight upload. Read by
+     * app.updateSendButtonState() so the button stays disabled for as long as
+     * the park lasts — that state-update runs on every upload progress tick and
+     * would otherwise re-enable the button underneath the parked send.
+     */
+    isAwaitingUpload() {
+        return this._deferredSend !== null;
+    }
+
+    /**
+     * Reflect "waiting on upload" on the send controls.
+     */
+    _applyDeferredSendUI(waiting) {
+        const btn = this.els.sendBtn;
+        if (!btn) return;
+        btn.classList.toggle('awaiting-upload', waiting);
+        btn.setAttribute('aria-busy', waiting ? 'true' : 'false');
+        if (waiting) btn.disabled = true;
+    }
+
+    /**
+     * Would a send of `value` carry the session's attachments? Only then is it
+     * worth parking behind an in-flight upload.
+     *
+     * Bang commands run locally in the browser's shell widget and never take an
+     * attachment, so stalling `!ls` behind an image upload buys nothing and
+     * makes the input feel stuck. Slash commands DO park: the dispatch below
+     * routes a slash-prefixed value to onSendMessage() as a normal message once
+     * images are present, so waiting is what keeps those two paths agreeing.
+     */
+    _sendTakesAttachments(value) {
+        if (this.inputMode === 'shell') return false;
+        return !value.startsWith('!');
+    }
+
+    /**
+     * Called when upload state settles. If a send was parked by handleInput()
+     * while attachments were uploading, replay it now that the attachments are
+     * actually available. If every upload failed there is nothing to attach —
+     * drop the deferral and leave the text in the box so the user can retry
+     * rather than silently sending a message stripped of its attachment.
+     */
+    flushDeferredSend() {
+        if (!this._deferredSend || this.isUploading()) return;
+
+        const options = this._deferredSend;
+        this._deferredSend = null;
+        this._applyDeferredSendUI(false);
+
+        // Images AND files — a deferred send may have been waiting on either.
+        if (!this.hasPendingUploads()) {
+            showToast(S.uploads.send_waiting_failed);
+            this.onUpdateSendButton();
+            return;
+        }
+
+        this.handleInput(options);
+    }
+
+    /**
+     * Abandon a parked send (Escape, input cleared, session switch) so it can't
+     * fire unexpectedly once uploads finish.
+     */
+    cancelDeferredSend() {
+        if (!this._deferredSend) return;
+        this._deferredSend = null;
+        this._applyDeferredSendUI(false);
+        this.onUpdateSendButton();
+    }
+
+    /**
      * Process input and send message or command
      * @param {Object} options - Options
      * @param {boolean} options.shiftKey - Whether Shift was held (for welcome screen invert)
@@ -974,6 +1067,22 @@ export class InputHandler {
         const images = this.getPendingImages();
         const hasImages = images.length > 0;
         const hasStash = Stash.hasEnabled();
+
+        // Attachments still uploading — park the send instead of firing it now.
+        // getPendingImages() only reports COMPLETED uploads, so sending here
+        // would silently drop the in-flight attachment and deliver text only.
+        // flushDeferredSend() replays this once the uploads settle.
+        if (this.isUploading() && this._sendTakesAttachments(value)) {
+            const alreadyArmed = this._deferredSend !== null;
+            this._deferredSend = options;
+            this._applyDeferredSendUI(true);
+            if (!alreadyArmed) showToast(S.uploads.send_waiting);
+            return;
+        }
+
+        // Reached a real send — make sure no stale "waiting" state lingers.
+        this._deferredSend = null;
+        this._applyDeferredSendUI(false);
 
         // In input mode, prepend prefix back for dispatch. Plan mode dispatches
         // even when empty — a bare /plan just switches to plan permission.
