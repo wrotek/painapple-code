@@ -180,6 +180,13 @@
     visibility: visible;
 }
 
+/* Rows are clickable, so the whole sheet comes up to full strength while the
+   pointer is over it. The overlay itself is pointer-events:none, but :hover
+   still applies to it as an ancestor of the hovered (pointer-events:auto) row. */
+.shortcut-hints-overlay.visible:hover {
+    opacity: 1;
+}
+
 .shortcut-hints-overlay.empty {
     display: none !important;
 }
@@ -215,6 +222,64 @@
     align-items: center;
     gap: var(--sp-8);
     min-width: 0;
+    /* Re-enable hits on the row only — the gaps around it still fall through
+       to the textarea, so clicking empty overlay space focuses the input. */
+    pointer-events: auto;
+    cursor: pointer;
+    /* Padding gives the hover chrome some breathing room; the matching
+       negative margin keeps the grid metrics identical to the flat version,
+       so enabling hover doesn't reflow the sheet or clip its last row. */
+    padding: 1px var(--sp-6);
+    margin: -1px calc(var(--sp-6) * -1);
+    border-radius: var(--radius-sm);
+    transition: background 0.12s ease;
+}
+
+/* Hover picks up the instance accent — deliberately NOT the focus ring's
+   var(--permission-color, var(--accent)): the ring tracks the permission mode
+   (green in YOLO, orange in Accept Edits, ...), so borrowing it would make a
+   red-accent instance hover in whatever hue the current mode happens to be. */
+.shortcut-hints-pair:hover {
+    background: var(--bg-hover);
+}
+
+.shortcut-hints-pair:hover .shortcut-hints-label {
+    color: var(--accent);
+}
+
+.shortcut-hints-pair:hover .shortcut-hints-key {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+.shortcut-hints-pair:active {
+    transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shortcut-hints-pair,
+    .shortcut-hints-key,
+    .shortcut-hints-label {
+        transition: none;
+    }
+    .shortcut-hints-pair:active {
+        transform: none;
+    }
+}
+
+/* Pure-touch devices get NO clickable rows. The overlay is drawn INSIDE the
+   empty textarea, so a tap meant to focus the input would fire whatever row
+   sits under the finger (the default set includes Close Tab) — and with no
+   hover there is nothing to advertise that the rows are buttons at all.
+   Phones (≤768px) hide the overlay outright; this is what covers tablets.
+   iPadOS always reports hover:none + pointer:coarse, even with a Magic
+   Keyboard trackpad, so iPads land here by design — see the tooltip section
+   of CLAUDE.md for why (hover: hover) is never the right test here. */
+@media (hover: none) and (pointer: coarse) {
+    .shortcut-hints-pair {
+        pointer-events: none;
+        cursor: default;
+    }
 }
 
 @media (min-width: 700px) {
@@ -243,6 +308,7 @@
     min-width: 32px;
     text-align: center;
     box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+    transition: color 0.12s ease, border-color 0.12s ease;
 }
 
 .shortcut-hints-label {
@@ -250,6 +316,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: color 0.12s ease;
 }
 
 /* ═════════════════════════════════════════════════════════════

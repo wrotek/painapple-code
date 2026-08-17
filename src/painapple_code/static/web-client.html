@@ -414,7 +414,8 @@
                         <div id="input-highlight-backdrop" aria-hidden="true"></div>
                         <span class="shell-prompt-prefix" id="shell-prompt-prefix">$</span>
                         <textarea id="message-input" placeholder="Message Claude...  ·  @ files  ·  # snippets/agents  ·  $ skills  ·  / commands" rows="1" autocomplete="off" enterkeyhint="send"></textarea>
-                        <!-- Shortcut hints shown inside empty textarea (absolute-positioned, pointer-events none) -->
+                        <!-- Shortcut hints shown inside empty textarea (absolute-positioned;
+                             overlay is pointer-events:none, individual rows are clickable) -->
                         <div id="shortcut-hints-overlay" class="shortcut-hints-overlay" aria-hidden="true"></div>
                     </div>
                     <div id="input-toolbar">

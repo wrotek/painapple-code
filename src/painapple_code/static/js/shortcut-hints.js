@@ -13,6 +13,8 @@
 
 import S from './strings.js';
 import { SHORTCUTS, resolveKeys, formatKeyForDisplay } from './shortcuts.js';
+import { registerActions } from './action-delegate.js';
+import { escapeHtml, escapeAttr } from './utils.js';
 
 const CONFIG_STORAGE_KEY = 'claude-code-user-config';
 
@@ -112,7 +114,7 @@ function getShortcutById(id) {
 
 /**
  * Resolve a shortcut ID to its current primary key (honoring user overrides).
- * Returns { key, label } or null if not found.
+ * Returns { id, key, label } or null if not found.
  */
 function resolveHint(id, userOverrides) {
     const sc = getShortcutById(id);
@@ -120,8 +122,27 @@ function resolveHint(id, userOverrides) {
     const hasOverride = !!userOverrides[id];
     const keys = hasOverride ? userOverrides[id] : resolveKeys(sc);
     if (!keys || !keys.length) return null;
-    return { key: formatKeyForDisplay(keys[0]), label: sc.label };
+    return { id, key: formatKeyForDisplay(keys[0]), label: sc.label };
 }
+
+/**
+ * Click handler for a hint row — runs the shortcut's action directly.
+ *
+ * Goes through ShortcutManager.execute() rather than calling the app method
+ * by name so `args` from the registry are honored. execute() deliberately
+ * skips checkContext(): a deliberate click should fire regardless of where
+ * focus happens to be (the overlay only shows on an empty, default-mode
+ * input anyway).
+ */
+registerActions({
+    'run-shortcut': (el, e) => {
+        e.preventDefault();
+        const sc = SHORTCUTS.find(s => s.id === el.dataset.shortcutId);
+        const manager = window.app?.shortcutManager;
+        if (!sc || !manager) return;
+        manager.execute(sc);
+    },
+});
 
 /**
  * Singleton controller for the overlay element.
@@ -137,6 +158,12 @@ class ShortcutHintsController {
         this.el = document.getElementById('shortcut-hints-overlay');
         if (!this.el) return;
         this.wrapper = this.el.closest('.input-textarea-wrapper');
+        // Rows are clickable (see the 'run-shortcut' action above), but pressing
+        // on one must not steal the caret out of the textarea — a plain <div> is
+        // not focusable, so without this the mousedown blurs the input.
+        this.el.addEventListener('mousedown', (e) => {
+            if (e.target.closest?.('.shortcut-hints-pair')) e.preventDefault();
+        });
         this.render();
     }
 
@@ -178,9 +205,11 @@ class ShortcutHintsController {
         this.el.innerHTML = `
             <div class="shortcut-hints-grid">
                 ${rows.map(r => `
-                    <div class="shortcut-hints-pair">
-                        <kbd class="shortcut-hints-key">${r.key}</kbd>
-                        <span class="shortcut-hints-label">${r.label}</span>
+                    <div class="shortcut-hints-pair" role="button"
+                         data-act="run-shortcut" data-shortcut-id="${escapeAttr(r.id)}"
+                         aria-label="${escapeAttr(r.label)} (${escapeAttr(r.key)})">
+                        <kbd class="shortcut-hints-key">${escapeHtml(r.key)}</kbd>
+                        <span class="shortcut-hints-label">${escapeHtml(r.label)}</span>
                     </div>
                 `).join('')}
             </div>
