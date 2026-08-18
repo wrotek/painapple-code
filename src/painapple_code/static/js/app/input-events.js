@@ -362,14 +362,18 @@ export const inputEventMethods = {
             this.els.messageInput.placeholder = S.ui.input.placeholder;
         }
 
-        // Collect pending files and prepend paths to message
+        // Collect pending files and APPEND paths to the message.
+        // Appended, not prepended: a prefix pushes the user's text off the
+        // start of the message, and a slash command is only a command when it
+        // is the first thing in the prompt — "Uploaded file: …\n\n/goal x"
+        // reaches the CLI as plain prose and the command never runs.
         const files = [...this.pendingFiles];
         const hasFiles = files.length > 0;
 
         if (hasFiles) {
             // Build file references - Claude will read these via Read tool
             const fileRefs = files.map(f => `Uploaded file: ${f.path}`).join('\n');
-            messageToSend = `${fileRefs}\n\n${messageToSend}`;
+            messageToSend = `${messageToSend}\n\n${fileRefs}`;
         }
 
         // Clear pending files
@@ -513,7 +517,22 @@ export const inputEventMethods = {
         const sendOptions = {};
         if (stashRefs && stashRefs.length > 0) {
             sendOptions.stashRefs = stashRefs;
-            sendOptions.displayContent = content;  // Original content without stash prefix
+        }
+        // Whatever composition ran above (stash block, bang outputs, file
+        // refs), the stored message must be the text the user actually typed.
+        // This used to be set only on the stash path, so a file upload or a
+        // buffered bang output stored the COMPOSED string — which no longer
+        // matched the local bubble's content signature, and the server's
+        // `message_stored` broadcast landed as a SECOND user bubble instead of
+        // being adopted by the one already on screen.
+        if (messageToSend !== content) {
+            sendOptions.displayContent = content;
+        }
+        // Attachment metadata, so a reload from the server can render the
+        // "[N files attached]" indicator the local bubble shows (images
+        // already ride along as image_files).
+        if (hasFiles) {
+            sendOptions.files = files.map(f => f.path).filter(Boolean);
         }
         if (isInPlanMode) {
             sendOptions.planMode = true;

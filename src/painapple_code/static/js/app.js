@@ -378,10 +378,18 @@ class App {
         const images = [...this.pendingImages];
         const files = [...this.pendingFiles];
 
+        // Appended, not prepended — see the same block in app/input-events.js:
+        // a prefix stops a leading slash command from being a command at all.
         let messageToSend = content;
+        const sendOptions = {};
         if (files.length > 0) {
             const fileRefs = files.map(f => `Uploaded file: ${f.path}`).join('\n');
-            messageToSend = `${fileRefs}\n\n${messageToSend}`;
+            messageToSend = `${messageToSend}\n\n${fileRefs}`;
+            // Store the typed text, not the composition, so the server's
+            // `message_stored` broadcast is adopted by the bubble already on
+            // screen instead of landing as a duplicate.
+            sendOptions.displayContent = content;
+            sendOptions.files = files.map(f => f.path).filter(Boolean);
         }
 
         this.clearPendingImages();
@@ -401,6 +409,8 @@ class App {
             content: content,
             timestamp: new Date().toISOString(),
             images: images.length > 0 ? images : undefined,
+            hasFiles: files.length > 0,
+            fileCount: files.length,
             effort_level: effortLevel !== 'high' ? effortLevel : undefined,
         });
 
@@ -414,7 +424,7 @@ class App {
             const checkConnection = setInterval(() => {
                 if (this.activeSession.status === 'connected') {
                     clearInterval(checkConnection);
-                    this.activeSession.sendWithImages(messageToSend, images, {});
+                    this.activeSession.sendWithImages(messageToSend, images, sendOptions);
                 }
             }, 100);
             setTimeout(() => clearInterval(checkConnection), 10000);

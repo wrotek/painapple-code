@@ -573,6 +573,13 @@ export class Session {
             msg.displayContent = options.displayContent;
         }
 
+        // Uploaded file paths — displayContent strips the "Uploaded file:"
+        // block out of the stored message, so the attachment count has to
+        // travel separately or a reloaded bubble loses it.
+        if (options.files && options.files.length > 0) {
+            msg.files = options.files;
+        }
+
         // Include plan mode flag for server-side storage
         if (options.planMode) {
             msg.planMode = true;

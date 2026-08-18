@@ -328,6 +328,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
     # For storage: use displayContent if provided (original without stash prefix)
     display_content = data.get("displayContent", content)
     stash_refs = data.get("stashRefs")  # Array of stash items for display
+    file_paths = data.get("files") or []  # Uploaded file paths attached to this prompt
     plan_mode = data.get("planMode", False)  # True if sent in plan mode
     mark_as_favorite = data.get("markAsFavorite", False)  # Mark prompt as favorite
 
@@ -399,6 +400,14 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
     }
     if image_files:
         user_msg["image_files"] = image_files
+    # Uploaded file attachments. The paths live in the model-facing `content`
+    # only; `display_content` is the user's own text, so without this the
+    # reloaded bubble would lose the "[N files attached]" indicator that the
+    # live one shows.
+    if file_paths:
+        user_msg["has_files"] = True
+        user_msg["file_count"] = len(file_paths)
+        user_msg["file_paths"] = file_paths
     if verified_files:
         user_msg["verifiedFiles"] = verified_files
     # Include stash refs if present (for display in message bubble)
