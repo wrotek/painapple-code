@@ -393,6 +393,70 @@ def test_malformed_epoch_still_derives_and_still_revokes(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# /api/auth/revoke — the lever, applied live
+# ---------------------------------------------------------------------------
+
+def test_revoke_browsers_kills_cookies_and_spares_scripts(app, client, test_password):
+    """The property the whole epoch design exists for: 'log out everywhere'
+    must not break CI."""
+    old_cookie = client_token(test_password, "cookie")
+    with TestClient(app, cookies={COOKIE_NAME: old_cookie}) as c:
+        assert c.get("/api/sessions").status_code == 200
+
+    r = client.post("/api/auth/revoke", json={"scope": "browsers"})
+    assert r.status_code == 200
+    assert r.json()["cookie_epoch"] == 2
+
+    # Applied live — no restart needed.
+    with TestClient(app, cookies={COOKIE_NAME: old_cookie}) as c:
+        assert c.get("/api/sessions").status_code == 401
+    # ...and the Bearer client that issued the revoke is untouched.
+    assert client.get("/api/sessions").status_code == 200
+
+
+def test_revoke_scripts_kills_tokens_and_spares_browsers(app, client, test_password):
+    cookie = client_token(test_password, "cookie")
+    r = client.post("/api/auth/revoke", json={"scope": "scripts"})
+    assert r.status_code == 200
+    assert r.json()["bearer_epoch"] == 2
+
+    # The Bearer credential that made the call has just revoked itself.
+    assert client.get("/api/sessions").status_code == 401
+    with TestClient(app, cookies={COOKIE_NAME: cookie}) as c:
+        assert c.get("/api/sessions").status_code == 200
+
+
+def test_revoke_persists_to_disk(app, client, test_config_file):
+    client.post("/api/auth/revoke", json={"scope": "browsers"})
+    assert yaml.safe_load(test_config_file.read_text())["cookie_epoch"] == 2
+
+
+def test_revoke_rejects_unknown_scope(client):
+    r = client.post("/api/auth/revoke", json={"scope": "everything"})
+    assert r.status_code == 400
+    assert r.json()["error"] == "invalid_scope"
+
+
+def test_revoke_rejects_non_json(client):
+    r = client.post("/api/auth/revoke", content=b"not json")
+    assert r.status_code == 400
+
+
+def test_revoke_requires_auth(unauth_client):
+    r = unauth_client.post("/api/auth/revoke", json={"scope": "browsers"})
+    assert r.status_code == 401
+
+
+def test_revoke_is_csrf_gated(app, test_password):
+    """Ambient credential + state-changing method: a hostile page must not be
+    able to log the user out of everything (or knock their CI offline)."""
+    c = TestClient(app, cookies={COOKIE_NAME: client_token(test_password, "cookie")})
+    r = c.post("/api/auth/revoke", json={"scope": "browsers"},
+               headers={"Origin": "http://evil.example"})
+    assert r.status_code == 403
+
+
+# ---------------------------------------------------------------------------
 # Download tokens (?dl=) — mint/check units, endpoint, middleware integration
 # ---------------------------------------------------------------------------
 

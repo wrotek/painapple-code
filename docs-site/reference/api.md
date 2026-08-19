@@ -29,6 +29,24 @@ printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" |
     The server writes `api_token` on start, so a config from an older build
     gets one the first time you launch the new version.
 
+### Revoking credentials
+
+`POST /api/auth/revoke` with `{"scope": "browsers"}` or `{"scope": "scripts"}` invalidates one class of credential and leaves the other alone:
+
+```bash
+printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" |
+    curl -sS --config - -X POST http://localhost:8765/api/auth/revoke \
+        -H 'Content-Type: application/json' --data '{"scope":"scripts"}'
+# {"ok":true,"scope":"scripts","cookie_epoch":1,"bearer_epoch":2}
+```
+
+| Scope | Kills | Keeps working |
+|-------|-------|---------------|
+| `browsers` | every `bridge_auth` cookie | scripts, `?tkn=` links |
+| `scripts` | every `api_token` (Bearer + `?tkn=`) | logged-in browsers |
+
+Neither touches the password — rotating that resets everything. The change is written to the config and applied immediately, with no restart. Note that `scripts` revokes the very token that called it, so the response is the last thing that token does. A second instance sharing the same config file keeps its in-memory credentials until it restarts.
+
 !!! warning "Don't put the password in `-H`"
     `curl -H "Authorization: Bearer $TOKEN"` places the secret in the process
     command line, and `ps` shows that to **every user on the machine** unless

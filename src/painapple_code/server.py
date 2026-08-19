@@ -52,6 +52,9 @@ from painapple_code import bridge_paths
 from painapple_code.services.agent_session import AgentBridge
 from painapple_code.auth_middleware import (
     AuthMiddleware,
+    BEARER_EPOCH_KEY,
+    COOKIE_EPOCH_KEY,
+    bump_epoch,
     derive_cookie_token,
     ensure_config_file,
     mint_download_token,
@@ -1126,7 +1129,13 @@ async def download_token_submit(request: Request):
 
 @app.post("/api/logout")
 async def logout_submit(request: Request):
-    """Clear the auth cookie. Attributes must match the set-cookie call."""
+    """Clear the auth cookie on THIS client only.
+
+    Deliberately local: the cookie value stays valid server-side, because it
+    is derived, not stored. "I'm done on this browser" is what this means and
+    what the UI must say. To actually invalidate credentials, use
+    /api/auth/revoke.
+    """
     forwarded = request.headers.get("x-forwarded-proto", request.url.scheme)
     secure = forwarded == "https"
     resp = JSONResponse({"ok": True})
@@ -1138,6 +1147,73 @@ async def logout_submit(request: Request):
         httponly=True,
     )
     return resp
+
+
+# Scope name -> config key. The names are credential *audiences*, not config
+# spellings, so the wire contract doesn't leak the derivation's vocabulary.
+REVOKE_SCOPES = {
+    "browsers": COOKIE_EPOCH_KEY,
+    "scripts": BEARER_EPOCH_KEY,
+}
+
+
+@app.post("/api/auth/revoke")
+async def auth_revoke(request: Request):
+    """Invalidate one class of credential by bumping its epoch.
+
+    scope=browsers -> every bridge_auth cookie dies; scripts and ?tkn= links
+    keep working. scope=scripts -> every api_token dies; browsers stay logged
+    in. Neither touches the password.
+
+    Not gated behind re-entering the password: post-auth access here is
+    already total (PTY, /api/exec, filesystem), so anyone who could call this
+    could do far worse directly. Requiring the password would add friction to
+    the emergency lever without adding a boundary.
+
+    NOTE: the new epoch takes effect immediately on THIS process. Another
+    instance sharing the same auth config file keeps its in-memory tokens
+    until it restarts.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "invalid_body"}, status_code=400)
+    scope = body.get("scope") if isinstance(body, dict) else None
+    key = REVOKE_SCOPES.get(scope)
+    if key is None:
+        return JSONResponse(
+            {"error": "invalid_scope", "expected": sorted(REVOKE_SCOPES)},
+            status_code=400,
+        )
+
+    cfg_path = getattr(request.app.state, "auth_config_file", None)
+    password = getattr(request.app.state, "auth_password", None)
+    if not cfg_path or not password:
+        return JSONResponse({"error": "auth_not_configured"}, status_code=503)
+
+    try:
+        derived = bump_epoch(Path(cfg_path), key)
+    except (OSError, ValueError) as e:
+        logger.error(f"Credential revoke failed ({scope}): {e}")
+        return JSONResponse({"error": "revoke_failed"}, status_code=500)
+
+    # Apply live, so the lever works without a restart. Order matters only in
+    # that both must land before the response returns — a caller whose own
+    # cookie was just revoked should get 401 on its NEXT request, not this one.
+    request.app.state.auth_cookie_token = derive_cookie_token(
+        password, derived["cookie_epoch"])
+    request.app.state.auth_api_token = derived["api_token"]
+
+    logger.warning(
+        f"Credentials revoked: scope={scope} "
+        f"cookie_epoch={derived['cookie_epoch']} bearer_epoch={derived['bearer_epoch']}"
+    )
+    return JSONResponse({
+        "ok": True,
+        "scope": scope,
+        "cookie_epoch": derived["cookie_epoch"],
+        "bearer_epoch": derived["bearer_epoch"],
+    })
 
 
 @app.get("/triage", response_class=HTMLResponse)
