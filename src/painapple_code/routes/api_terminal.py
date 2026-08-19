@@ -21,7 +21,12 @@ from pathlib import Path
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
 
-from painapple_code.auth_middleware import check_websocket_auth, check_websocket_origin
+from painapple_code.auth_middleware import (
+    _client_identity,
+    check_websocket_auth,
+    check_websocket_origin,
+    record_auth_identity,
+)
 from painapple_code.session_store import SessionStore
 from painapple_code.subprocess_registry import agent_subprocesses
 from painapple_code.utils.file_paths import safe_resolve
@@ -69,6 +74,7 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
     if not cookie_token or not api_token or not check_websocket_auth(websocket, cookie_token, api_token):
         await websocket.close(code=1008, reason="unauthorized")
         return
+    record_auth_identity("ws", *_client_identity(websocket.scope))
 
     session_id = session or "default"
 

@@ -521,6 +521,62 @@ def _log_csrf_failure(scope, path: str) -> None:
         pass
 
 
+# First-seen identities, deduped so a busy server logs once per new client
+# rather than once per request. Bounded: a table this size means either a
+# genuinely busy server or a UA-randomising client, and in both cases more
+# lines are noise, not signal.
+_SEEN_AUTH: set = set()
+_SEEN_AUTH_CAP = 200
+_seen_auth_full = False
+
+
+def record_auth_identity(auth_via: str, client_ip: Optional[str], user_agent: str) -> None:
+    """Log the first time a (path, client, agent) combination authenticates.
+
+    This is the defensible half of the "bind the cookie to a fingerprint"
+    instinct. Binding is theatre — every realistic way a credential leaks
+    (a stolen tablet, a browser-profile backup, a proxy log) hands over the
+    user agent alongside it, and IP binding breaks the roaming-tablet case
+    this product is built for. Observation costs nothing and can't lock
+    anyone out.
+
+    What it buys: the revoke button becomes actionable. "Something I don't
+    recognise authenticated" is the signal that makes someone press it.
+
+    Never records credential material — only how, from where, and as what.
+    """
+    global _seen_auth_full
+    ua = (user_agent or "")[:120]
+    key = (auth_via, client_ip or "?", ua)
+    if key in _SEEN_AUTH:
+        return
+    if len(_SEEN_AUTH) >= _SEEN_AUTH_CAP:
+        if not _seen_auth_full:
+            _seen_auth_full = True
+            import logging
+            logging.getLogger("painapple-code.auth").info(
+                "AUTH-NEW table full (%d) — further new clients not logged",
+                _SEEN_AUTH_CAP,
+            )
+        return
+    _SEEN_AUTH.add(key)
+    import logging
+    logging.getLogger("painapple-code.auth").info(
+        "AUTH-NEW via=%s client=%s ua=%r", auth_via, client_ip or "?", ua
+    )
+
+
+def _client_identity(scope) -> tuple:
+    """(client_ip, user_agent) for an ASGI scope, proxy-aware."""
+    headers = _get_headers(scope)
+    xff = headers.get(b"x-forwarded-for", b"").decode("latin1").split(",")[0].strip()
+    if not xff:
+        client = scope.get("client") or ("?", 0)
+        xff = client[0] if client else "?"
+    ua = headers.get(b"user-agent", b"").decode("latin1", "replace")
+    return xff, ua
+
+
 def _log_auth_failure(scope, path: str) -> None:
     """Log the shape (not contents) of cookies on a failing request, so we can
     correlate intermittent 401s with what the client actually sent."""
@@ -680,6 +736,13 @@ class AuthMiddleware:
             _log_auth_failure(scope, path)
             await self._send_unauth_http(scope, send)
             return
+
+        # ?dl= is a one-URL download grant, deliberately shareable outside the
+        # authed browser (iPad PWA -> Safari). Logging it would record the
+        # recipient of every copied link as an "identity", which is noise.
+        if auth_via != "dl":
+            ip, ua = _client_identity(scope)
+            record_auth_identity(auth_via, ip, ua)
 
         # CSRF/origin boundary: a state-changing request authed by an ambient
         # credential (cookie/tkn) must come from a trusted origin. Bearer/dl

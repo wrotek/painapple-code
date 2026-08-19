@@ -457,6 +457,77 @@ def test_revoke_is_csrf_gated(app, test_password):
 
 
 # ---------------------------------------------------------------------------
+# Auth-event log — observation, not enforcement
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def fresh_identity_table():
+    from painapple_code import auth_middleware as am
+    am._SEEN_AUTH.clear()
+    am._seen_auth_full = False
+    yield am
+    am._SEEN_AUTH.clear()
+    am._seen_auth_full = False
+
+
+def _identity_records(caplog):
+    return [r for r in caplog.records if r.name == "painapple-code.auth"]
+
+
+def test_identity_logged_once_per_client(fresh_identity_table, caplog):
+    """Deduped: a busy server must log once per NEW client, not once per
+    request, or the signal drowns in its own noise."""
+    import logging as _logging
+    am = fresh_identity_table
+    with caplog.at_level(_logging.INFO, logger="painapple-code.auth"):
+        am.record_auth_identity("cookie", "10.0.0.1", "UA/1")
+        am.record_auth_identity("cookie", "10.0.0.1", "UA/1")
+        am.record_auth_identity("cookie", "10.0.0.2", "UA/1")   # new IP
+        am.record_auth_identity("bearer", "10.0.0.1", "UA/1")   # new path
+    assert len(_identity_records(caplog)) == 3
+
+
+def test_identity_table_is_bounded(fresh_identity_table, caplog):
+    """A UA-randomising client must not grow this table without limit."""
+    import logging as _logging
+    am = fresh_identity_table
+    with caplog.at_level(_logging.INFO, logger="painapple-code.auth"):
+        for i in range(am._SEEN_AUTH_CAP + 50):
+            am.record_auth_identity("cookie", f"10.0.0.{i}", "UA/1")
+    assert len(am._SEEN_AUTH) == am._SEEN_AUTH_CAP
+    # cap entries + exactly one "table full" line, not 50 of them
+    assert len(_identity_records(caplog)) == am._SEEN_AUTH_CAP + 1
+
+
+def test_identity_log_carries_no_credential(app, test_password, fresh_identity_table, caplog):
+    """The whole point is that this is safe to leave on: it records how and
+    from where, never what."""
+    import logging as _logging
+    with caplog.at_level(_logging.INFO, logger="painapple-code.auth"):
+        with TestClient(app, cookies={COOKIE_NAME: client_token(test_password)}) as c:
+            c.get("/api/sessions")
+    records = _identity_records(caplog)
+    assert records, "an authenticated request should record its identity"
+    blob = " ".join(r.getMessage() for r in records)
+    assert "via=cookie" in blob
+    for secret in (test_password,
+                   client_token(test_password, "cookie"),
+                   client_token(test_password, "bearer")):
+        assert secret not in blob
+
+
+def test_download_token_grants_are_not_identities(app, test_password, fresh_identity_table, caplog):
+    """?dl= is a deliberately shareable one-URL grant (iPad PWA -> Safari).
+    Logging its recipients as identities would be noise, not signal."""
+    import logging as _logging
+    token, _ = mint_download_token(test_password, "/api/sessions")
+    with caplog.at_level(_logging.INFO, logger="painapple-code.auth"):
+        with TestClient(app) as c:
+            c.get(f"/api/sessions?dl={token}")
+    assert not _identity_records(caplog)
+
+
+# ---------------------------------------------------------------------------
 # Download tokens (?dl=) — mint/check units, endpoint, middleware integration
 # ---------------------------------------------------------------------------
 

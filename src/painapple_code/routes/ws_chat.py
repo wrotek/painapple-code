@@ -24,7 +24,12 @@ from pathlib import Path
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from painapple_code import bridge_paths
-from painapple_code.auth_middleware import check_websocket_auth, check_websocket_origin
+from painapple_code.auth_middleware import (
+    _client_identity,
+    check_websocket_auth,
+    check_websocket_origin,
+    record_auth_identity,
+)
 from painapple_code.providers import get_provider, provider_names
 from painapple_code.routes.dependencies import provider_is_locked
 from painapple_code.server_logging import log_websocket_event
@@ -82,6 +87,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
     if not cookie_token or not api_token or not check_websocket_auth(websocket, cookie_token, api_token):
         await websocket.close(code=1008, reason="unauthorized")
         return
+    record_auth_identity("ws", *_client_identity(websocket.scope))
 
     # Get client IP for logging
     client_ip = websocket.client.host if websocket.client else "unknown"
