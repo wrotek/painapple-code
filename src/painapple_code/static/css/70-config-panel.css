@@ -915,7 +915,8 @@
     font-size: var(--font-size-md);
 }
 
-.system-reset-btn {
+.system-reset-btn,
+.system-btn {
     height: var(--layout-btn-md);
     padding: var(--sp-8) var(--sp-16);
     background: var(--bg-tertiary, #252540);
@@ -928,26 +929,59 @@
     transition: all 0.15s ease;
 }
 
-.system-reset-btn:hover:not(:disabled) {
+.system-reset-btn:hover:not(:disabled),
+.system-btn:hover:not(:disabled) {
     background: var(--bg-hover, rgba(255, 255, 255, 0.1));
     border-color: var(--accent);
     color: var(--text-primary, #e0e0e0);
 }
 
-.system-reset-btn:active:not(:disabled) {
+.system-reset-btn:active:not(:disabled),
+.system-btn:active:not(:disabled) {
     transform: scale(0.97);
 }
 
-.system-reset-btn:disabled {
+.system-reset-btn:disabled,
+.system-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
 }
 
 .system-reset-btn.armed,
-.system-reset-btn.armed:hover {
+.system-reset-btn.armed:hover,
+.system-btn.armed,
+.system-btn.armed:hover {
     background: #ef4444;
     border-color: #ef4444;
     color: #fff;
+}
+
+/* Destructive account actions: tinted at rest so the blast radius reads
+   before the click, then the shared .armed rule takes over on confirm. */
+.system-btn.danger {
+    border-color: color-mix(in srgb, var(--error) 45%, var(--border-primary, #2d2d44));
+    color: var(--error);
+}
+
+.system-btn.danger:hover:not(:disabled) {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+/* Armed beats danger. Both selectors have the same specificity and .danger
+   is declared later, so without this the confirm state renders as red text
+   on the red armed fill — unreadable exactly when the label matters most. */
+.system-btn.danger.armed,
+.system-btn.danger.armed:hover {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #fff;
+}
+
+/* Account section rows carry more explanation than a typical setting, so
+   let the description wrap wide and keep the button from being squeezed. */
+#account-section .system-setting-control {
+    flex: 0 0 auto;
 }
 
 /* Restore-defaults button sits on its own row under the models list */

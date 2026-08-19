@@ -167,6 +167,10 @@ preview:
 # ============================================================
 toast:
   copied: "Copied"
+  logged_out: "Logged out of this browser"
+  revoked_browsers: "Every browser logged out"
+  revoked_scripts: "API token revoked — a new one is in the config"
+  revoke_failed: "Couldn't revoke credentials"
   terminal_unavailable: "Terminal isn't available on this server (Windows — coming with the ConPTY port)"
   terminal_unavailable_login: "No terminal on this server — run the login command in a console on the server machine"
   draft_saved: "Draft saved"
@@ -896,6 +900,24 @@ settings:
     # to the per-project toggles they set the default for.
     shadow_git_defaults: "Auto-journal Defaults"
     extra_dirs_global: "Extra Directories (Global)"
+    account: "Account & Credentials"
+  # Account / credential controls. Wording is deliberately literal about
+  # blast radius: before this panel existed there was NO logout in the app
+  # at all, and the endpoint behind "Log out" only clears the local cookie —
+  # so the label must not imply it revokes anything server-side.
+  account:
+    logout_name: "Log out of this browser"
+    logout_desc: "Clears the login cookie here. Other devices and scripts keep working."
+    logout_btn: "Log out"
+    revoke_browsers_name: "Log out everywhere"
+    revoke_browsers_desc: "Invalidates every logged-in browser, this one included. Scripts and ?tkn= links keep working."
+    revoke_browsers_btn: "Log out everywhere"
+    revoke_browsers_confirm: "Tap again to confirm"
+    revoke_scripts_name: "Revoke API token"
+    revoke_scripts_desc: "Invalidates the token used by curl, CI and ?tkn= links, and writes a fresh one to the config. Browsers stay logged in."
+    revoke_scripts_btn: "Revoke token"
+    revoke_scripts_confirm: "Tap again to confirm"
+    hint: "Your password is never sent on these paths — the browser cookie and the API token are both derived from it, and each is revoked on its own. Rotating the password itself resets everything."
   # Quick actions editor sub-sections
   qa_editor:
     preset: "Preset"

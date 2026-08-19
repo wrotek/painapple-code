@@ -522,6 +522,39 @@ function renderConfigPanel(container, context) {
 
             <!-- System tab -->
             <div class="config-section" data-section="system" ${state.activeTab !== 'system' ? 'hidden' : ''}>
+                <div class="system-section" id="account-section">
+                    <h3 class="system-section-title">${S.settings.sections.account}</h3>
+                    <div class="system-setting">
+                        <label class="system-setting-label">
+                            <span class="system-setting-name">${S.settings.account.logout_name}</span>
+                            <span class="system-setting-desc">${S.settings.account.logout_desc}</span>
+                        </label>
+                        <div class="system-setting-control">
+                            <button class="system-btn" id="account-logout">${S.settings.account.logout_btn}</button>
+                        </div>
+                    </div>
+                    <div class="system-setting">
+                        <label class="system-setting-label">
+                            <span class="system-setting-name">${S.settings.account.revoke_browsers_name}</span>
+                            <span class="system-setting-desc">${S.settings.account.revoke_browsers_desc}</span>
+                        </label>
+                        <div class="system-setting-control">
+                            <button class="system-btn danger" id="account-revoke-browsers"
+                                    data-confirm="${S.settings.account.revoke_browsers_confirm}">${S.settings.account.revoke_browsers_btn}</button>
+                        </div>
+                    </div>
+                    <div class="system-setting">
+                        <label class="system-setting-label">
+                            <span class="system-setting-name">${S.settings.account.revoke_scripts_name}</span>
+                            <span class="system-setting-desc">${S.settings.account.revoke_scripts_desc}</span>
+                        </label>
+                        <div class="system-setting-control">
+                            <button class="system-btn danger" id="account-revoke-scripts"
+                                    data-confirm="${S.settings.account.revoke_scripts_confirm}">${S.settings.account.revoke_scripts_btn}</button>
+                        </div>
+                    </div>
+                    <p class="config-hint">${S.settings.account.hint}</p>
+                </div>
                 <div class="system-section">
                     <h3 class="system-section-title">${S.settings.sections.sessions}</h3>
                     <div class="system-setting">
@@ -716,6 +749,93 @@ function attachConfigEventHandlers(container) {
         });
         resetAllBtn.addEventListener('blur', disarm);
     }
+
+    // ── Account & credentials ───────────────────────────────────────────
+    // Same two-click confirm as above, for the same reason (window.confirm
+    // silently no-ops in the iPad PWA). Factored because there are two
+    // destructive buttons here; the label swap lives in data-confirm so the
+    // strings stay in strings.yaml.
+    const armConfirm = (btn, commit) => {
+        if (!btn) return;
+        const defaultLabel = btn.textContent;
+        const confirmLabel = btn.dataset.confirm || defaultLabel;
+        let armed = false;
+        let timer = null;
+        const disarm = () => {
+            armed = false;
+            btn.classList.remove('armed');
+            btn.textContent = defaultLabel;
+            if (timer) { clearTimeout(timer); timer = null; }
+        };
+        btn.addEventListener('click', async () => {
+            if (!armed) {
+                armed = true;
+                btn.classList.add('armed');
+                btn.textContent = confirmLabel;
+                timer = setTimeout(disarm, 4000);
+                return;
+            }
+            disarm();
+            btn.disabled = true;
+            try {
+                await commit();
+            } finally {
+                btn.disabled = false;
+            }
+        });
+        btn.addEventListener('blur', disarm);
+    };
+
+    const revoke = async (scope) => {
+        const resp = await fetch(`${CONFIG.API_BASE || ''}/api/auth/revoke`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ scope }),
+        });
+        if (!resp.ok) throw new Error(`revoke ${scope} failed: ${resp.status}`);
+        return resp.json();
+    };
+
+    // Local logout is NOT armed: it's cheap and reversible (log back in), and
+    // arming it would imply a blast radius it doesn't have.
+    const logoutBtn = container.querySelector('#account-logout');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            logoutBtn.disabled = true;
+            try {
+                await fetch(`${CONFIG.API_BASE || ''}/api/logout`, { method: 'POST' });
+                showToast(S.toast.logged_out);
+                // The cookie is gone; every later request would 401 into the
+                // same redirect. Go there directly instead of letting the app
+                // discover it mid-flight.
+                window.location.replace('/login');
+            } catch (e) {
+                logoutBtn.disabled = false;
+                showToast(S.toast.revoke_failed);
+            }
+        });
+    }
+
+    armConfirm(container.querySelector('#account-revoke-browsers'), async () => {
+        try {
+            await revoke('browsers');
+            showToast(S.toast.revoked_browsers);
+            // This browser was included in "everywhere" — that's the honest
+            // semantic, so land on /login rather than pretending otherwise.
+            window.location.replace('/login');
+        } catch (e) {
+            showToast(S.toast.revoke_failed);
+        }
+    });
+
+    armConfirm(container.querySelector('#account-revoke-scripts'), async () => {
+        try {
+            await revoke('scripts');
+            showToast(S.toast.revoked_scripts);   // cookie survives; stay put
+        } catch (e) {
+            showToast(S.toast.revoke_failed);
+        }
+    });
 
     // Layout radio buttons
     container.querySelectorAll('input[name="layout"]').forEach(radio => {
