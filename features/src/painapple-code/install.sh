@@ -240,9 +240,11 @@ print_login_url() {
         sleep 0.3
     done
     [ -f "\$AUTH_CFG" ] || { echo "pAInapple Code: config not written yet — tail \$LOG"; return; }
-    pw="\$(awk '/^password:/ {print \$2}' "\$AUTH_CFG")"
+    # The api_token, not the password: ?tkn= links carry the derived,
+    # separately-revocable credential. The bridge writes it on start.
+    pw="\$(awk '/^api_token:/ {print \$2}' "\$AUTH_CFG")"
     if [ -z "\$pw" ]; then
-        echo "pAInapple Code: password missing from \$AUTH_CFG"
+        echo "pAInapple Code: api_token missing from \$AUTH_CFG"
         return
     fi
     if [ -n "\${CODESPACE_NAME:-}" ] && [ -n "\${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]; then

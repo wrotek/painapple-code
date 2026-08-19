@@ -56,6 +56,7 @@ from painapple_code.auth_middleware import (
     ensure_config_file,
     mint_download_token,
     safe_next,
+    sync_derived_config,
 )
 
 # Loggers are configured in main(), not at import. We grab the named singletons
@@ -557,8 +558,13 @@ def init_auth_state(app_: FastAPI, config_file: Optional[Path] = None) -> None:
     # moved and the password file still landed in the real user profile.
     cfg_path = config_file or (bridge_paths.CONFIG_HOME / "config.yaml")
     password, newly_created = ensure_config_file(cfg_path)
+    # Derived material (api_token + the two revocation epochs) is synced to
+    # disk here: the api_token must be readable by scripts WITHOUT the
+    # password, so it is stored rather than recomputed by every caller.
+    derived = sync_derived_config(cfg_path, password)
     app_.state.auth_password = password
-    app_.state.auth_cookie_token = derive_cookie_token(password)
+    app_.state.auth_cookie_token = derive_cookie_token(password, derived["cookie_epoch"])
+    app_.state.auth_api_token = derived["api_token"]
     app_.state.auth_config_file = str(cfg_path)
     app_.state.auth_newly_created = newly_created
     # Trusted-origin set for the HTTP/WS Origin checks. main() refines this
@@ -1983,7 +1989,10 @@ def main(argv=None):
     scheme = "https" if use_tls else "http"
     ws_scheme = "wss" if use_tls else "ws"
 
-    login_url = f"{scheme}://{args.host}:{args.port}/?tkn={app.state.auth_password}"
+    # The bootstrap link carries the derived api_token, never the password —
+    # a link is the most-shared, most-logged artifact we emit, and this one
+    # can be revoked (bump bearer_epoch) without a password rotation.
+    login_url = f"{scheme}://{args.host}:{args.port}/?tkn={app.state.auth_api_token}"
     if app.state.auth_newly_created:
         logger.warning(
             f"Auth config generated at {app.state.auth_config_file}. "

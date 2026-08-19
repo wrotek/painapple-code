@@ -213,6 +213,7 @@ def test_split_cookie_headers_merged(test_password):
     pseudo-headers; reverse proxies forward those as separate Cookie:
     headers. The auth check must see all of them, not just the last."""
     cookie_token = client_token(test_password)
+    api_token = client_token(test_password, "bearer")
     # bridge_auth in the FIRST header — naive dict() would drop it.
     scope = {
         "headers": [
@@ -222,7 +223,7 @@ def test_split_cookie_headers_merged(test_password):
         ],
         "query_string": b"",
     }
-    assert check_http_auth_detailed(scope, test_password, cookie_token) == "cookie"
+    assert check_http_auth_detailed(scope, test_password, cookie_token, api_token) == "cookie"
 
     # Same with the order swapped (sanity check the other side).
     scope["headers"] = [
@@ -230,7 +231,7 @@ def test_split_cookie_headers_merged(test_password):
         (b"cookie", b"theme=dark"),
         (b"cookie", f"{COOKIE_NAME}={cookie_token}".encode()),
     ]
-    assert check_http_auth_detailed(scope, test_password, cookie_token) == "cookie"
+    assert check_http_auth_detailed(scope, test_password, cookie_token, api_token) == "cookie"
 
 
 def test_invalid_bearer_rejected(app):
@@ -242,6 +243,153 @@ def test_invalid_bearer_rejected(app):
 def test_invalid_tkn_rejected(unauth_client):
     r = unauth_client.get("/api/sessions?tkn=wrong")
     assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# WP-02 credential separation — no request path accepts the password, and no
+# credential is interchangeable with another.
+# ---------------------------------------------------------------------------
+
+def test_password_rejected_as_bearer(app, test_password):
+    """The whole point of the derived api_token: a leaked CI secret is not
+    the master credential, so the master credential is not a CI secret."""
+    with TestClient(app) as c:
+        r = c.get("/api/sessions", headers={"Authorization": f"Bearer {test_password}"})
+    assert r.status_code == 401
+
+
+def test_password_rejected_as_tkn(unauth_client, test_password):
+    r = unauth_client.get(f"/api/sessions?tkn={test_password}")
+    assert r.status_code == 401
+
+
+def test_cookie_value_rejected_as_bearer(app, test_password):
+    """Cross-presentation: domain separation makes this fail by construction,
+    but assert it so a future refactor that unifies the info strings breaks
+    here rather than silently widening every credential's reach."""
+    cookie_value = client_token(test_password, "cookie")
+    with TestClient(app) as c:
+        r = c.get("/api/sessions", headers={"Authorization": f"Bearer {cookie_value}"})
+    assert r.status_code == 401
+
+
+def test_api_token_rejected_as_cookie(app, test_password):
+    api_token = client_token(test_password, "bearer")
+    with TestClient(app, cookies={COOKIE_NAME: api_token}) as c:
+        r = c.get("/api/sessions")
+    assert r.status_code == 401
+
+
+def test_three_credentials_are_three_distinct_values(test_password):
+    from painapple_code.auth_middleware import derive_api_token
+    cookie = derive_cookie_token(test_password)
+    api = derive_api_token(test_password)
+    assert len({test_password, cookie, api}) == 3
+    assert len(api) == 64  # hex sha256
+
+
+def test_ws_password_as_tkn_rejected(app_with_bridge, test_password):
+    """The WS upgrade is the one place ?tkn= is still the primary path for
+    non-browser clients — it must not accept the password either."""
+    client = TestClient(app_with_bridge)
+    code = _first_close_code(client, f"/chat?tkn={test_password}")
+    assert code == 1008
+
+
+# ---------------------------------------------------------------------------
+# sync_derived_config / bump_epoch — the on-disk half
+# ---------------------------------------------------------------------------
+
+def _seed_config(tmp_path, **extra):
+    from painapple_code.auth_middleware import ensure_config_file
+    cfg = tmp_path / "sub" / "config.yaml"
+    password, _ = ensure_config_file(cfg)
+    if extra:
+        data = yaml.safe_load(cfg.read_text())
+        data.update(extra)
+        cfg.write_text(yaml.safe_dump(data, sort_keys=False))
+    return cfg, password
+
+
+def test_sync_writes_token_and_epochs(tmp_path):
+    from painapple_code.auth_middleware import derive_api_token, sync_derived_config
+    cfg, password = _seed_config(tmp_path)
+    out = sync_derived_config(cfg, password)
+
+    on_disk = yaml.safe_load(cfg.read_text())
+    assert on_disk["api_token"] == derive_api_token(password, 1) == out["api_token"]
+    assert on_disk["cookie_epoch"] == 1
+    assert on_disk["bearer_epoch"] == 1
+    assert oct(cfg.stat().st_mode)[-3:] == "600"
+
+
+def test_sync_is_idempotent(tmp_path):
+    from painapple_code.auth_middleware import sync_derived_config
+    cfg, password = _seed_config(tmp_path)
+    sync_derived_config(cfg, password)
+    first = cfg.read_text()
+    sync_derived_config(cfg, password)
+    assert cfg.read_text() == first
+
+
+def test_sync_preserves_unknown_keys(tmp_path):
+    """The config is code-server-shaped and users put their own keys in it."""
+    from painapple_code.auth_middleware import sync_derived_config
+    cfg, password = _seed_config(tmp_path, **{"bind-addr": "127.0.0.1:8765"})
+    sync_derived_config(cfg, password)
+    assert yaml.safe_load(cfg.read_text())["bind-addr"] == "127.0.0.1:8765"
+
+
+def test_sync_corrects_hand_edited_token(tmp_path):
+    from painapple_code.auth_middleware import derive_api_token, sync_derived_config
+    cfg, password = _seed_config(tmp_path, api_token="i-made-this-up")
+    out = sync_derived_config(cfg, password)
+    assert out["api_token"] == derive_api_token(password, 1)
+    assert yaml.safe_load(cfg.read_text())["api_token"] == out["api_token"]
+
+
+def test_bump_cookie_epoch_spares_the_api_token(tmp_path):
+    """Log-out-everywhere must not break CI. This is the property the whole
+    epoch design exists for."""
+    from painapple_code.auth_middleware import bump_epoch, derive_cookie_token, sync_derived_config
+    cfg, password = _seed_config(tmp_path)
+    before = sync_derived_config(cfg, password)
+    after = bump_epoch(cfg, "cookie_epoch")
+
+    assert after["cookie_epoch"] == 2
+    assert derive_cookie_token(password, 2) != derive_cookie_token(password, 1)
+    assert after["api_token"] == before["api_token"]
+
+
+def test_bump_bearer_epoch_spares_the_cookie(tmp_path):
+    from painapple_code.auth_middleware import bump_epoch, derive_cookie_token, sync_derived_config
+    cfg, password = _seed_config(tmp_path)
+    before = sync_derived_config(cfg, password)
+    after = bump_epoch(cfg, "bearer_epoch")
+
+    assert after["api_token"] != before["api_token"]
+    assert derive_cookie_token(password, after["cookie_epoch"]) == \
+        derive_cookie_token(password, before["cookie_epoch"])
+
+
+def test_bump_rejects_non_epoch_key(tmp_path):
+    from painapple_code.auth_middleware import bump_epoch
+    cfg, _ = _seed_config(tmp_path)
+    with pytest.raises(ValueError):
+        bump_epoch(cfg, "password")
+
+
+def test_malformed_epoch_still_derives_and_still_revokes(tmp_path):
+    """Epochs are opaque discriminators, never parsed. A hand-typed garbage
+    value must not fall back to the default — that would be a silently
+    NON-revoking failure, the one direction this lever must never fail in."""
+    from painapple_code.auth_middleware import bump_epoch, derive_api_token, sync_derived_config
+    cfg, password = _seed_config(tmp_path, bearer_epoch="banana")
+    out = sync_derived_config(cfg, password)
+    assert out["api_token"] == derive_api_token(password, "banana")
+    assert out["api_token"] != derive_api_token(password, 1)
+    # And a bump off a malformed value still lands somewhere new.
+    assert bump_epoch(cfg, "bearer_epoch")["api_token"] != out["api_token"]
 
 
 # ---------------------------------------------------------------------------

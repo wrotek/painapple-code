@@ -42,9 +42,10 @@ docker run -d --name painapple-code \
     -v painapple-data:/data \
     wrotek/painapple-code:latest
 # Bootstrap URL — the container hides credentials from its own logs, so
-# read the generated password from its config instead:
+# read the derived API token from its config instead (?tkn= links never
+# carry the password):
 echo "http://localhost:8765/?tkn=$(docker exec painapple-code \
-    awk '/^password:/ {print $2}' /home/app/.config/painapple-code/config.yaml)"
+    awk '/^api_token:/ {print $2}' /home/app/.config/painapple-code/config.yaml)"
 ```
 
 **Image tags:**

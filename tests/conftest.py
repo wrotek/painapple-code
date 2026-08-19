@@ -34,14 +34,13 @@ def client_token(password, kind="cookie"):
     themselves (test_derived_cookie_token_differs_from_password) — those must
     call the real function, or they'd be asserting this helper against itself.
     """
-    from painapple_code.auth_middleware import derive_cookie_token
+    from painapple_code.auth_middleware import derive_api_token, derive_cookie_token
 
     if kind == "cookie":
         return derive_cookie_token(password)
     if kind in ("bearer", "tkn"):
-        # Today both paths take the literal password. WP-02 phase 1 swaps
-        # them for a derived api_token — one edit, here.
-        return password
+        # Both script paths take the derived api_token, never the password.
+        return derive_api_token(password)
     raise ValueError(f"unknown auth kind: {kind!r}")
 
 

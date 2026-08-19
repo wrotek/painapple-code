@@ -7,7 +7,14 @@ Simple code-server-style password authentication:
   key (mode 0600, parent 0700). Mirrors code-server's config.yaml layout so
   future settings (bind-addr, etc.) can land alongside it.
 - Three auth paths: cookie, ?tkn= query param, Authorization: Bearer header
-- Cookie value is HMAC-derived from password (never stored as raw password)
+- NO request path accepts the password. Every credential is HMAC-derived from
+  it, domain-separated, and independently revocable via its own epoch:
+      cookie    <- HMAC(password, "bridge-cookie-v1:<cookie_epoch>")
+      Bearer    <- HMAC(password, "bridge-api-v1:<bearer_epoch>")   [api_token]
+      ?tkn=     <- the same api_token
+  So a leaked CI secret or bootstrap link is not the master credential: it
+  cannot open the login form, and bumping bearer_epoch kills it without
+  logging out browsers. The password reaches the wire on the login form only.
 - ?tkn= bootstraps the cookie: HTML paths 302-strip, API paths inject Set-Cookie
 - WebSockets auth via cookie or ?tkn=; no HTTP-level auth
 - Fourth path, ?dl=: short-lived HMAC-signed download token bound to one exact
@@ -40,6 +47,30 @@ from painapple_code.bridge_paths import lock_mode
 COOKIE_NAME = "bridge_auth"
 COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
 COOKIE_DERIVATION_INFO = b"bridge-cookie-v1"
+API_TOKEN_DERIVATION_INFO = b"bridge-api-v1"
+
+# Config keys holding the revocation epochs. Both are treated as OPAQUE
+# discriminators, never parsed as integers here: any change to the stored
+# value changes the derived token. Coercing would introduce a silent
+# non-revoking failure mode (a malformed epoch falling back to the default
+# would leave old credentials valid), which is the one direction a
+# revocation lever must never fail in.
+COOKIE_EPOCH_KEY = "cookie_epoch"
+BEARER_EPOCH_KEY = "bearer_epoch"
+API_TOKEN_KEY = "api_token"
+DEFAULT_EPOCH = 1
+
+CONFIG_HEADER = """\
+# pAInapple Code auth config.
+#
+#   password      Master credential. Used by the login form only. Rotating it
+#                 resets every other credential below.
+#   api_token     DERIVED from password + bearer_epoch. Scripts and the
+#                 ?tkn= bootstrap link use THIS, never the password. Editing
+#                 it by hand has no effect — it is rewritten on next start.
+#   cookie_epoch  Bump to log out every browser.
+#   bearer_epoch  Bump to invalidate every script token and bootstrap link.
+"""
 
 DOWNLOAD_TOKEN_TTL = 5 * 60  # 5 minutes
 DOWNLOAD_TOKEN_INFO = b"bridge-download-v1"
@@ -90,22 +121,126 @@ def ensure_config_file(path: Path) -> tuple[str, bool]:
 
 
 def _write_config(path: Path, config: dict) -> None:
-    """Write the config dict as YAML and lock perms to 0600."""
-    path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False), encoding="utf-8")
+    """Write the config atomically as YAML and lock perms to 0600.
+
+    Atomic because this file is now rewritten on every start whose derived
+    material is stale (see sync_derived_config) rather than only at creation:
+    a crash mid-write would otherwise truncate the file holding the only copy
+    of the master credential. The temp file is created 0600 from birth, so
+    the secret is never briefly world-readable.
+    """
+    body = CONFIG_HEADER + yaml.safe_dump(config, default_flow_style=False, sort_keys=False)
+    tmp = path.with_name(f"{path.name}.tmp{os.getpid()}")
+    try:
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, body.encode("utf-8"))
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
     lock_mode(path, 0o600)
 
 
-def derive_cookie_token(password: str) -> str:
-    """Derive the cookie value from the password via HMAC-SHA256.
+def _derive(password: str, info: bytes, epoch) -> str:
+    """HMAC-SHA256(password, info:epoch) as hex.
 
-    This separates the cookie value from the password itself — compromising
-    a cookie does not reveal the password. Reversing would require brute-force.
+    The epoch is stringified, not parsed — see the note on COOKIE_EPOCH_KEY.
     """
     return hmac.new(
         password.encode("utf-8"),
-        COOKIE_DERIVATION_INFO,
+        info + b":" + str(epoch).encode("utf-8"),
         sha256,
     ).hexdigest()
+
+
+def derive_cookie_token(password: str, epoch=DEFAULT_EPOCH) -> str:
+    """Derive the browser cookie value from the password via HMAC-SHA256.
+
+    This separates the cookie value from the password itself — compromising
+    a cookie does not reveal the password. Reversing would require brute-force.
+
+    Bumping `epoch` changes every browser's expected cookie at once, which is
+    what "log out everywhere" does. It deliberately does NOT touch the API
+    token, so revoking browsers leaves scripts and CI working.
+    """
+    return _derive(password, COOKIE_DERIVATION_INFO, epoch)
+
+
+def derive_api_token(password: str, epoch=DEFAULT_EPOCH) -> str:
+    """Derive the script/automation credential (Bearer and ?tkn=).
+
+    Separate from the password so a leaked CI secret or a shared bootstrap
+    link is not the master credential: it cannot open the login form, and it
+    is revocable on its own by bumping `bearer_epoch` — without disturbing
+    browsers or forcing a password rotation.
+
+    Domain-separated from the cookie by its info string, so the two values
+    are never interchangeable (cross-presentation simply fails to compare).
+    """
+    return _derive(password, API_TOKEN_DERIVATION_INFO, epoch)
+
+
+def sync_derived_config(path: Path, password: str) -> dict:
+    """Read the epochs, recompute the API token, and persist if stale.
+
+    Returns {"api_token", "cookie_epoch", "bearer_epoch"}.
+
+    The API token has to be *readable without the password* — a script that
+    derives it itself would have to read the master credential, which defeats
+    the entire separation. So it is stored, and this keeps the stored copy
+    honest: a hand-edited or stale api_token is silently corrected on start.
+    """
+    config = {}
+    if path.exists():
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if isinstance(loaded, dict):
+            config = loaded
+
+    cookie_epoch = config.get(COOKIE_EPOCH_KEY, DEFAULT_EPOCH)
+    bearer_epoch = config.get(BEARER_EPOCH_KEY, DEFAULT_EPOCH)
+    api_token = derive_api_token(password, bearer_epoch)
+
+    desired = {
+        COOKIE_EPOCH_KEY: cookie_epoch,
+        BEARER_EPOCH_KEY: bearer_epoch,
+        API_TOKEN_KEY: api_token,
+    }
+    if any(config.get(k) != v for k, v in desired.items()):
+        # Preserve every key we don't own, and their order.
+        config.update(desired)
+        _write_config(path, config)
+
+    return {
+        "api_token": api_token,
+        "cookie_epoch": cookie_epoch,
+        "bearer_epoch": bearer_epoch,
+    }
+
+
+def bump_epoch(path: Path, key: str) -> dict:
+    """Increment one revocation epoch on disk. Returns sync_derived_config()."""
+    if key not in (COOKIE_EPOCH_KEY, BEARER_EPOCH_KEY):
+        raise ValueError(f"not a revocation epoch: {key!r}")
+    config = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(config, dict):
+        raise ValueError(f"{path}: expected a YAML mapping")
+    try:
+        current = int(config.get(key, DEFAULT_EPOCH))
+    except (TypeError, ValueError):
+        # Malformed value: restart the counter above the default rather than
+        # reusing it, so the new epoch can't collide with a historical one.
+        current = DEFAULT_EPOCH
+    config[key] = current + 1
+    _write_config(path, config)
+    password = config.get("password")
+    return sync_derived_config(path, password)
 
 
 def _download_signing_key(password: str) -> bytes:
@@ -409,10 +544,17 @@ def check_http_auth_detailed(
     scope,
     password: str,
     cookie_token: str,
+    api_token: str,
 ) -> AuthVia:
     """Check HTTP auth; return which path authed, or None.
 
     Uses hmac.compare_digest for all comparisons.
+
+    `password` is needed only to verify ?dl= download tokens (signed with a
+    key derived from it). No request path accepts the password itself —
+    Bearer and ?tkn= take `api_token`, the browser takes `cookie_token`.
+    Because the two derivations are domain-separated, presenting a cookie
+    value as a Bearer (or vice versa) simply fails to compare.
     """
     headers = _get_headers(scope)
 
@@ -428,13 +570,13 @@ def check_http_auth_detailed(
     auth_header = headers.get(b"authorization", b"").decode("latin1")
     if auth_header.lower().startswith("bearer "):
         presented = auth_header[7:].strip()
-        if presented and hmac.compare_digest(presented, password):
+        if presented and hmac.compare_digest(presented, api_token):
             return "bearer"
 
     # 3. Query ?tkn=
     query = _get_query(scope)
     presented = query.get("tkn", "")
-    if presented and hmac.compare_digest(presented, password):
+    if presented and hmac.compare_digest(presented, api_token):
         return "tkn"
 
     # 4. Query ?dl= — short-lived signed download token, bound to this URL.
@@ -450,15 +592,18 @@ def check_http_auth_detailed(
 
 def check_websocket_auth(
     websocket: WebSocket,
-    password: str,
     cookie_token: str,
+    api_token: str,
 ) -> bool:
-    """WebSocket auth via cookie or ?tkn=. No Authorization header for WS."""
+    """WebSocket auth via cookie or ?tkn=. No Authorization header for WS.
+
+    Takes no password: the upgrade accepts the derived credentials only.
+    """
     presented = websocket.cookies.get(COOKIE_NAME, "")
     if presented and hmac.compare_digest(presented, cookie_token):
         return True
     tkn = websocket.query_params.get("tkn", "")
-    if tkn and hmac.compare_digest(tkn, password):
+    if tkn and hmac.compare_digest(tkn, api_token):
         return True
     return False
 
@@ -523,13 +668,14 @@ class AuthMiddleware:
         state = scope["app"].state
         password = getattr(state, "auth_password", None)
         cookie_token = getattr(state, "auth_cookie_token", None)
+        api_token = getattr(state, "auth_api_token", None)
 
-        if password is None or cookie_token is None:
+        if password is None or cookie_token is None or api_token is None:
             # Fail-closed: if auth state isn't initialized, reject everything.
             await self._send_unauth_http(scope, send)
             return
 
-        auth_via = check_http_auth_detailed(scope, password, cookie_token)
+        auth_via = check_http_auth_detailed(scope, password, cookie_token, api_token)
         if auth_via is None:
             _log_auth_failure(scope, path)
             await self._send_unauth_http(scope, send)

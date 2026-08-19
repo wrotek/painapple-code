@@ -192,9 +192,9 @@ def _print_login_url(*logs):
                 if b:
                     bare = b.group(0).rstrip("/")
     if bare:
-        from painapple_code.cli.manage_cmd import _host_password_value
-        pw = _host_password_value()
-        url = f"{bare}/?tkn={pw}" if pw else f"{bare}/"
+        from painapple_code.cli.manage_cmd import _host_token_value
+        token = _host_token_value()
+        url = f"{bare}/?tkn={token}" if token else f"{bare}/"
         say(f"  {BOLD}Log in:{RESET} {BOLD}{GREEN}{url}{RESET}")
 
 

@@ -4,19 +4,30 @@ A practical scripting reference for pAInapple Code's HTTP endpoints and WebSocke
 
 ## Authentication for scripts
 
-Every endpoint requires the server password. The public allowlist is exactly `/login`, `/api/login`, `/api/logout`, `/health`, `/sw.js`, `/manifest.json`, `/static/css/login.css`, and anything under the `/instance-icons/` prefix. **All `OPTIONS` requests** also bypass auth, so CORS preflight works.
+Every endpoint requires a credential. The public allowlist is exactly `/login`, `/api/login`, `/api/logout`, `/health`, `/sw.js`, `/manifest.json`, `/static/css/login.css`, and anything under the `/instance-icons/` prefix. **All `OPTIONS` requests** also bypass auth, so CORS preflight works.
 
-For scripts and `curl`, send the password as a Bearer token — it lives in `~/.config/painapple-code/config.yaml`:
+Scripts authenticate with the **API token**, not the password. Both live in `~/.config/painapple-code/config.yaml`:
 
 ```bash
 # Liveness check — no auth required
 curl http://localhost:8765/health
 
 # Authenticated request — credential on stdin, never in argv
-TOKEN=$(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)
+TOKEN=$(awk '/^api_token:/ {print $2}' ~/.config/painapple-code/config.yaml)
 printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" |
     curl -sS --config - http://localhost:8765/api/welcome/projects
 ```
+
+!!! info "Why a token and not the password"
+    `api_token` is derived from your password, so it is not a second secret to
+    manage — but it is **not** the password: it can't open the login form, and
+    leaking it doesn't leak the credential everything else derives from. It's
+    also revocable on its own — bump `bearer_epoch` in the same file and every
+    script token and `?tkn=` link dies while browsers stay logged in. The
+    password is never accepted as a Bearer credential or in `?tkn=`.
+
+    The server writes `api_token` on start, so a config from an older build
+    gets one the first time you launch the new version.
 
 !!! warning "Don't put the password in `-H`"
     `curl -H "Authorization: Bearer $TOKEN"` places the secret in the process
@@ -26,7 +37,7 @@ printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" |
     stdin, so it never reaches argv. The same applies to any tool you script
     against this API.
 
-Browsers use the `bridge_auth` cookie or a one-time `?tkn=<password>` query parameter instead; the `Authorization` header is the HTTP-only path meant for scripts. See [First run & login](../getting-started/first-run.md).
+Browsers use the `bridge_auth` cookie or a one-time `?tkn=<api_token>` query parameter instead; the `Authorization` header is the HTTP-only path meant for scripts. See [First run & login](../getting-started/first-run.md).
 
 !!! warning "`?tkn=` won't work for writes — use Bearer in scripts"
     `POST`, `PUT`, `DELETE` and `PATCH` requests authenticated by an **ambient** credential (the cookie or `?tkn=`) must also pass the [Origin/CSRF gate](server-cli.md#origincsrf-boundary), or they're rejected with `403 {"error":"origin_forbidden"}`. `curl` sends no `Origin`/`Sec-Fetch-Site`, so `curl -X POST '…?tkn=…'` fails while the identical `GET` succeeds. `Authorization: Bearer` sets its credential explicitly and is exempt from the gate — that's the header scripts should use.
@@ -146,7 +157,7 @@ Each session gets its own persistent PTY that survives disconnects; `cwd` is onl
 ```bash
 shadow-query() {
   printf 'header = "Authorization: Bearer %s"\n' \
-    "$(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)" |
+    "$(awk '/^api_token:/ {print $2}' ~/.config/painapple-code/config.yaml)" |
   curl -sS --config - -X POST "${BRIDGE_URL:-http://localhost:8765}/api/shadow-db/sql?format=tsv" \
     -H "Content-Type: text/plain" --data-binary "$1"
 }

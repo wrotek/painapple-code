@@ -109,15 +109,31 @@ def _auth_config_path():
                                "~/.config")).expanduser() / "painapple-code" / "config.yaml"
 
 
-def _host_password_value():
+def _host_config_value(key):
+    """Read one scalar out of the auth config without importing YAML."""
     path = _auth_config_path()
+    prefix = f"{key}:"
     try:
         for line in path.read_text(encoding="utf-8").splitlines():
-            if line.startswith("password:"):
+            if line.startswith(prefix):
                 return line.split(":", 1)[1].strip()
     except OSError:
         pass
     return ""
+
+
+def _host_password_value():
+    return _host_config_value("password")
+
+
+def _host_token_value():
+    """The derived api_token — what ?tkn= links and scripts use.
+
+    Empty on a config written by a pre-WP-02 build (or before the server has
+    started once); callers fall back to the bare URL rather than pasting the
+    password into a link.
+    """
+    return _host_config_value("api_token")
 
 
 def _host_urls(vals):
@@ -139,12 +155,17 @@ def _host_password(vals, label):
             f"Has the bridge ever started?  ({start})",
             None if label else
             f"  {DIM}Running it containerized?  painapple password --in-docker{RESET}")
+    token = _host_token_value()
     label_prefix = f"{BOLD}URL:{RESET}      "
     for url in _host_urls(vals):
-        say(f"{label_prefix}{url}/?tkn={pw}")
+        say(f"{label_prefix}{url}/?tkn={token}" if token else f"{label_prefix}{url}/")
         label_prefix = "          "
     say(f"{BOLD}Password:{RESET} {pw}")
+    if token:
+        say(f"{BOLD}API token:{RESET} {token}")
     say(f"{DIM}  Open the URL once; the cookie keeps you logged in after that.{RESET}")
+    if token:
+        say(f"{DIM}  Scripts use the API token (Bearer / ?tkn=), never the password.{RESET}")
     return 0
 
 

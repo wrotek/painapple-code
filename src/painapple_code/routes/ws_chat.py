@@ -77,9 +77,9 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
     if not check_websocket_origin(websocket, getattr(state, "allowed_origins", None)):
         await websocket.close(code=1008, reason="forbidden origin")
         return
-    password = getattr(state, "auth_password", None)
     cookie_token = getattr(state, "auth_cookie_token", None)
-    if not password or not cookie_token or not check_websocket_auth(websocket, password, cookie_token):
+    api_token = getattr(state, "auth_api_token", None)
+    if not cookie_token or not api_token or not check_websocket_auth(websocket, cookie_token, api_token):
         await websocket.close(code=1008, reason="unauthorized")
         return
 

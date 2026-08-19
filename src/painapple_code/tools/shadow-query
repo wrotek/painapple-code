@@ -24,11 +24,14 @@
 # Environment:
 #   BRIDGE_URL       Bridge base URL (default http://localhost:8765)
 #                    Dev:  BRIDGE_URL=http://localhost:8880 shadow-query '...'
-#   BRIDGE_PASSWORD  Auth token override; otherwise read from config.yaml.
+#   BRIDGE_TOKEN     API token override; otherwise read from config.yaml.
+#                    (BRIDGE_PASSWORD is accepted as a deprecated alias.)
 #
 # Auth:
-#   Reads `password:` from ~/.config/painapple-code/config.yaml when
-#   BRIDGE_PASSWORD is unset.
+#   Reads `api_token:` from ~/.config/painapple-code/config.yaml when
+#   BRIDGE_TOKEN is unset. That token is derived from the password and
+#   is separately revocable (bump `bearer_epoch` in the same file); the
+#   password itself is not accepted on this endpoint.
 
 set -euo pipefail
 
@@ -86,18 +89,24 @@ fi
 bridge_url="${BRIDGE_URL:-$BRIDGE_URL_DEFAULT}"
 bridge_url="${bridge_url%/}"
 
-if [ -n "${BRIDGE_PASSWORD:-}" ]; then
-    password="$BRIDGE_PASSWORD"
+if [ -n "${BRIDGE_TOKEN:-}" ]; then
+    token="$BRIDGE_TOKEN"
+elif [ -n "${BRIDGE_PASSWORD:-}" ]; then
+    # Deprecated spelling. The value it wants is the api_token, not the
+    # password — the bridge stopped accepting the password as a Bearer
+    # credential, so a literal password here will 401.
+    token="$BRIDGE_PASSWORD"
 elif [ -r "$CONFIG_FILE" ]; then
-    password="$(awk '/^password:/ {print $2; exit}' "$CONFIG_FILE" 2>/dev/null || true)"
-    if [ -z "$password" ]; then
-        echo "shadow-query: could not extract password from $CONFIG_FILE" >&2
-        echo "shadow-query: file is missing a 'password:' line" >&2
+    token="$(awk '/^api_token:/ {print $2; exit}' "$CONFIG_FILE" 2>/dev/null || true)"
+    if [ -z "$token" ]; then
+        echo "shadow-query: no 'api_token:' line in $CONFIG_FILE" >&2
+        echo "shadow-query: start the bridge once — it derives and writes the token." >&2
+        echo "shadow-query: (the password is NOT accepted as a Bearer credential)" >&2
         exit 1
     fi
 else
-    echo "shadow-query: no password available" >&2
-    echo "shadow-query: set BRIDGE_PASSWORD or ensure $CONFIG_FILE is readable" >&2
+    echo "shadow-query: no API token available" >&2
+    echo "shadow-query: set BRIDGE_TOKEN or ensure $CONFIG_FILE is readable" >&2
     exit 1
 fi
 
@@ -107,7 +116,7 @@ fi
 # strictly WIDER exposure than the 0600 config file the secret came from.
 # curl's --config accepts the same header from a file, and `-` means stdin.
 # (In `-` mode stdin was already drained by $(cat) above, so it's free here.)
-escaped=${password//\\/\\\\}
+escaped=${token//\\/\\\\}
 escaped=${escaped//\"/\\\"}
 
 printf 'header = "Authorization: Bearer %s"\n' "$escaped" | curl -sS --fail-with-body \

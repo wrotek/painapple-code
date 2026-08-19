@@ -84,6 +84,22 @@ def test_bearer_foreign_origin_exempt(client):
     assert r.status_code == 200
 
 
+def test_tkn_stays_ambient_after_credential_split(app, test_password):
+    """?tkn= carries a derived api_token now, not the password — but it still
+    rides in a URL a browser can be induced to load, so it must stay in
+    AMBIENT_AUTH and keep the Origin gate.
+
+    The tempting cleanup ("it's an explicit token now, exempt it like Bearer")
+    would silently drop CSRF protection from an entire auth path. This test is
+    the tripwire for that refactor.
+    """
+    tkn = client_token(test_password, "tkn")
+    c = TestClient(app)
+    r = c.post(f"/api/exec?tkn={tkn}", json={"command": "echo t"},
+               headers={"Origin": "http://evil.example"})
+    assert r.status_code == 403
+
+
 def test_safe_method_not_origin_checked(app, test_password):
     c = _cookie_client(app, test_password)
     # GET on a POST-only route -> 405, proving the CSRF gate (403) did not fire

@@ -68,35 +68,53 @@ def listen_scope(cfg):
 
 # ──── Password (reads the bridge's config volume) ────────────────────────
 
-def _password_from_yaml(text):
+def _scalar_from_yaml(text, key="password"):
+    prefix = f"{key}:"
     for line in text.splitlines():
-        if line.startswith("password:"):
+        if line.startswith(prefix):
             return line.split(":", 1)[1].strip()
     return ""
 
 
-def get_password(cfg, rt):
+def _password_from_yaml(text):
+    return _scalar_from_yaml(text, "password")
+
+
+def _read_auth_config(cfg, rt):
+    """Raw text of the container's auth config, or "" if unreachable."""
     if cfg.config_is_bind():
         f = Path(cfg.config_volume) / "config.yaml"
         try:
-            return _password_from_yaml(f.read_text(encoding="utf-8")) if f.is_file() else ""
+            return f.read_text(encoding="utf-8") if f.is_file() else ""
         except OSError:
             return ""
     if rt.container_running(cfg.container):
         out = rt.output("exec", cfg.container, "sh", "-c",
                         "cat /home/app/.config/painapple-code/config.yaml 2>/dev/null")
-        pw = _password_from_yaml(out)
-        if pw:
-            return pw
+        if _password_from_yaml(out):
+            return out
     if rt.volume_exists(cfg.config_volume):
-        out = rt.output("run", "--rm", "--entrypoint", "sh",
-                        "-v", f"{cfg.config_volume}:/cfg:ro", cfg.image,
-                        "-c", "cat /cfg/config.yaml 2>/dev/null")
-        return _password_from_yaml(out)
+        return rt.output("run", "--rm", "--entrypoint", "sh",
+                         "-v", f"{cfg.config_volume}:/cfg:ro", cfg.image,
+                         "-c", "cat /cfg/config.yaml 2>/dev/null")
     return ""
 
 
-def print_bootstrap_url(cfg, pw, profile=None, raw_tty=False):
+def get_password(cfg, rt):
+    return _password_from_yaml(_read_auth_config(cfg, rt))
+
+
+def get_credentials(cfg, rt):
+    """(password, api_token) in one read of the container's auth config.
+
+    api_token is "" on a config written by a pre-WP-02 build; callers fall
+    back to a bare URL rather than putting the password in a link.
+    """
+    text = _read_auth_config(cfg, rt)
+    return _scalar_from_yaml(text, "password"), _scalar_from_yaml(text, "api_token")
+
+
+def print_bootstrap_url(cfg, pw, profile=None, raw_tty=False, token=None):
     """The clickable ?tkn= URL block shown after a start / password.
 
     raw_tty: when printing around an attached `docker run -it` the TTY
@@ -107,8 +125,10 @@ def print_bootstrap_url(cfg, pw, profile=None, raw_tty=False):
     nl = "\r\n" if raw_tty else "\n"
     out = [""]
     out.append(f"{GREEN}✓{RESET} Open this URL once (cookie keeps you logged in):")
+    link = token or ""
     for host in bootstrap_hosts(cfg):
-        out.append(f"    {BOLD}{scheme}://{host}:{cfg.port}/?tkn={pw}{RESET}")
+        base = f"{scheme}://{host}:{cfg.port}/"
+        out.append(f"    {BOLD}{base}?tkn={link}{RESET}" if link else f"    {BOLD}{base}{RESET}")
     out.append(f"    {BOLD}Password: {pw}{RESET}")
     out.append(f"{DIM}    Reveal again later with:  {hint('password', profile)}{RESET}")
     sys.stdout.write(nl.join(out) + nl)
@@ -563,7 +583,8 @@ def run_container(cfg, detach, profile=None):
         info("Waiting for the bridge to write its auth config…")
         pw, trouble = _wait_for_password(cfg, rt, watch=True)
         if pw:
-            print_bootstrap_url(cfg, pw, profile=profile)
+            print_bootstrap_url(cfg, pw, profile=profile,
+                               token=get_credentials(cfg, rt)[1])
         elif trouble:
             err(f"{cfg.container} didn't come up — {trouble}. Last output:")
             _tail_container_logs(cfg, rt)
@@ -581,7 +602,8 @@ def run_container(cfg, detach, profile=None):
         pw, _trouble = _wait_for_password(cfg, rt)
         if pw:
             time.sleep(0.5)  # let the bridge banner finish printing
-            print_bootstrap_url(cfg, pw, profile=profile, raw_tty=True)
+            print_bootstrap_url(cfg, pw, profile=profile, raw_tty=True,
+                               token=get_credentials(cfg, rt)[1])
 
     threading.Thread(target=_poll_and_print, daemon=True).start()
     result = rt.run(*argv)
@@ -647,12 +669,18 @@ def cmd_password(cfg, profile=None):
         die(f"No password found. Has the bridge ever started?  "
             f"({hint('start', profile)})")
     scheme = "https" if cfg.effective_tls() == "on" else "http"
+    _, token = get_credentials(cfg, rt)
     label = f"{BOLD}URL:{RESET}      "
     for host in bootstrap_hosts(cfg):
-        say(f"{label}{scheme}://{host}:{cfg.port}/?tkn={pw}")
+        base = f"{scheme}://{host}:{cfg.port}/"
+        say(f"{label}{base}?tkn={token}" if token else f"{label}{base}")
         label = "          "
     say(f"{BOLD}Password:{RESET} {pw}")
+    if token:
+        say(f"{BOLD}API token:{RESET} {token}")
     say(f"{DIM}  Open the URL once; the cookie keeps you logged in after that.{RESET}")
+    if token:
+        say(f"{DIM}  Scripts use the API token (Bearer / ?tkn=), never the password.{RESET}")
     return 0
 
 

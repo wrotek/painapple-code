@@ -10,7 +10,7 @@ The password lives in a config file at `~/.config/painapple-code/config.yaml` (m
 password: <generated-token>
 ```
 
-On a **loopback bind** (the default `127.0.0.1`) every start logs a **login URL** with the password embedded as `?tkn=…` — on the very first run it's flagged as newly generated:
+On a **loopback bind** (the default `127.0.0.1`) every start logs a **login URL** with the derived API token embedded as `?tkn=…` — on the very first run it's flagged as newly generated:
 
 ```
 Auth config generated at ~/.config/painapple-code/config.yaml. Log in once via: http://127.0.0.1:8765/?tkn=…
@@ -53,15 +53,17 @@ Three auth paths are accepted:
 | Path | Works for | Notes |
 |------|-----------|-------|
 | Cookie `bridge_auth=<HMAC-derived-token>` | HTTP + WebSocket | Set automatically after your first login; lasts 30 days |
-| Query `?tkn=<password>` | HTTP + WebSocket | On HTTP, the middleware issues a `Set-Cookie` (and redirects HTML pages to strip the token from the URL), so follow-up requests don't need it |
-| Header `Authorization: Bearer <password>` | HTTP only | For `curl` and scripts |
+| Query `?tkn=<api_token>` | HTTP + WebSocket | On HTTP, the middleware issues a `Set-Cookie` (and redirects HTML pages to strip the token from the URL), so follow-up requests don't need it |
+| Header `Authorization: Bearer <api_token>` | HTTP only | For `curl` and scripts |
 
 So in practice: open the login URL once, the cookie takes over, and you stay logged in. If you land on a page without auth, you're redirected to `/login`, where you can paste the password instead.
+
+`api_token` is derived from the password and written into the same config file on start. Scripts and `?tkn=` links use it so that **the password itself never travels** — and so a shared link or a CI secret can be revoked on its own by bumping `bearer_epoch`, without logging your browsers out. Bumping `cookie_epoch` does the reverse: every browser is logged out, scripts keep working.
 
 ```bash
 # Scripting example — the credential goes in on stdin, not the command line
 printf 'header = "Authorization: Bearer %s"\n' \
-    "$(awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml)" |
+    "$(awk '/^api_token:/ {print $2}' ~/.config/painapple-code/config.yaml)" |
     curl -sS --config - http://localhost:8765/api/welcome/projects
 ```
 
