@@ -9,11 +9,12 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from painapple_code.auth_middleware import COOKIE_NAME, derive_cookie_token
+from conftest import client_token
+from painapple_code.auth_middleware import COOKIE_NAME
 
 
 def _cookie_client(app, pw):
-    return TestClient(app, cookies={COOKIE_NAME: derive_cookie_token(pw)})
+    return TestClient(app, cookies={COOKIE_NAME: client_token(pw, "cookie")})
 
 
 # ---------------------------------------------------------------------------

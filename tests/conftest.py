@@ -22,6 +22,40 @@ collect_ignore = ["test_cli_compat.py"]
 TEST_PASSWORD = "unit-test-password-do-not-reuse"
 
 
+def client_token(password, kind="cookie"):
+    """The credential value a client presents on a given auth path.
+
+    Single source of truth for "what does a valid cookie / bearer / tkn look
+    like". Every test that needs to construct one goes through here, so a
+    change to the derivation lands in this function instead of a dozen
+    scattered assertions.
+
+    Deliberately NOT used by tests that exercise the derivation primitives
+    themselves (test_derived_cookie_token_differs_from_password) — those must
+    call the real function, or they'd be asserting this helper against itself.
+    """
+    from painapple_code.auth_middleware import derive_cookie_token
+
+    if kind == "cookie":
+        return derive_cookie_token(password)
+    if kind in ("bearer", "tkn"):
+        # Today both paths take the literal password. WP-02 phase 1 swaps
+        # them for a derived api_token — one edit, here.
+        return password
+    raise ValueError(f"unknown auth kind: {kind!r}")
+
+
+@pytest.fixture
+def auth_token(test_password):
+    """Fixture wrapper around client_token(), bound to the test password.
+
+    Usage: auth_token() -> cookie value; auth_token("tkn") -> tkn value.
+    """
+    def _token(kind="cookie", password=None):
+        return client_token(test_password if password is None else password, kind)
+    return _token
+
+
 @pytest.fixture
 def test_config_file(tmp_path):
     """Per-test YAML config under tmp_path. Returns the Path."""
@@ -64,4 +98,5 @@ def client(app, test_password):
     leak a Set-Cookie header — tests that need cookie auth use a raw client
     and call /api/login (or inject the derived cookie directly)."""
     from fastapi.testclient import TestClient
-    return TestClient(app, headers={"Authorization": f"Bearer {test_password}"})
+    bearer = client_token(test_password, "bearer")
+    return TestClient(app, headers={"Authorization": f"Bearer {bearer}"})

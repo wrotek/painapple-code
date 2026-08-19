@@ -13,6 +13,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+from conftest import client_token
 from painapple_code.auth_middleware import (
     COOKIE_NAME,
     check_download_token,
@@ -160,7 +161,7 @@ def test_no_auth_401_for_static_js(unauth_client):
 
 
 def test_cookie_auth_accepts(app, test_password):
-    cookie_token = derive_cookie_token(test_password)
+    cookie_token = client_token(test_password)
     with TestClient(app, cookies={COOKIE_NAME: cookie_token}) as c:
         r = c.get("/api/sessions")
     assert r.status_code == 200
@@ -175,26 +176,30 @@ def test_bearer_auth_accepts_no_cookie_set(client):
 
 
 def test_tkn_on_api_accepts_and_sets_cookie(unauth_client, test_password):
-    r = unauth_client.get(f"/api/sessions?tkn={test_password}")
+    r = unauth_client.get(f"/api/sessions?tkn={client_token(test_password, 'tkn')}")
     assert r.status_code == 200
     # Critical: tkn on API injects Set-Cookie via the send wrapper
     set_cookie = r.headers.get("set-cookie", "")
     assert set_cookie.startswith(f"{COOKIE_NAME}=")
-    assert derive_cookie_token(test_password) in set_cookie
+    assert client_token(test_password) in set_cookie
     # Raw password must not appear in the cookie value
     assert test_password not in set_cookie
 
 
 def test_tkn_on_html_redirects_to_strip(unauth_client, test_password):
-    r = unauth_client.get(f"/app?tkn={test_password}", follow_redirects=False)
+    r = unauth_client.get(f"/app?tkn={client_token(test_password, 'tkn')}", follow_redirects=False)
     assert r.status_code == 302
     assert r.headers["location"] == "/app"
-    assert derive_cookie_token(test_password) in r.headers.get("set-cookie", "")
+    assert client_token(test_password) in r.headers.get("set-cookie", "")
 
 
-def test_tkn_value_is_password_cookie_value_is_derived_token(app, test_password):
-    """The tkn= query value and the cookie value are NOT the same string."""
-    assert test_password != derive_cookie_token(test_password)
+def test_tkn_value_and_cookie_value_are_distinct(app, test_password):
+    """The tkn= query value and the cookie value are NOT the same string.
+
+    Phrased through client_token so it keeps asserting the real invariant
+    after WP-02 phase 1 swaps tkn from the password to a derived api_token.
+    """
+    assert client_token(test_password, "tkn") != client_token(test_password, "cookie")
 
 
 def test_invalid_cookie_rejected(app):
@@ -207,7 +212,7 @@ def test_split_cookie_headers_merged(test_password):
     """iPadOS WebKit over HTTP/2 splits cookies into multiple :cookie
     pseudo-headers; reverse proxies forward those as separate Cookie:
     headers. The auth check must see all of them, not just the last."""
-    cookie_token = derive_cookie_token(test_password)
+    cookie_token = client_token(test_password)
     # bridge_auth in the FIRST header — naive dict() would drop it.
     scope = {
         "headers": [
@@ -366,12 +371,12 @@ def test_secure_cookie_via_forwarded_proto(app, test_password):
     # use separate clients for the two probes — otherwise the second one
     # presents the cookie from the first and skips the tkn branch entirely.
     with TestClient(app) as c:
-        r = c.get(f"/api/sessions?tkn={test_password}")
+        r = c.get(f"/api/sessions?tkn={client_token(test_password, 'tkn')}")
     assert "Secure" not in r.headers.get("set-cookie", "")
 
     with TestClient(app) as c:
         r = c.get(
-            f"/api/sessions?tkn={test_password}",
+            f"/api/sessions?tkn={client_token(test_password, 'tkn')}",
             headers={"X-Forwarded-Proto": "https"},
         )
     assert "Secure" in r.headers.get("set-cookie", "")
@@ -426,7 +431,7 @@ def test_login_sets_cookie_with_derived_token(unauth_client, test_password):
     )
     assert r.status_code == 200
     cookie = r.headers.get("set-cookie", "")
-    assert derive_cookie_token(test_password) in cookie
+    assert client_token(test_password) in cookie
     assert test_password not in cookie  # must never leak raw password
     assert "HttpOnly" in cookie
     assert "samesite=lax" in cookie.lower()
@@ -540,12 +545,12 @@ def test_ws_authed_via_tkn_not_1008(app_with_bridge, test_password):
     1008 — that's the auth-specific reject code.
     """
     client = TestClient(app_with_bridge)
-    code = _first_close_code(client, f"/chat?tkn={test_password}")
+    code = _first_close_code(client, f"/chat?tkn={client_token(test_password, 'tkn')}")
     assert code != 1008, f"unexpected auth rejection, got close code {code}"
 
 
 def test_ws_authed_via_cookie_not_1008(app_with_bridge, test_password):
-    cookie_token = derive_cookie_token(test_password)
+    cookie_token = client_token(test_password)
     client = TestClient(app_with_bridge, cookies={COOKIE_NAME: cookie_token})
     code = _first_close_code(client, "/chat")
     assert code != 1008, f"unexpected auth rejection, got close code {code}"
@@ -553,7 +558,7 @@ def test_ws_authed_via_cookie_not_1008(app_with_bridge, test_password):
 
 def test_ws_terminal_authed_via_tkn_not_1008(app_with_bridge, test_password):
     client = TestClient(app_with_bridge)
-    code = _first_close_code(client, f"/ws/terminal?tkn={test_password}")
+    code = _first_close_code(client, f"/ws/terminal?tkn={client_token(test_password, 'tkn')}")
     assert code != 1008, f"unexpected auth rejection, got close code {code}"
 
 
