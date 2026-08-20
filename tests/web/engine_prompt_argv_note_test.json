@@ -12,7 +12,7 @@
   "steps": [
     {
       "action": "navigate",
-      "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}"
+      "url": "{{BASE}}/app?tkn={{TKN}}"
     },
     {
       "action": "waitFor",

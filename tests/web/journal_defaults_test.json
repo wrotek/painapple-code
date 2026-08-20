@@ -7,7 +7,7 @@
     "viewport": { "width": 1366, "height": 900 }
   },
   "steps": [
-    { "action": "navigate", "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}" },
+    { "action": "navigate", "url": "{{BASE}}/app?tkn={{TKN}}" },
     { "action": "waitFor", "selector": "#app", "timeout": 10000 },
     { "action": "delay", "ms": 3500 },
     {

@@ -3,7 +3,7 @@
   "description": "The Auto-journal widget and Settings must speak one name (Auto-journal, never Shadow Git), and the widget itself must expose the global 'new projects' default so users need not detour into Settings.",
   "config": { "browser": "chromium", "headless": true, "viewport": { "width": 1366, "height": 950 } },
   "steps": [
-    { "action": "navigate", "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}" },
+    { "action": "navigate", "url": "{{BASE}}/app?tkn={{TKN}}" },
     { "action": "waitFor", "selector": "#app", "timeout": 10000 },
     { "action": "delay", "ms": 3500 },
     { "action": "execute", "script": "(() => { document.getElementById('status-helpers').click(); return 'x'; })()" },
