@@ -87,9 +87,37 @@ terminal API, but agent sessions, `/api/exec`, and the render helpers spawn
 processes without registering them. A process orphaned by a crash may
 therefore not be visible or reapable through the registry.
 
-Impact is a resource leak on a machine the user already controls, not a
-privilege boundary. **Revisit if** the bridge ever runs processes on behalf
-of someone other than its own OS user.
+Impact is a resource leak on a machine the user already controls.
+**Revisit if** the bridge ever runs processes on behalf of someone other
+than its own OS user. (This entry is about *tracking* only — for what a
+child process exposes while it runs, see the next item.)
+
+### Prompts reach `ps` on the `codex` engine
+
+`codex exec` accepts its prompt only as a command-line argument; it has no
+stdin protocol. On a session bound to the **`codex`** engine, each turn's
+prompt — and the background summary fork's prompt — is visible in `ps` and
+in `/proc/<pid>/cmdline`, which is world-readable on Linux, for as long as
+that turn runs. Prompts routinely carry source code, file paths, and
+whatever was pasted in.
+
+The bridge cannot route around this; the constraint is the CLI's argument
+interface. The other three engines pass prompts over stdio and are
+unaffected — including both engines enabled by default (`claude-sdk` and
+`codex-app-server`). `codex` is off by default and must be turned on
+explicitly in Settings → Engines.
+
+Accepted because reading it requires a second local account on the same
+host, which the deployment model above already tells you not to have. Note
+that commands you run yourself — the terminal, `!bang` commands,
+`/api/exec` — appear in `ps` like any shell command; the surprise here is
+specific to *prompts*, which a user has no reason to expect on a command
+line.
+
+**This stops being acceptable if** you enable `codex` on a machine with
+other accounts. Prefer `codex-app-server`, the default Codex engine, which
+keeps prompts off the command line. On Linux, mounting `/proc` with
+`hidepid=2` closes it for every process, not just this one.
 
 ### Windows support is smoke-tested only
 
