@@ -80,6 +80,15 @@ class Capabilities:
     # on nack/timeout callers fall back to the kill+respawn path, so a failed
     # control is never worse than not having the capability at all.
     live_controls: bool = False
+    # The turn's prompt reaches the CLI as a command-line ARGUMENT rather than
+    # over stdin/stdio, so it sits in `ps` and `/proc/<pid>/cmdline` — readable
+    # by every other local account — for as long as the turn runs. Declared, not
+    # inferred: `persistent_process=False` happens to imply it today, but the two
+    # are independent (a long-lived process can still take its first prompt in
+    # argv, and an ephemeral one can read stdin). Surfaced through `describe()`
+    # so Settings → Engines can warn at the point of choice; see SECURITY.md
+    # "Prompts reach `ps` on the `codex` engine".
+    prompt_in_argv: bool = False
 
 
 @dataclass

@@ -73,6 +73,11 @@ class CodexProvider(
         rich_commit_summaries=True,
         persistent_process=False,  # one `codex exec` per turn
         forward_plain_stderr=False,  # codex prints human progress to stderr
+        # `codex exec` has no stdin protocol — frame_input() raises to say so —
+        # so build_command appends the prompt as a positional arg. Nothing here
+        # can route around it; the sibling codex-app-server driver speaks stdio
+        # and is the engine to prefer on a shared host.
+        prompt_in_argv=True,
     )
 
 

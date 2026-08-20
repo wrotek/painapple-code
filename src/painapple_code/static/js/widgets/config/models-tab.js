@@ -185,10 +185,17 @@ function renderEnginesList(listEl) {
         const makeDefault = (!isDefault && !_tab.pinned && p.available)
             ? `<button type="button" class="engine-row-make-default" data-engine="${p.name}">${S.settings.hints.engines_make_default}</button>`
             : '';
+        // Engines self-declare traits worth knowing BEFORE the toggle. Driven
+        // off the capability, never off a provider name, so a drop-in engine
+        // with the same shape gets the same warning for free.
+        const note = p.capabilities?.prompt_in_argv
+            ? `<span class="engine-row-note">${escapeHtml(S.settings.hints.engines_prompt_in_argv)}</span>`
+            : '';
         return `<div class="engine-row${p.available ? '' : ' unavailable'}">
             <label class="engine-row-label">
                 <span class="engine-row-name">${escapeHtml(p.display_name)}${tag}</span>
                 <span class="engine-row-desc">${escapeHtml(desc)}</span>
+                ${note}
             </label>
             ${makeDefault}
             <input type="checkbox" class="engine-row-toggle" data-engine="${p.name}"

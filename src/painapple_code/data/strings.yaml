@@ -1083,6 +1083,7 @@ settings:
     engines_default_locked: "Default engine for new sessions — always available"
     engines_make_default: "Make default"
     engines_default_pinned: "The --default-provider server flag pins the default engine — changes apply after a restart without the flag."
+    engines_prompt_in_argv: "Prompts are passed on the command line, so other accounts on this machine can read them from the process list while a turn runs. Fine on a machine only you use."
     engine_path_hint: "Command or absolute path for this engine's CLI. Leave empty to use \"{binary}\" from PATH."
     engine_path_save: "Save"
     engine_path_reset: "Reset"

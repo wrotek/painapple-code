@@ -1,0 +1,61 @@
+{
+  "name": "Engines tab warns where prompts ride in argv (WP-07)",
+  "description": "SECURITY.md documents that `codex exec` passes each prompt as a command-line argument, so it lands in ps/proc for every local account. A doc only helps someone who reads it; the toggle that turns the engine on is in Settings → Engines. Asserts the warning renders on exactly the engines that declare the trait, that it is driven by the self-described capability rather than a hardcoded provider name, that its text comes from strings.yaml, and that neither default-enabled engine carries it.",
+  "config": {
+    "browser": "chromium",
+    "headless": true,
+    "viewport": {
+      "width": 1366,
+      "height": 950
+    }
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app",
+      "timeout": 10000
+    },
+    {
+      "action": "delay",
+      "ms": 3500
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 1: the API self-describes the trait — only codex, and neither default-enabled engine",
+      "script": "(async () => { const r = await fetch('/api/providers'); const d = await r.json(); const rows = d.providers || d; const flagged = rows.filter(p => p.capabilities?.prompt_in_argv).map(p => p.name); const defaultsOn = rows.filter(p => p.default_enabled).map(p => p.name); const defaultsClean = defaultsOn.every(n => !flagged.includes(n)); return { flagged, defaultsOn, defaultsClean, PASS: flagged.length === 1 && flagged[0] === 'codex' && defaultsClean }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "Open Settings on the Engines tab (internally still data-tab=models)",
+      "script": "(async () => { window.WidgetManager.open('config', { tab: 'models' }); await new Promise(r=>setTimeout(r,2500)); return !!document.querySelector('#engines-list'); })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 2: exactly one engine row carries the note, and it is the codex row",
+      "script": "(() => { const rows = [...document.querySelectorAll('#engines-list .engine-row')]; const withNote = rows.filter(r => r.querySelector('.engine-row-note')); const named = withNote.map(r => r.querySelector('.engine-row-toggle')?.dataset.engine); return { totalRows: rows.length, named, PASS: rows.length >= 3 && named.length === 1 && named[0] === 'codex' }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 3: the wording comes from strings.yaml, not a JS literal",
+      "script": "(async () => { const mod = await import('/static/js/strings.js' + window.location.search.replace(/^\\?tkn=[^&]*/,'?')); const expected = mod.default.settings.hints.engines_prompt_in_argv; const shown = document.querySelector('#engines-list .engine-row-note')?.textContent.trim(); return { expected: expected?.slice(0,50), shown: shown?.slice(0,50), PASS: !!expected && shown === expected }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 4: the note sits inside the row's label, above the toggle — read before the decision, not after",
+      "script": "(() => { const row = [...document.querySelectorAll('#engines-list .engine-row')].find(r => r.querySelector('.engine-row-note')); const note = row.querySelector('.engine-row-note'); const inLabel = !!note.closest('.engine-row-label'); const visible = note.offsetHeight > 0 && getComputedStyle(note).display !== 'none'; return { inLabel, visible, PASS: inLabel && visible }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 5: the note is NOT keyed off a provider name anywhere in the tab source",
+      "script": "(async () => { const r = await fetch('/static/js/widgets/config/models-tab.js' + window.location.search.replace(/^\\?tkn=[^&]*/,'?')); const src = await r.text(); const hardcoded = /['\\\"]codex['\\\"]/.test(src); return { hardcoded, PASS: !hardcoded }; })()"
+    },
+    {
+      "action": "screenshot",
+      "name": "engines-tab-argv-note"
+    }
+  ]
+}

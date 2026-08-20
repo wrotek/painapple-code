@@ -1147,6 +1147,19 @@
     color: var(--text-muted);
 }
 
+/* Engine trait worth knowing before the toggle (e.g. prompts in argv).
+   Muted-warning, not alarm: these are documented, accepted properties of a
+   working engine, not faults. Left rule instead of an icon so it reads as an
+   aside rather than an error, and stays legible with no color perception. */
+.engine-row-note {
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    border-left: 2px solid var(--warning);
+    padding-left: var(--sp-6);
+    margin-top: var(--sp-2);
+    line-height: 1.4;
+}
+
 .engine-row-toggle {
     flex: none;
 }
