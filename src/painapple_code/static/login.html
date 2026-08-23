@@ -14,7 +14,13 @@
         <div class="login-card">
             <h1 class="login-title">pAInapple Code</h1>
             <p class="login-subtitle">Sign in to continue</p>
-            <form id="login-form" novalidate>
+            <!-- method="post" is defense-in-depth, not the submit path:
+                 login.js preventDefault()s and POSTs JSON to /api/login.
+                 But if that script ever fails to load, the native fallback
+                 must not be a GET — that would put the password in the
+                 query string and the access log. A POST to this GET-only
+                 route 405s: visibly broken, credential intact. -->
+            <form id="login-form" method="post" novalidate>
                 <label for="password" class="login-label">Password</label>
                 <input id="password"
                        name="password"
