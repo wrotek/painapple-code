@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 
+from painapple_code import bridge_paths
 from painapple_code.cli import profiles, serve_config
 from painapple_code.cli.netinfo import detect_local_ips
 from painapple_code.cli.ui import (
@@ -105,8 +106,16 @@ def _docker_settings_for(prof):
 # ──── Host-mode helpers ──────────────────────────────────────────────────
 
 def _auth_config_path():
-    return Path(os.environ.get("XDG_CONFIG_HOME",
-                               "~/.config")).expanduser() / "painapple-code" / "config.yaml"
+    """Where the bridge's auth config lives — resolved exactly as the server does.
+
+    Must track ``init_auth_state``'s default (bridge_paths.CONFIG_HOME), not a
+    hand-rolled XDG lookup: the server WRITES this file, so the reader has to
+    follow the writer. It previously honored XDG_CONFIG_HOME, which the server
+    ignores — so with that set, the bridge wrote ~/.config/painapple-code while
+    `painapple password` looked in $XDG_CONFIG_HOME/painapple-code and reported
+    "No password found. Has the bridge ever started?" against a running bridge.
+    """
+    return bridge_paths.CONFIG_HOME / "config.yaml"
 
 
 def _host_config_value(key):

@@ -5,6 +5,7 @@ config file — nothing here touches ~/.config/painapple-code/config.yaml.
 """
 
 import hmac
+import json
 import os
 import re
 import stat
@@ -664,6 +665,50 @@ def test_login_page_assets_are_all_public(unauth_client):
             f"login page references {path} but it returned {r.status_code} "
             f"without auth — add it to PUBLIC_PATHS in auth_middleware.py"
         )
+
+
+from painapple_code import bridge_paths
+
+
+def _login_config(client):
+    """Pull the #login-config JSON data block out of the served /login page."""
+    page = client.get("/login", follow_redirects=False)
+    assert page.status_code == 200
+    m = re.search(
+        r'<script type="application/json" id="login-config">(.*?)</script>',
+        page.text,
+        re.S,
+    )
+    assert m, "login-config data block missing from /login"
+    return json.loads(m.group(1).replace("\\u003c", "<"))
+
+
+def test_login_config_marks_custom_config_non_default(unauth_client):
+    """A tmp_path-backed instance must NOT advertise `painapple password`.
+
+    That verb reads the default config path with no --auth-config-file
+    equivalent, so on a custom-config instance it prints some OTHER
+    instance's password — a wrong answer that looks like a right one. The
+    page falls back to awk against the real path in that case.
+    """
+    cfg = _login_config(unauth_client)
+    assert cfg["configIsDefault"] is False
+    assert cfg["configPath"] != str(bridge_paths.CONFIG_HOME / "config.yaml")
+
+
+def test_login_config_marks_default_config_default(unauth_client):
+    """On the default path the two agree, so the CLI command is offered."""
+    from painapple_code.server import app
+
+    default = str(bridge_paths.CONFIG_HOME / "config.yaml")
+    saved = app.state.auth_config_file
+    app.state.auth_config_file = default
+    try:
+        cfg = _login_config(unauth_client)
+        assert cfg["configIsDefault"] is True
+        assert cfg["configPath"] == default
+    finally:
+        app.state.auth_config_file = saved
 
 
 def test_options_preflight_passes_through(unauth_client):

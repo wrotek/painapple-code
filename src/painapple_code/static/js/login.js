@@ -31,10 +31,20 @@
         const env = cfg.environment || 'local';
         const path = cfg.configPath || '~/.config/painapple-code/config.yaml';
         const awkCmd = "awk '/^password:/ {print $2}' " + path;
+        // `painapple password` is the better answer where it applies: one
+        // memorable verb instead of a copy-exactly one-liner, and it prints
+        // the api_token and ready-made ?tkn= login URLs alongside the
+        // password. But it resolves the DEFAULT config path with no
+        // --auth-config-file equivalent, so on an instance running a custom
+        // config it would print a DIFFERENT instance's credential — worse
+        // than awk, because it looks like it worked. The server tells us
+        // whether the two agree; when they don't, awk against the real path
+        // is the only command that can't lie.
+        const shellCmd = cfg.configIsDefault ? 'painapple password' : awkCmd;
         const CMDS = {
-            local: awkCmd,
-            codespaces: awkCmd,
-            devcontainer: awkCmd,
+            local: shellCmd,
+            codespaces: shellCmd,
+            devcontainer: shellCmd,
             docker: "docker exec painapple-code " + awkCmd,
             podman: "podman exec painapple-code " + awkCmd,
             container: "painapple password --in-docker",

@@ -972,12 +972,18 @@ async def login_page(request: Request):
     # with the real path — covers local, Docker and the Codespaces Feature's
     # /workspaces/.painapple-code/auth.yaml alike). Mirrors the INSTANCE_CONFIG
     # injection on /app. Neither value is secret (path + env name only).
+    default_cfg = bridge_paths.CONFIG_HOME / "config.yaml"
+    resolved_cfg = getattr(request.app.state, "auth_config_file", str(default_cfg))
     login_config = {
         "environment": bridge_paths.detect_environment(),
-        "configPath": getattr(
-            request.app.state, "auth_config_file",
-            "~/.config/painapple-code/config.yaml",
-        ),
+        "configPath": resolved_cfg,
+        # Whether `painapple password` would read the file THIS instance is
+        # actually using. That verb resolves the default path and has no
+        # --auth-config-file equivalent, so on a custom-config instance (a
+        # second tier, the Codespaces Feature's /workspaces auth.yaml) it
+        # would confidently print a different instance's password. The page
+        # only offers the friendlier CLI command when the two agree.
+        "configIsDefault": Path(resolved_cfg) == default_cfg,
     }
     # A launcher (painapple-docker.sh, docker compose) can inject the exact
     # reveal command via PAINAPPLE_REVEAL_CMD — it knows the host-side container
