@@ -23,7 +23,8 @@ Simple code-server-style password authentication:
   putting the password in a shareable URL. Never sets a cookie.
 
 Public allowlist: /login, /api/login, /api/logout, /health, /sw.js,
-/manifest.json, /instance-icons/*, /static/css/login.css. Also OPTIONS method.
+/manifest.json, /instance-icons/*, /static/css/login.css,
+/static/js/login.js. Also OPTIONS method.
 
 Middleware reads password + cookie_token from scope["app"].state at request
 time, so tests can mutate app.state per-fixture without re-adding middleware.
@@ -84,6 +85,11 @@ PUBLIC_PATHS = frozenset({
     "/sw.js",
     "/manifest.json",
     "/static/css/login.css",
+    # The login page's own script. Externalized from an inline <script> for
+    # CSP (script-src 'self'), so it MUST be reachable pre-auth — otherwise
+    # the form falls back to a native GET submit and the password lands in
+    # the URL instead of a POST to /api/login.
+    "/static/js/login.js",
 })
 
 PUBLIC_PREFIXES = (

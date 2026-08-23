@@ -6,6 +6,7 @@ config file — nothing here touches ~/.config/painapple-code/config.yaml.
 
 import hmac
 import os
+import re
 import stat
 from pathlib import Path
 
@@ -627,10 +628,42 @@ def test_invalid_dl_rejected(unauth_client):
 # ---------------------------------------------------------------------------
 
 def test_allowlist_no_auth(unauth_client):
-    for path in ("/health", "/login", "/sw.js", "/manifest.json", "/static/css/login.css"):
+    for path in (
+        "/health",
+        "/login",
+        "/sw.js",
+        "/manifest.json",
+        "/static/css/login.css",
+        "/static/js/login.js",
+    ):
         r = unauth_client.get(path, follow_redirects=False)
         assert r.status_code != 401, f"{path} returned 401 — should be allowlisted"
         assert r.status_code != 302, f"{path} returned 302 — should be allowlisted"
+
+
+def test_login_page_assets_are_all_public(unauth_client):
+    """Every asset the login page references must be reachable pre-auth.
+
+    Regression guard for the class of bug where login.html grows a new
+    <script>/<link> and nobody adds it to PUBLIC_PATHS. The failure is
+    quiet and nasty: the 401 body is served as the asset, so login.js
+    never runs, the form loses its submit handler, and the browser does
+    a native GET submit that puts the password in the URL and the
+    server logs. Asserting on the allowlist alone wouldn't catch it —
+    this parses the page the user actually gets.
+    """
+    page = unauth_client.get("/login", follow_redirects=False)
+    assert page.status_code == 200
+
+    refs = set(re.findall(r'(?:src|href)="(/static/[^"?#]+)"', page.text))
+    assert refs, "no /static/ assets found in login.html — regex out of date?"
+
+    for path in sorted(refs):
+        r = unauth_client.get(path, follow_redirects=False)
+        assert r.status_code == 200, (
+            f"login page references {path} but it returned {r.status_code} "
+            f"without auth — add it to PUBLIC_PATHS in auth_middleware.py"
+        )
 
 
 def test_options_preflight_passes_through(unauth_client):
