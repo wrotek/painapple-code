@@ -47,7 +47,7 @@ import uvicorn
 # ═══════════════════════════════════════════════════════════════════════
 from painapple_code.server_logging import setup_logging, AccessLogMiddleware
 from painapple_code.session_store import SessionStore
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 from painapple_code.services.agent_session import AgentBridge
 from painapple_code.auth_middleware import (
@@ -560,7 +560,7 @@ def init_auth_state(app_: FastAPI, config_file: Optional[Path] = None) -> None:
     # which the Windows smoke workflow (and any isolated test run) sets
     # expecting the auth file to follow — previously only the data home
     # moved and the password file still landed in the real user profile.
-    cfg_path = config_file or (bridge_paths.CONFIG_HOME / "config.yaml")
+    cfg_path = config_file or (paths.CONFIG_HOME / "config.yaml")
     password, newly_created = ensure_config_file(cfg_path)
     # Derived material (api_token + the two revocation epochs) is synced to
     # disk here: the api_token must be readable by scripts WITHOUT the
@@ -973,10 +973,10 @@ async def login_page(request: Request):
     # with the real path — covers local, Docker and the Codespaces Feature's
     # /workspaces/.painapple-code/auth.yaml alike). Mirrors the INSTANCE_CONFIG
     # injection on /app. Neither value is secret (path + env name only).
-    default_cfg = bridge_paths.CONFIG_HOME / "config.yaml"
+    default_cfg = paths.CONFIG_HOME / "config.yaml"
     resolved_cfg = getattr(request.app.state, "auth_config_file", str(default_cfg))
     login_config = {
-        "environment": bridge_paths.detect_environment(),
+        "environment": paths.detect_environment(),
         "configPath": resolved_cfg,
         # Whether `painapple password` would read the file THIS instance is
         # actually using. That verb resolves the default path and has no
@@ -1693,7 +1693,7 @@ def _generate_instance_icons(name: str, accent_hex: str):
     # it outright ("No usable temporary directory") and takes the whole
     # boot down with it.
     try:
-        icons_dir = bridge_paths.BRIDGE_HOME / "instance-icons"
+        icons_dir = paths.DATA_HOME / "instance-icons"
         icons_dir.mkdir(parents=True, exist_ok=True)
         probe = icons_dir / ".probe"
         probe.write_bytes(b"")
@@ -1997,7 +1997,7 @@ def main(argv=None):
     # Per-tier UI-state isolation — must run before any state file is read or
     # written (tab-state, shortcuts, presets, favorites, global config).
     if args.state_suffix:
-        bridge_paths.init_state_suffix(args.state_suffix)
+        paths.init_state_suffix(args.state_suffix)
 
     if args.shadow_db:
         from painapple_code.shadow_db import init_shadow_db
@@ -2113,8 +2113,8 @@ def main(argv=None):
     shadow_db_line = f"\n║  Shadow DB:      {shadow_db_path}"
     log_dir_line = f"\n║  Log Dir:        {pid_log_dir}"
     state_suffix_line = ""
-    if bridge_paths.STATE_SUFFIX:
-        state_suffix_line = f"\n║  State:          suffix '{bridge_paths.STATE_SUFFIX}' (tab-state/shortcuts/presets/favorites/config)"
+    if paths.STATE_SUFFIX:
+        state_suffix_line = f"\n║  State:          suffix '{paths.STATE_SUFFIX}' (tab-state/shortcuts/presets/favorites/config)"
     tls_line = ""
     if use_tls:
         tls_line = f"\n║  TLS Cert:       {tls_cert_path} (self-signed, unverified by clients)"

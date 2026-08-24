@@ -667,7 +667,7 @@ def test_login_page_assets_are_all_public(unauth_client):
         )
 
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 
 def _login_config(client):
@@ -693,14 +693,14 @@ def test_login_config_marks_custom_config_non_default(unauth_client):
     """
     cfg = _login_config(unauth_client)
     assert cfg["configIsDefault"] is False
-    assert cfg["configPath"] != str(bridge_paths.CONFIG_HOME / "config.yaml")
+    assert cfg["configPath"] != str(paths.CONFIG_HOME / "config.yaml")
 
 
 def test_login_config_marks_default_config_default(unauth_client):
     """On the default path the two agree, so the CLI command is offered."""
     from painapple_code.server import app
 
-    default = str(bridge_paths.CONFIG_HOME / "config.yaml")
+    default = str(paths.CONFIG_HOME / "config.yaml")
     saved = app.state.auth_config_file
     app.state.auth_config_file = default
     try:
@@ -994,7 +994,7 @@ def test_config_survives_a_dir_it_cannot_chmod(tmp_path, monkeypatch):
     boot before it served a request (podman machine on macOS)."""
     import errno
     import os as _os
-    from painapple_code import bridge_paths
+    from painapple_code import paths
     from painapple_code.auth_middleware import ensure_config_file
 
     real_chmod = _os.chmod
@@ -1004,7 +1004,7 @@ def test_config_survives_a_dir_it_cannot_chmod(tmp_path, monkeypatch):
             raise PermissionError(errno.EPERM, "Operation not permitted")
         return real_chmod(path, mode, *a, **kw)
 
-    monkeypatch.setattr(bridge_paths.os, "chmod", refuse_dirs)
+    monkeypatch.setattr(paths.os, "chmod", refuse_dirs)
 
     password, created = ensure_config_file(tmp_path / "cfg" / "config.yaml")
     assert created and len(password) > 20
@@ -1015,16 +1015,16 @@ def test_config_survives_a_dir_it_cannot_chmod(tmp_path, monkeypatch):
 def test_lock_mode_skips_chmod_when_already_correct(tmp_path, monkeypatch):
     """The common case must not even call chmod — that's what keeps a
     correctly-set-up bind mount off the failure path entirely."""
-    from painapple_code import bridge_paths
+    from painapple_code import paths
 
     target = tmp_path / "already"
     target.mkdir(mode=0o700)
     os.chmod(target, 0o700)
 
     calls = []
-    monkeypatch.setattr(bridge_paths.os, "chmod",
+    monkeypatch.setattr(paths.os, "chmod",
                         lambda *a, **kw: calls.append(a))
-    bridge_paths.lock_mode(target, 0o700)
+    paths.lock_mode(target, 0o700)
     assert calls == []
-    bridge_paths.lock_mode(target, 0o755)
+    paths.lock_mode(target, 0o755)
     assert len(calls) == 1

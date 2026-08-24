@@ -23,7 +23,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.auth_middleware import (
     _client_identity,
     check_websocket_auth,
@@ -148,7 +148,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
                 logger.warning(f"Ignoring unknown provider {provider!r} on session create")
         provider_name = (requested_provider
                          or bridge.default_provider
-                         or bridge_paths.load_global_config().get("default_provider"))
+                         or paths.load_global_config().get("default_provider"))
         if provider_name:
             store_data["provider"] = provider_name
             # Bind-time permission anchoring: when the app-wide default level
@@ -444,14 +444,14 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
 
     # Mark as favorite if requested
     if mark_as_favorite and prompt_id:
-        bridge_paths.add_prompt_favorite(
+        paths.add_prompt_favorite(
             prompt_id,
             content_preview=display_content[:100] if display_content else ""
         )
 
     # Send prompt_id back to client for favorite button support
     if prompt_id:
-        is_favorite = mark_as_favorite or bridge_paths.is_prompt_favorite(prompt_id)
+        is_favorite = mark_as_favorite or paths.is_prompt_favorite(prompt_id)
         stored_msg = {
             "type": "user_message_stored",
             "promptId": prompt_id,
@@ -483,7 +483,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
                 pass
             db_turn_id = db.start_turn(
                 session_id=store_id,
-                project_hash=bridge_paths.get_project_hash(agent_session.cwd),
+                project_hash=paths.get_project_hash(agent_session.cwd),
                 # display_content, NOT `display_content or content`: the two
                 # are different KINDS of value — display_content is what the
                 # user typed, content is the composed, model-facing text with
@@ -499,7 +499,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
                 user_prompt=display_content,
                 has_images=len(images) > 0,
                 git_branch=git_branch,
-                git_repo_hash=bridge_paths.get_git_repo_hash(agent_session.cwd),
+                git_repo_hash=paths.get_git_repo_hash(agent_session.cwd),
                 is_plan=plan_mode,
                 provider=agent_session.provider.name,
             )

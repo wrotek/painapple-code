@@ -34,7 +34,7 @@ from painapple_code import PACKAGE_DIR
 logger = logging.getLogger("painapple-code.paths")
 
 # Allow override via environment variable
-BRIDGE_HOME = Path(os.environ.get('PAINAPPLE_CODE_HOME', Path.home() / '.painapple-code'))
+DATA_HOME = Path(os.environ.get('PAINAPPLE_CODE_HOME', Path.home() / '.painapple-code'))
 
 # Credentials/config home (XDG-style). Holds auth config and OAuth tokens.
 CONFIG_HOME = Path(os.environ.get('PAINAPPLE_CODE_CONFIG', Path.home() / '.config' / 'painapple-code'))
@@ -110,9 +110,9 @@ def init_state_suffix(suffix: Optional[str]) -> None:
 
 
 def _state_file(stem: str, ext: str = "") -> Path:
-    """BRIDGE_HOME / f'{stem}{STATE_SUFFIX}{ext}' — applies the per-tier suffix
+    """DATA_HOME / f'{stem}{STATE_SUFFIX}{ext}' — applies the per-tier suffix
     to a UI-state file or directory name."""
-    return BRIDGE_HOME / f"{stem}{STATE_SUFFIX}{ext}"
+    return DATA_HOME / f"{stem}{STATE_SUFFIX}{ext}"
 
 
 def _path_hash(path: str) -> str:
@@ -157,7 +157,7 @@ def get_project_dir(project_path: str) -> Path:
     Returns:
         Path to project's bridge directory
     """
-    return BRIDGE_HOME / "projects" / get_project_hash(project_path)
+    return DATA_HOME / "projects" / get_project_hash(project_path)
 
 
 def get_project_dir_by_hash(project_hash: str) -> Path:
@@ -170,7 +170,7 @@ def get_project_dir_by_hash(project_hash: str) -> Path:
     Returns:
         Path to project's bridge directory
     """
-    return BRIDGE_HOME / "projects" / project_hash
+    return DATA_HOME / "projects" / project_hash
 
 
 def get_sessions_dir(project_path: str) -> Path:
@@ -294,15 +294,15 @@ def delete_preset(preset_id: str) -> bool:
     return False
 
 
-def ensure_bridge_home() -> Path:
+def ensure_data_home() -> Path:
     """
     Ensure ~/.painapple-code/ exists.
 
     Returns:
         Path to ~/.painapple-code/
     """
-    BRIDGE_HOME.mkdir(parents=True, exist_ok=True)
-    return BRIDGE_HOME
+    DATA_HOME.mkdir(parents=True, exist_ok=True)
+    return DATA_HOME
 
 
 def ensure_project_dir(project_path: str) -> Path:
@@ -343,7 +343,7 @@ def get_project_path_from_hash(project_hash: str) -> Optional[str]:
     Returns:
         Original project path or None if not found
     """
-    path_file = BRIDGE_HOME / "projects" / project_hash / "path"
+    path_file = DATA_HOME / "projects" / project_hash / "path"
     if path_file.exists():
         return path_file.read_text(encoding="utf-8").strip()
     return None
@@ -367,7 +367,7 @@ def list_projects(include_unreachable: bool = False) -> list[dict]:
         List of dicts with: hash, path, sessions_dir, shadow_git_dir,
         session_count, has_sessions, has_shadow_git, reachable.
     """
-    projects_dir = BRIDGE_HOME / "projects"
+    projects_dir = DATA_HOME / "projects"
     if not projects_dir.exists():
         return []
 
@@ -561,7 +561,7 @@ def save_global_config(config: dict):
     Args:
         config: Config dict to save
     """
-    ensure_bridge_home()
+    ensure_data_home()
     config_path = get_global_config_path()
     try:
         config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
@@ -1004,7 +1004,7 @@ def save_drafts(data: dict) -> bool:
     Returns:
         True on success (drafts are user data — callers should surface failure)
     """
-    ensure_bridge_home()
+    ensure_data_home()
     drafts_path = get_drafts_path()
     try:
         drafts_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -1037,7 +1037,7 @@ def save_favorites(data: dict):
     Args:
         data: Favorites dict with version and favorites list
     """
-    ensure_bridge_home()
+    ensure_data_home()
     fav_path = get_favorites_path()
     try:
         fav_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -1202,7 +1202,7 @@ def save_prompt_favorites(data: dict):
     Args:
         data: Favorites dict with version and prompts
     """
-    ensure_bridge_home()
+    ensure_data_home()
     fav_path = get_prompt_favorites_path()
     try:
         fav_path.write_text(json.dumps(data, indent=2), encoding="utf-8")

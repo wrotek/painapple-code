@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Optional
 from collections import defaultdict
 
-from painapple_code.bridge_paths import (
-    ensure_bridge_home,
+from painapple_code.paths import (
+    ensure_data_home,
     get_project_path_from_hash,
     get_summary_model,
 )
@@ -125,8 +125,8 @@ class CostAnalyzer:
     """
 
     def __init__(self):
-        self.bridge_home = ensure_bridge_home()
-        self.projects_dir = self.bridge_home / "projects"
+        self.data_home = ensure_data_home()
+        self.projects_dir = self.data_home / "projects"
         self._cache = {}
         self._cache_time = None
 

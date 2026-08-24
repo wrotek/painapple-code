@@ -21,7 +21,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 logger = logging.getLogger(__name__)
 
@@ -38,21 +38,21 @@ DEFAULT_MAX_THINKING_TOKENS = 31999
 @router.get("/api/app/presets")
 async def get_presets():
     """List all quick-action presets (one JSON file per preset)."""
-    return bridge_paths.load_all_presets()
+    return paths.load_all_presets()
 
 
 @router.put("/api/app/presets/{preset_id}")
 async def save_preset(preset_id: str, data: dict):
     """Create or update a preset."""
-    bridge_paths.save_preset(preset_id, data)
-    return bridge_paths.load_all_presets()
+    paths.save_preset(preset_id, data)
+    return paths.load_all_presets()
 
 
 @router.delete("/api/app/presets/{preset_id}")
 async def delete_preset(preset_id: str):
     """Delete a preset file."""
-    deleted = bridge_paths.delete_preset(preset_id)
-    return {"deleted": deleted, "presets": bridge_paths.load_all_presets()}
+    deleted = paths.delete_preset(preset_id)
+    return {"deleted": deleted, "presets": paths.load_all_presets()}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -75,7 +75,7 @@ async def _engine_path_payload(p) -> dict:
     """
     if not p.path_config_key:
         return {"provider": p.name, "configurable": False}
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     configured = config.get(p.path_config_key)
     current = configured or p.default_binary
     resolved = current if Path(current).is_absolute() else shutil.which(current)
@@ -140,13 +140,13 @@ async def set_engine_path(provider_name: str, request: Request):
         if not Path(new_path).is_file():
             raise HTTPException(status_code=400, detail=f"Path is not a file: {new_path}")
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     if not new_path or new_path == p.default_binary:
         config.pop(p.path_config_key, None)
     else:
         config[p.path_config_key] = new_path
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Engine path for {p.name} ({p.path_config_key}) updated to: {new_path or '(default)'}")
 
     return await _engine_path_payload(p)
@@ -202,7 +202,7 @@ async def set_engine_models(provider_name: str, request: Request):
     key = p.models_key or p.name
     cleaned = sorted({x.strip() for x in disabled if x.strip()})
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     overrides = dict(config.get("models_disabled") or {})
     if cleaned:
         overrides[key] = cleaned
@@ -213,7 +213,7 @@ async def set_engine_models(provider_name: str, request: Request):
     else:
         config.pop("models_disabled", None)
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Hidden models for {key}: {cleaned or '(none)'}")
 
     return _engine_models_payload(p)
@@ -239,7 +239,7 @@ async def get_engine_auth(provider_name: str):
     if not p.auth_status_args:
         return {"provider": p.name, "supported": False}
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     configured = config.get(p.path_config_key) if p.path_config_key else None
     current = configured or p.default_binary
     resolved = current if Path(current).is_absolute() else shutil.which(current)
@@ -339,9 +339,9 @@ def _engine_defaults_payload(p) -> dict:
     return {
         "provider": p.name,
         "models_key": p.models_key or p.name,
-        "default_model": bridge_paths.engine_default_model(p),
-        "default_effort": bridge_paths.engine_default_effort(p),
-        "token_profile": bridge_paths.engine_default_token_profile(p),
+        "default_model": paths.engine_default_model(p),
+        "default_effort": paths.engine_default_effort(p),
+        "token_profile": paths.engine_default_token_profile(p),
         "efforts": p.effort_levels(),
         "accounts": p.accounts(),
         "summary_supported": p.summary_model_editable(),
@@ -370,7 +370,7 @@ async def set_engine_defaults(provider_name: str, request: Request):
     body = await request.json()
     ns = p.models_key or p.name
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     maps_changed = False
     for field, map_key, legacy_key in _DEFAULTS_FIELDS:
         if field not in body:
@@ -408,7 +408,7 @@ async def set_engine_defaults(provider_name: str, request: Request):
         maps_changed = True
 
     if maps_changed:
-        bridge_paths.save_global_config(config)
+        paths.save_global_config(config)
         logger.info(f"Engine defaults for {ns} updated")
 
     # After the config save — the provider setter re-reads/writes its own
@@ -430,7 +430,7 @@ async def set_engine_defaults(provider_name: str, request: Request):
 @router.get("/api/app/max-thinking-tokens")
 async def get_max_thinking_tokens_api():
     """Get the max thinking tokens setting."""
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     current = config.get("max_thinking_tokens", DEFAULT_MAX_THINKING_TOKENS)
 
     return {
@@ -460,13 +460,13 @@ async def set_max_thinking_tokens_api(request: Request):
     if value > 63999:
         raise HTTPException(status_code=400, detail="max_thinking_tokens cannot exceed 63999 (Opus 4.5 limit)")
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     if value == DEFAULT_MAX_THINKING_TOKENS:
         config.pop("max_thinking_tokens", None)
     else:
         config["max_thinking_tokens"] = value
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Max thinking tokens updated to: {value}")
 
     return await get_max_thinking_tokens_api()
@@ -482,7 +482,7 @@ DEFAULT_API_RETRY_MAX = 3
 @router.get("/api/app/api-retry-max")
 async def get_api_retry_max():
     """Get the API auto-retry max setting."""
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return {
         "api_retry_max": config.get("api_retry_max", DEFAULT_API_RETRY_MAX),
         "default": DEFAULT_API_RETRY_MAX,
@@ -508,13 +508,13 @@ async def set_api_retry_max(request: Request):
     if value < 0 or value > 10:
         raise HTTPException(status_code=400, detail="api_retry_max must be between 0 and 10")
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     if value == DEFAULT_API_RETRY_MAX:
         config.pop("api_retry_max", None)
     else:
         config["api_retry_max"] = value
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"API retry max updated to: {value}")
 
     return await get_api_retry_max()
@@ -530,7 +530,7 @@ SIGINT_ON_ASK_DEFAULT = True
 @router.get("/api/app/sigint-on-ask")
 async def get_sigint_on_ask():
     """Get whether Claude is SIGINT-stopped when it calls AskUserQuestion."""
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return {
         "sigint_on_ask": bool(config.get("sigint_on_ask", SIGINT_ON_ASK_DEFAULT)),
         "default": SIGINT_ON_ASK_DEFAULT,
@@ -550,13 +550,13 @@ async def set_sigint_on_ask(request: Request):
     if not isinstance(value, bool):
         raise HTTPException(status_code=400, detail="sigint_on_ask must be a boolean")
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     # Store only when it differs from the default; pop to fall back to default.
     if value == SIGINT_ON_ASK_DEFAULT:
         config.pop("sigint_on_ask", None)
     else:
         config["sigint_on_ask"] = value
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
 
     # Apply to the running bridge so the toggle is live, not restart-gated.
     bridge = getattr(request.app.state, "bridge", None)
@@ -588,7 +588,7 @@ async def get_default_permissions(request: Request, provider: str = None):
         dp = get_provider(provider)
     else:
         dp = effective_default_provider(request.app)
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     valid = {m["value"] for m in dp.permission_modes()}
     level = config.get("default_permission_level")
     if level not in valid:
@@ -614,13 +614,13 @@ async def set_default_permissions(request: Request):
     if value not in valid:
         raise HTTPException(status_code=400, detail=f"Invalid permission level: {value}. Valid: {valid}")
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     if value == dp.default_permission_mode():
         config.pop("default_permission_level", None)
     else:
         config["default_permission_level"] = value
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Default permission level updated to: {value}")
 
     return await get_default_permissions(request)
@@ -638,7 +638,7 @@ async def get_token_profiles(request: Request):
     profiles = list_profiles()
     # Legacy shape; the default shown is the DEFAULT ENGINE's configured
     # profile (per-engine `default_token_profiles` map, flat key fallback).
-    default = bridge_paths.engine_default_token_profile(
+    default = paths.engine_default_token_profile(
         effective_default_provider(request.app))
     return {
         "profiles": profiles,
@@ -661,7 +661,7 @@ async def set_default_token_profile(request: Request):
         if value not in profile_names:
             raise HTTPException(status_code=400, detail=f"Token profile not found: {value}")
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     _migrate_legacy_default(
         config, "token_profile", "default_token_profiles", "default_token_profile")
     overrides = dict(config.get("default_token_profiles") or {})
@@ -675,7 +675,7 @@ async def set_default_token_profile(request: Request):
     else:
         config.pop("default_token_profiles", None)
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Default token profile for {ns} updated to: {value}")
 
     return await get_token_profiles(request)
@@ -689,8 +689,8 @@ async def set_default_token_profile(request: Request):
 async def get_models():
     """Get available models from models.yaml."""
     return {
-        "selectable": bridge_paths.get_selectable_models(),
-        "summary_model": bridge_paths.get_summary_model(),
+        "selectable": paths.get_selectable_models(),
+        "summary_model": paths.get_summary_model(),
     }
 
 
@@ -718,7 +718,7 @@ async def put_models(request: Request):
             "desc": str(m.get("desc", "")).strip(),
         })
 
-    bridge_paths.save_models_config({"selectable": cleaned, "summary_model": summary_model.strip()})
+    paths.save_models_config({"selectable": cleaned, "summary_model": summary_model.strip()})
     logger.info(f"Models config updated: {len(cleaned)} selectable, summary_model={summary_model}")
     return {"selectable": cleaned, "summary_model": summary_model.strip()}
 
@@ -726,12 +726,12 @@ async def put_models(request: Request):
 @router.post("/api/app/models/reset")
 async def reset_models():
     """Restore models.yaml to the shipped defaults."""
-    defaults = bridge_paths.get_default_models_config()
-    bridge_paths.save_models_config(defaults)
+    defaults = paths.get_default_models_config()
+    paths.save_models_config(defaults)
     logger.info(f"Models config reset to defaults: {len(defaults.get('selectable', []))} selectable")
     return {
-        "selectable": bridge_paths.get_selectable_models(),
-        "summary_model": bridge_paths.get_summary_model(),
+        "selectable": paths.get_selectable_models(),
+        "summary_model": paths.get_summary_model(),
     }
 
 
@@ -749,7 +749,7 @@ async def get_default_provider(request: Request):
     server flag overrides whatever it writes via PUT."""
     from painapple_code.routes.dependencies import effective_default_provider
     bridge = getattr(request.app.state, "bridge", None)
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return {
         "effective": effective_default_provider(request.app).name,
         "configured": config.get("default_provider"),
@@ -772,13 +772,13 @@ async def set_default_provider(request: Request):
             detail=f"Unknown provider: {value}. Valid: {provider_names()}",
         )
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     if value is None:
         config.pop("default_provider", None)
     else:
         config["default_provider"] = value
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Default provider updated to: {value}")
 
     return await get_default_provider(request)
@@ -797,7 +797,7 @@ async def get_providers_enabled(request: Request):
     `configured` is the raw `providers_enabled` config map (only names the
     user has explicitly toggled)."""
     from painapple_code.routes.dependencies import provider_enabled_map
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return {
         "effective": provider_enabled_map(request.app),
         "configured": config.get("providers_enabled") or {},
@@ -823,7 +823,7 @@ async def set_provider_enabled(request: Request):
             detail=f"Unknown provider: {name}. Valid: {provider_names()}",
         )
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     overrides = dict(config.get("providers_enabled") or {})
     if enabled is None:
         overrides.pop(name, None)
@@ -835,7 +835,7 @@ async def set_provider_enabled(request: Request):
     else:
         config.pop("providers_enabled", None)
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Provider {name} picker visibility set to: {enabled}")
 
     return await get_providers_enabled(request)
@@ -851,7 +851,7 @@ async def get_default_model(request: Request):
     """
     from painapple_code.routes.dependencies import effective_default_provider
     p = effective_default_provider(request.app)
-    return {"default_model": bridge_paths.engine_default_model(p)}
+    return {"default_model": paths.engine_default_model(p)}
 
 
 @router.put("/api/app/default-model")
@@ -862,7 +862,7 @@ async def set_default_model(request: Request):
     body = await request.json()
     value = body.get("default_model")  # string or null
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     _migrate_legacy_default(config, "default_model", "default_models", "default_model")
     overrides = dict(config.get("default_models") or {})
     ns = p.models_key or p.name
@@ -875,7 +875,7 @@ async def set_default_model(request: Request):
     else:
         config.pop("default_models", None)
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Default model for {ns} updated to: {value}")
 
     return await get_default_model(request)
@@ -899,7 +899,7 @@ async def get_default_effort(request: Request):
     from painapple_code.routes.dependencies import effective_default_provider
     p = effective_default_provider(request.app)
     return {
-        "default_effort": bridge_paths.engine_default_effort(p) or DEFAULT_EFFORT,
+        "default_effort": paths.engine_default_effort(p) or DEFAULT_EFFORT,
         "valid_levels": p.effort_levels() or sorted(VALID_EFFORT_LEVELS),
         "default": DEFAULT_EFFORT,
     }
@@ -917,7 +917,7 @@ async def set_default_effort(request: Request):
     if value not in valid:
         raise HTTPException(status_code=400, detail=f"Invalid effort level: {value}. Valid: {sorted(valid)}")
 
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     _migrate_legacy_default(config, "default_effort", "default_efforts", "default_effort")
     overrides = dict(config.get("default_efforts") or {})
     ns = p.models_key or p.name
@@ -930,7 +930,7 @@ async def set_default_effort(request: Request):
     else:
         config.pop("default_efforts", None)
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Default effort for {ns} updated to: {value}")
 
     return await get_default_effort(request)
@@ -944,7 +944,7 @@ async def set_default_effort(request: Request):
 async def get_session_timeouts():
     """Get session timeout settings (in minutes)."""
     from painapple_code.services.agent_session import AgentBridge
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return {
         "session_idle_timeout_minutes": config.get(
             "session_idle_timeout_minutes",
@@ -966,7 +966,7 @@ async def set_session_timeouts(request: Request):
     """Update session timeout settings (in minutes)."""
     from painapple_code.services.agent_session import AgentBridge
     body = await request.json()
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
 
     for key in ("session_idle_timeout_minutes", "orphan_process_timeout_minutes"):
         if key in body:
@@ -986,6 +986,6 @@ async def set_session_timeouts(request: Request):
             else:
                 config[key] = value
 
-    bridge_paths.save_global_config(config)
+    paths.save_global_config(config)
     logger.info(f"Session timeouts updated: {body}")
     return await get_session_timeouts()

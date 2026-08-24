@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 from typing import Optional
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.providers.base import PluginBackend
 
 # Context-window size used to meter the context bar. `codex exec --json` reports
@@ -76,7 +76,7 @@ class _CapabilitiesMixin:
         return parsed
 
     def binary(self) -> str:
-        return bridge_paths.load_global_config().get(
+        return paths.load_global_config().get(
             self.path_config_key, self.default_binary)
 
     def is_available(self) -> tuple[bool, Optional[str]]:
@@ -147,7 +147,7 @@ class _CapabilitiesMixin:
         The launch paths guard on this: exec passes ``-m`` only for ids listed
         here; the app-server forwards any non-Claude id (so an explicit pick
         still works even while the cache is absent). With a catalog present the
-        app OWNS the default — `bridge_paths.engine_default_model` resolves the
+        app OWNS the default — `paths.engine_default_model` resolves the
         top (priority-first) listed model and the launch forwards it, so a
         fresh session runs a concrete model rather than deferring to the CLI's
         own config. Only an ABSENT catalog (no cache) falls back to

@@ -23,7 +23,7 @@ from pathlib import Path
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.session_store import SessionStore
 from painapple_code.utils.file_paths import safe_resolve
 
@@ -40,10 +40,10 @@ router = APIRouter(tags=["bridge:project-config"])
 async def get_project_config(cwd: str):
     """Get project-specific configuration (merged with global)."""
     resolved_cwd = str(safe_resolve(cwd))
-    config = bridge_paths.load_project_config(resolved_cwd)
+    config = paths.load_project_config(resolved_cwd)
 
-    project_hash = bridge_paths.get_project_hash(resolved_cwd)
-    project_dir = bridge_paths.get_project_dir(resolved_cwd)
+    project_hash = paths.get_project_hash(resolved_cwd)
+    project_dir = paths.get_project_dir(resolved_cwd)
 
     return {
         "config": config,
@@ -52,7 +52,7 @@ async def get_project_config(cwd: str):
             "path": resolved_cwd,
             "name": Path(resolved_cwd).name,
             "has_shadow_git": (project_dir / "shadow-git").exists(),
-            "color": bridge_paths.get_project_color(resolved_cwd),
+            "color": paths.get_project_color(resolved_cwd),
         }
     }
 
@@ -63,7 +63,7 @@ async def update_project_config(cwd: str, request: Request):
     resolved_cwd = str(safe_resolve(cwd))
     body = await request.json()
 
-    bridge_paths.save_project_config(resolved_cwd, body)
+    paths.save_project_config(resolved_cwd, body)
 
     return await get_project_config(cwd)
 
@@ -74,7 +74,7 @@ async def patch_project_config(cwd: str, request: Request):
     resolved_cwd = str(safe_resolve(cwd))
     body = await request.json()
 
-    config_path = bridge_paths.get_project_config_path(resolved_cwd)
+    config_path = paths.get_project_config_path(resolved_cwd)
     existing = {}
     if config_path.exists():
         try:
@@ -92,7 +92,7 @@ async def patch_project_config(cwd: str, request: Request):
         return result
 
     merged = deep_merge(existing, body)
-    bridge_paths.save_project_config(resolved_cwd, merged)
+    paths.save_project_config(resolved_cwd, merged)
 
     return await get_project_config(cwd)
 
@@ -105,12 +105,12 @@ class ProjectRenameRequest(BaseModel):
 async def rename_project(cwd: str, request: ProjectRenameRequest):
     """Set a human-friendly display name for a project."""
     resolved_cwd = str(safe_resolve(cwd))
-    bridge_paths.set_project_display_name(resolved_cwd, request.name)
+    paths.set_project_display_name(resolved_cwd, request.name)
 
     return {
         "success": True,
         "project_path": resolved_cwd,
-        "display_name": bridge_paths.get_project_display_name(resolved_cwd),
+        "display_name": paths.get_project_display_name(resolved_cwd),
         "directory_name": Path(resolved_cwd).name,
     }
 
@@ -128,7 +128,7 @@ async def get_project_colors():
     A single fetch feeds the synchronous client-side `getProjectColor`
     override lookups across the UI (tabs, welcome cards, pickers).
     """
-    return {"colors": bridge_paths.list_project_colors()}
+    return {"colors": paths.list_project_colors()}
 
 
 @router.post("/api/project/color")
@@ -138,7 +138,7 @@ async def set_project_color(cwd: str, request: ProjectColorRequest):
     Stored under `display.color`; an empty/invalid color clears the override.
     """
     resolved_cwd = str(safe_resolve(cwd))
-    stored = bridge_paths.set_project_color(resolved_cwd, request.color)
+    stored = paths.set_project_color(resolved_cwd, request.color)
 
     return {
         "success": True,

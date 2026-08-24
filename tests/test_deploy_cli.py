@@ -626,17 +626,17 @@ def host_config(tmp_path, monkeypatch):
     """Point the host auth-config lookup somewhere writable. Returns the
     config.yaml path — absent until a test writes it.
 
-    Patches bridge_paths.CONFIG_HOME, which is what both the server and
+    Patches paths.CONFIG_HOME, which is what both the server and
     `painapple password` resolve against. Setting XDG_CONFIG_HOME (what this
     fixture used to do) no longer redirects the lookup — and since
     CONFIG_HOME is bound at import time, an env var alone would leave the
     test reading the developer's REAL ~/.config/painapple-code/config.yaml
     and asserting against their live password.
     """
-    from painapple_code import bridge_paths
+    from painapple_code import paths
     cfg_home = tmp_path / "config-home"
     cfg_home.mkdir(parents=True)
-    monkeypatch.setattr(bridge_paths, "CONFIG_HOME", cfg_home)
+    monkeypatch.setattr(paths, "CONFIG_HOME", cfg_home)
     return cfg_home / "config.yaml"
 
 

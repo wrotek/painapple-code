@@ -42,7 +42,7 @@ from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlunparse
 import yaml
 from starlette.websockets import WebSocket
 
-from painapple_code.bridge_paths import lock_mode
+from painapple_code.paths import lock_mode
 
 
 COOKIE_NAME = "painapple_auth"

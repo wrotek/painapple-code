@@ -506,7 +506,7 @@ def run_container(cfg, detach, profile=None):
     # otherwise the engine creates a directory at the bind-mount target.
     claude_json = Path(cfg.effective_claude_json())
     if not claude_json.exists():
-        from painapple_code.bridge_paths import lock_mode
+        from painapple_code.paths import lock_mode
 
         claude_json.touch()
         lock_mode(claude_json, 0o600)

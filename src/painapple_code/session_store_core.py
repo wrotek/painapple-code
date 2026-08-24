@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Iterator
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 logger = logging.getLogger("painapple-code.store")
 
@@ -42,8 +42,8 @@ class SessionStoreV2:
                          in ~/.painapple-code/projects/{hash}/sessions/.
         """
         self.project_path = project_path
-        bridge_paths.ensure_project_dir(project_path)
-        self.base_dir = bridge_paths.get_sessions_dir(project_path)
+        paths.ensure_project_dir(project_path)
+        self.base_dir = paths.get_sessions_dir(project_path)
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -117,7 +117,7 @@ class SessionStoreV2:
 
         # Include project hash for reverse lookup (new storage format)
         if self.project_path:
-            meta["project_hash"] = bridge_paths.get_project_hash(self.project_path)
+            meta["project_hash"] = paths.get_project_hash(self.project_path)
 
         return meta
 
@@ -174,7 +174,7 @@ class SessionStoreV2:
 
         # Include project hash for reverse lookup (new storage format)
         if self.project_path:
-            meta["project_hash"] = bridge_paths.get_project_hash(self.project_path)
+            meta["project_hash"] = paths.get_project_hash(self.project_path)
 
         # Write meta.json
         self._write_meta(session_id, meta)
@@ -325,7 +325,7 @@ class SessionStoreV2:
             }
 
             if self.project_path:
-                meta["project_hash"] = bridge_paths.get_project_hash(self.project_path)
+                meta["project_hash"] = paths.get_project_hash(self.project_path)
 
             return meta
 
@@ -723,7 +723,7 @@ class SessionStoreV2:
         """Get the project-data.json path for storing per-project data."""
         if self.project_path:
             # New: store in project's bridge directory
-            return bridge_paths.get_project_dir(cwd) / "project-data.json"
+            return paths.get_project_dir(cwd) / "project-data.json"
         else:
             # Legacy: store in sessions directory
             return self.base_dir / "projects.json"

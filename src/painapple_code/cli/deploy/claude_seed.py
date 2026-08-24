@@ -27,7 +27,7 @@ def seed_claude_json(src, dst):
     """Write a minimal .claude.json (dst) from the allowlisted fields of
     the host file (src). Returns False on any parse/write problem."""
     try:
-        from painapple_code.bridge_paths import lock_mode
+        from painapple_code.paths import lock_mode
 
         data = json.loads(Path(src).read_text(encoding="utf-8"))
         subset = {k: data[k] for k in CLAUDE_JSON_ALLOW if k in data}

@@ -568,8 +568,8 @@ class Provider(ABC):
         catalog (e.g. a CLI-owned catalog changed underneath) — kept as-is so
         the preference survives catalog churn.
         """
-        from painapple_code import bridge_paths
-        raw = (bridge_paths.load_global_config().get("models_disabled") or {})
+        from painapple_code import paths
+        raw = (paths.load_global_config().get("models_disabled") or {})
         ids = raw.get(self.models_key or self.name)
         if not isinstance(ids, list):
             return set()
@@ -584,22 +584,22 @@ class Provider(ABC):
         (for Codex that means the summary fork inherits the thread's model)."""
         if not self.summary_model_config_key:
             return None
-        from painapple_code import bridge_paths
-        value = bridge_paths.load_global_config().get(self.summary_model_config_key)
+        from painapple_code import paths
+        value = paths.load_global_config().get(self.summary_model_config_key)
         return value if isinstance(value, str) and value else None
 
     def set_summary_model_override(self, value: Optional[str]) -> None:
         """Persist (or clear with None/empty) the journal-model override."""
         if not self.summary_model_config_key:
             raise ValueError(f"{self.display_name} has no journal-model setting")
-        from painapple_code import bridge_paths
-        config = bridge_paths.load_global_config()
+        from painapple_code import paths
+        config = paths.load_global_config()
         cleaned = (value or "").strip()
         if cleaned:
             config[self.summary_model_config_key] = cleaned
         else:
             config.pop(self.summary_model_config_key, None)
-        bridge_paths.save_global_config(config)
+        paths.save_global_config(config)
 
     def enabled_models(self) -> list[dict]:
         """`models()` minus the user's hidden set — the catalog pickers offer.

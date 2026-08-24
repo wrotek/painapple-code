@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Tuple, Set
 from dataclasses import dataclass, asdict, field
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 logger = logging.getLogger("painapple-code.prompts")
 
@@ -491,13 +491,13 @@ class PromptExtractor:
             effective_project = parsed_query.project_filter
 
         # Load favorites for marking
-        favorite_ids = set(bridge_paths.get_all_prompt_favorites().keys())
+        favorite_ids = set(paths.get_all_prompt_favorites().keys())
 
         # Collect all prompts from all sessions
         all_prompts = []
 
         # Iterate all projects
-        projects_dir = bridge_paths.BRIDGE_HOME / "projects"
+        projects_dir = paths.DATA_HOME / "projects"
         if not projects_dir.exists():
             return [], 0, parsed_query
 
@@ -754,7 +754,7 @@ class PromptExtractor:
         except (ValueError, AttributeError):
             return None
 
-        projects_dir = bridge_paths.BRIDGE_HOME / "projects"
+        projects_dir = paths.DATA_HOME / "projects"
         if not projects_dir.exists():
             return None
 

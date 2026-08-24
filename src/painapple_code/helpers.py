@@ -99,7 +99,7 @@ def _supported_here(src_rel: str) -> bool:
     return True
 
 # The shadow-git-helper agent's model is user-selectable (see
-# bridge_paths.get_helper_agent_model). Its `model:` frontmatter line is kept
+# paths.get_helper_agent_model). Its `model:` frontmatter line is kept
 # orthogonal to the freshness check so a non-default choice doesn't read as
 # "outdated", and is re-applied after every install (cp -f resets it).
 AGENT_SRC_REL = "tools/agents/shadow-git-helper.md"
@@ -240,7 +240,7 @@ def helpers_status() -> dict:
             "up_to_date": up_to_date,
         })
 
-    from painapple_code import bridge_paths
+    from painapple_code import paths
 
     return {
         "files": files,
@@ -256,8 +256,8 @@ def helpers_status() -> dict:
                           else "~/.local/bin/shadow-git log"),
         # Model the shadow-git-helper subagent runs on (full model ID or
         # "inherit"); options mirror the main model selector + "inherit".
-        "agent_model": bridge_paths.get_helper_agent_model(),
-        "agent_model_options": bridge_paths.get_helper_agent_options(),
+        "agent_model": paths.get_helper_agent_model(),
+        "agent_model_options": paths.get_helper_agent_options(),
     }
 
 
@@ -402,5 +402,5 @@ def apply_agent_model_from_config() -> bool:
     Called after install-helpers.sh, whose `cp -f` overwrites the installed
     copy with the bundled default (model: sonnet).
     """
-    from painapple_code import bridge_paths
-    return apply_agent_model(bridge_paths.get_helper_agent_model())
+    from painapple_code import paths
+    return apply_agent_model(paths.get_helper_agent_model())

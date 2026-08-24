@@ -56,8 +56,8 @@ def test_build_command_fresh(tmp_path, monkeypatch):
     # (a Claude id — the app's global default — is dropped, so codex falls
     # back to its configured default). See launch.py.
     import json as _json
-    from painapple_code import bridge_paths
-    monkeypatch.setattr(bridge_paths, "load_global_config", lambda: {})
+    from painapple_code import paths
+    monkeypatch.setattr(paths, "load_global_config", lambda: {})
     monkeypatch.setenv("CODEX_HOME", str(tmp_path))
     (tmp_path / "models_cache.json").write_text(_json.dumps({"models": [
         {"slug": "gpt-5.4", "display_name": "GPT-5.4", "visibility": "list", "priority": 1},
@@ -84,8 +84,8 @@ def test_build_command_fresh(tmp_path, monkeypatch):
 def test_build_command_resume(monkeypatch):
     # Isolate from the box's real config (a saved codex_path would replace
     # the bare "codex" argv[0] the assertion expects).
-    from painapple_code import bridge_paths
-    monkeypatch.setattr(bridge_paths, "load_global_config", lambda: {})
+    from painapple_code import paths
+    monkeypatch.setattr(paths, "load_global_config", lambda: {})
     cmd = CodexProvider().build_command(LaunchOptions(
         session_id="019abc", permission_mode="plan", prompt="next",
     ))

@@ -9,7 +9,7 @@ import time
 
 import duckdb
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 logger = logging.getLogger("painapple-code.shadow-db")
 
@@ -646,10 +646,10 @@ class _SchemaMixin:
     def _backfill_git_repo_hash(self, con):
         """One-time backfill: compute git_repo_hash for existing rows."""
         try:
-            from painapple_code.bridge_paths import get_git_repo_hash
+            from painapple_code.paths import get_git_repo_hash
 
             # Build mapping from project_hash -> git_repo_hash via path files
-            projects_dir = bridge_paths.BRIDGE_HOME / "projects"
+            projects_dir = paths.DATA_HOME / "projects"
             if not projects_dir.exists():
                 return
 

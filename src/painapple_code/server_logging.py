@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 # Redact ?tkn=<password> and ?dl=<download-token> from logged query strings.
 # Matches the whole value up to the next `&` or end-of-string, including
@@ -35,9 +35,9 @@ def redact_query(query: str) -> str:
         return query
     return _TKN_REDACT_RE.sub(r"\1=REDACTED", query)
 
-# Default log directory - centralized under BRIDGE_HOME (~/.painapple-code/logs/
+# Default log directory - centralized under DATA_HOME (~/.painapple-code/logs/
 # by default, or $PAINAPPLE_CODE_HOME/logs/ when the env var is set).
-DEFAULT_LOG_DIR = bridge_paths.BRIDGE_HOME / "logs"
+DEFAULT_LOG_DIR = paths.DATA_HOME / "logs"
 
 
 def setup_logging(

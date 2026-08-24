@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.providers.base import LaunchOptions
 
 # Effort → `turn/start.effort` (ReasoningEffort) goes through capabilities'
@@ -171,7 +171,7 @@ class _LaunchMixin:
         import base64
         import tempfile
         import uuid
-        out_dir = bridge_paths.BRIDGE_HOME / "tmp" / "codex-images"
+        out_dir = paths.DATA_HOME / "tmp" / "codex-images"
         try:
             out_dir.mkdir(parents=True, exist_ok=True)
         except OSError:

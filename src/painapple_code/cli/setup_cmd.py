@@ -495,7 +495,7 @@ def _apply_docker_side_effects(cfg, pending, name):
     dst_creds = claude_home / ".credentials.json"
     if pending.get("seed_creds"):
         src = Path("~/.claude/.credentials.json").expanduser()
-        from painapple_code.bridge_paths import lock_mode
+        from painapple_code.paths import lock_mode
 
         _shutil.copy(src, dst_creds)
         # These are OAuth credentials. chmod on Windows only toggles the

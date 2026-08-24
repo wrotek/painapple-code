@@ -13,7 +13,7 @@ import signal
 import sys
 from typing import Optional
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ def get_claude_binary() -> str:
     Checks global config for 'claude_path' setting.
     Falls back to 'claude' (uses PATH lookup).
     """
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return config.get("claude_path", "claude")
 
 
@@ -56,7 +56,7 @@ def get_max_thinking_tokens() -> int:
     This enables extended thinking in -p mode (required since Claude CLI 2.1.8).
     Set to 0 to disable extended thinking.
     """
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return config.get("max_thinking_tokens", DEFAULT_MAX_THINKING_TOKENS)
 
 

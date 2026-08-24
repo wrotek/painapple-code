@@ -10,7 +10,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 
 from painapple_code.prompt_explorer import get_prompt_extractor
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,7 @@ async def get_prompt_favorites():
 
     Returns dict of prompt_id -> metadata (content_preview, note, added_at).
     """
-    favorites = bridge_paths.get_all_prompt_favorites()
+    favorites = paths.get_all_prompt_favorites()
     return {"favorites": favorites, "count": len(favorites)}
 
 
@@ -204,7 +204,7 @@ async def add_prompt_favorite(request: Request):
     if not prompt_id:
         raise HTTPException(status_code=400, detail="prompt_id required")
 
-    added = bridge_paths.add_prompt_favorite(prompt_id, content_preview, note)
+    added = paths.add_prompt_favorite(prompt_id, content_preview, note)
     return {"success": added, "prompt_id": prompt_id}
 
 
@@ -215,7 +215,7 @@ async def remove_prompt_favorite(prompt_id: str):
 
     Path param prompt_id is URL-encoded (contains colon).
     """
-    removed = bridge_paths.remove_prompt_favorite(prompt_id)
+    removed = paths.remove_prompt_favorite(prompt_id)
     if not removed:
         raise HTTPException(status_code=404, detail="Prompt not in favorites")
     return {"success": True, "prompt_id": prompt_id}
@@ -226,6 +226,6 @@ async def check_prompt_favorite(prompt_id: str):
     """
     Check if a specific prompt is favorited.
     """
-    is_fav = bridge_paths.is_prompt_favorite(prompt_id)
-    metadata = bridge_paths.get_prompt_favorite(prompt_id) if is_fav else None
+    is_fav = paths.is_prompt_favorite(prompt_id)
+    metadata = paths.get_prompt_favorite(prompt_id) if is_fav else None
     return {"is_favorite": is_fav, "metadata": metadata}

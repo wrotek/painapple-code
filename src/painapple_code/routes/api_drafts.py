@@ -17,7 +17,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from painapple_code.bridge_paths import load_drafts, save_drafts
+from painapple_code.paths import load_drafts, save_drafts
 
 logger = logging.getLogger(__name__)
 

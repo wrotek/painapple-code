@@ -112,7 +112,7 @@ class FavoriteRequest(BaseModel):
 @router.get("/api/favorites")
 async def get_favorites():
     """Get all favorited sessions with full session metadata."""
-    from painapple_code.bridge_paths import load_favorites
+    from painapple_code.paths import load_favorites
     from painapple_code.welcome_search import get_welcome_searcher
 
     fav_data = load_favorites()
@@ -189,7 +189,7 @@ async def get_favorites():
 @router.post("/api/favorites/{session_id}")
 async def add_favorite(session_id: str, request: FavoriteRequest = None):
     """Add a session to favorites."""
-    from painapple_code.bridge_paths import add_favorite as _add_favorite
+    from painapple_code.paths import add_favorite as _add_favorite
 
     session_data = SessionStore.load(session_id)
     if not session_data:
@@ -198,7 +198,7 @@ async def add_favorite(session_id: str, request: FavoriteRequest = None):
     cwd = session_data.get("cwd")
     project_hash = session_data.get("project_hash")
     if not project_hash and cwd:
-        from painapple_code.bridge_paths import get_project_hash
+        from painapple_code.paths import get_project_hash
         project_hash = get_project_hash(cwd)
 
     note = request.note if request else None
@@ -213,7 +213,7 @@ async def add_favorite(session_id: str, request: FavoriteRequest = None):
 @router.delete("/api/favorites/{session_id}")
 async def remove_favorite_endpoint(session_id: str):
     """Remove a session from favorites."""
-    from painapple_code.bridge_paths import remove_favorite
+    from painapple_code.paths import remove_favorite
 
     removed = remove_favorite(session_id)
     if removed:
@@ -225,7 +225,7 @@ async def remove_favorite_endpoint(session_id: str):
 @router.patch("/api/favorites/{session_id}")
 async def update_favorite(session_id: str, request: FavoriteRequest):
     """Update a favorite's note."""
-    from painapple_code.bridge_paths import update_favorite_note
+    from painapple_code.paths import update_favorite_note
 
     updated = update_favorite_note(session_id, request.note or "")
     if updated:

@@ -15,7 +15,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.utils.file_paths import (
     PATH_DENIED_DETAIL,
     is_path_allowed,
@@ -215,13 +215,13 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
 
         # Load extra_dirs: merge global (all projects) + project-specific
         try:
-            global_config = bridge_paths.load_global_config()
+            global_config = paths.load_global_config()
             global_extra = global_config.get("extra_dirs", [])
         except Exception as e:
             logger.warning(f"Failed to load global config for extra_dirs: {e}")
             global_extra = []
         try:
-            project_config_path = bridge_paths.get_project_config_path(str(p))
+            project_config_path = paths.get_project_config_path(str(p))
             if project_config_path.exists():
                 project_config = json.loads(project_config_path.read_text(encoding="utf-8"))
                 project_extra = project_config.get("extra_dirs", [])

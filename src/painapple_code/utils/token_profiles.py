@@ -12,11 +12,11 @@ import logging
 import os
 from typing import Optional
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 logger = logging.getLogger("painapple-code.tokens")
 
-TOKENS_DIR = bridge_paths.CONFIG_HOME / "tokens"
+TOKENS_DIR = paths.CONFIG_HOME / "tokens"
 
 
 def list_profiles() -> list[dict]:
@@ -35,7 +35,7 @@ def list_profiles() -> list[dict]:
 
 def get_default_profile() -> Optional[str]:
     """Get the global default token profile name from config.json."""
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return config.get("default_token_profile")
 
 
@@ -63,7 +63,7 @@ def resolve_profile(session_profile: Optional[str], provider=None) -> Optional[s
     if session_profile:
         return session_profile
     if provider is not None:
-        return bridge_paths.engine_default_token_profile(provider)
+        return paths.engine_default_token_profile(provider)
     return get_default_profile()
 
 

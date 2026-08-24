@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from painapple_code.bridge_paths import (
+from painapple_code.paths import (
     get_shadow_git_dir,
     get_project_dir,
     get_sessions_dir,

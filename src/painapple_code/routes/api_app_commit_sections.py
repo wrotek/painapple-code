@@ -9,7 +9,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.shadow_git import (
     BUILTIN_SECTIONS, get_shadow_git, get_commit_sections_for_api
 )
@@ -26,25 +26,25 @@ router = APIRouter(tags=["app:commit-sections"])
 @router.get("/api/app/projects/{project_hash}/commit-sections")
 async def get_commit_sections(project_hash: str):
     """Get commit message sections configuration for a project."""
-    project_path = bridge_paths.get_project_path_from_hash(project_hash)
+    project_path = paths.get_project_path_from_hash(project_hash)
     if not project_path:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    project_config = bridge_paths.load_project_config(project_path)
+    project_config = paths.load_project_config(project_path)
     return get_commit_sections_for_api(project_config)
 
 
 @router.put("/api/app/projects/{project_hash}/commit-sections")
 async def update_commit_sections(project_hash: str, request: Request):
     """Update commit sections configuration for a project."""
-    project_path = bridge_paths.get_project_path_from_hash(project_hash)
+    project_path = paths.get_project_path_from_hash(project_hash)
     if not project_path:
         raise HTTPException(status_code=404, detail="Project not found")
 
     body = await request.json()
     sections_update = body.get("sections", {})
 
-    project_config = bridge_paths.load_project_config(project_path)
+    project_config = paths.load_project_config(project_path)
 
     if "shadow_git" not in project_config:
         project_config["shadow_git"] = {}
@@ -97,7 +97,7 @@ async def update_commit_sections(project_hash: str, request: Request):
                 if "applies_to" in updates:
                     current_sections[section_id]["applies_to"] = updates["applies_to"]
 
-    bridge_paths.save_project_config(project_path, project_config)
+    paths.save_project_config(project_path, project_config)
     logger.info(f"Updated commit sections for project {project_hash}")
 
     shadow = get_shadow_git(project_path)
@@ -109,16 +109,16 @@ async def update_commit_sections(project_hash: str, request: Request):
 @router.post("/api/app/projects/{project_hash}/commit-sections/reset")
 async def reset_commit_sections(project_hash: str):
     """Reset commit sections to defaults."""
-    project_path = bridge_paths.get_project_path_from_hash(project_hash)
+    project_path = paths.get_project_path_from_hash(project_hash)
     if not project_path:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    project_config = bridge_paths.load_project_config(project_path)
+    project_config = paths.load_project_config(project_path)
 
     if "shadow_git" in project_config:
         project_config["shadow_git"].pop("commit_sections", None)
 
-    bridge_paths.save_project_config(project_path, project_config)
+    paths.save_project_config(project_path, project_config)
     logger.info(f"Reset commit sections to defaults for project {project_hash}")
 
     shadow = get_shadow_git(project_path)

@@ -467,8 +467,8 @@ class AgentBridge:
     @property
     def SESSION_IDLE_TIMEOUT(self):
         """Idle session cleanup timeout, configurable via bridge config."""
-        from painapple_code import bridge_paths
-        config = bridge_paths.load_global_config()
+        from painapple_code import paths
+        config = paths.load_global_config()
         minutes = config.get("session_idle_timeout_minutes")
         if minutes is not None:
             return int(minutes) * 60
@@ -477,8 +477,8 @@ class AgentBridge:
     @property
     def ORPHAN_PROCESS_TIMEOUT(self):
         """Orphan process kill timeout, configurable via bridge config."""
-        from painapple_code import bridge_paths
-        config = bridge_paths.load_global_config()
+        from painapple_code import paths
+        config = paths.load_global_config()
         minutes = config.get("orphan_process_timeout_minutes")
         if minutes is not None:
             return int(minutes) * 60
@@ -496,9 +496,9 @@ class AgentBridge:
         # answering itself. Set False to keep the in-process answer-form path.
         # Loaded from the global bridge config so the System-tab toggle persists
         # across restarts; the PUT endpoint also updates this live instance.
-        from painapple_code import bridge_paths
+        from painapple_code import paths
         self.sigint_on_ask: bool = bool(
-            bridge_paths.load_global_config().get("sigint_on_ask", True)
+            paths.load_global_config().get("sigint_on_ask", True)
         )
 
     def get_session(self, store_id: str) -> Optional[AgentSession]:
@@ -635,8 +635,8 @@ class AgentBridge:
             # cumulative totals (Claude) restart from zero on every new process.
             session._cost_state = session.provider.new_cost_state()
             # Load retry max from global config (0 = disabled)
-            from painapple_code import bridge_paths
-            session._api_retry_max = bridge_paths.load_global_config().get("api_retry_max", 3)
+            from painapple_code import paths
+            session._api_retry_max = paths.load_global_config().get("api_retry_max", 3)
 
             # Resolve model: in-memory override → session meta → global config.
             model_choice = session.preferred_model
@@ -650,7 +650,7 @@ class AgentBridge:
                 # as fallback) — still catalog-gated: honor it only when this
                 # engine actually offers it (empty catalog = engine decides),
                 # so a stale/hidden/foreign id never steers a launch.
-                model_choice = bridge_paths.engine_default_model(session.provider)
+                model_choice = paths.engine_default_model(session.provider)
                 if not preferred_model_survives(model_choice, session.provider):
                     model_choice = None
 
@@ -663,7 +663,7 @@ class AgentBridge:
             if not effort:
                 # Per-engine default effort, gated to the engine's own
                 # vocabulary (a legacy `max` must not leak into Codex).
-                effort = bridge_paths.engine_default_effort(session.provider)
+                effort = paths.engine_default_effort(session.provider)
 
             # Permission mode resolution: in-memory override → session meta →
             # user's configured global default → provider's native default. The
@@ -681,7 +681,7 @@ class AgentBridge:
                 if meta:
                     permission_mode = meta.get("permission_level")
             if not permission_mode:
-                from painapple_code.bridge_paths import load_global_config
+                from painapple_code.paths import load_global_config
                 permission_mode = (
                     load_global_config().get("default_permission_level")
                     or session.provider.default_permission_mode()
@@ -722,7 +722,7 @@ class AgentBridge:
             # overloaded/unavailable — config-file only (`fallback_model` key
             # in ~/.painapple-code/config.json), no per-session UI. Unset
             # keeps the CLI's no-fallback default byte-for-byte.
-            fallback_model = bridge_paths.load_global_config().get("fallback_model")
+            fallback_model = paths.load_global_config().get("fallback_model")
 
             launch_opts = LaunchOptions(
                 model=model_choice,
@@ -2023,7 +2023,7 @@ class AgentBridge:
         — not a hardcoded `claude auth login`.
         """
         from painapple_code.utils.proc import shell_join
-        from painapple_code import bridge_paths
+        from painapple_code import paths
 
         p = session.provider
         # Family label ("Claude"/"Codex"): login identity is per CLI binary,
@@ -2039,7 +2039,7 @@ class AgentBridge:
             "engine": engine,
         }
         if p.auth_login_args:
-            config = bridge_paths.load_global_config()
+            config = paths.load_global_config()
             configured = config.get(p.path_config_key) if p.path_config_key else None
             binary = configured or p.default_binary
             if binary:
@@ -2660,9 +2660,9 @@ class AgentBridge:
                 if meta and meta.get("preferred_model"):
                     effective_model = meta["preferred_model"]
             if not effective_model:
-                from painapple_code import bridge_paths
+                from painapple_code import paths
                 from painapple_code.routes.dependencies import preferred_model_survives
-                effective_model = bridge_paths.engine_default_model(session.provider)
+                effective_model = paths.engine_default_model(session.provider)
                 # Same catalog gate as launch: a default from another
                 # engine's catalog must not steer this engine's probe.
                 if not preferred_model_survives(effective_model, session.provider):

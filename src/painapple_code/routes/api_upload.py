@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from PIL import Image
 
 from painapple_code.session_store import SessionStore
-from painapple_code.bridge_paths import BRIDGE_HOME
+from painapple_code.paths import DATA_HOME
 from painapple_code.utils.file_paths import is_reserved_dos_name
 
 logger = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ async def upload_image(file: UploadFile = File(...), session: str = None):
     if session and SessionStore.exists(session):
         uploads_dir = SessionStore.get_uploads_path(session)
     else:
-        uploads_dir = BRIDGE_HOME / "uploads" / "tmp"
+        uploads_dir = DATA_HOME / "uploads" / "tmp"
         uploads_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -271,7 +271,7 @@ async def upload_file(file: UploadFile = File(...), session: str = None):
     if session and SessionStore.exists(session):
         uploads_dir = SessionStore.get_uploads_path(session)
     else:
-        uploads_dir = BRIDGE_HOME / "uploads" / "tmp"
+        uploads_dir = DATA_HOME / "uploads" / "tmp"
         uploads_dir.mkdir(parents=True, exist_ok=True)
 
     target_path = uploads_dir / safe_name

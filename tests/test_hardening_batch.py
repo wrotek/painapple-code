@@ -196,7 +196,7 @@ def test_windows_allowed_paths(path):
 # dropping /inheritance:r is the difference between "owner only" and
 # "still whatever the parent directory grants".
 
-def _capture_icacls(monkeypatch, bridge_paths):
+def _capture_icacls(monkeypatch, paths):
     """Stub subprocess.run and hand back the dict that records argv."""
     seen = {}
 
@@ -209,20 +209,20 @@ def _capture_icacls(monkeypatch, bridge_paths):
         seen["argv"] = argv
         return _Result()
 
-    monkeypatch.setattr(bridge_paths.subprocess, "run", _fake_run)
+    monkeypatch.setattr(paths.subprocess, "run", _fake_run)
     return seen
 
 
 def test_lock_mode_windows_builds_owner_only_icacls(monkeypatch, tmp_path):
-    from painapple_code import bridge_paths
+    from painapple_code import paths
 
-    seen = _capture_icacls(monkeypatch, bridge_paths)
-    monkeypatch.setattr(bridge_paths, "_current_user_sid",
+    seen = _capture_icacls(monkeypatch, paths)
+    monkeypatch.setattr(paths, "_current_user_sid",
                         lambda: "S-1-5-21-1-2-3-1002")
 
     target = tmp_path / "config.yaml"
     target.write_text("password: x")
-    bridge_paths._lock_mode_windows(target, 0o600)
+    paths._lock_mode_windows(target, 0o600)
 
     argv = seen["argv"]
     assert argv[0] == "icacls"
@@ -242,16 +242,16 @@ def test_lock_mode_windows_never_uses_userdomain(monkeypatch, tmp_path):
     icacls fails 1332 and the file keeps whatever its parent granted. Seen
     live on the Windows test VM against the config holding the auth password.
     """
-    from painapple_code import bridge_paths
+    from painapple_code import paths
 
-    seen = _capture_icacls(monkeypatch, bridge_paths)
-    monkeypatch.setattr(bridge_paths, "_current_user_sid", lambda: None)
+    seen = _capture_icacls(monkeypatch, paths)
+    monkeypatch.setattr(paths, "_current_user_sid", lambda: None)
     monkeypatch.setenv("USERNAME", "alice")
     monkeypatch.setenv("USERDOMAIN", "WORKGROUP")
 
     target = tmp_path / "config.yaml"
     target.write_text("password: x")
-    bridge_paths._lock_mode_windows(target, 0o600)
+    paths._lock_mode_windows(target, 0o600)
 
     argv = seen["argv"]
     assert "WORKGROUP\\alice:F" not in argv
@@ -261,14 +261,14 @@ def test_lock_mode_windows_never_uses_userdomain(monkeypatch, tmp_path):
 
 def test_lock_mode_windows_skips_group_readable_modes(monkeypatch, tmp_path):
     """0o644 isn't owner-only; tightening it to owner-only would be wrong."""
-    from painapple_code import bridge_paths
+    from painapple_code import paths
 
     called = []
-    monkeypatch.setattr(bridge_paths.subprocess, "run",
+    monkeypatch.setattr(paths.subprocess, "run",
                         lambda *a, **k: called.append(a) or None)
     target = tmp_path / "public.txt"
     target.write_text("x")
-    bridge_paths._lock_mode_windows(target, 0o644)
+    paths._lock_mode_windows(target, 0o644)
     assert not called
 
 
@@ -276,27 +276,27 @@ def test_lock_mode_windows_warns_once_on_failure(monkeypatch, tmp_path, caplog):
     """A failed restriction must be LOUD (once), never silent."""
     import logging
 
-    from painapple_code import bridge_paths
+    from painapple_code import paths
 
     class _Fail:
         returncode = 1
         stdout = ""
         stderr = "Access is denied."
 
-    monkeypatch.setattr(bridge_paths.subprocess, "run", lambda *a, **k: _Fail())
+    monkeypatch.setattr(paths.subprocess, "run", lambda *a, **k: _Fail())
     monkeypatch.setenv("USERNAME", "alice")
-    bridge_paths._ACL_WARNED.clear()
+    paths._ACL_WARNED.clear()
 
     target = tmp_path / "config.yaml"
     target.write_text("password: x")
     with caplog.at_level(logging.WARNING):
-        bridge_paths._lock_mode_windows(target, 0o600)
-        bridge_paths._lock_mode_windows(target, 0o600)  # repeat call
+        paths._lock_mode_windows(target, 0o600)
+        paths._lock_mode_windows(target, 0o600)  # repeat call
 
     warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
     assert len(warnings) == 1, "should warn exactly once per path"
     assert "Access is denied." in warnings[0].message
-    bridge_paths._ACL_WARNED.clear()
+    paths._ACL_WARNED.clear()
 
 
 # ---------------------------------------------------------------------------

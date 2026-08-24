@@ -9,7 +9,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 
 # Re-export so `from session_store import SessionStoreV2` still works.
 from painapple_code.session_store_core import SessionStoreV2
@@ -54,7 +54,7 @@ class SessionStore:
         # Don't skip projects already in _stores: a concurrent thread may
         # have loaded one after our first pass, and skipping it here made
         # existing sessions intermittently 404 on cold-cache page loads.
-        for project_info in bridge_paths.list_projects(include_unreachable=True):
+        for project_info in paths.list_projects(include_unreachable=True):
             store = cls._get_store(project_info["path"])
             if store.exists(session_id):
                 return store, store.load_meta(session_id)
@@ -126,7 +126,7 @@ class SessionStore:
         all_sessions = []
 
         # Collect from all project stores
-        for project_info in bridge_paths.list_projects():
+        for project_info in paths.list_projects():
             project_path = project_info["path"]
             store = cls._get_store(project_path)
             all_sessions.extend(store.list_all())

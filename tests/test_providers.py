@@ -314,13 +314,13 @@ def test_describe_settings_surface():
 
 
 def _patch_config_store(monkeypatch, store):
-    """Point bridge_paths' global-config load/save at an in-memory dict."""
-    from painapple_code import bridge_paths
-    monkeypatch.setattr(bridge_paths, "load_global_config", lambda: dict(store))
+    """Point paths' global-config load/save at an in-memory dict."""
+    from painapple_code import paths
+    monkeypatch.setattr(paths, "load_global_config", lambda: dict(store))
     def _save(cfg):
         store.clear()
         store.update(cfg)
-    monkeypatch.setattr(bridge_paths, "save_global_config", _save)
+    monkeypatch.setattr(paths, "save_global_config", _save)
 
 
 def test_engine_path_get(client, monkeypatch):
@@ -599,7 +599,7 @@ def test_engine_auth_unsupported(client, monkeypatch):
 def test_engine_defaults_resolution(monkeypatch, tmp_path):
     """Scoped map beats legacy flat key; legacy is vocab/accounts-gated per
     engine; the provider-aware resolve_profile threads through."""
-    from painapple_code import bridge_paths
+    from painapple_code import paths
     from painapple_code.utils.token_profiles import resolve_profile
     # Pin codex to its no-cache vocabulary (low/medium/high) so the legacy
     # 'max' gate below is hermetic — with a real models cache present, the
@@ -618,20 +618,20 @@ def test_engine_defaults_resolution(monkeypatch, tmp_path):
     _patch_config_store(monkeypatch, store)
 
     # Legacy flat default, in Claude's catalog → honored (not overridden).
-    assert bridge_paths.engine_default_model(claude) == claude_other
+    assert paths.engine_default_model(claude) == claude_other
     # Codex has NO catalog here (CODEX_HOME=tmp_path, no cache) → the value is
     # trusted raw; the launch path lets the CLI decide.
-    assert bridge_paths.engine_default_model(codex) == claude_other
+    assert paths.engine_default_model(codex) == claude_other
     # A configured default the engine can't serve → its top catalog model.
     store["default_model"] = "totally-unknown"
-    assert bridge_paths.engine_default_model(claude) == claude_top
-    assert bridge_paths.engine_default_effort(claude) == "max"         # in claude vocab
-    assert bridge_paths.engine_default_effort(codex) == "medium"       # scoped beats legacy
+    assert paths.engine_default_model(claude) == claude_top
+    assert paths.engine_default_effort(claude) == "max"         # in claude vocab
+    assert paths.engine_default_effort(codex) == "medium"       # scoped beats legacy
 
     store["default_efforts"] = {}
-    assert bridge_paths.engine_default_effort(codex) is None           # legacy max ∉ codex vocab
+    assert paths.engine_default_effort(codex) is None           # legacy max ∉ codex vocab
 
-    assert bridge_paths.engine_default_token_profile(codex) is None    # no accounts
+    assert paths.engine_default_token_profile(codex) is None    # no accounts
     store["default_token_profiles"] = {"claude": "prof1"}
     assert resolve_profile(None, claude) == "prof1"
     assert resolve_profile("explicit", claude) == "explicit"           # session wins
@@ -644,29 +644,29 @@ def test_engine_default_model_top_catalog_fallback(tmp_path, monkeypatch):
     a concrete default (never the ambiguous 'Default'). An engine with NO
     catalog (Codex, no models cache) resolves to None and the launch path lets
     the CLI use its own configured model."""
-    from painapple_code import bridge_paths
+    from painapple_code import paths
     from painapple_code.providers import get_provider
     monkeypatch.setenv("CODEX_HOME", str(tmp_path))
     _patch_config_store(monkeypatch, {})
 
     codex = get_provider("codex-app-server")
-    assert bridge_paths.engine_default_model(codex) is None            # no cache → CLI decides
+    assert paths.engine_default_model(codex) is None            # no cache → CLI decides
     _write_codex_cache(tmp_path, [
         {"slug": "gpt-top", "display_name": "Top", "visibility": "list", "priority": 1},
         {"slug": "gpt-2", "display_name": "Two", "visibility": "list", "priority": 2},
     ])
-    assert bridge_paths.engine_default_model(codex) == "gpt-top"       # priority-first
-    assert bridge_paths.engine_default_model(get_provider("codex")) == "gpt-top"  # twin
+    assert paths.engine_default_model(codex) == "gpt-top"       # priority-first
+    assert paths.engine_default_model(get_provider("codex")) == "gpt-top"  # twin
 
     # Claude always had an in-catalog default (models.yaml) — still concrete.
     claude = get_provider("claude-sdk")
     claude_ids = [m["id"] for m in claude.enabled_models()]
-    assert bridge_paths.engine_default_model(claude) == claude_ids[0]
+    assert paths.engine_default_model(claude) == claude_ids[0]
 
     # A hidden top model steps the fallback to the next visible one.
     _patch_config_store(monkeypatch, {"models_disabled": {"codex": ["gpt-top"]}})
     monkeypatch.setenv("CODEX_HOME", str(tmp_path))
-    assert bridge_paths.engine_default_model(codex) == "gpt-2"
+    assert paths.engine_default_model(codex) == "gpt-2"
 
 
 def test_engine_defaults_get(client, monkeypatch):
@@ -748,7 +748,7 @@ def test_engine_defaults_journal_model(client, monkeypatch):
     """The journal knob writes each engine's own store: codex → the shared
     `codex_summary_model` config key (clear = inherit the session model),
     claude → models.yaml summary_model (clear = reset to shipped default)."""
-    from painapple_code import bridge_paths
+    from painapple_code import paths
     store = {}
     _patch_config_store(monkeypatch, store)
 
@@ -767,9 +767,9 @@ def test_engine_defaults_journal_model(client, monkeypatch):
 
     # Claude writes models.yaml through the same seam — capture the save
     saved = {}
-    monkeypatch.setattr(bridge_paths, "save_models_config",
+    monkeypatch.setattr(paths, "save_models_config",
                         lambda cfg: saved.update(cfg))
-    monkeypatch.setattr(bridge_paths, "get_selectable_models",
+    monkeypatch.setattr(paths, "get_selectable_models",
                         lambda: [{"id": "m1", "label": "M1", "desc": ""}])
     r = client.put("/api/app/engine-defaults/claude-sdk",
                    json={"summary_model": "claude-haiku-9"})

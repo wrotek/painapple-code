@@ -20,7 +20,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 
-from painapple_code.bridge_paths import lock_mode
+from painapple_code.paths import lock_mode
 
 
 VALIDITY_DAYS = 365 * 10

@@ -27,7 +27,7 @@ import tempfile
 import time
 from typing import Optional
 
-from painapple_code.bridge_paths import get_sessions_dir
+from painapple_code.paths import get_sessions_dir
 from painapple_code.subprocess_registry import agent_subprocesses, SubprocessType, SubprocessStatus
 from painapple_code.utils.proc import popen_kwargs_detached, resolve_binary
 from painapple_code.turn_tracker import TurnTracker

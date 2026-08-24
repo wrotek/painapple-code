@@ -346,7 +346,7 @@ async def recent_files(
     try:
         project_hash = project
         if not project_hash and not repo and cwd:
-            from painapple_code.bridge_paths import get_project_hash
+            from painapple_code.paths import get_project_hash
             project_hash = get_project_hash(cwd)
         if not project_hash and not repo:
             return JSONResponse({"error": "cwd, project, or repo is required"}, status_code=400)

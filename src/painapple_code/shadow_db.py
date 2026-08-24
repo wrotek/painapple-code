@@ -31,7 +31,7 @@ from typing import Optional
 
 import duckdb
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.shadow_db_plans import _PlansMixin
 from painapple_code.shadow_db_queries import _QueriesMixin
 from painapple_code.shadow_db_schema import _SchemaMixin
@@ -43,7 +43,7 @@ logger = logging.getLogger("painapple-code.shadow-db")
 # Database location
 # ═══════════════════════════════════════════════════════════════════════════
 
-DB_PATH = bridge_paths.BRIDGE_HOME / "shadow.duckdb"
+DB_PATH = paths.DATA_HOME / "shadow.duckdb"
 
 
 # ═══════════════════════════════════════════════════════════════════════════

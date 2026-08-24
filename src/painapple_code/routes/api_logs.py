@@ -20,7 +20,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.session_store import SessionStore
 from painapple_code.routes.dependencies import get_session_store
 
@@ -133,7 +133,7 @@ async def get_session_messages(
         return {"messages": [], "total": 0, "offset": offset, "limit": limit, "since": since}
 
     # Load favorites set for quick lookup
-    favorites_data = bridge_paths.load_prompt_favorites()
+    favorites_data = paths.load_prompt_favorites()
     favorite_ids = set(favorites_data.get("prompts", {}).keys())
 
     all_messages = []

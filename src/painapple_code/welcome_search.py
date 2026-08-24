@@ -18,8 +18,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from painapple_code.bridge_paths import (
-    BRIDGE_HOME,
+from painapple_code.paths import (
+    DATA_HOME,
     get_project_display_name,
     get_shadow_git_dir,
     get_sessions_dir,
@@ -234,7 +234,7 @@ class WelcomeSearcher:
 
     def __init__(self):
         """Initialize searcher."""
-        self.bridge_dir = BRIDGE_HOME
+        self.data_dir = DATA_HOME
 
     @staticmethod
     def _read_first_prompt(sessions_dir: Path, session_id: str) -> Optional[str]:

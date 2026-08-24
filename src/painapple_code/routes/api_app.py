@@ -25,7 +25,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code import helpers as helpers_module
 from painapple_code.utils.file_paths import safe_resolve
 
@@ -296,14 +296,14 @@ async def get_server_info(request: Request):
 @router.get("/api/app/config")
 async def get_app_config():
     """Get global bridge configuration."""
-    return bridge_paths.load_global_config()
+    return paths.load_global_config()
 
 
 @router.put("/api/app/config")
 async def update_app_config(config: dict):
     """Update global bridge configuration."""
-    bridge_paths.save_global_config(config)
-    return bridge_paths.load_global_config()
+    paths.save_global_config(config)
+    return paths.load_global_config()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -361,7 +361,7 @@ async def set_helper_agent_model(payload: dict):
     ``{"model": "inherit|haiku|sonnet|opus"}``.
     """
     try:
-        model = bridge_paths.set_helper_agent_model((payload or {}).get("model"))
+        model = paths.set_helper_agent_model((payload or {}).get("model"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     applied = helpers_module.apply_agent_model(model)

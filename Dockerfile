@@ -170,7 +170,7 @@ USER root
 # itself wasn't started via login(1).
 # PAINAPPLE_IN_CONTAINER marks "running containerized" — a build-time constant
 # (the image only ever runs in a container). It's a last-resort fallback in
-# bridge_paths.detect_environment(); the docker-vs-podman decision is made at
+# paths.detect_environment(); the docker-vs-podman decision is made at
 # runtime from /.dockerenv vs /run/.containerenv, NOT from this marker — a baked
 # ENV can't tell the two apart since the same image runs on both engines.
 # HOME must be pinned: the image's last USER is root (for the entrypoint),

@@ -6,7 +6,7 @@ endpoint that takes a {session_id} path parameter.
 
 from fastapi import HTTPException
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.session_store import SessionStore
 
 
@@ -25,7 +25,7 @@ def effective_default_provider(app):
     from painapple_code.providers import get_provider
     bridge = getattr(app.state, "bridge", None)
     name = (getattr(bridge, "default_provider", None)
-            or bridge_paths.load_global_config().get("default_provider"))
+            or paths.load_global_config().get("default_provider"))
     return get_provider(name)
 
 
@@ -39,7 +39,7 @@ def provider_enabled_map(app) -> dict:
     (``?provider=``, PUT) and already-bound sessions ignore it.
     """
     from painapple_code.providers import all_providers
-    overrides = bridge_paths.load_global_config().get("providers_enabled") or {}
+    overrides = paths.load_global_config().get("providers_enabled") or {}
     default_name = effective_default_provider(app).name
     return {
         p.name: p.name == default_name or bool(overrides.get(p.name, p.default_enabled))
@@ -64,7 +64,7 @@ def bind_permission_level(stored_level, provider):
         return None
     effective = stored_level
     if effective is None:
-        config = bridge_paths.load_global_config()
+        config = paths.load_global_config()
         effective = (config.get("default_permission_level")
                      or get_provider(DEFAULT_PROVIDER).default_permission_mode())
     vocab = {m["value"] for m in provider.permission_modes() if m.get("value")}

@@ -38,7 +38,7 @@ class _SummaryMixin:
         clear of ARG_MAX and out of `ps`. The generic spawner writes
         `stdin_input` before reading stdout.
         """
-        from painapple_code.bridge_paths import get_summary_model
+        from painapple_code.paths import get_summary_model
         from painapple_code.utils.token_profiles import build_env as build_token_env
 
         # Always plain haiku — the [1m] variant hangs with --fork-session from

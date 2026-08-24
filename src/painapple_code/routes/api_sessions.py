@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.session_store import SessionStore
 from painapple_code.utils.file_paths import safe_resolve
 
@@ -61,7 +61,7 @@ async def create_session(request: Request, cwd: str, name: str = None, provider:
     bridge = getattr(request.app.state, "bridge", None)
     provider_name = (provider
                      or getattr(bridge, "default_provider", None)
-                     or bridge_paths.load_global_config().get("default_provider"))
+                     or paths.load_global_config().get("default_provider"))
     if provider_name:
         SessionStore.update_metadata(session_data["id"], provider=provider_name)
         session_data["provider"] = provider_name
@@ -137,7 +137,7 @@ async def rename_session(session_id: str, request: RenameRequest):
 
 def _get_max_thinking_tokens() -> int:
     """Get the max thinking tokens from config or default."""
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return config.get("max_thinking_tokens", 31999)
 
 
@@ -195,7 +195,7 @@ def _get_default_permission_level() -> str:
     """Get the default permission level from config, falling back to the default
     provider's own default (no hardcoded engine vocabulary)."""
     from painapple_code.providers import get_provider, DEFAULT_PROVIDER
-    config = bridge_paths.load_global_config()
+    config = paths.load_global_config()
     return config.get("default_permission_level") or get_provider(DEFAULT_PROVIDER).default_permission_mode()
 
 
@@ -259,7 +259,7 @@ async def get_session_token_profile(session_id: str):
     from painapple_code.providers import get_provider
     session_profile = meta.get("token_profile")
     # The default shown/used is the SESSION ENGINE's configured profile.
-    global_default = bridge_paths.engine_default_token_profile(
+    global_default = paths.engine_default_token_profile(
         get_provider(meta.get("provider")))
 
     return {
@@ -319,7 +319,7 @@ async def get_session_model(session_id: str):
     session_model = meta.get("preferred_model")
     # The default shown by the chip is the SESSION ENGINE's configured model
     # (models_key-scoped map, legacy flat key as fallback).
-    global_default = bridge_paths.engine_default_model(
+    global_default = paths.engine_default_model(
         get_provider(meta.get("provider")))
 
     return {
@@ -374,7 +374,7 @@ async def get_session_effort(session_id: str):
     from painapple_code.providers import get_provider
     session_effort = meta.get("effort_level")
     # The default is the SESSION ENGINE's configured effort (vocab-gated).
-    global_default = bridge_paths.engine_default_effort(
+    global_default = paths.engine_default_effort(
         get_provider(meta.get("provider"))) or "high"
 
     return {

@@ -51,18 +51,18 @@ class _CapabilitiesMixin:
         return True
 
     def get_summary_model_override(self) -> Optional[str]:
-        from painapple_code.bridge_paths import get_summary_model
+        from painapple_code.paths import get_summary_model
         return get_summary_model()
 
     def set_summary_model_override(self, value: Optional[str]) -> None:
         # Empty resets to the shipped default — Claude's journal fork always
         # needs a concrete model (`--model` is mandatory on the fork argv).
-        from painapple_code import bridge_paths
+        from painapple_code import paths
         cleaned = (value or "").strip() or (
-            bridge_paths.get_default_models_config().get("summary_model")
+            paths.get_default_models_config().get("summary_model")
             or "claude-haiku-4-5")
-        bridge_paths.save_models_config({
-            "selectable": bridge_paths.get_selectable_models(),
+        paths.save_models_config({
+            "selectable": paths.get_selectable_models(),
             "summary_model": cleaned,
         })
 
@@ -93,7 +93,7 @@ class _CapabilitiesMixin:
         return accounts
 
     def models(self) -> list[dict]:
-        from painapple_code.bridge_paths import get_selectable_models
+        from painapple_code.paths import get_selectable_models
         return get_selectable_models()
 
     def effort_levels(self) -> list[str]:

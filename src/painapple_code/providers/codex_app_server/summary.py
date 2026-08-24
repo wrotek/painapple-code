@@ -29,7 +29,7 @@ import json
 import logging
 from typing import Optional
 
-from painapple_code import bridge_paths
+from painapple_code import paths
 from painapple_code.providers.base import SummaryForkPlan
 from painapple_code.providers.codex.summary import _SummaryMixin as _CodexExecSummaryMixin
 

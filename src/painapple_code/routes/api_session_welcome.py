@@ -76,7 +76,7 @@ async def search_welcome(request: Request):
 async def get_welcome_projects(request: Request):
     """Get projects for the quick-start picker, plus workspace siblings the
     user hasn't opened a session in yet."""
-    from painapple_code.bridge_paths import list_projects, list_workspace_dirs
+    from painapple_code.paths import list_projects, list_workspace_dirs
 
     projects = list_projects()
 
