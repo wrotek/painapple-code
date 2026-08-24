@@ -123,14 +123,6 @@ user that can only touch what you're willing to expose.
 | `PAINAPPLE_REVEAL_CMD` | Exact "reveal password" command shown verbatim on the login page. Launchers (the Docker wrapper) set this because they know the host-side container name and engine; unset, the page falls back to a per-environment guess. |
 | `PAINAPPLE_IN_CONTAINER` | Set to `1` inside the official image. Gates the filesystem probes that distinguish Docker from Podman for the login page's environment detection — never set this on a bare-metal host. |
 
-!!! warning "One-time credential rotation on upgrade"
-    The auth cookie was renamed `bridge_auth` → `painapple_auth` **and** the HMAC domain separators behind every derived credential were renamed off the old codename. That is a deliberate rotation, so on the first start after upgrading:
-
-    - **Every browser is logged out once.** Log in again with the same password — it is unchanged.
-    - **The stored `api_token` is re-derived.** `config.yaml` is rewritten automatically on start, but any script, bookmark or `?tkn=` link holding the old token will 401 until you re-read it with `painapple password`.
-
-    Nothing else is affected, and this does not recur.
-
 ## Origin/CSRF boundary
 
 Any authenticated client can reach `/api/exec` (arbitrary shell as the server

@@ -19,7 +19,7 @@ import uuid
 
 import pytest
 
-from painapple_code.services.agent_session import AgentBridge
+from painapple_code.services.agent_session import AgentManager
 from painapple_code.shadow_db import ShadowDB
 from painapple_code.turn_tracker import TurnTracker
 
@@ -47,7 +47,7 @@ def _assistant(model, parent_tool_use_id=None, content=None):
 
 def _feed(session, msg):
     # `self` is unused on this path (no content blocks -> no tool/text handling).
-    AgentBridge._handle_assistant_msg(None, session, msg, "2026-08-07T00:00:00Z")
+    AgentManager._handle_assistant_msg(None, session, msg, "2026-08-07T00:00:00Z")
 
 
 def test_main_thread_frame_is_recorded():

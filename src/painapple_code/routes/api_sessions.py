@@ -58,9 +58,9 @@ async def create_session(request: Request, cwd: str, name: str = None, provider:
         )
     resolved_cwd = str(safe_resolve(cwd))
     session_data = SessionStore.create(resolved_cwd, name)
-    bridge = getattr(request.app.state, "bridge", None)
+    agents = getattr(request.app.state, "agents", None)
     provider_name = (provider
-                     or getattr(bridge, "default_provider", None)
+                     or getattr(agents, "default_provider", None)
                      or paths.load_global_config().get("default_provider"))
     if provider_name:
         SessionStore.update_metadata(session_data["id"], provider=provider_name)
@@ -289,14 +289,14 @@ async def set_session_token_profile(session_id: str, request: Request):
     SessionStore.update_metadata(session_id, token_profile=value)
 
     # Update live session and kill idle process so next turn uses new token
-    from painapple_code.server import bridge
-    if bridge:
-        live_session = bridge.get_session(session_id)
+    from painapple_code.server import agents
+    if agents:
+        live_session = agents.get_session(session_id)
         if live_session:
             live_session.token_profile = value
             if live_session.is_idle and live_session.process:
                 live_session._interrupting = True  # suppress session_ended WS msg
-                await bridge.stop_session(live_session)
+                await agents.stop_session(live_session)
                 logger.info(f"Killed idle process for session {session_id} (token profile changed)")
 
     logger.info(f"Session {session_id} token profile set to: {value}")
@@ -342,14 +342,14 @@ async def set_session_model(session_id: str, request: Request):
     SessionStore.update_metadata(session_id, preferred_model=value)
 
     # Update live session and kill idle process so next turn uses new model
-    from painapple_code.server import bridge
-    if bridge:
-        live_session = bridge.get_session(session_id)
+    from painapple_code.server import agents
+    if agents:
+        live_session = agents.get_session(session_id)
         if live_session:
             live_session.preferred_model = value
             if live_session.is_idle and live_session.process:
                 live_session._interrupting = True
-                await bridge.stop_session(live_session)
+                await agents.stop_session(live_session)
                 logger.info(f"Killed idle process for session {session_id} (model changed to: {value})")
 
     logger.info(f"Session {session_id} preferred model set to: {value}")
@@ -407,14 +407,14 @@ async def set_session_effort(session_id: str, request: Request):
     SessionStore.update_metadata(session_id, effort_level=value)
 
     # Update live session and kill idle process so next turn uses new effort
-    from painapple_code.server import bridge
-    if bridge:
-        live_session = bridge.get_session(session_id)
+    from painapple_code.server import agents
+    if agents:
+        live_session = agents.get_session(session_id)
         if live_session:
             live_session.effort_level = value
             if live_session.is_idle and live_session.process:
                 live_session._interrupting = True
-                await bridge.stop_session(live_session)
+                await agents.stop_session(live_session)
                 logger.info(f"Killed idle process for session {session_id} (effort changed to: {value})")
 
     logger.info(f"Session {session_id} effort level set to: {value}")
@@ -499,9 +499,9 @@ async def set_session_provider(session_id: str, request: Request):
     if model_cleared:
         SessionStore.update_metadata(session_id, preferred_model=None)
 
-    bridge = getattr(request.app.state, "bridge", None)
-    if bridge:
-        live_session = bridge.get_session(session_id)
+    agents = getattr(request.app.state, "agents", None)
+    if agents:
+        live_session = agents.get_session(session_id)
         if live_session:
             live_session.provider = get_provider(value)
             live_session._cost_state = live_session.provider.new_cost_state()
@@ -514,7 +514,7 @@ async def set_session_provider(session_id: str, request: Request):
                 live_session.preferred_model = None
             if live_session.is_idle and live_session.process:
                 live_session._interrupting = True
-                await bridge.stop_session(live_session)
+                await agents.stop_session(live_session)
 
     return await get_session_provider(session_id, request)
 

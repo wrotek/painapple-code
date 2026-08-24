@@ -74,7 +74,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
     # runs as __main__, so a `server` re-import re-runs module-level code
     # without main() and never sets bridge).
     await websocket.accept()
-    bridge = websocket.app.state.bridge
+    agents = websocket.app.state.agents
 
     state = websocket.app.state
     # Origin boundary: WS bypasses CORS, so a cross-origin browser page could
@@ -124,7 +124,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
         already_persisted = True  # Loaded from disk
     else:
         # Create pending session (not persisted to disk yet)
-        resolved_cwd = bridge.default_cwd
+        resolved_cwd = agents.default_cwd
         if cwd:
             resolved_cwd = str(safe_resolve(cwd))
         store_data = SessionStore.create_pending(resolved_cwd)
@@ -147,7 +147,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
             else:
                 logger.warning(f"Ignoring unknown provider {provider!r} on session create")
         provider_name = (requested_provider
-                         or bridge.default_provider
+                         or agents.default_provider
                          or paths.load_global_config().get("default_provider"))
         if provider_name:
             store_data["provider"] = provider_name
@@ -163,7 +163,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
     store_id = store_data["id"]
 
     # Step 2: Get or create the runtime session (keyed by store_id)
-    existing_session = bridge.get_session(store_id)
+    existing_session = agents.get_session(store_id)
 
     # Determine if this is a reconnect:
     # - If session param was provided in URL, user is returning to existing session
@@ -181,7 +181,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
         agent_session.attach_websocket(websocket)
     else:
         # Create new session (with pending metadata if not persisted)
-        agent_session = bridge.get_or_create_session(
+        agent_session = agents.get_or_create_session(
             store_id=store_id,
             cwd=resolved_cwd,
             store_meta=store_data if not already_persisted else None,
@@ -219,9 +219,9 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
             status_msg = "Ready"  # New session, Claude will start on first message
 
         try:
-            workspace_path = str(safe_resolve(bridge.default_cwd))
+            workspace_path = str(safe_resolve(agents.default_cwd))
         except Exception:
-            workspace_path = bridge.default_cwd
+            workspace_path = agents.default_cwd
         # The session's engine identity + capabilities ride the connected
         # payload so the client can badge the tab and gate per-engine chrome
         # (model chip, fork/Discuss, USD cost, /context) without a second
@@ -269,19 +269,19 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
                 agent_session.touch()  # Update activity timestamp
 
                 if msg_type == "user_message":
-                    await _handle_user_message(websocket, agent_session, store_id, data, bridge)
+                    await _handle_user_message(websocket, agent_session, store_id, data, agents)
                 elif msg_type == "ping":
                     await websocket.send_json({"type": "pong"})
                 elif msg_type == "stop":
-                    await _handle_stop(websocket, agent_session, bridge)
+                    await _handle_stop(websocket, agent_session, agents)
                 elif msg_type == "clear_session":
-                    await _handle_clear_session(websocket, agent_session, store_id, bridge)
+                    await _handle_clear_session(websocket, agent_session, store_id, agents)
                 elif msg_type == "tool_answer":
-                    await _handle_tool_answer(websocket, agent_session, store_id, data, bridge)
+                    await _handle_tool_answer(websocket, agent_session, store_id, data, agents)
                 elif msg_type == "permission_response":
-                    await _handle_permission_response(websocket, agent_session, data, bridge)
+                    await _handle_permission_response(websocket, agent_session, data, agents)
                 elif msg_type == "set_permission_mode":
-                    await _handle_set_permission_mode(websocket, agent_session, store_id, data, bridge)
+                    await _handle_set_permission_mode(websocket, agent_session, store_id, data, agents)
                 else:
                     logger.warning(f"Unknown message type: {msg_type}")
 
@@ -318,7 +318,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
 # Per-message-type handlers
 # ───────────────────────────────────────────────────────────────────────
 
-async def _handle_user_message(websocket, agent_session, store_id, data, bridge) -> None:
+async def _handle_user_message(websocket, agent_session, store_id, data, agents) -> None:
     """Handle a `user_message` from the client.
 
     Records the prompt in SessionStore + Shadow DB, applies any token-profile
@@ -518,7 +518,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
         # by _finalize_turn after each turn completes.
         if agent_session.is_idle and agent_session.process:
             agent_session._interrupting = True  # suppress session_ended WS msg
-            await bridge.stop_session(agent_session)
+            await agents.stop_session(agent_session)
             logger.info(f"Killed idle process for {store_id} (token profile changed to: {msg_token_profile})")
 
     # Apply preferred model from message (sent with every prompt)
@@ -535,13 +535,13 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
         switched_live = False
         if (agent_session.provider.capabilities.live_controls
                 and agent_session.process and agent_session.is_running):
-            switched_live = await bridge.send_control(
+            switched_live = await agents.send_control(
                 agent_session, "set_model", {"model": msg_model})
             if switched_live:
                 logger.info(f"Model live-applied for {store_id}: {msg_model}")
         if not switched_live and agent_session.is_idle and agent_session.process:
             agent_session._interrupting = True
-            await bridge.stop_session(agent_session)
+            await agents.stop_session(agent_session)
             logger.info(f"Killed idle process for {store_id} (model changed to: {msg_model})")
 
     # One-shot effort override (Ctrl+Shift+' on the client): apply for THIS
@@ -558,7 +558,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
         agent_session.effort_level = msg_effort
         if agent_session.is_idle and agent_session.process:
             agent_session._interrupting = True
-            await bridge.stop_session(agent_session)
+            await agents.stop_session(agent_session)
             logger.info(f"Killed idle process for {store_id} (one-shot effort: {msg_effort})")
 
     # Apply a permission mode forwarded with the message. The picker normally
@@ -580,7 +580,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
     if agent_session.permission_mode != agent_session._launched_permission_mode:
         if agent_session.is_idle and agent_session.process:
             agent_session._interrupting = True
-            await bridge.stop_session(agent_session)
+            await agents.stop_session(agent_session)
             logger.info(f"Killed idle process for {store_id} (permission mode changed to: {agent_session.permission_mode})")
 
     # Ephemeral providers (e.g. Codex) run one subprocess per turn with the
@@ -600,7 +600,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
         agent_session._pending_prompt = content
         agent_session._pending_images = images
         agent_session._last_agent_msg = agent_msg
-        if not await bridge.start_agent(agent_session):
+        if not await agents.start_agent(agent_session):
             await websocket.send_json({
                 "type": "error",
                 "message": agent_session.start_error
@@ -610,7 +610,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
 
     # Start Claude if not running (may have finished)
     if not agent_session.is_running:
-        if not await bridge.start_agent(agent_session):
+        if not await agents.start_agent(agent_session):
             await websocket.send_json({
                 "type": "error",
                 "message": agent_session.start_error or "Failed to start Claude Code"
@@ -618,16 +618,16 @@ async def _handle_user_message(websocket, agent_session, store_id, data, bridge)
             return
 
     # Send user message to Claude
-    if not await bridge.send_to_agent(agent_session, agent_msg):
+    if not await agents.send_to_agent(agent_session, agent_msg):
         await websocket.send_json({
             "type": "error",
             "message": "Failed to send message to Claude"
         })
 
 
-async def _handle_stop(websocket, agent_session, bridge) -> None:
+async def _handle_stop(websocket, agent_session, agents) -> None:
     """Handle a `stop` request — interrupt Claude if running."""
-    if await bridge.interrupt_agent(agent_session):
+    if await agents.interrupt_agent(agent_session):
         logger.info("Claude interrupted by user request")
         await websocket.send_json({
             "type": "stopped",
@@ -640,12 +640,12 @@ async def _handle_stop(websocket, agent_session, bridge) -> None:
         })
 
 
-async def _handle_clear_session(websocket, agent_session, store_id, bridge) -> None:
+async def _handle_clear_session(websocket, agent_session, store_id, agents) -> None:
     """Handle a `clear_session` request — wipe conversation, restart fresh."""
     logger.info(f"Clearing session: {store_id}")
 
     # Stop current Claude process
-    await bridge.stop_session(agent_session)
+    await agents.stop_session(agent_session)
 
     # Clear server-side store (removes provider_session_id and messages)
     SessionStore.clear_conversation(store_id)
@@ -654,7 +654,7 @@ async def _handle_clear_session(websocket, agent_session, store_id, bridge) -> N
     agent_session.session_id = None
 
     # Restart Claude (will start fresh, no --resume)
-    if await bridge.start_agent(agent_session):
+    if await agents.start_agent(agent_session):
         await websocket.send_json({
             "type": "session_cleared",
             "message": "Session cleared. Starting fresh conversation."
@@ -666,7 +666,7 @@ async def _handle_clear_session(websocket, agent_session, store_id, bridge) -> N
         })
 
 
-async def _handle_tool_answer(websocket, agent_session, store_id, data, bridge) -> None:
+async def _handle_tool_answer(websocket, agent_session, store_id, data, agents) -> None:
     """Handle a `tool_answer` — user responded to AskUserQuestion via the workaround.
 
     Headless Claude (`-p` mode) auto-denies AskUserQuestion in every permission
@@ -720,7 +720,7 @@ async def _handle_tool_answer(websocket, agent_session, store_id, data, bridge) 
 
     # Start Claude if not running (auto-denial stops process)
     if not agent_session.is_running:
-        if not await bridge.start_agent(agent_session):
+        if not await agents.start_agent(agent_session):
             await websocket.send_json({
                 "type": "error",
                 "message": agent_session.start_error or "Failed to start Claude Code"
@@ -728,7 +728,7 @@ async def _handle_tool_answer(websocket, agent_session, store_id, data, bridge) 
             return
 
     # Send to Claude
-    if not await bridge.send_to_agent(agent_session, agent_msg):
+    if not await agents.send_to_agent(agent_session, agent_msg):
         await websocket.send_json({
             "type": "error",
             "message": "Failed to send answers to Claude"
@@ -748,7 +748,7 @@ async def _handle_tool_answer(websocket, agent_session, store_id, data, bridge) 
         })
 
 
-async def _handle_permission_response(websocket, agent_session, data, bridge) -> None:
+async def _handle_permission_response(websocket, agent_session, data, agents) -> None:
     """Handle a `permission_response` — the user's allow/deny for an
     interactive permission ask (capabilities.interactive_permissions).
 
@@ -756,7 +756,7 @@ async def _handle_permission_response(websocket, agent_session, data, bridge) ->
     `can_use_tool` callback. A False return means the request expired (the
     process restarted or died) — tell the client so it retires the card.
     """
-    ok = await bridge.respond_permission(agent_session, data)
+    ok = await agents.respond_permission(agent_session, data)
     # Broadcast (not just to the answering socket): with multi-client attach,
     # every peer tab shows the same pending card — all of them must retire it
     # when any one client answers.
@@ -770,7 +770,7 @@ async def _handle_permission_response(websocket, agent_session, data, bridge) ->
         await websocket.send_json(resolved)
 
 
-async def _handle_set_permission_mode(websocket, agent_session, store_id, data, bridge) -> None:
+async def _handle_set_permission_mode(websocket, agent_session, store_id, data, agents) -> None:
     """Handle a `set_permission_mode` request — record the mode and apply it.
 
     Records the desired mode and echoes it to the client (so the permission
@@ -818,7 +818,7 @@ async def _handle_set_permission_mode(websocket, agent_session, store_id, data, 
             and agent_session.process and agent_session.is_running
             and agent_session._launched_resolved_mode != "bypassPermissions"):
         target = mode or "bypassPermissions"
-        if await bridge.send_control(agent_session, "set_permission_mode",
+        if await agents.send_control(agent_session, "set_permission_mode",
                                      {"mode": target}):
             # Only the desired-mode snapshot moves; _launched_resolved_mode
             # stays at the launch value — gate attachment is a spawn-time

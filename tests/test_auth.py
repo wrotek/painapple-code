@@ -290,10 +290,10 @@ def test_three_credentials_are_three_distinct_values(test_password):
     assert len(api) == 64  # hex sha256
 
 
-def test_ws_password_as_tkn_rejected(app_with_bridge, test_password):
+def test_ws_password_as_tkn_rejected(app_with_agents, test_password):
     """The WS upgrade is the one place ?tkn= is still the primary path for
     non-browser clients — it must not accept the password either."""
-    client = TestClient(app_with_bridge)
+    client = TestClient(app_with_agents)
     code = _first_close_code(client, f"/chat?tkn={test_password}")
     assert code == 1008
 
@@ -826,13 +826,11 @@ def test_logout_clears_cookie_matching_attrs(unauth_client):
     assert "Max-Age=0" in cookie or "Expires=Thu, 01 Jan 1970" in cookie
 
 
-def test_legacy_cookie_name_is_not_accepted(app, test_password):
-    """The pre-rename cookie name carries no authority at all.
-
-    Both the name and the derivation moved, so an old browser gets one
-    forced re-login rather than a silent alias.
-    """
-    with TestClient(app, cookies={"bridge_auth": client_token(test_password)}) as c:
+def test_unknown_cookie_name_is_not_accepted(app, test_password):
+    """Only COOKIE_NAME carries authority — a correct value under any other
+    name is not a credential. Guards against a second name being wired in
+    as a silent alias."""
+    with TestClient(app, cookies={"painapple_session": client_token(test_password)}) as c:
         assert c.get("/api/sessions").status_code == 401
 
 
@@ -939,35 +937,35 @@ def _first_close_code(client, url):
 
 
 @pytest.fixture
-def app_with_bridge(app, tmp_path, monkeypatch):
+def app_with_agents(app, tmp_path, monkeypatch):
     """Stub the global bridge so authed WS handlers don't crash on attribute
     access. We only care that auth was accepted; actual session mechanics
     are out of scope for the auth tests."""
-    from painapple_code.services.agent_session import AgentBridge
-    app.state.bridge = AgentBridge(default_cwd=str(tmp_path))
+    from painapple_code.services.agent_session import AgentManager
+    app.state.agents = AgentManager(default_cwd=str(tmp_path))
     yield app
 
 
-def test_ws_authed_via_tkn_not_1008(app_with_bridge, test_password):
+def test_ws_authed_via_tkn_not_1008(app_with_agents, test_password):
     """tkn-authed WS must not be rejected with 1008 (auth success).
 
     The handler may still close later for other reasons, but not with
     1008 — that's the auth-specific reject code.
     """
-    client = TestClient(app_with_bridge)
+    client = TestClient(app_with_agents)
     code = _first_close_code(client, f"/chat?tkn={client_token(test_password, 'tkn')}")
     assert code != 1008, f"unexpected auth rejection, got close code {code}"
 
 
-def test_ws_authed_via_cookie_not_1008(app_with_bridge, test_password):
+def test_ws_authed_via_cookie_not_1008(app_with_agents, test_password):
     cookie_token = client_token(test_password)
-    client = TestClient(app_with_bridge, cookies={COOKIE_NAME: cookie_token})
+    client = TestClient(app_with_agents, cookies={COOKIE_NAME: cookie_token})
     code = _first_close_code(client, "/chat")
     assert code != 1008, f"unexpected auth rejection, got close code {code}"
 
 
-def test_ws_terminal_authed_via_tkn_not_1008(app_with_bridge, test_password):
-    client = TestClient(app_with_bridge)
+def test_ws_terminal_authed_via_tkn_not_1008(app_with_agents, test_password):
+    client = TestClient(app_with_agents)
     code = _first_close_code(client, f"/ws/terminal?tkn={client_token(test_password, 'tkn')}")
     assert code != 1008, f"unexpected auth rejection, got close code {code}"
 

@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from painapple_code.services.agent_session import AgentBridge, AgentSession
+from painapple_code.services.agent_session import AgentManager, AgentSession
 
 
 def _session():
@@ -29,8 +29,8 @@ def _exit_(tool_id="xp1"):
 
 
 @pytest.fixture
-def bridge():
-    return AgentBridge()
+def agents():
+    return AgentManager()
 
 
 @pytest.fixture
@@ -46,80 +46,80 @@ def test_default_state_is_disarmed(_track, _store, sess):
 
 @patch("painapple_code.services.agent_session.SessionStore")
 @patch("painapple_code.services.agent_session._track_tool_usage")
-def test_exit_plan_without_arming_does_not_set_pending(_track, _store, bridge, sess):
+def test_exit_plan_without_arming_does_not_set_pending(_track, _store, agents, sess):
     """Post-approval acknowledgment case: ExitPlanMode arrives with no prior
     arming → no SIGINT scheduled."""
-    bridge._handle_tool_use(sess, _exit_(), "ts")
+    agents._handle_tool_use(sess, _exit_(), "ts")
     assert sess._pending_input_tool is None
     assert sess._plan_sigint_armed is False
 
 
 @patch("painapple_code.services.agent_session.SessionStore")
 @patch("painapple_code.services.agent_session._track_tool_usage")
-def test_enter_plan_arms_the_gate(_track, _store, bridge, sess):
-    bridge._handle_tool_use(sess, _enter(), "ts")
+def test_enter_plan_arms_the_gate(_track, _store, agents, sess):
+    agents._handle_tool_use(sess, _enter(), "ts")
     assert sess._plan_sigint_armed is True
     assert sess._pending_input_tool is None
 
 
 @patch("painapple_code.services.agent_session.SessionStore")
 @patch("painapple_code.services.agent_session._track_tool_usage")
-def test_enter_then_exit_fires_and_disarms(_track, _store, bridge, sess):
-    bridge._handle_tool_use(sess, _enter("ep1"), "ts")
+def test_enter_then_exit_fires_and_disarms(_track, _store, agents, sess):
+    agents._handle_tool_use(sess, _enter("ep1"), "ts")
     assert sess._plan_sigint_armed is True
 
-    bridge._handle_tool_use(sess, _exit_("xp1"), "ts")
+    agents._handle_tool_use(sess, _exit_("xp1"), "ts")
     assert sess._pending_input_tool == "ExitPlanMode"
     assert sess._plan_sigint_armed is False
 
 
 @patch("painapple_code.services.agent_session.SessionStore")
 @patch("painapple_code.services.agent_session._track_tool_usage")
-def test_post_approval_second_exit_does_not_re_sigint(_track, _store, bridge, sess):
+def test_post_approval_second_exit_does_not_re_sigint(_track, _store, agents, sess):
     """The bug scenario end to end.
 
     Pre-fix: the second ExitPlanMode (Claude's acknowledgment of approval)
     set _pending_input_tool again → second SIGINT → process killed.
     """
-    bridge._handle_tool_use(sess, _enter("ep1"), "ts")
-    bridge._handle_tool_use(sess, _exit_("xp1"), "ts")
+    agents._handle_tool_use(sess, _enter("ep1"), "ts")
+    agents._handle_tool_use(sess, _exit_("xp1"), "ts")
     assert sess._pending_input_tool == "ExitPlanMode"
 
     sess._pending_input_tool = None
 
-    bridge._handle_tool_use(sess, _exit_("xp2"), "ts")
+    agents._handle_tool_use(sess, _exit_("xp2"), "ts")
     assert sess._pending_input_tool is None
     assert sess._plan_sigint_armed is False
 
 
 @patch("painapple_code.services.agent_session.SessionStore")
 @patch("painapple_code.services.agent_session._track_tool_usage")
-def test_externally_armed_state_fires_once(_track, _store, bridge, sess):
+def test_externally_armed_state_fires_once(_track, _store, agents, sess):
     """Simulates /plan command or start-in-plan-mode: the gate is armed by
     external code (ws_chat handler / start_claude), not by EnterPlanMode."""
     sess._plan_sigint_armed = True
 
-    bridge._handle_tool_use(sess, _exit_("xp1"), "ts")
+    agents._handle_tool_use(sess, _exit_("xp1"), "ts")
     assert sess._pending_input_tool == "ExitPlanMode"
     assert sess._plan_sigint_armed is False
 
     sess._pending_input_tool = None
-    bridge._handle_tool_use(sess, _exit_("xp2"), "ts")
+    agents._handle_tool_use(sess, _exit_("xp2"), "ts")
     assert sess._pending_input_tool is None
 
 
 @patch("painapple_code.services.agent_session.SessionStore")
 @patch("painapple_code.services.agent_session._track_tool_usage")
-def test_re_arming_after_disarm_works(_track, _store, bridge, sess):
+def test_re_arming_after_disarm_works(_track, _store, agents, sess):
     """Second plan cycle later in the conversation: new EnterPlanMode
     re-arms the gate so the next ExitPlanMode triggers approval again."""
-    bridge._handle_tool_use(sess, _enter("ep1"), "ts")
-    bridge._handle_tool_use(sess, _exit_("xp1"), "ts")
+    agents._handle_tool_use(sess, _enter("ep1"), "ts")
+    agents._handle_tool_use(sess, _exit_("xp1"), "ts")
     assert sess._plan_sigint_armed is False
 
     sess._pending_input_tool = None
 
-    bridge._handle_tool_use(sess, _enter("ep2"), "ts")
+    agents._handle_tool_use(sess, _enter("ep2"), "ts")
     assert sess._plan_sigint_armed is True
-    bridge._handle_tool_use(sess, _exit_("xp2"), "ts")
+    agents._handle_tool_use(sess, _exit_("xp2"), "ts")
     assert sess._pending_input_tool == "ExitPlanMode"

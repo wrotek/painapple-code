@@ -22,9 +22,9 @@ non-blocking probe returns immediately, putting the deadline and warn
 schedule under our own loop's control.
 
 Why that matters: ``FileLock`` is entered synchronously from
-``ShadowGit.track_modification``, which ``AgentBridge`` calls on the
+``ShadowGit.track_modification``, which ``AgentManager`` calls on the
 asyncio event loop for the first Edit/Write of a turn. A retry loop that
-swallows every ``OSError`` spins the whole bridge at 100% CPU forever the
+swallows every ``OSError`` spins the whole server at 100% CPU forever the
 moment the lock file is unopenable/unlockable for a non-contention
 reason (EACCES/EINVAL/EBADF all return immediately, with no internal
 sleep to throttle the loop). Anything not-contention is re-raised;

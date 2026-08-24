@@ -38,8 +38,8 @@ def _get_tasks_dir() -> Path | None:
     """
     if not hasattr(os, "getuid"):
         return None
-    from painapple_code.server import bridge
-    cwd = (bridge.default_cwd if bridge else None) or os.getcwd()
+    from painapple_code.server import agents
+    cwd = (agents.default_cwd if agents else None) or os.getcwd()
     uid = os.getuid()
     slug = _cwd_to_slug(cwd)
     # Claude Code uses dash-prefix slugs; also check tilde-prefix variant

@@ -767,7 +767,7 @@ class ShadowGit(_SummaryMixin):
                 tracker.user_prompt or "",
                 tracker,
                 journey,
-                bridge_session_id=session_id,  # For subprocess tracking
+                app_session_id=session_id,  # For subprocess tracking
                 token_profile=token_profile,
                 session_model=session_model,
             )

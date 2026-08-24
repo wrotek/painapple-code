@@ -559,9 +559,9 @@ async def set_sigint_on_ask(request: Request):
     paths.save_global_config(config)
 
     # Apply to the running bridge so the toggle is live, not restart-gated.
-    bridge = getattr(request.app.state, "bridge", None)
-    if bridge is not None:
-        bridge.sigint_on_ask = value
+    agents = getattr(request.app.state, "agents", None)
+    if agents is not None:
+        agents.sigint_on_ask = value
 
     logger.info(f"sigint_on_ask updated to: {value}")
     return {"sigint_on_ask": value, "default": SIGINT_ON_ASK_DEFAULT}
@@ -748,12 +748,12 @@ async def get_default_provider(request: Request):
     raw config-key value (None = unset). `pinned_by_flag` tells the UI the
     server flag overrides whatever it writes via PUT."""
     from painapple_code.routes.dependencies import effective_default_provider
-    bridge = getattr(request.app.state, "bridge", None)
+    agents = getattr(request.app.state, "agents", None)
     config = paths.load_global_config()
     return {
         "effective": effective_default_provider(request.app).name,
         "configured": config.get("default_provider"),
-        "pinned_by_flag": bool(getattr(bridge, "default_provider", None)),
+        "pinned_by_flag": bool(getattr(agents, "default_provider", None)),
     }
 
 
@@ -943,20 +943,20 @@ async def set_default_effort(request: Request):
 @router.get("/api/app/session-timeouts")
 async def get_session_timeouts():
     """Get session timeout settings (in minutes)."""
-    from painapple_code.services.agent_session import AgentBridge
+    from painapple_code.services.agent_session import AgentManager
     config = paths.load_global_config()
     return {
         "session_idle_timeout_minutes": config.get(
             "session_idle_timeout_minutes",
-            AgentBridge.DEFAULT_SESSION_IDLE_TIMEOUT // 60
+            AgentManager.DEFAULT_SESSION_IDLE_TIMEOUT // 60
         ),
         "orphan_process_timeout_minutes": config.get(
             "orphan_process_timeout_minutes",
-            AgentBridge.DEFAULT_ORPHAN_PROCESS_TIMEOUT // 60
+            AgentManager.DEFAULT_ORPHAN_PROCESS_TIMEOUT // 60
         ),
         "defaults": {
-            "session_idle_timeout_minutes": AgentBridge.DEFAULT_SESSION_IDLE_TIMEOUT // 60,
-            "orphan_process_timeout_minutes": AgentBridge.DEFAULT_ORPHAN_PROCESS_TIMEOUT // 60,
+            "session_idle_timeout_minutes": AgentManager.DEFAULT_SESSION_IDLE_TIMEOUT // 60,
+            "orphan_process_timeout_minutes": AgentManager.DEFAULT_ORPHAN_PROCESS_TIMEOUT // 60,
         }
     }
 
@@ -964,7 +964,7 @@ async def get_session_timeouts():
 @router.put("/api/app/session-timeouts")
 async def set_session_timeouts(request: Request):
     """Update session timeout settings (in minutes)."""
-    from painapple_code.services.agent_session import AgentBridge
+    from painapple_code.services.agent_session import AgentManager
     body = await request.json()
     config = paths.load_global_config()
 
@@ -980,7 +980,7 @@ async def set_session_timeouts(request: Request):
             if value > 1440:
                 raise HTTPException(status_code=400, detail=f"{key} cannot exceed 1440 minutes (24 hours)")
 
-            default_minutes = getattr(AgentBridge, f"DEFAULT_{key.upper().replace('_MINUTES', '')}") // 60
+            default_minutes = getattr(AgentManager, f"DEFAULT_{key.upper().replace('_MINUTES', '')}") // 60
             if value == default_minutes:
                 config.pop(key, None)
             else:

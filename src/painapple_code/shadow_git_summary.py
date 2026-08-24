@@ -150,7 +150,7 @@ class _SummaryMixin:
         prompt: str,
         tracker: TurnTracker,
         journey: list[dict] = None,
-        bridge_session_id: Optional[str] = None,
+        app_session_id: Optional[str] = None,
         token_profile: Optional[str] = None,
         session_model: Optional[str] = None,
     ) -> tuple[Optional[str], Optional[SummaryCost], Optional[dict]]:
@@ -171,7 +171,7 @@ class _SummaryMixin:
             prompt: User's prompt for this turn
             tracker: TurnTracker with files and tools
             journey: Previous turns' summaries for context
-            bridge_session_id: Bridge session ID (for subprocess tracking)
+            app_session_id: painapple-code session ID (for subprocess tracking)
             token_profile: OAuth token profile for the fork (Claude only)
             session_model: Parent session's model ID (to inherit context tier)
 
@@ -238,7 +238,7 @@ class _SummaryMixin:
             agent_subprocesses.register(
                 pid=proc.pid,
                 subprocess_type=SubprocessType.SUMMARY_FORK,
-                parent_session_id=bridge_session_id,
+                parent_session_id=app_session_id,
                 model=plan.model,
                 purpose="Rich commit message",
                 cwd=str(self.project_path),

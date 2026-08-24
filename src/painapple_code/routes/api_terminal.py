@@ -389,18 +389,18 @@ async def list_active_sessions():
     Also includes recent stored sessions (not yet connected to this server
     instance) so the widget isn't empty after a server restart.
     """
-    from painapple_code.server import bridge
+    from painapple_code.server import agents
 
     result = []
     now = time.time()
     live_store_ids = set()
 
-    if not bridge:
-        bridge_sessions = {}
+    if not agents:
+        agent_sessions = {}
     else:
-        bridge_sessions = bridge.sessions
+        agent_sessions = agents.sessions
 
-    for store_id, session in bridge_sessions.items():
+    for store_id, session in agent_sessions.items():
         live_store_ids.add(store_id)
 
         # Validate process state

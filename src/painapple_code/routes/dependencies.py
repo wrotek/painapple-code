@@ -23,8 +23,8 @@ def effective_default_provider(app):
     then the `default_provider` global-config key, then the registry default.
     Mirrors the resolution ws_chat.py uses when creating a session."""
     from painapple_code.providers import get_provider
-    bridge = getattr(app.state, "bridge", None)
-    name = (getattr(bridge, "default_provider", None)
+    agents = getattr(app.state, "agents", None)
+    name = (getattr(agents, "default_provider", None)
             or paths.load_global_config().get("default_provider"))
     return get_provider(name)
 

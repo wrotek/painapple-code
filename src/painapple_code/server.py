@@ -49,7 +49,7 @@ from painapple_code.server_logging import setup_logging, AccessLogMiddleware
 from painapple_code.session_store import SessionStore
 from painapple_code import paths
 
-from painapple_code.services.agent_session import AgentBridge
+from painapple_code.services.agent_session import AgentManager
 from painapple_code.auth_middleware import (
     AuthMiddleware,
     BEARER_EPOCH_KEY,
@@ -72,8 +72,8 @@ logger = logging.getLogger("painapple-code")
 access_logger = logging.getLogger("painapple-code.access")
 
 
-# Global bridge instance
-bridge: Optional["AgentBridge"] = None
+# Global agent-session manager instance
+agents: Optional["AgentManager"] = None
 
 # Instance identity config (set via CLI --instance-name / --accent)
 instance_config: dict = {}
@@ -134,8 +134,8 @@ async def lifespan(app: FastAPI):
         )
 
     # Bridge is created in main() before uvicorn.run() so --cwd is available
-    if bridge:
-        bridge.start_cleanup_task()
+    if agents:
+        agents.start_cleanup_task()
         logger.info("Painapple Code initialized")
     # Deliberately a hint, not an auto-build: shelling out to npm on the boot
     # path would put a network call (and a new failure mode) in front of
@@ -149,15 +149,15 @@ async def lifespan(app: FastAPI):
             f"{_BUNDLE_REMEDY[delivery['reason']]}."
         )
     yield
-    if bridge and bridge._cleanup_task:
-        bridge._cleanup_task.cancel()
+    if agents and agents._cleanup_task:
+        agents._cleanup_task.cancel()
         try:
-            await bridge._cleanup_task
+            await agents._cleanup_task
         except asyncio.CancelledError:
             pass
-    if bridge:
-        total = len(bridge.sessions)
-        running = sum(1 for s in bridge.sessions.values() if s.is_running)
+    if agents:
+        total = len(agents.sessions)
+        running = sum(1 for s in agents.sessions.values() if s.is_running)
         logger.info(f"Painapple Code shutting down (sessions={total}, running={running})")
     else:
         logger.info("Painapple Code shutting down")
@@ -1930,7 +1930,7 @@ def main(argv=None):
     _preflight_port(args.host, args.port)
 
     # Instance identity setup
-    global bridge, instance_config
+    global agents, instance_config
     if args.instance_name or args.accent:
         accent_key = args.accent or "blue"
         if accent_key in COLOR_PRESETS:
@@ -2018,13 +2018,13 @@ def main(argv=None):
                 f"(registered: {', '.join(provider_names())})"
             )
 
-    bridge = AgentBridge(default_cwd=args.workspace,
+    agents = AgentManager(default_cwd=args.workspace,
                          default_provider=args.default_provider)
 
     # Stash on app.state so route modules can read it without the
     # `from server import bridge` trap — running as __main__ creates a
     # separate `server` module instance where bridge stays None.
-    app.state.bridge = bridge
+    app.state.agents = agents
     app.state.workspace = args.workspace
 
     # --workspace IS the root: the dir that holds the project subdirs, not

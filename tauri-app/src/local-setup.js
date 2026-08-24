@@ -419,7 +419,7 @@ function renderInstanceRow(inst, gen, status, busy) {
       btn('Stop', false, () => onCliStop(inst));
       btn('Edit', false, () => openWizard(inst.id));
     } else {
-      setBadge(status.bridgeVersion ? `v${status.bridgeVersion} · stopped` : 'stopped', 'off');
+      setBadge(status.serverVersion ? `v${status.serverVersion} · stopped` : 'stopped', 'off');
       btn('Start & Open', true, () => onCliStartOpen(inst));
       btn('Edit', false, () => openWizard(inst.id));
       btn('Update', false, () => onCliUpdate(inst));

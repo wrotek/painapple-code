@@ -4,7 +4,8 @@ Agent Session Management
 Core classes for managing AI-agent (provider) subprocess sessions:
 - TaskInfo: Tracks active Task sub-agents for tool grouping
 - AgentSession: Manages a single provider subprocess session
-- AgentBridge: Bridge between WebSocket clients and provider (CLI agent) processes
+- AgentManager: Owns the live AgentSessions, connecting WebSocket clients to
+  provider (CLI agent) processes
 """
 
 import asyncio
@@ -452,8 +453,9 @@ async def _background_shadow_commit(
         logger.exception(f"Shadow Git commit failed: {e}")
 
 
-class AgentBridge:
-    """Bridge between WebSocket clients and provider (CLI agent) processes.
+class AgentManager:
+    """Owns the live agent sessions, connecting WebSocket clients to
+    provider (CLI agent) processes.
 
     Sessions are keyed by store_id and persist beyond WebSocket connections.
     This allows clients to reconnect to running agent processes.

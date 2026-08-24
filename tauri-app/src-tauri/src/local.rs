@@ -81,7 +81,7 @@ fn uv_envs(app: &AppHandle) -> Result<HashMap<String, String>, String> {
     Ok(envs)
 }
 
-fn bridge_bin(app: &AppHandle) -> Result<PathBuf, String> {
+fn server_bin(app: &AppHandle) -> Result<PathBuf, String> {
     // Canonical entry point is `painapple` since the 2026-07 rename; fall
     // back to the legacy `painapple-code` alias for older provisioned venvs.
     let bin_dir = uv_root(app)?.join("bin");
@@ -231,7 +231,7 @@ async fn run_uv_collect(app: &AppHandle, args: &[&str]) -> Result<String, String
 }
 
 // `uv tool list` prints "painapple-code v1.2.3" above the entry-point lines.
-async fn query_bridge_version(app: &AppHandle) -> Option<String> {
+async fn query_server_version(app: &AppHandle) -> Option<String> {
     let out = run_uv_collect(app, &["tool", "list"]).await.ok()?;
     out.lines().find_map(|line| {
         line.trim()
@@ -283,7 +283,7 @@ fn read_password() -> Option<String> {
 #[serde(rename_all = "camelCase")]
 pub struct LocalStatus {
     provisioned: bool,
-    bridge_version: Option<String>,
+    server_version: Option<String>,
     claude_path: Option<String>,
     running: bool,
     port: Option<u16>,
@@ -292,7 +292,7 @@ pub struct LocalStatus {
 
 #[tauri::command]
 pub async fn local_status(app: AppHandle) -> Result<LocalStatus, String> {
-    let provisioned = bridge_bin(&app)?.is_file();
+    let provisioned = server_bin(&app)?.is_file();
     let busy = {
         let state = app.state::<LocalState>();
         let guard = state.busy.lock().unwrap();
@@ -300,8 +300,8 @@ pub async fn local_status(app: AppHandle) -> Result<LocalStatus, String> {
     };
     // Skip the (subprocess-spawning) version query while an install is in
     // flight — uv locks its tool dir and the answer is about to change anyway.
-    let bridge_version = if provisioned && busy.is_none() {
-        query_bridge_version(&app).await
+    let server_version = if provisioned && busy.is_none() {
+        query_server_version(&app).await
     } else {
         None
     };
@@ -310,7 +310,7 @@ pub async fn local_status(app: AppHandle) -> Result<LocalStatus, String> {
     let port = state.running_port.lock().unwrap().map(|(p, _)| p);
     Ok(LocalStatus {
         provisioned,
-        bridge_version,
+        server_version,
         claude_path: find_claude(),
         running,
         port,
@@ -347,7 +347,7 @@ async fn provision_inner(app: &AppHandle, source: Option<String>) -> Result<(), 
         ],
     )
     .await?;
-    if !bridge_bin(app)?.is_file() {
+    if !server_bin(app)?.is_file() {
         return Err("install finished but the painapple-code entry point was not found".into());
     }
     emit_progress(app, "provision", "install complete ✓");
@@ -422,7 +422,7 @@ async fn start_inner(app: &AppHandle, config: LocalConfig) -> Result<String, Str
         stop_inner(app).await?; // port/TLS changed — restart with the new config
     }
 
-    let bin = bridge_bin(app)?;
+    let bin = server_bin(app)?;
     if !bin.is_file() {
         return Err("server is not installed yet — run Install first".into());
     }
@@ -671,7 +671,7 @@ async fn tool_inner(
     stage: &str,
     quiet: bool,
 ) -> Result<ToolResult, String> {
-    let bin = bridge_bin(app)?;
+    let bin = server_bin(app)?;
     if !bin.is_file() {
         return Err("painapple-code is not installed yet — run Install first".into());
     }

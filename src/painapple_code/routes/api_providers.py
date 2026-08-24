@@ -35,7 +35,7 @@ async def list_providers(request: Request):
     the picker isn't touched (--default-provider flag → `default_provider`
     config key → registry default).
     """
-    bridge = getattr(request.app.state, "bridge", None)
+    agents = getattr(request.app.state, "agents", None)
     enabled = provider_enabled_map(request.app)
     return {
         # `enabled` (Settings toggles, default engine always on) gates which
@@ -49,5 +49,5 @@ async def list_providers(request: Request):
         "default": effective_default_provider(request.app).name,
         # A --default-provider server flag outranks the config key — the UI
         # disables its "set as default" affordance while pinned.
-        "default_pinned_by_flag": bool(getattr(bridge, "default_provider", None)),
+        "default_pinned_by_flag": bool(getattr(agents, "default_provider", None)),
     }
