@@ -16,6 +16,7 @@ Endpoints:
     POST /api/shadow-db/sql          - Read-only SQL passthrough (replaces db-query CLI)
 """
 
+import asyncio
 import logging
 import re
 from fastapi import APIRouter, Query, Request
@@ -480,7 +481,22 @@ async def execute_sql(request: Request, format: str = Query("json", pattern="^(j
 
     try:
         db = _get_db()
-        columns, rows = db._fetch_columns(sql)
+        # Off the event loop AND on a deadline. Both halves are required, and
+        # neither is sufficient alone:
+        #
+        #   to_thread   — keeps the loop serving. Run inline, one slow SELECT
+        #                 freezes every WebSocket, every streaming turn and the
+        #                 compact heartbeat.
+        #   the deadline (inside fetch_columns_adhoc) — ends the query. Without
+        #                 it the request never completes, uvicorn's graceful
+        #                 shutdown waits on it forever, and SIGTERM closes the
+        #                 socket without exiting: `pkill` looks like a no-op and
+        #                 recovery needs `kill -9`.
+        #
+        # Note `asyncio.wait_for` here would be worse than nothing — it frees
+        # the caller while the query keeps burning a core, so a retry stacks
+        # runaway queries. Cancellation has to happen at the DuckDB level.
+        columns, rows = await asyncio.to_thread(db.fetch_columns_adhoc, sql)
     except Exception as e:
         logger.warning(f"execute_sql query failed: {e}")
         return JSONResponse({"error": str(e)}, status_code=400)

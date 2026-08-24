@@ -210,6 +210,46 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
             columns = [desc[0] for desc in result.description]
             return columns, result.fetchall()
 
+    # Hard deadline for caller-written SQL. Long enough that no honest query
+    # against this schema reaches it; short enough to bound shutdown.
+    ADHOC_TIMEOUT_SEC = 30.0
+
+    def fetch_columns_adhoc(self, sql: str, timeout: float = None) -> tuple[list[str], list]:
+        """Run CALLER-SUPPLIED SQL under a hard deadline, off the shared connection.
+
+        Every other query in this class is one we wrote, with a bounded shape.
+        Ad-hoc SQL is the only path where the user picks the query, so it is the
+        only one that can run unbounded — a `WITH RECURSIVE` typo is enough, and
+        it passes the endpoint's keyword validator because it is a plain SELECT.
+        Two deliberate deviations from `_fetch_columns`:
+
+        - **Its own cursor**, not the shared `_con` under `_lock`. A slow read
+          therefore cannot stall turn recording, and — the load-bearing part —
+          the watchdog below can only ever interrupt *this* query. Interrupting
+          the shared connection would race a turn write that acquired the lock
+          just as the deadline fired, and kill the write instead.
+        - **A watchdog that calls `interrupt()`** at the deadline. This is the
+          only thing that actually ends a runaway query: Python cannot kill a
+          thread, and DuckDB has no statement timeout. Without it an in-flight
+          request blocks uvicorn's graceful shutdown indefinitely, so SIGTERM
+          closes the listening socket but never exits — `pkill` appears to do
+          nothing and recovery needs `kill -9`.
+
+        `interrupt()` is cooperative (DuckDB polls a flag between operators), so
+        this is the best available mechanism rather than a guarantee.
+        """
+        with self._lock:
+            cursor = self._get_con().cursor()
+        watchdog = threading.Timer(timeout or self.ADHOC_TIMEOUT_SEC, cursor.interrupt)
+        watchdog.start()
+        try:
+            result = cursor.execute(sql)
+            columns = [desc[0] for desc in result.description]
+            return columns, result.fetchall()
+        finally:
+            watchdog.cancel()
+            cursor.close()
+
     def _fetch_one_dict(self, sql: str, params: list = None) -> Optional[dict]:
         """Execute SQL and return the first row as {column: value} (or None).
 

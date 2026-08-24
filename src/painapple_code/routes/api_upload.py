@@ -11,6 +11,7 @@ import io
 import logging
 import secrets
 import time
+import warnings
 from pathlib import Path, PurePosixPath
 
 from fastapi import APIRouter, HTTPException, UploadFile, File
@@ -35,6 +36,19 @@ IMAGE_TYPES = {
 MAX_IMAGE_SIZE = 20 * 1024 * 1024  # 20MB upload limit
 MAX_IMAGE_DIMENSION = 1568  # Claude's recommended max
 TARGET_FILE_SIZE = 1 * 1024 * 1024  # Target ~1MB after processing
+
+# Decompression-bomb ceiling, in PIXELS — the byte cap above cannot bound this.
+# PNG/WebP compress uniform data extremely well, so a ~100KB file can declare
+# 30000x30000 and decode to gigabytes of RGBA. Pillow's default (~89M px) only
+# *warns* and keeps decoding, and it raises only past 2x that, so relying on the
+# default means the allocation happens first. 50M px (~200MB RGBA) is far above
+# any real screenshot or photo and well under what hurts.
+Image.MAX_IMAGE_PIXELS = 50_000_000
+
+# Promote Pillow's DecompressionBombWarning to an exception so the guard is a
+# refusal rather than a log line someone reads afterwards. The upload path
+# already converts exceptions into a 400.
+warnings.simplefilter('error', Image.DecompressionBombWarning)
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB limit for file uploads
 
