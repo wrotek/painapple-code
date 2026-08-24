@@ -369,7 +369,7 @@ def _asset_path_from_url(path: str) -> Path:
     safe_resolve, never a bare Path.resolve(): this tail is whatever the
     client put in the URL, and on Windows canonicalizing it is itself the
     attack. Resolving //attacker/share/x makes the OS authenticate outbound
-    and offer the bridge user's NTLM hash, and an unreachable share raises
+    and offer the server user's NTLM hash, and an unreachable share raises
     OSError [WinError 64] out of resolve() — a 500 with a stack trace where
     a 403 belongs. safe_resolve screens the path lexically first, so a
     denied path costs no packets and the 403 comes from _serve_local_file's
@@ -430,7 +430,7 @@ def _serve_local_file(p: Path) -> Response:
             'Cache-Control': 'no-cache',
             # Same opaque-origin sandbox as the HTML branch. SVG is a
             # scriptable format — opened top-level (outside the widget's
-            # sandboxed iframe) it must not run with the bridge origin
+            # sandboxed iframe) it must not run with the server origin
             # and auth cookie, from which every API is reachable.
             'Content-Security-Policy': _CSP_SANDBOX,
         },

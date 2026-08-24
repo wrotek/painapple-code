@@ -12,7 +12,7 @@ show_help() {
 Usage: ./start.sh [OPTIONS] [SERVER-ARGS...]
 
 Bootstraps the Python venv on first run, then launches the Painapple Code
-bridge server. Unrecognised arguments are forwarded to
+server. Unrecognised arguments are forwarded to
 `python -m painapple_code`.
 
 Script options (consumed by start.sh):

@@ -3,7 +3,7 @@
    Floating panel with a toolbar (back/forward/reload/home/url)
    and an iframe filling the rest. External URLs load directly;
    local files come through /api/browser/render with a sandboxed
-   iframe to keep their JS out of the bridge's auth surface.
+   iframe to keep their JS out of the server's auth surface.
    ============================================================ */
 
 [data-widget-id="browser"] .widget-content {

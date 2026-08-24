@@ -25,7 +25,7 @@ Subcommands:
     start/stop/restart [NAME]   background lifecycle (mode-aware)
     status [NAME] one deployment's detail — bare, it IS the fleet view
     logs [NAME]   follow output (host: console.log · docker: container)
-    password [NAME]  show the bridge auth URL + password
+    password [NAME]  show the server auth URL + password
     pull          fetch the prebuilt container image
     shell/extract/claude-login [NAME]   docker-mode utilities
     help          curated overview (also -h/--help as the first argument)
@@ -58,7 +58,7 @@ def _help():
     from painapple_code import __version__
     from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET, say
     p = "painapple"
-    say(f"""{BOLD}{p}{RESET} — Claude Code in your browser: self-hosted bridge + web client  {DIM}v{__version__}{RESET}
+    say(f"""{BOLD}{p}{RESET} — Claude Code in your browser: self-hosted server + web client  {DIM}v{__version__}{RESET}
 
 {BOLD}Usage:{RESET}
   {p} {DIM}[flags…]{RESET}               Serve the current directory {DIM}(same as: {p} serve){RESET}

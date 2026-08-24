@@ -108,7 +108,7 @@ export function destroySessionState(sessionId) {
     if (st) {
         // Kill the server-side PTY so it doesn't outlive the chat session
         // that owned it. Without this, every closed session leaves an
-        // orphaned shell process that piles up on the bridge.
+        // orphaned shell process that piles up on the server.
         if (st.sessionId) {
             fetch(`${CONFIG.API_BASE}/api/terminal/${encodeURIComponent(st.sessionId)}`, {
                 method: 'DELETE'

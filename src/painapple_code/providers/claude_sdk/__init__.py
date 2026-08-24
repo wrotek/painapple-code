@@ -1,14 +1,14 @@
 """
 Claude Code via the Claude Agent SDK — SDK-backed provider.
 
-Same engine as `ClaudeProvider`, but the subprocess the bridge spawns is a
+Same engine as `ClaudeProvider`, but the subprocess the server spawns is a
 thin Python *driver* (`providers/claude_sdk/driver.py`) that runs
 `ClaudeSDKClient` in-process instead of exec'ing `claude -p` directly:
 
-    bridge ──stream-json lines──> driver ──SDK control protocol──> claude CLI
+    server ──stream-json lines──> driver ──SDK control protocol──> claude CLI
 
 The driver tees the CLI's raw stream-json verbatim onto its own stdout and
-forwards the bridge's canonical user messages from stdin into the SDK, so
+forwards the server's canonical user messages from stdin into the SDK, so
 from the session layer's point of view this provider is wire-identical to
 `ClaudeProvider`: same "lines" transport, same events, same stderr strings,
 same signal semantics (SIGINT/SIGTERM → clean exit). Everything Claude-shaped
@@ -45,7 +45,7 @@ class ClaudeSdkProvider(ClaudeProvider):
     # sets False to keep the plainer CLI variant hidden; undo that here).
     default_enabled = True
     # Same engine, same feature surface as Claude — plus the SDK's
-    # can_use_tool permission round-trip (driver ⇄ bridge ⇄ client) and its
+    # can_use_tool permission round-trip (driver ⇄ server ⇄ client) and its
     # control plane (live permission-mode/model switches, warm-process
     # interrupt) via control_request/control_done frames on the same pipe.
     capabilities = replace(ClaudeProvider.capabilities,
@@ -85,7 +85,7 @@ class ClaudeSdkProvider(ClaudeProvider):
         return "default"
 
     def build_command(self, opts: LaunchOptions) -> list[str]:
-        # The bridge's venv python, not "python" off PATH — the driver imports
+        # The server's venv python, not "python" off PATH — the driver imports
         # both painapple_code and claude_agent_sdk from this environment.
         cmd = [
             sys.executable, "-u", "-m",
@@ -129,7 +129,7 @@ class ClaudeSdkProvider(ClaudeProvider):
         try:
             import claude_agent_sdk  # noqa: F401
         except ImportError:
-            return False, ("claude-agent-sdk not installed in the bridge venv "
+            return False, ("claude-agent-sdk not installed in the server venv "
                            "(pip install claude-agent-sdk)")
         # SDK present — availability then hinges on the claude CLI, same as
         # the line-protocol provider.

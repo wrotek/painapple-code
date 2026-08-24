@@ -4,7 +4,7 @@ extract/claude-login`` and the scripted ``painapple profile`` channel.
 Every verb takes an optional NAME (positional or ``--profile``) and
 dispatches on the target's mode:
 
-* host   — data home / process / server logs / bridge config file
+* host   — data home / process / server logs / global config file
 * docker — container runtime (same bodies as `--in-docker`)
 
 No NAME targets the root deployment: the global defaults for
@@ -106,14 +106,14 @@ def _docker_settings_for(prof):
 # ──── Host-mode helpers ──────────────────────────────────────────────────
 
 def _auth_config_path():
-    """Where the bridge's auth config lives — resolved exactly as the server does.
+    """Where the server's auth config lives — resolved exactly as the server does.
 
     Must track ``init_auth_state``'s default (paths.CONFIG_HOME), not a
     hand-rolled XDG lookup: the server WRITES this file, so the reader has to
     follow the writer. It previously honored XDG_CONFIG_HOME, which the server
-    ignores — so with that set, the bridge wrote ~/.config/painapple-code while
+    ignores — so with that set, the server wrote ~/.config/painapple-code while
     `painapple password` looked in $XDG_CONFIG_HOME/painapple-code and reported
-    "No password found. Has the bridge ever started?" against a running bridge.
+    "No password found. Has the server ever started?" against a running server.
     """
     return paths.CONFIG_HOME / "config.yaml"
 
@@ -161,7 +161,7 @@ def _host_password(vals, label):
     if not pw:
         start = f"painapple start {label}" if label else "painapple start"
         die(f"No password found at {_auth_config_path()}. "
-            f"Has the bridge ever started?  ({start})",
+            f"Has the server ever started?  ({start})",
             None if label else
             f"  {DIM}Running it containerized?  painapple password --in-docker{RESET}")
     token = _host_token_value()
@@ -637,8 +637,8 @@ def main(verb, argv):
             if is_docker:
                 from painapple_code.cli.deploy.container import cmd_password
                 return cmd_password(_docker_settings_for(prof), profile=name) or 0
-            # Root, and no host bridge has ever written a config: before
-            # dying with "has the bridge ever started?", check whether the
+            # Root, and no host server has ever written a config: before
+            # dying with "has the server ever started?", check whether the
             # ad-hoc sandbox is what they mean — it IS started, and its
             # login page is what sent them here. Only on the empty path,
             # so the common case never pays for a runtime probe.

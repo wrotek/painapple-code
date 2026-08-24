@@ -85,7 +85,7 @@ def build_env(profile_name: Optional[str] = None) -> Optional[dict]:
 
     env = os.environ.copy()
     env["CLAUDE_CODE_OAUTH_TOKEN"] = token
-    # Remove CLAUDECODE to prevent "nested session" error if bridge
+    # Remove CLAUDECODE to prevent "nested session" error if server
     # happens to run inside Claude Code (e.g., during development)
     env.pop("CLAUDECODE", None)
     return env

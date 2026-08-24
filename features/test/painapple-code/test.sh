@@ -21,7 +21,7 @@ check "state-dir-created"    test -d /var/painapple-code
 check "launcher-installed"   test -x /usr/local/bin/painapple-code-start
 check "autostart-hook"       test -f /etc/profile.d/painapple-code.sh
 
-# --- 2. External tools the bridge spawns ----------------------------------
+# --- 2. External tools the server spawns ----------------------------------
 check "node-on-path"   command -v node
 check "claude-on-path" command -v claude
 check "git-on-path"    command -v git

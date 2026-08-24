@@ -2,7 +2,7 @@
 
 ## Deployment security model — read this first
 
-painapple-code is a **single-user** bridge that runs Claude Code (and other
+painapple-code is a **single-user** server that runs Claude Code (and other
 CLI agents) on your behalf. **Anyone who can authenticate to the server gains
 the full shell and filesystem authority of the OS user the server runs as** —
 it can read and write that user's files and execute arbitrary commands
@@ -57,7 +57,7 @@ and cannot revoke one device while leaving another signed in. `POST
 /api/logout` clears the local cookie only; the value stays valid until an
 epoch is bumped. The two epochs are class-wide levers, not per-device ones.
 
-Accepted because a single-user bridge grants total authority the moment
+Accepted because a single-user server grants total authority the moment
 anyone authenticates (see the model above): there is no post-auth blast
 radius for session management to contain, so what it would buy is
 convenience — keeping your other devices signed in while cutting off a lost
@@ -88,7 +88,7 @@ processes without registering them. A process orphaned by a crash may
 therefore not be visible or reapable through the registry.
 
 Impact is a resource leak on a machine the user already controls.
-**Revisit if** the bridge ever runs processes on behalf of someone other
+**Revisit if** the server ever runs processes on behalf of someone other
 than its own OS user. (This entry is about *tracking* only — for what a
 child process exposes while it runs, see the next item.)
 
@@ -101,7 +101,7 @@ in `/proc/<pid>/cmdline`, which is world-readable on Linux, for as long as
 that turn runs. Prompts routinely carry source code, file paths, and
 whatever was pasted in.
 
-The bridge cannot route around this; the constraint is the CLI's argument
+The server cannot route around this; the constraint is the CLI's argument
 interface. The other three engines pass prompts over stdio and are
 unaffected — including both engines enabled by default (`claude-sdk` and
 `codex-app-server`). `codex` is off by default and must be turned on
@@ -161,7 +161,7 @@ you observed.
 
 ## Scope
 
-In scope: the bridge server, its HTTP/WebSocket API, the web client, the
+In scope: the server, its HTTP/WebSocket API, the web client, the
 packaging/release artifacts (PyPI wheel/sdist, Docker image, Dev Container
 Feature).
 

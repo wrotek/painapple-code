@@ -87,7 +87,7 @@ class _LaunchMixin:
         The native equivalent of Claude's `--resume <id> --fork-session`: the
         app-server loads the source thread from disk and forks it into a new
         *persisted* thread (no rollout-file copy). Deliberately not `ephemeral`
-        — the fork becomes the new bridge session's thread, captured from the
+        — the fork becomes the new session's thread, captured from the
         response and resumed on subsequent turns. Sandbox/approval/model mirror
         `thread_start_params` so the branch inherits the session's resolved
         settings. `sandbox` and `permissions` are mutually exclusive in the

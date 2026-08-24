@@ -20,7 +20,7 @@ The alternative — Capacitor for mobile + Electron for desktop — was ruled ou
 
 The native app is a **thin client**, not a self-contained product:
 
-- The Python bridge (`python -m painapple_code`) is **not** bundled — iOS sandboxing forbids running arbitrary subprocesses (PTYs, `claude` CLI), and the App Store guidelines around interpreters/remote code execution make a bundled backend a non-starter.
+- The Python server (`python -m painapple_code`) is **not** bundled — iOS sandboxing forbids running arbitrary subprocesses (PTYs, `claude` CLI), and the App Store guidelines around interpreters/remote code execution make a bundled backend a non-starter.
 - The user runs pAInapple Code on their own machine (Docker per the main README) and the app connects to it over the network — same model as a browser tab pointed at `http://localhost:8765/`, just packaged as an app icon with native chrome.
 - macOS *could* in principle bundle the server (no sandbox if distributed outside the Mac App Store), but to keep one code path we treat macOS as a thin client too for now.
 

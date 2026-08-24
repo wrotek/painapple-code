@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ln -s /usr/bin/fdfind /usr/local/bin/fd \
     && rm -rf /var/lib/apt/lists/*
 
-# Developer tools for the in-container terminal. The bridge exposes a PTY
+# Developer tools for the in-container terminal. The server exposes a PTY
 # the user runs commands in, so a base slim image with no editor / pager /
 # search / multiplexer is painful. Adds ~80 MB. Anything bigger (compilers,
 # language toolchains, language servers) belongs in a user-built derived
@@ -62,7 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git-lfs gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 20 LTS. Needed by the bridge itself (the vega-lite / excalidraw
+# Node.js 20 LTS. Needed by the server itself (the vega-lite / excalidraw
 # render helpers in src/painapple_code/tools/ are node scripts) and by the
 # agent CLI the entrypoint installs on first run.
 #
@@ -72,7 +72,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # grant for. docker-entrypoint.sh installs it into /data on first boot
 # instead, which makes the download the user's own under their own
 # agreement with Anthropic, exactly like `npm i -g` on a host. See
-# THIRD_PARTY_NOTICES.md → "Agent CLIs the bridge drives".
+# THIRD_PARTY_NOTICES.md → "Agent CLIs the server drives".
 #
 # DISABLE_AUTOUPDATER keeps the CLI on the version the entrypoint pinned
 # (it now lives on a writable volume, so left alone it *would* update
@@ -95,7 +95,7 @@ RUN groupadd --gid ${USER_GID} app \
     && useradd --uid ${USER_UID} --gid ${USER_GID} --create-home --shell /usr/bin/zsh app
 
 # Read by the launcher (cli/deploy/runtime.py) to decide the uid story
-# before it starts anything: which uid the bridge ends up as, and whether
+# before it starts anything: which uid the server ends up as, and whether
 # this image can align itself (older tags can't — podman remaps them via
 # --userns=keep-id:uid=…, docker gets a real error instead of a crash loop).
 LABEL io.painapple.app-uid="${USER_UID}" \
@@ -142,7 +142,7 @@ USER app
 # up inside Claude Code without a separate setup step.
 RUN /app/src/painapple_code/tools/install-helpers.sh
 
-# zsh config — the bridge spawns its PTY via $SHELL (see
+# zsh config — the server spawns its PTY via $SHELL (see
 # routes/api_terminal.py), so an interactive terminal opened in the web UI
 # lands in zsh. Bake a couple of conveniences in.
 RUN printf '%s\n' \
@@ -158,15 +158,15 @@ RUN echo "alias ll='ls -lahtr'" >> /home/app/.bashrc
 
 # Back to root for the entrypoint ONLY: it re-stamps `app` to match the
 # ownership of the mounts (nothing else can — usermod/chown need root),
-# then hands over via setpriv. The bridge itself always runs as `app`;
+# then hands over via setpriv. The server itself always runs as `app`;
 # see docker-entrypoint.sh. `docker exec` lands as root, so use
 # `exec --user app` (what `painapple shell` does) for a user shell.
 USER root
 
-# PAINAPPLE_CODE_HOME relocates all bridge state (logs, shadow DB, sessions,
+# PAINAPPLE_CODE_HOME relocates all server state (logs, shadow DB, sessions,
 # uploads, presets) to /data so a single named volume covers everything.
-# SHELL is read by the bridge's PTY spawn (routes/api_terminal.py) — set it
-# explicitly so the web terminal opens zsh even though the bridge process
+# SHELL is read by the server's PTY spawn (routes/api_terminal.py) — set it
+# explicitly so the web terminal opens zsh even though the server process
 # itself wasn't started via login(1).
 # PAINAPPLE_IN_CONTAINER marks "running containerized" — a build-time constant
 # (the image only ever runs in a container). It's a last-resort fallback in
@@ -175,7 +175,7 @@ USER root
 # ENV can't tell the two apart since the same image runs on both engines.
 # HOME must be pinned: the image's last USER is root (for the entrypoint),
 # and setpriv doesn't rewrite the environment when it drops to `app` — so
-# without this the bridge and the `claude` CLI it spawns would look for
+# without this the server and the `claude` CLI it spawns would look for
 # ~/.claude in /root instead of the bind-mounted /home/app/.claude.
 #
 # PATH picks up /data/npm-global/bin — where the entrypoint installs the

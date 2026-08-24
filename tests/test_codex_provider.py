@@ -292,7 +292,7 @@ def test_app_server_turn_failed_alone_still_errors():
 
 
 def test_app_server_retryable_excludes_auth():
-    # Auth failures need a re-login, not a bridge-level resend — even when the
+    # Auth failures need a re-login, not a server-level resend — even when the
     # message also contains a retryable substring.
     p = _app_server()
     assert not p.is_retryable_api_error("401 unauthorized stream error")

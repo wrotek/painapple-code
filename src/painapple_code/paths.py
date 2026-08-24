@@ -1,5 +1,5 @@
 """
-Bridge Paths - Centralized path management for ~/.painapple-code/
+Paths - Centralized path management for ~/.painapple-code/
 
 All Painapple Code metadata is stored in ~/.painapple-code/:
     ~/.painapple-code/
@@ -155,7 +155,7 @@ def get_project_dir(project_path: str) -> Path:
         project_path: Project directory path
 
     Returns:
-        Path to project's bridge directory
+        Path to project's data directory
     """
     return DATA_HOME / "projects" / get_project_hash(project_path)
 
@@ -168,7 +168,7 @@ def get_project_dir_by_hash(project_hash: str) -> Path:
         project_hash: SHA256 of the resolved project path
 
     Returns:
-        Path to project's bridge directory
+        Path to project's data directory
     """
     return DATA_HOME / "projects" / project_hash
 
@@ -1398,7 +1398,7 @@ def _lock_mode_windows(path: Path, mode: int) -> None:
 
     On Windows `os.chmod` only toggles FILE_ATTRIBUTE_READONLY and
     RETURNS SUCCESS, so the POSIX path here was a silent no-op: the
-    bridge password and the TLS private key were protected by nothing but
+    server password and the TLS private key were protected by nothing but
     whatever the user's profile happened to inherit, and the `except
     OSError` warning could never fire to say so. (Perversely, chmod 0600
     on an already-read-only file LOOSENS it by clearing that attribute.)
@@ -1457,7 +1457,7 @@ def lock_mode(path, mode: int) -> None:
 
     These modes are hardening on files the host user already controls and
     can chmod themselves, so a refusal is worth a loud warning rather
-    than a dead bridge. The no-op case (already correct, by far the most
+    than a dead server. The no-op case (already correct, by far the most
     common) doesn't call chmod at all, so it can't fail there either.
 
     On Windows the POSIX bits are meaningless, so this delegates to an

@@ -1,12 +1,12 @@
 """
 Global registry for tracking agent subprocesses.
 
-Tracks all agent (CLI) subprocesses spawned by the bridge, including:
+Tracks all agent (CLI) subprocesses spawned by the server, including:
 - Summary forks for rich commit messages (shadow git)
 - Any other background agent processes
 
 This provides visibility into all running agent subprocesses beyond just
-the main bridge sessions.
+the main sessions.
 
 History is preserved for completed processes to enable:
 - Timeline view of all subprocess activity
@@ -53,7 +53,7 @@ class AgentSubprocess:
     """A tracked agent subprocess (currently running)."""
     pid: int
     subprocess_type: SubprocessType
-    parent_session_id: Optional[str]  # Bridge session that spawned this
+    parent_session_id: Optional[str]  # Session that spawned this
     model: str = "unknown"
     purpose: str = ""  # Human-readable description
     started_at: float = field(default_factory=time.time)
@@ -142,7 +142,7 @@ class SubprocessRegistry:
         Args:
             pid: Process ID
             subprocess_type: Type of subprocess
-            parent_session_id: Bridge session ID that spawned this
+            parent_session_id: Session ID that spawned this
             model: Claude model being used
             purpose: Human-readable description
             cwd: Working directory

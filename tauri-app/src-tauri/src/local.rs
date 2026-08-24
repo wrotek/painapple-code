@@ -2,7 +2,7 @@
 // `#[cfg(desktop)]` in lib.rs; on iOS the local_* commands simply don't
 // exist and the launcher hides the card when invoke() rejects).
 //
-// Provisions the Python bridge with the bundled `uv` sidecar and supervises
+// Provisions the Python server with the bundled `uv` sidecar and supervises
 // it as a child process. uv downloads a managed CPython (no system Python
 // involved — macOS ships none worth using) and installs painapple-code from
 // PyPI into an isolated tool env. Everything uv touches lives under the
@@ -15,7 +15,7 @@
 //   └── bin/      UV_TOOL_BIN_DIR         (painapple-code entry point)
 //
 // so nothing collides with a user-managed uv/pipx/homebrew setup. The
-// bridge itself still keeps its data in ~/.painapple-code/ and its auth
+// server itself still keeps its data in ~/.painapple-code/ and its auth
 // config in ~/.config/painapple-code/ like any other install — an
 // app-managed instance and a CLI-managed one share session history.
 //
@@ -38,10 +38,10 @@ const HEALTH_TIMEOUT_SECS: u64 = 90; // first start imports duckdb etc. — slow
 
 #[derive(Default)]
 pub struct LocalState {
-    // The supervised bridge process. Present ⇒ we spawned it and believe it
+    // The supervised server process. Present ⇒ we spawned it and believe it
     // to be alive; the reader task clears this when Terminated arrives.
     server: Mutex<Option<CommandChild>>,
-    // (port, scheme) of the running bridge — scheme matters once TLS is on.
+    // (port, scheme) of the running server — scheme matters once TLS is on.
     running_port: Mutex<Option<(u16, &'static str)>>,
     // Ring buffer of provisioning + server output for the launcher's log pane.
     logs: Mutex<VecDeque<String>>,
@@ -92,9 +92,9 @@ fn server_bin(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(bin_dir.join(BRIDGE_PACKAGE))
 }
 
-// PATH the bridge subprocess gets. A .app launched from Finder inherits the
+// PATH the server subprocess gets. A .app launched from Finder inherits the
 // minimal launchd PATH (/usr/bin:/bin:…) which does NOT include wherever
-// `claude` lives — prepend the usual suspects so the bridge (and the
+// `claude` lives — prepend the usual suspects so the server (and the
 // claude-agent-sdk under it) can spawn the CLI. ~/.docker/bin is Docker
 // Desktop's CLI drop dir — needed so the `painapple` CLI's container verbs
 // (--in-docker, start NAME, …) find the runtime when driven from the app.
@@ -262,7 +262,7 @@ async fn probe_health(scheme: &str, port: u16, timeout_secs: u64) -> bool {
     )
 }
 
-// The bridge generates ~/.config/painapple-code/config.yaml (mode 0600) on
+// The server generates ~/.config/painapple-code/config.yaml (mode 0600) on
 // first start; `password:` is its only required field. Reading it here lets
 // the app hand the webview a logged-in `?tkn=` URL instead of showing the
 // login page — same bootstrap the server logs on startup.
@@ -318,7 +318,7 @@ pub async fn local_status(app: AppHandle) -> Result<LocalStatus, String> {
     })
 }
 
-// Install or update the bridge. `source` overrides the PyPI package spec —
+// Install or update the server. `source` overrides the PyPI package spec —
 // a local wheel path for pre-release testing, or "painapple-code==1.2.3"
 // to pin. Streams uv output as `local-progress` events (stage "provision").
 #[tauri::command]
@@ -361,10 +361,10 @@ pub struct LocalConfig {
     cwd: Option<String>,
     instance_name: Option<String>,
     accent: Option<String>,
-    // Bind address (default 127.0.0.1). 0.0.0.0 makes the bridge reachable
+    // Bind address (default 127.0.0.1). 0.0.0.0 makes the server reachable
     // on the LAN — the wizard warns before offering it.
     host: Option<String>,
-    // auto | on | off — forwarded as --tls. The bridge resolves `auto`
+    // auto | on | off — forwarded as --tls. The server resolves `auto`
     // against its real bind (loopback → off), so we mirror that resolution
     // only to pick the scheme for health probes + the login URL.
     tls: Option<String>,
@@ -392,7 +392,7 @@ impl LocalConfig {
     }
 }
 
-// Start the bridge (or return the login URL if it's already running on the
+// Start the server (or return the login URL if it's already running on the
 // requested port). Returns a ready-to-navigate `?tkn=` URL.
 #[tauri::command]
 pub async fn local_start(app: AppHandle, config: LocalConfig) -> Result<String, String> {
@@ -932,7 +932,7 @@ pub fn local_probe_dir(path: String) -> DirProbe {
     }
 }
 
-// App-exit hook (RunEvent::Exit in lib.rs): don't orphan the bridge. TERM,
+// App-exit hook (RunEvent::Exit in lib.rs): don't orphan the server. TERM,
 // a short grace so DuckDB/uvicorn can wind down, then hard kill. A crashed
 // app still orphans it — accepted for now; the orphan keeps serving and the
 // next start on that port errors loudly with an adopt-or-repick message.

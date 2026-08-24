@@ -59,7 +59,7 @@ Only the fields that affect what's baked into the image:
 | `forwardPorts` / `portsAttributes` | no | runtime concern; painapple-docker.sh handles ports |
 | `mounts` / `runArgs` | no | runtime concern |
 | `customizations` | no | IDE/editor-specific, irrelevant for a baked image |
-| `postCreateCommand` / `postAttachCommand` / etc. | no | the bridge has its own entrypoint |
+| `postCreateCommand` / `postAttachCommand` / etc. | no | the server has its own entrypoint |
 
 ### Requirements
 

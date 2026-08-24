@@ -448,7 +448,7 @@ async def execute_sql(request: Request, format: str = Query("json", pattern="^(j
     `format=tsv` returns tab-separated text with header row.
 
     Rejects any query containing mutation keywords (INSERT/UPDATE/DROP/etc.).
-    Runs through the bridge's existing connection so reads are consistent
+    Runs through the server's existing connection so reads are consistent
     with concurrent writes.
     """
     raw = await request.body()

@@ -1,7 +1,7 @@
 """
 CLI AI provider abstraction.
 
-The bridge runs a headless CLI agent as a subprocess and streams its JSON
+The server runs a headless CLI agent as a subprocess and streams its JSON
 output to WebSocket clients. Historically this was hardwired to the Claude Code
 CLI (`claude -p --output-format stream-json`). This package introduces a
 `Provider` seam so other CLI agents (codex, gemini-cli, …) can be added as new

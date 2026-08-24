@@ -95,10 +95,10 @@ class _TranslateMixin(_CodexExecTranslateMixin):
                 # NON-terminal: the app-server retries the transport itself
                 # ("Reconnecting... N/5", a WebSocket wave then an HTTPS-fallback
                 # wave) and reports every attempt as an `error` notification.
-                # Map those to the CLI-retry system shape the bridge already
+                # Map those to the CLI-retry system shape the server already
                 # treats as a heartbeat — NOT a turn-ending result (each one
                 # used to finalize its own phantom empty turn). Carrying the
-                # HTTP status lets the bridge's 401 fast-path surface the
+                # HTTP status lets the server's 401 fast-path surface the
                 # re-login card and cut a doomed retry loop short.
                 return [{"type": "system", "subtype": "api_retry",
                          "error_status": self._error_http_status(err),

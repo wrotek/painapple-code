@@ -47,7 +47,7 @@ rustls = { version = "0.23", default-features = false, features = ["ring", "std"
 url = "2"
 
 # Local-mode process plumbing (desktop only): spawns the bundled `uv` sidecar
-# to provision the Python bridge, and the bridge server itself, with per-line
+# to provision the Python server, and the server itself, with per-line
 # stdout/stderr streaming (src/local.rs). Target-gated out of mobile builds —
 # iOS can't spawn subprocesses and the sidecar isn't bundled there
 # (externalBin lives in tauri.macos.conf.json / tauri.linux.conf.json).

@@ -87,7 +87,7 @@ struct PendingNav {
 // stays alive instead of getting trampled by a navigation back to the launcher.
 //
 // Also injects a floating "← Launcher" button on foreign pages — a reverse
-// proxy in front of a stopped bridge often serves its own "Service not
+// proxy in front of a stopped server often serves its own "Service not
 // running" HTML, leaving the user stranded with no escape affordance. The
 // button gives them one without needing to know Cmd+Shift+L or the macOS
 // Dock right-click menu.
@@ -818,7 +818,7 @@ fn watch_navigation(app: AppHandle, window: WebviewWindow, target: String, timeo
 }
 
 // Called by browser-widget.js whenever it changes whether its iframe is
-// loading an external URL via the bridge proxy (false) or directly (true).
+// loading an external URL via the server proxy (false) or directly (true).
 // The iframe sandbox (`allow-scripts allow-forms`) still confines anything
 // the page can do to the iframe — this flag only governs whether
 // on_navigation hands the iframe's own external URL to Safari or lets the
@@ -894,7 +894,7 @@ fn external_link_plugin<R: Runtime>() -> TauriPlugin<R> {
             // off, so the iframe's src is the raw external URL. wry can't tell
             // iframe navs from top-frame, so without this branch every direct-
             // mode load would escape to Safari. The webview itself remains
-            // anchored to the bridge origin — only the sandboxed iframe gets
+            // anchored to the server origin — only the sandboxed iframe gets
             // to attempt the navigation.
             let state = webview.state::<AppState>();
             if state.browser_widget_direct.load(Ordering::Relaxed) {
@@ -969,7 +969,7 @@ pub fn run() {
         .manage(AppState::default());
 
     // Local server mode (desktop only): the shell plugin does the sidecar /
-    // process spawning, LocalState supervises the bridge child, and the
+    // process spawning, LocalState supervises the server child, and the
     // local_* commands drive it from the launcher. Mobile builds get the
     // base command set — the launcher hides the "This Mac" card when
     // invoke('local_status') rejects (src/local.rs).
@@ -1302,7 +1302,7 @@ mod scene_spawn_guard {
 #[cfg(not(target_os = "ios"))]
 #[allow(unused_variables)]
 fn handle_run_event(app: &AppHandle, event: tauri::RunEvent) {
-    // Desktop: reap the supervised local bridge on quit so it doesn't
+    // Desktop: reap the supervised local server on quit so it doesn't
     // linger headless after the app window is gone (local.rs shutdown —
     // SIGTERM, short grace, then kill).
     #[cfg(desktop)]

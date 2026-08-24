@@ -17,7 +17,7 @@ if [ -z "$contents" ]; then
  ERROR: /workspace is not bind-mounted from the host.
 
  Painapple Code needs your project directory mounted at /workspace so
- the bridge can read and edit files.
+ the server can read and edit files.
 
  docker run:
    docker run ... -v "/absolute/path/to/your/project:/workspace" painapple-code
@@ -48,7 +48,7 @@ seed_agent() {
     agent_dst=/home/app/.claude/agents/shadow-git-helper.md
     [ -f "$agent_src" ] && [ ! -f "$agent_dst" ] || return 0
     # Best-effort: a host bind-mount we can't write (ownership we failed
-    # to reconcile, a read-only mount) must not stop the bridge starting.
+    # to reconcile, a read-only mount) must not stop the server starting.
     # The user loses the seeded agent, not the server.
     mkdir -p /home/app/.claude/agents 2>/dev/null || true
     cp "$agent_src" "$agent_dst" 2>/dev/null || true
@@ -94,7 +94,7 @@ seed_agent() {
 # need reproducibility.
 #
 # Failure here is NOT fatal. No network, a down registry, a read-only
-# /data: the bridge still starts and still serves the UI, terminal, git
+# /data: the server still starts and still serves the UI, terminal, git
 # panel and history. Only sending a prompt to that engine breaks, and it
 # says so. Dying on boot instead would turn a degraded instance into no
 # instance.
@@ -108,7 +108,7 @@ export PATH
 RUNAS=''
 
 # $RUNAS, when set, is the "setpriv …" prefix that runs npm as the target
-# user — a root-owned tree under /data would be unwritable by the bridge
+# user — a root-owned tree under /data would be unwritable by the server
 # on the next upgrade. Deliberately unquoted so it word-splits into argv;
 # the values are numeric ids, so there's nothing to quote around.
 #
@@ -154,7 +154,7 @@ install_agent_clis() {
 
 painapple: could not install$names.
 
-  The bridge will start, but sending a prompt to those engines will fail
+  The server will start, but sending a prompt to those engines will fail
   until their binaries are on PATH. This is usually no network access
   from the container, or a read-only /data.
 
@@ -175,8 +175,8 @@ EOF
 # ── Align the container user with whoever owns the mounts ───────────────
 #
 # The image bakes `app` at a fixed UID (1000 unless built with
-# --build-arg USER_UID). Everything the bridge is mounted FOR is owned by
-# the HOST user: the workspace it edits, ~/.claude, the bridge config
+# --build-arg USER_UID). Everything the server is mounted FOR is owned by
+# the HOST user: the workspace it edits, ~/.claude, the server config
 # dir, and /data itself when a host profile rides along as a bind. So on
 # any host whose UID isn't the baked one, the container can't write a
 # single one of them — it dies on boot with
@@ -190,7 +190,7 @@ EOF
 # the host user on `app`, or an explicit --user was passed. Either way,
 # exec straight through.
 #
-# The bridge NEVER runs as root: the root branch always ends in setpriv.
+# The server NEVER runs as root: the root branch always ends in setpriv.
 if [ "$(id -u)" = "0" ]; then
     app_uid=$(id -u app 2>/dev/null || echo 1000)
     app_gid=$(id -g app 2>/dev/null || echo 1000)
@@ -208,7 +208,7 @@ if [ "$(id -u)" = "0" ]; then
     # `app` alone. 65534 is the kernel's overflow id: what an owner that
     # ISN'T mapped into this user namespace reads back as (rootless
     # podman without --userns=keep-id shows every host file as `nobody`).
-    # Aligning to it would just run the bridge as nobody, which can't
+    # Aligning to it would just run the server as nobody, which can't
     # write those files either.
     case "$want_uid" in ''|*[!0-9]*|0|65534) want_uid=$app_uid ;; esac
     case "$want_gid" in ''|*[!0-9]*|0|65534) want_gid=$app_gid ;; esac
@@ -229,7 +229,7 @@ if [ "$(id -u)" = "0" ]; then
         find /home/app -xdev -exec chown -h "$want_uid:$want_gid" {} + 2>/dev/null || true
     fi
 
-    # /data and the bridge config dir are usually named volumes, which
+    # /data and the server config dir are usually named volumes, which
     # keep the ownership of whichever container populated them — a
     # rebuilt/pulled image with a different UID inherits a data home it
     # can't write.
@@ -253,7 +253,7 @@ if [ "$(id -u)" = "0" ]; then
     seed_agent "$want_uid:$want_gid"
 
     # npm runs as the unprivileged user, not as root — /data is the
-    # bridge's own volume and it has to be able to upgrade the CLIs later.
+    # server's own volume and it has to be able to upgrade the CLIs later.
     RUNAS="setpriv --reuid=$want_uid --regid=$want_gid --init-groups"
     install_agent_clis "$want_uid:$want_gid"
 

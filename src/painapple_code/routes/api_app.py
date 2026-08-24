@@ -1,9 +1,9 @@
 """
-Bridge API Routes - residual: server info, bridge config, helper install.
+App API Routes - residual: server info, global config, helper install.
 
 These endpoints expose:
 - Server identity (home, cwd, workspace)
-- Global bridge configuration (raw get/put)
+- Global configuration (raw get/put)
 - Helper installation (shadow-git CLI + agent template)
 
 Other former sections of this module have moved:
@@ -226,14 +226,14 @@ def _version_payload() -> dict:
 
 @router.get("/api/info")
 async def get_server_info(request: Request):
-    """Server identity: OS home, server CWD, and the bridge's --workspace.
+    """Server identity: OS home, server CWD, and the server's --workspace.
 
     The frontend uses `workspace` (when present) as the project base for the
     file explorer and path autocomplete — inside Docker the OS home is
     /home/app, which is not what the user wants as their working area.
 
-    Reads workspace from app.state because `from server import bridge` loads
-    a separate `server` module from the running `__main__`, where bridge is
+    Reads workspace from app.state because `from server import agents` loads
+    a separate `server` module from the running `__main__`, where `agents` is
     still None — app.state survives that split because the FastAPI app
     object is the singleton used to register routes.
 
@@ -290,18 +290,18 @@ async def get_server_info(request: Request):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Bridge Config
+# App Config
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get("/api/app/config")
 async def get_app_config():
-    """Get global bridge configuration."""
+    """Get global configuration."""
     return paths.load_global_config()
 
 
 @router.put("/api/app/config")
 async def update_app_config(config: dict):
-    """Update global bridge configuration."""
+    """Update global configuration."""
     paths.save_global_config(config)
     return paths.load_global_config()
 
@@ -319,7 +319,7 @@ async def get_helpers_status():
 @router.post("/api/app/helpers/install")
 async def install_helpers():
     """
-    Run tools/install-helpers.sh --update on the bridge server's filesystem.
+    Run tools/install-helpers.sh --update on the server's filesystem.
     Returns 200 with {ok, exit_code, stdout, stderr} regardless of script outcome
     so the frontend can read the result without HTTP error handling.
     """
@@ -345,7 +345,7 @@ async def install_helpers():
 @router.post("/api/app/helpers/uninstall")
 async def uninstall_helpers():
     """
-    Remove the installed helper files from the bridge server's filesystem.
+    Remove the installed helper files from the server's filesystem.
     Does not touch journal data or shadow-git config — only deletes the
     CLI binary and agent template that `install-helpers.sh` puts in place.
     """

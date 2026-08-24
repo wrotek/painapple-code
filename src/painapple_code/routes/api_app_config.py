@@ -1,5 +1,5 @@
 """
-Bridge Config API Routes - bridge-wide settings.
+App Config API Routes - app-wide settings.
 
 These endpoints manage:
 - Quick Action Presets (~/.painapple-code/presets/*.json)
@@ -541,7 +541,7 @@ async def get_sigint_on_ask():
 async def set_sigint_on_ask(request: Request):
     """Toggle SIGINT-on-AskUserQuestion.
 
-    Persists to the global config and updates the live bridge instance so the
+    Persists to the global config and updates the live AgentManager so the
     change takes effect on the next turn without a restart.
     """
     body = await request.json()
@@ -558,7 +558,7 @@ async def set_sigint_on_ask(request: Request):
         config["sigint_on_ask"] = value
     paths.save_global_config(config)
 
-    # Apply to the running bridge so the toggle is live, not restart-gated.
+    # Apply to the running server so the toggle is live, not restart-gated.
     agents = getattr(request.app.state, "agents", None)
     if agents is not None:
         agents.sigint_on_ask = value

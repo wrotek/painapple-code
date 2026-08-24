@@ -63,7 +63,7 @@ Skip the `secrets` block. After the codespace boots, open a terminal and
 run `claude login`. The OAuth credential persists for the life of the
 codespace.
 
-### Multiple workspaces in one bridge
+### Multiple workspaces in one server
 
 By default the launcher uses `/workspaces` as the workspace root and the
 Painapple welcome screen lists every project directory under it. To pin a

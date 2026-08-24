@@ -9,7 +9,7 @@ Two modes:
   (`src/index.html` is the launcher); after that the WebView navigates to the
   user's server and behaves like any browser tab pointed at pAInapple.
 - **Local (desktop only):** the "This Mac" card on the launcher provisions a
-  local bridge with the bundled [`uv`](https://github.com/astral-sh/uv)
+  local server with the bundled [`uv`](https://github.com/astral-sh/uv)
   sidecar — managed CPython + `uv tool install painapple-code` from PyPI,
   fully isolated under the app data dir — then starts/stops/supervises it
   (`src-tauri/src/local.rs`). No system Python, Node, or Homebrew required;
@@ -79,7 +79,7 @@ npm run ios:build         # produces .ipa
 
 - **Bundle identifier**: `com.boothw.painapple` in `src-tauri/tauri.conf.json`. Change before publishing under a different account.
 - **Window size / chrome**: same file, under `app.windows[]`.
-- **CSP**: currently `null` (unset) — needed because the launcher navigates to arbitrary user-provided origins. Tightening this would require a more elaborate native bridge to handle navigation.
+- **CSP**: currently `null` (unset) — needed because the launcher navigates to arbitrary user-provided origins. Tightening this would require a more elaborate native server to handle navigation.
 - **Icons**: regenerate with `npm run icon` if `../src/painapple_code/static/icons/icon-512.png` changes.
 
 ## Generated files (gitignored)

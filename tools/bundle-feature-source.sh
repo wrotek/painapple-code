@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# bundle-feature-source.sh — populate bridge-source/ next to the painapple-code
+# bundle-feature-source.sh — populate painapple-source/ next to the painapple-code
 # Feature's install.sh, plus mirror the whole feature into .devcontainer/
 # painapple-code/ so the in-repo devcontainer can reference it as a local
 # Feature path.
@@ -8,7 +8,7 @@
 # Why this exists:
 #   The Feature's install.sh used to `git clone` painapple-code from GitHub
 #   at build time, which requires the repo to be public OR a token in the
-#   build context. To stay private-friendly, we ship the bridge source inside
+#   build context. To stay private-friendly, we ship the server source inside
 #   the Feature OCI artifact instead. This script produces that bundle.
 #
 # When to run:
@@ -22,7 +22,7 @@
 #   --feature-only   Skip the .devcontainer/ mirror (useful in CI).
 #
 # Output:
-#   features/src/painapple-code/bridge-source/       (canonical, gitignored)
+#   features/src/painapple-code/painapple-source/       (canonical, gitignored)
 #   .devcontainer/painapple-code/                    (mirror, gitignored,
 #                                                    unless --feature-only)
 
@@ -34,7 +34,7 @@ cd "$REPO_ROOT"
 
 FEATURE_SRC="features/src/painapple-code"
 LOCAL_FEATURE_DIR=".devcontainer/painapple-code"
-BUNDLE_SUBDIR="bridge-source"
+BUNDLE_SUBDIR="painapple-source"
 
 FEATURE_ONLY=false
 [ "${1:-}" = "--feature-only" ] && FEATURE_ONLY=true

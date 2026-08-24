@@ -2,7 +2,7 @@
  * Server-flavored path helpers.
  *
  * Every path the client manipulates belongs to the SERVER's filesystem,
- * not the browser's — an iPad can be driving a Windows bridge — so the
+ * not the browser's — an iPad can be driving a Windows server — so the
  * flavor comes from what the server reports (INSTANCE_CONFIG.path_style),
  * never from navigator.platform.
  *

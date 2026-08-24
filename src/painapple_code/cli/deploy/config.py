@@ -52,7 +52,7 @@ class ConfigError(ValueError):
 
 class DockerSettings:
     """One containerized deployment's settings, with per-profile
-    collision-free defaults (container name, data volume, bridge config
+    collision-free defaults (container name, data volume, global config
     dir). CLAUDE_HOME defaults to the shared isolated dir for every
     profile, so one ``claude login`` serves all sandboxes."""
 

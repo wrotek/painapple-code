@@ -715,7 +715,7 @@ def test_options_preflight_passes_through(unauth_client):
     r = unauth_client.options(
         "/api/sessions",
         headers={
-            "Origin": "https://bridge.example.com",
+            "Origin": "https://painapple.example.com",
             "Access-Control-Request-Method": "GET",
         },
     )
@@ -938,7 +938,7 @@ def _first_close_code(client, url):
 
 @pytest.fixture
 def app_with_agents(app, tmp_path, monkeypatch):
-    """Stub the global bridge so authed WS handlers don't crash on attribute
+    """Stub the global AgentManager so authed WS handlers don't crash on attribute
     access. We only care that auth was accepted; actual session mechanics
     are out of scope for the auth tests."""
     from painapple_code.services.agent_session import AgentManager

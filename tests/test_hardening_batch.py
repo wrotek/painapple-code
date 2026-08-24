@@ -304,7 +304,7 @@ def test_lock_mode_windows_warns_once_on_failure(monkeypatch, tmp_path, caplog):
 # ---------------------------------------------------------------------------
 #
 # Enforced on EVERY platform, not just win32: uploads land in shared and
-# synced directories, so a Linux-hosted bridge shouldn't be able to mint a
+# synced directories, so a Linux-hosted server shouldn't be able to mint a
 # name its Windows users cannot open. The trailing-dot case is the sharp
 # one — NTFS silently strips it, so "report." and "report" are the same
 # file, which is both a quiet overwrite and a way past a uniqueness check.

@@ -80,7 +80,7 @@ def _shares_our_console(pid) -> bool:
     catching exceptions after the fact; it has to be decided BEFORE
     sending, from console membership. ``GetConsoleProcessList`` is that
     answer: the set of pids on our console. Returns 0 when we have no
-    console at all (the ``painapple start`` detached-bridge case) —
+    console at all (the ``painapple start`` detached-server case) —
     nothing can share it, so every interrupt escalates to terminate().
     """
     import ctypes
@@ -113,7 +113,7 @@ def interrupt_process(process) -> None:
     is a SILENT no-op — no OSError, no effect — so an exception-based
     fallback never fires and Stop wedges with the UI stuck on
     "stopping". A child that can't hear CTRL_BREAK (``DETACHED_PROCESS``
-    grandchildren of ``painapple start``, or any child once the bridge
+    grandchildren of ``painapple start``, or any child once the server
     itself is console-less) is terminated instead: blunter than an
     interrupt, but the line-protocol callers using this path kill the
     process on stop anyway. The except arm stays as a belt for the

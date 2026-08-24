@@ -9,7 +9,7 @@
  *
  * Why this panel is load-bearing rather than decorative: painapple-code is
  * AGPL-3.0-or-later, and §13 obliges anyone offering it over a network to
- * offer that network's users the corresponding source. A bridge whose whole
+ * offer that network's users the corresponding source. A server whose whole
  * purpose is being reached from other devices is squarely in scope, so the
  * source link below is the compliance surface, not a courtesy.
  *
@@ -225,7 +225,7 @@ function renderBody(container) {
             showToast(S.about.copied);
         } catch {
             // Clipboard API needs a secure context; plain-http LAN access is
-            // a normal way to reach this bridge, so failure isn't exceptional.
+            // a normal way to reach this server, so failure isn't exceptional.
             showToast(S.errors.copy_failed);
         }
     });

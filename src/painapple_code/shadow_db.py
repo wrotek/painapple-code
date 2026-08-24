@@ -112,7 +112,7 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
         rebuilds still work (the extension is already loaded), but read_csv/
         read_parquet, the `FROM 'file'` replacement scan, and `COPY ... TO 'file'`
         are all blocked engine-wide — closing the file-read/exfil vectors that a
-        string-level denylist can't fully cover. The bridge never legitimately
+        string-level denylist can't fully cover. The server never legitimately
         reads external files through DuckDB, so nothing else is affected.
         """
         try:

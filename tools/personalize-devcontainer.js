@@ -27,7 +27,7 @@
 //   forwardPorts / portsAttributes — these are runtime hints, not bake-time
 //   mounts / runArgs — runtime concerns; painapple-docker.sh handles its own
 //   customizations — IDE/editor settings, irrelevant for a baked image
-//   postCreateCommand / postAttachCommand / etc. — bridge has its own entrypoint
+//   postCreateCommand / postAttachCommand / etc. — server has its own entrypoint
 //
 // Relative feature paths (e.g. "./my-feature") in the user's file are
 // resolved against the user's devcontainer.json directory so they survive

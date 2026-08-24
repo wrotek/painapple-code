@@ -516,7 +516,7 @@ def test_identity_podman_remaps_host_user_onto_app_uid(tmp_path, host_ids):
 
 def test_identity_podman_adapting_image_runs_entrypoint_as_root(tmp_path, host_ids):
     """An image that re-stamps itself gets to fix its own volumes — but
-    only from root, and it drops privileges before the bridge starts."""
+    only from root, and it drops privileges before the server starts."""
     from painapple_code.cli.deploy.container import build_run_argv, plan_identity
     cfg = _sample_settings(tmp_path)
     rt = _FakeRuntime("podman", app_ids=(1000, 1000), adapts=True)
@@ -674,7 +674,7 @@ def test_password_in_docker_rejected_for_a_named_profile(capsys):
 
 def test_password_falls_back_to_a_running_sandbox(
         host_config, captured_container_password, monkeypatch):
-    """No host bridge has ever run, but the container is up and its login
+    """No host server has ever run, but the container is up and its login
     page sent the user here — answer for the container instead of
     claiming nothing has started."""
     from painapple_code.cli import manage_cmd

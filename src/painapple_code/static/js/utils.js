@@ -10,7 +10,7 @@ export const $$ = (sel) => document.querySelectorAll(sel);
 export const genId = () => 'sess_' + Math.random().toString(36).substr(2, 9);
 
 // PTY terminal capability — false only when the server says so (native
-// Windows bridge, no ConPTY backend yet). Absent flag (older server)
+// Windows server, no ConPTY backend yet). Absent flag (older server)
 // means available.
 export const terminalAvailable = () =>
     window.INSTANCE_CONFIG?.terminal_available !== false;

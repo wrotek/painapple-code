@@ -29,7 +29,7 @@ from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["bridge:project-config"])
+router = APIRouter(tags=["app:project-config"])
 
 
 # ═══════════════════════════════════════════════════════════════════

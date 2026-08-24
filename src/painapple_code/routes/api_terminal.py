@@ -89,9 +89,9 @@ async def terminal_websocket(websocket: WebSocket, session: str = None, cwd: str
         resolved_cwd = str(safe_resolve(cwd))
 
     if not resolved_cwd:
-        # Fall back to the bridge's --workspace (stashed on app.state by main()).
-        # `from server import bridge` looks at a different module instance than
-        # the running __main__, so bridge is None there — Path.home() inside
+        # Fall back to the server's --workspace (stashed on app.state by main()).
+        # `from server import agents` looks at a different module instance than
+        # the running __main__, so `agents` is None there — Path.home() inside
         # Docker is /home/app which is not the project base the user wants.
         ws = getattr(state, "workspace", None)
         if ws:
@@ -468,7 +468,7 @@ async def list_active_sessions():
 
         result.append(session_info)
 
-    # Supplement with recent stored sessions not in bridge.sessions.
+    # Supplement with recent stored sessions not in agents.sessions.
     # This makes the widget useful after server restarts, showing recent
     # sessions as "disconnected" until the browser reconnects.
     try:

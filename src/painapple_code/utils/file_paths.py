@@ -469,7 +469,7 @@ def add_verified_files_to_message(msg: dict, cwd: str) -> dict:
 # Open dialog / file browser — listing or reading them is at best useless
 # and at worst causes massive blocking reads (/proc/kcore is a 128TB file
 # on x86_64, kernel-traversing /sys directories hang on slow buses, etc.).
-# This is the ONLY path restriction the bridge applies, and it exists for
+# This is the ONLY path restriction the server applies, and it exists for
 # practical reasons, not security ones.
 _DENY_ROOTS = (
     Path("/proc"),
@@ -481,7 +481,7 @@ _DENY_ROOTS = (
 # a genuine security concern rather than a practical one. A UNC path
 # (\\host\share) makes Windows authenticate OUTBOUND to an arbitrary host,
 # so a single "read this file" with a \\attacker\share path turns the
-# bridge into an NTLM-hash exfiltration primitive. Device namespaces
+# server into an NTLM-hash exfiltration primitive. Device namespaces
 # (\\.\PhysicalDrive0, \\?\) and the reserved DOS names are the /dev
 # analogue: opening them does something other than read a file.
 _WIN_RESERVED_NAMES = frozenset(
@@ -586,7 +586,7 @@ def is_path_allowed_for_read(path: Path) -> bool:
     """
     Allow anywhere on the filesystem except the kernel-special trees above.
 
-    OS file permissions still apply — the bridge process can only touch what
+    OS file permissions still apply — the server process can only touch what
     its OS user can touch, so this doesn't broaden actual access beyond what
     the user already has via their shell.
     """

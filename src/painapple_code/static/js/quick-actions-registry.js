@@ -1133,7 +1133,7 @@ QuickActionsRegistry.register('zen-mode', {
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom user-defined actions — terminal command / prompt / slash command
 //
-// Definitions live in bridge config (`quickActions.customActions`, synced
+// Definitions live in global config (`quickActions.customActions`, synced
 // cross-device) and are (re-)registered here by syncCustomActions(), called
 // from quick-actions-menu's load/save paths. Shape:
 //   { id: 'custom-<rand>', label, icon, type: 'terminal'|'prompt'|'slash',

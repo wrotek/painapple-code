@@ -1,4 +1,4 @@
-"""Self-signed TLS cert for the bridge.
+"""Self-signed TLS cert for the server.
 
 Stored alongside the auth config at ~/.config/painapple-code/{cert.pem,key.pem}.
 Clients (the Tauri app's loopback proxy in particular) accept the cert without

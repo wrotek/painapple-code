@@ -5,7 +5,7 @@ methods here (`frame_input`, `session_id_from_event`) are the identity readings
 of that schema, and the base `translate_events` identity is inherited unchanged.
 The one real transform Claude needs is `normalize_result`: the CLI's `result`
 cost/usage fields are cumulative across the persistent `claude -p` process, and
-the bridge stores them per-turn. Mixed into `ClaudeProvider`.
+the server stores them per-turn. Mixed into `ClaudeProvider`.
 """
 
 from __future__ import annotations

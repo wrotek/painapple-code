@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["exec"])
 
 # Combined stdout+stderr ceiling. `communicate()` buffers without limit, so a
-# `cat` of a huge file or a runaway `yes` grows the bridge's heap until the OOM
+# `cat` of a huge file or a runaway `yes` grows the server's heap until the OOM
 # killer settles it. Generous enough that no realistic bang-command output is
 # clipped; the truncation is reported, never silent.
 MAX_OUTPUT_BYTES = 1 * 1024 * 1024

@@ -25,7 +25,7 @@ import sys
 
 # Import failures are a supported state, not a crash: a POSIX box always
 # has pty/fcntl, but a Windows box without the optional pywinpty gets a
-# bridge with every feature EXCEPT the terminal tab, and a startup
+# server with every feature EXCEPT the terminal tab, and a startup
 # warning naming the fix. server.py turns this into the client-visible
 # `terminal_available` capability flag.
 PTY_AVAILABLE = False

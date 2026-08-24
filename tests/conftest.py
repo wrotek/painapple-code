@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for the bridge test suite.
+"""Shared pytest fixtures for the server test suite.
 
 Test isolation: every fixture writes to tmp_path so no test ever reads
 ~/.config/painapple-code/config.yaml. The server.create_app(config_file=...)
@@ -76,7 +76,7 @@ def app(test_config_file):
     """App with auth state pointed at the tmp_path config file."""
     from painapple_code.server import create_app
     app_ = create_app(config_file=test_config_file)
-    # WS handlers read app.state.bridge before the auth check. Default to
+    # WS handlers read app.state.agents before the auth check. Default to
     # None here so unauthed tests reach the auth-rejection path instead
     # of AttributeErroring out of the handler. Tests that exercise authed
     # paths replace this with a real AgentManager via app_with_agents.

@@ -1,5 +1,5 @@
 /**
- * ProjectProvider — list projects tracked by the bridge.
+ * ProjectProvider — list projects tracked by the server.
  *
  * Default action opens a fresh session tab for the project.
  * Right arrow drills into a project to show its recent sessions; picking

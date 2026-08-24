@@ -153,7 +153,7 @@ def _in_container(pid):
     Environment markers first: our own image sets PAINAPPLE_IN_CONTAINER,
     podman sets `container=podman`. The /proc/<pid>/root check is the
     fallback — under --userns=keep-id that link reads back as '/' from
-    the host, which used to list every containerized bridge twice (once
+    the host, which used to list every containerized server twice (once
     as a phantom ad-hoc process on the container's own port)."""
     env = _proc_environ(pid)
     if env and ("PAINAPPLE_IN_CONTAINER" in env or "container" in env):

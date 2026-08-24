@@ -234,7 +234,7 @@ def sanitize_filename(filename: str) -> str:
     # is_path_allowed_for_read denies.
     #
     # Applied on EVERY platform, not just win32: uploads are shared (synced
-    # dirs, a repo later cloned on Windows), and a Linux-hosted bridge
+    # dirs, a repo later cloned on Windows), and a Linux-hosted server
     # shouldn't be able to mint a file its Windows users can't open.
     if is_reserved_dos_name(filename):
         # The prefix can push a just-at-limit name one over, so re-clamp.

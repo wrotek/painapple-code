@@ -1,5 +1,5 @@
 /**
- * Bridge-side system controls — API auto-retry max, SIGINT-on-ask. Each is
+ * Server-side system controls — API auto-retry max, SIGINT-on-ask. Each is
  * its own GET-on-load, save-on-change pair against `/api/app/*`.
  *
  * Grouped here because the patterns are nearly identical (small `setupX`
@@ -17,7 +17,7 @@ export function setupApiRetryControls(container) {
     const input = container.querySelector('#api-retry-max-input');
     if (!input) return;
 
-    // Load current value from bridge config
+    // Load current value from global config
     fetch('/api/app/api-retry-max')
         .then(r => r.ok ? r.json() : null)
         .then(data => {
@@ -56,7 +56,7 @@ export function setupSigintOnAskControls(container) {
     const checkbox = container.querySelector('#sigint-on-ask');
     if (!checkbox) return;
 
-    // Load current value from bridge config
+    // Load current value from global config
     fetch('/api/app/sigint-on-ask')
         .then(r => r.ok ? r.json() : null)
         .then(data => {

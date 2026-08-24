@@ -48,7 +48,7 @@ class SessionStore:
             if store.exists(session_id):
                 return store, store.load_meta(session_id)
 
-        # Check all projects in bridge home — include unreachable so
+        # Check all projects in the data home — include unreachable so
         # lookup-by-id still works for sessions whose project path isn't
         # mounted (load/delete metadata for cleanup, etc.).
         # Don't skip projects already in _stores: a concurrent thread may

@@ -1,7 +1,7 @@
 /**
  * Engines tab — everything provider-centric in Settings.
  *
- * Renders from the registry (`GET /api/providers`) and per-key bridge
+ * Renders from the registry (`GET /api/providers`) and per-key server
  * config endpoints; nothing is hardcoded per engine, so a drop-in
  * provider gets its own row + sub-tab automatically. Layout:
  *

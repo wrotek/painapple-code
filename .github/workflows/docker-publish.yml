@@ -212,7 +212,7 @@ jobs:
 
     smoke-test:
         # Pulls the staged image BY DIGEST on a clean runner and verifies
-        # the bridge boots: /health must return HTTP 200 within 30 s. At
+        # the server boots: /health must return HTTP 200 within 30 s. At
         # this point no public tag has moved — a failure here leaves
         # :latest/:rc/:<version> exactly where they were. Runs only for
         # amd64 — buildx publishes the same code for both arches, so one

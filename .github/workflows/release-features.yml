@@ -25,7 +25,7 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - name: Bundle bridge source into Feature
+            - name: Bundle painapple source into Feature
               run: tools/bundle-feature-source.sh --feature-only
 
             - name: Publish Features to GHCR

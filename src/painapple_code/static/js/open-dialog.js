@@ -15,7 +15,7 @@
  * Enter on a file → preview (or new tab with Cmd/Ctrl+Enter).
  *
  * Works anywhere on the filesystem: `/etc/`, `~/Documents/`, `../`,
- * absolute paths. OS file permissions still apply (the bridge can only
+ * absolute paths. OS file permissions still apply (the server can only
  * read what its user can read); `/proc`, `/sys`, `/dev` are blocked.
  */
 
@@ -390,7 +390,7 @@ class OpenDialogClass {
 
     _getCwd() {
         // Prefer the active session's cwd; on the welcome screen there's none
-        // yet, so fall back to the bridge's --workspace dir (mirrors the file
+        // yet, so fall back to the server's --workspace dir (mirrors the file
         // explorer anchor; CONFIG.WORKSPACE itself falls back to the OS home
         // when --workspace isn't set).
         const sessionCwd = window.app?.activeSession?.cwd;

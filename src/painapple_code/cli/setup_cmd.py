@@ -42,7 +42,7 @@ def _section(n, title, blurb=None):
 # ui.BACK. Steps only mutate the in-memory dict.
 
 def step_network(cfg, back, n=1):
-    _section(n, "Network", "Which interface and port the bridge binds to")
+    _section(n, "Network", "Which interface and port the server binds to")
     choices = [Choice("127.0.0.1", "Localhost only", "127.0.0.1 (recommended)")]
     for ip, iface in detect_local_ips():
         choices.append(Choice(ip, ip, f"bind to {iface} only — reachable on your LAN"))
@@ -68,10 +68,10 @@ def step_network(cfg, back, n=1):
     else:
         cfg["host"] = picked
     if cfg["host"] == "0.0.0.0":
-        warn("Bridge will accept connections on every interface — anyone "
+        warn("Server will accept connections on every interface — anyone "
              "with the password can connect.")
     elif cfg["host"] not in ("127.0.0.1", "::1", "localhost"):
-        warn(f"Bridge will be reachable on {cfg['host']} — anyone with the "
+        warn(f"Server will be reachable on {cfg['host']} — anyone with the "
              "password can connect.")
 
     port = ui.int_input("Port to bind", default=cfg.get("port") or 8765,

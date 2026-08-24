@@ -1,4 +1,4 @@
-"""Ad-hoc SQL must not be able to wedge the bridge.
+"""Ad-hoc SQL must not be able to wedge the server.
 
 `/api/shadow-db/sql` is the one query path where the caller writes the SQL, and
 CLAUDE.md teaches it to humans and agents alike as the normal way to query. A

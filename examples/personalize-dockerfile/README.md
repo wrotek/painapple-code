@@ -19,7 +19,7 @@ are mutually exclusive (a build uses one or the other, not both).
    - replaces your **final** `FROM` line with `FROM painapple-code:base`
      (earlier `FROM` lines in a multi-stage build are kept verbatim, so
      `COPY --from=builder` still works)
-   - strips `CMD` and `ENTRYPOINT` instructions so the bridge's
+   - strips `CMD` and `ENTRYPOINT` instructions so the server's
      entrypoint isn't clobbered
    - leaves everything else (`RUN`, `COPY`, `ENV`, `ARG`, `USER`,
      `WORKDIR`, `LABEL`, `EXPOSE`, …) untouched
@@ -56,13 +56,13 @@ need to be passed as an explicit file path.
 |-------------|----------|
 | Final `FROM` line | rewritten to `FROM painapple-code:base` (preserves any `AS <alias>` suffix) |
 | Earlier `FROM` lines | preserved (multi-stage builders keep working) |
-| `CMD` | stripped (bridge entrypoint stays intact) |
+| `CMD` | stripped (server entrypoint stays intact) |
 | `ENTRYPOINT` | stripped (same reason) |
 | `RUN`, `COPY`, `ADD` | preserved verbatim |
 | `ENV`, `ARG`, `LABEL` | preserved |
 | `USER`, `WORKDIR`, `EXPOSE` | preserved |
 
-If you need to swap out the bridge entrypoint too, do it in
+If you need to swap out the server entrypoint too, do it in
 `painapple-docker.sh up` arguments — not the Dockerfile.
 
 ### When to use this vs `--devcontainer`

@@ -676,7 +676,7 @@ class ShadowGit(_SummaryMixin):
         use --allow-empty commits to preserve the investigation record.
 
         Args:
-            session_id: Our bridge session ID
+            session_id: Our session ID
             turn_num: Turn number (1-indexed)
             tracker: TurnTracker with modified_files and tools_used
             cost_info: Token and cost information

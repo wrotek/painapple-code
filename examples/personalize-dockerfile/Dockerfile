@@ -5,7 +5,7 @@
 #   1. Build painapple-code:base from this repo's Dockerfile (untouched).
 #   2. Append the instructions below onto painapple-code:base. The FROM
 #      line is rewritten by the wrapper to point at painapple-code:base;
-#      CMD/ENTRYPOINT (if any) are stripped so the bridge's entrypoint
+#      CMD/ENTRYPOINT (if any) are stripped so the server's entrypoint
 #      survives.
 #
 # Usage:
@@ -24,7 +24,7 @@ FROM painapple-code:base
 # Become root to install packages. Stay there: the base image's
 # entrypoint runs as root on purpose (it re-stamps the `app` user to
 # match the ownership of your mounts) and drops privileges itself before
-# the bridge starts. Ending this file with `USER app` would take that
+# the server starts. Ending this file with `USER app` would take that
 # away and bring back "Permission denied" on any host whose UID isn't
 # the one baked into the image.
 USER root
@@ -40,5 +40,5 @@ RUN apt-get update \
 # fd ships as `fdfind` on Debian; alias to `fd` for muscle memory.
 RUN ln -sf /usr/bin/fdfind /usr/local/bin/fd
 
-# No trailing `USER app` — see the note above. The bridge still runs as
+# No trailing `USER app` — see the note above. The server still runs as
 # `app`; the entrypoint drops to it.

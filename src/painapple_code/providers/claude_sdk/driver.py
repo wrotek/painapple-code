@@ -1,23 +1,23 @@
 """
 Agent-SDK driver subprocess for the `claude-sdk` provider.
 
-The bridge spawns this module (`python -u -m painapple_code.providers.claude_sdk.driver`)
+The server spawns this module (`python -u -m painapple_code.providers.claude_sdk.driver`)
 exactly where it would spawn `claude -p`, and speaks the same wire protocol to
 it: canonical stream-json user messages in on stdin, canonical stream-json
 events out on stdout, CLI diagnostics on stderr. Internally it drives the
 Claude Code CLI through `ClaudeSDKClient` and *tees the raw stream-json dicts
-off the SDK transport verbatim*, so the bytes the bridge reads are the CLI's
+off the SDK transport verbatim*, so the bytes the server reads are the CLI's
 own output, not a lossy reconstruction from the SDK's typed objects — event
 parity with the line-protocol provider holds by construction.
 
 Signal contract (matches what the session layer expects of the CLI):
   SIGINT  → abort the turn, shut the SDK client down, exit 130
   SIGTERM → shut down, exit 143
-  stdin EOF (bridge died/closed) → shut down, exit 0
+  stdin EOF (server died/closed) → shut down, exit 0
 Closing the client terminates the CLI child, so no orphan is left behind.
 
 stdout is protocol-only — never print anything else to it. Driver-side
-diagnostics go to stderr, where the bridge's stderr reader forwards/classifies
+diagnostics go to stderr, where the server's stderr reader forwards/classifies
 them like any CLI stderr line.
 """
 
@@ -36,18 +36,18 @@ import threading
 from collections.abc import AsyncIterator
 from typing import Any
 
-# Matches the bridge reader's MAX_LINE_SIZE ceiling (utils/agent_cli.py); the
+# Matches the server reader's MAX_LINE_SIZE ceiling (utils/agent_cli.py); the
 # stdin limit is higher because pasted/uploaded base64 images ride in the user
 # message envelope.
 MAX_EVENT_SIZE = 10 * 1024 * 1024
 MAX_STDIN_LINE = 64 * 1024 * 1024
 
-# Stream event types forwarded to the bridge. Everything else on the transport
+# Stream event types forwarded to the server. Everything else on the transport
 # (control_request/control_response handshakes, keep-alives) is SDK plumbing
-# the bridge must not see.
+# the server must not see.
 _STREAM_TYPES = frozenset({"system", "assistant", "user", "result"})
 
-# Tools whose "ask" the bridge already handles with its own chat-UI flow
+# Tools whose "ask" the server already handles with its own chat-UI flow
 # (question wizard / plan-approval card + SIGINT auto-stop). Deny them here
 # with a steering message instead of surfacing a permission card, so both
 # providers keep the identical UX for these two.
@@ -70,13 +70,13 @@ def _jsonable(obj: Any) -> Any:
 
 
 def _emit(msg: dict) -> None:
-    """Write one canonical event line to the bridge."""
+    """Write one canonical event line to the server."""
     sys.stdout.write(json.dumps(msg, ensure_ascii=False, separators=(",", ":")) + "\n")
     sys.stdout.flush()
 
 
 def _note(text: str) -> None:
-    """Driver-side diagnostic → bridge stderr reader."""
+    """Driver-side diagnostic → server stderr reader."""
     print(f"claude-sdk driver: {text}", file=sys.stderr, flush=True)
 
 
@@ -104,7 +104,7 @@ def _make_tee_transport(options):
 
     async def _pending() -> AsyncIterator[dict[str, Any]]:
         # Never yields; marks streaming-input mode so the CLI's stdin stays
-        # open for the queries we write per bridge message.
+        # open for the queries we write per server message.
         return
         yield {}  # pragma: no cover
 
@@ -123,7 +123,7 @@ async def _amain(args: argparse.Namespace) -> int:
 
     # Interactive permissions: `can_use_tool` fires whenever the CLI's
     # permission flow resolves to a prompt. We round-trip the decision to the
-    # bridge as a `permission_request` stdout line and await the matching
+    # server as a `permission_request` stdout line and await the matching
     # `permission_response` stdin line (routed by the stdin loop below).
     pending_permissions: dict[str, asyncio.Future] = {}
     request_ids = (f"perm-{n}" for n in itertools.count(1))
@@ -177,7 +177,7 @@ async def _amain(args: argparse.Namespace) -> int:
 
     # bypassPermissions (YOLO) auto-approves every tool call before can_use_tool
     # is ever consulted, so wiring the callback does nothing except trip the
-    # SDK's CanUseToolShadowedWarning — which the bridge's stderr reader surfaces
+    # SDK's CanUseToolShadowedWarning — which the server's stderr reader surfaces
     # as a scary (but harmless) error line. Only attach the permission gate for
     # modes that can actually prompt.
     gate = None if args.permission_mode == "bypassPermissions" else on_permission
@@ -190,14 +190,14 @@ async def _amain(args: argparse.Namespace) -> int:
         permission_mode=args.permission_mode,
         resume=args.resume,
         fork_session=args.fork_session,
-        # The bridge already sets cwd on the driver process; pin the CLI to it.
+        # The server already sets cwd on the driver process; pin the CLI to it.
         cwd=os.getcwd(),
         # None → the SDK's _find_cli() discovers (and on win32 vets) the CLI;
         # an explicit config value is which-resolved as before.
         cli_path=(shutil.which(args.cli_path) or args.cli_path) if args.cli_path else None,
         # Restore thinking summaries on all models (see providers/claude/launch.py).
         extra_args={"thinking-display": "summarized"},
-        # Mirror CLI stderr onto ours so the bridge's classifier sees the exact
+        # Mirror CLI stderr onto ours so the server's classifier sees the exact
         # strings it matches today (stale session, API 5xx, compaction, …).
         stderr=lambda line: print(line, file=sys.stderr, flush=True),
         max_buffer_size=MAX_EVENT_SIZE,
@@ -214,7 +214,7 @@ async def _amain(args: argparse.Namespace) -> int:
     if sys.platform == "win32":
         # Proactor has no add_signal_handler (NotImplementedError — a Windows 11
         # probe). signal.signal works: CPython's wakeup channel rouses the
-        # loop, and call_soon_threadsafe hops back onto it. The bridge's
+        # loop, and call_soon_threadsafe hops back onto it. The server's
         # interrupt_process() sends CTRL_BREAK → SIGBREAK here (SIGTERM is
         # undeliverable on win32; parent terminate() covers that path).
         def _sig_handler(signum, frame):
@@ -245,7 +245,7 @@ async def _amain(args: argparse.Namespace) -> int:
         return 1
 
     async def stdin_loop() -> None:
-        """Forward each canonical user-message line from the bridge into the SDK."""
+        """Forward each canonical user-message line from the server into the SDK."""
         if sys.platform == "win32":
             # connect_read_pipe on an inherited stdin HALF-works under
             # Proactor: it connects, then the first read dies with
@@ -259,7 +259,7 @@ async def _amain(args: argparse.Namespace) -> int:
                     while True:
                         raw = sys.stdin.buffer.readline()
                         loop.call_soon_threadsafe(queue.put_nowait, raw)
-                        if not raw:  # EOF — bridge closed our stdin
+                        if not raw:  # EOF — server closed our stdin
                             return
                 except Exception:
                     loop.call_soon_threadsafe(queue.put_nowait, b"")
@@ -280,7 +280,7 @@ async def _amain(args: argparse.Namespace) -> int:
         while True:
             line = await _readline()
             if not line:
-                # Bridge closed stdin. Mirror `claude -p` one-shot semantics:
+                # Server closed stdin. Mirror `claude -p` one-shot semantics:
                 # close the CLI's stdin and let it finish in-flight work; the
                 # drain loop shuts us down when the CLI exits.
                 try:
@@ -297,7 +297,7 @@ async def _amain(args: argparse.Namespace) -> int:
                 _note("dropping non-JSON stdin line")
                 continue
 
-            # Bridge frames ride the same pipe: permission decisions resolve
+            # Server frames ride the same pipe: permission decisions resolve
             # the future the matching can_use_tool callback is awaiting.
             if msg.get("type") == "permission_response":
                 fut = pending_permissions.get(msg.get("request_id"))
@@ -310,10 +310,10 @@ async def _amain(args: argparse.Namespace) -> int:
 
             # Control plane (Capabilities.live_controls): live mode/model
             # switches and warm-process interrupt via the SDK client. Every
-            # request is acked with `control_done` — the bridge treats a
+            # request is acked with `control_done` — the server treats a
             # nack/timeout as "fall back to kill+respawn", so failing loudly
             # here is always safe. Ordering with user messages is enforced
-            # bridge-side (it awaits the ack before writing the message).
+            # server-side (it awaits the ack before writing the message).
             if msg.get("type") == "control_request":
                 action = msg.get("action")
                 ok, err = True, None
@@ -378,7 +378,7 @@ async def _amain(args: argparse.Namespace) -> int:
 
 def main() -> None:
     if sys.platform == "win32":
-        # stdout is the wire to the bridge and emit() uses ensure_ascii=False —
+        # stdout is the wire to the server and emit() uses ensure_ascii=False —
         # a cp1252 pipe would corrupt the first non-ASCII assistant token.
         from painapple_code.utils.proc import force_utf8_stdio
         force_utf8_stdio()
@@ -397,7 +397,7 @@ def main() -> None:
         # readline(), so it owns the <stdin> BufferedReader lock at exit.
         # Normal interpreter finalization waits for that lock and instead
         # aborts with "Fatal Python error: _enter_buffered_busy" on stderr —
-        # which the bridge forwards verbatim, painting three red error
+        # which the server forwards verbatim, painting three red error
         # bubbles into the chat on every AskUserQuestion auto-stop.
         # _amain's finally already disconnected the CLI child and cancelled
         # the loop tasks, so finalization has nothing left to do; skip it

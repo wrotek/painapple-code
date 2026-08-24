@@ -12,7 +12,7 @@ outright (pathlib does this for ANY absolute right-hand side), as does a
 `\\host\share` UNC — which would also make `.exists()` authenticate
 outbound to an attacker-controlled SMB server.
 
-Reachable payoff was the bridge password at
+Reachable payoff was the server password at
 ~/.config/painapple-code/config.yaml, which per SECURITY.md is equivalent
 to handing over a shell.
 

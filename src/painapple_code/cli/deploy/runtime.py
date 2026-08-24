@@ -173,7 +173,7 @@ class Runtime:
         """(uid, gid) of the image's `app` user.
 
         Labels first — an adapting image starts as root, so its
-        Config.User says nothing about the uid the bridge ends up
+        Config.User says nothing about the uid the server ends up
         running as. Falls back to one throwaway container for images
         built before the labels existed.
         """

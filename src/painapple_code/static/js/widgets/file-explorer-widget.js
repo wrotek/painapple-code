@@ -769,7 +769,7 @@ function commitPath(raw) {
     // Relative input hangs off the current directory; an absolute path (or
     // the ~-expansion above) just passes through. Either way resolvePath
     // re-emits with the server's separator and drops any trailing one, so a
-    // typed '/' still lands on a Windows bridge.
+    // typed '/' still lands on a Windows server.
     resolved = resolvePath(state.currentPath || state.cwd || pathRoot(state.cwd) || '/', resolved);
 
     loadDirectory(resolved);

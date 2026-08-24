@@ -2,7 +2,7 @@
  * Active Sessions Widget - Monitor running Claude processes
  *
  * Shows all Claude sessions and subprocesses with three views:
- * - Sessions: Bridge sessions with process state
+ * - Sessions: Agent sessions with process state
  * - Instances: Background processes (Summary forks) with history
  * - Stats: Aggregated statistics and success rates
  */

@@ -177,7 +177,7 @@ export function registerTerminalWidget() {
             renderContent(container, targetState);
 
             // Initialize terminal if it doesn't exist yet (new session or new tab)
-            // No CWD guard — backend falls back to bridge.default_cwd when no CWD is sent
+            // No CWD guard — backend falls back to agents.default_cwd when no CWD is sent
             if (!targetState.terminal) {
                 initTerminal(targetState);
             }
@@ -191,7 +191,7 @@ export function registerTerminalWidget() {
             const sState = getSessionState();
 
             // Get CWD from active session (may be empty on welcome screen — that's OK,
-            // backend falls back to bridge.default_cwd)
+            // backend falls back to agents.default_cwd)
             if (!sState.cwd) {
                 sState.cwd = window.app?.activeSession?.cwd || null;
             }

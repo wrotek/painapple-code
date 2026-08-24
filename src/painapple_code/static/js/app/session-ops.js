@@ -42,7 +42,7 @@ export const sessionOpsMethods = {
 
     /**
      * Enter plan mode. Sets plan as the desired permission mode — like the
-     * permission button, it applies on the next message (the bridge respawns
+     * permission button, it applies on the next message (the server respawns
      * the idle process in plan mode, or reuses it if already in plan). Any text
      * after `/plan ` is sent through the normal path as the first message.
      * @param {string} prompt - Optional prompt to send after entering plan mode

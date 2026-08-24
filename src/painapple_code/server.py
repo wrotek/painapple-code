@@ -133,7 +133,7 @@ async def lifespan(app: FastAPI):
             "Git panel are both disabled. Install git and restart." + hint
         )
 
-    # Bridge is created in main() before uvicorn.run() so --cwd is available
+    # Server is created in main() before uvicorn.run() so --cwd is available
     if agents:
         agents.start_cleanup_task()
         logger.info("Painapple Code initialized")
@@ -484,7 +484,7 @@ def resolve_allowed_origins(public_origins=(), port=None) -> set:
     With no explicit config we trust loopback on the port we actually bound
     (falling back to DEFAULT_PORT when the caller has no argv yet, e.g. the
     import-time CORS wiring). Non-loopback binds get the same derived pair:
-    the browser may well sit on the same machine as the bridge.
+    the browser may well sit on the same machine as the server.
     """
     origins = set()
     env = os.environ.get("PAINAPPLE_ALLOWED_ORIGINS", "").strip()
@@ -1004,7 +1004,7 @@ async def login_page(request: Request):
     return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
 
-# Per-IP login throttle (in-memory; single-process bridge). Counts only
+# Per-IP login throttle (in-memory; single-process server). Counts only
 # genuine wrong-password attempts; successes reset the client's counter.
 _LOGIN_FAILS: dict = {}
 _LOGIN_MAX_FAILS = 10
@@ -1593,7 +1593,7 @@ async def service_worker():
 # the base entirely for any absolute right-hand side (same for a `\\host\share`
 # UNC, which would additionally make .exists() authenticate outbound to an
 # attacker's SMB server). That turned this handler into a pre-auth arbitrary
-# file read on Windows — including the bridge password in
+# file read on Windows — including the server password in
 # ~/.config/painapple-code/config.yaml, which per SECURITY.md is equivalent
 # to a shell. Hence: allowlist the shape, don't blocklist the payloads.
 _ICON_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:png|ico|svg)$")
@@ -1965,7 +1965,7 @@ def main(argv=None):
     instance_config["terminal_available"] = TERMINAL_AVAILABLE
 
     # Path flavor of THIS server's filesystem. The client manipulates
-    # server paths (an iPad may be driving a Windows bridge), so it must
+    # server paths (an iPad may be driving a Windows server), so it must
     # be told, not sniff navigator.platform — see static/js/path-utils.js.
     instance_config["path_style"] = "windows" if sys.platform == "win32" else "posix"
 
@@ -2022,8 +2022,8 @@ def main(argv=None):
                          default_provider=args.default_provider)
 
     # Stash on app.state so route modules can read it without the
-    # `from server import bridge` trap — running as __main__ creates a
-    # separate `server` module instance where bridge stays None.
+    # `from server import agents` trap — running as __main__ creates a
+    # separate `server` module instance where `agents` stays None.
     app.state.agents = agents
     app.state.workspace = args.workspace
 
@@ -2181,7 +2181,7 @@ def main(argv=None):
                 app, host="127.0.0.1", port=args.port,
                 # Both listeners serve the SAME app object, so the second
                 # one must not run the lifespan again — it would start the
-                # bridge twice and log every startup/shutdown line twice.
+                # manager twice and log every startup/shutdown line twice.
                 lifespan="off",
                 **common_kwargs,
             ))

@@ -1,6 +1,6 @@
 /**
  * WebSocket envelope-handler mixin — the big switch on `msg.type` for the
- * server's bridge protocol (`connected`, `agent_message`, `session_persisted`,
+ * server's WebSocket protocol (`connected`, `agent_message`, `session_persisted`,
  * `session_meta_update`, `turn_summary`, `context_update`, `session_ended`,
  * `error`, `auth_error`, `stderr`, `status`, `compact_progress`,
  * `api_retry_status`, `interrupted`, `ready`, `session_cleared`, `stopped`,

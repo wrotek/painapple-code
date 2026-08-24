@@ -468,7 +468,7 @@ class AgentManager:
 
     @property
     def SESSION_IDLE_TIMEOUT(self):
-        """Idle session cleanup timeout, configurable via bridge config."""
+        """Idle session cleanup timeout, configurable via global config."""
         from painapple_code import paths
         config = paths.load_global_config()
         minutes = config.get("session_idle_timeout_minutes")
@@ -478,7 +478,7 @@ class AgentManager:
 
     @property
     def ORPHAN_PROCESS_TIMEOUT(self):
-        """Orphan process kill timeout, configurable via bridge config."""
+        """Orphan process kill timeout, configurable via global config."""
         from painapple_code import paths
         config = paths.load_global_config()
         minutes = config.get("orphan_process_timeout_minutes")
@@ -496,7 +496,7 @@ class AgentManager:
         # When True (default), SIGINT Claude on AskUserQuestion so the turn
         # stops on the question instead of the CLI auto-denying and Claude
         # answering itself. Set False to keep the in-process answer-form path.
-        # Loaded from the global bridge config so the System-tab toggle persists
+        # Loaded from the global global config so the System-tab toggle persists
         # across restarts; the PUT endpoint also updates this live instance.
         from painapple_code import paths
         self.sigint_on_ask: bool = bool(
@@ -1319,7 +1319,7 @@ class AgentManager:
         elif subtype == "model_refusal_fallback":
             # The API's safety classifier declined the request on the session's
             # pinned model and Anthropic transparently retried on a fallback
-            # model. This happens server-side, below the bridge — the target is
+            # model. This happens server-side, below the server — the target is
             # chosen by refusal category and is not configurable here.
             #
             # We used to drop this frame entirely, which is how a session pinned
@@ -2385,7 +2385,7 @@ class AgentManager:
 
         # Engine setMode suggestion ("Switch to acceptEdits mode (this
         # session)"): the CLI applies it internally, which used to desync the
-        # bridge's mode state — and the UI permission button — from the
+        # server's mode state — and the UI permission button — from the
         # engine. Mirror the change here. Note: a permission card can only
         # exist on a gate-attached (non-bypass-launched) process, so the
         # launch-time _launched_resolved_mode is left alone.
@@ -2415,7 +2415,7 @@ class AgentManager:
         session.touch()
         return True
 
-    # Monotonic control_request ids, unique across all sessions of this bridge.
+    # Monotonic control_request ids, unique across all sessions of this server.
     _control_ids = itertools.count(1)
 
     async def send_control(self, session: AgentSession, action: str,
@@ -2533,7 +2533,7 @@ class AgentManager:
                 session._api_retry_count = 0
                 if await self.send_control(session, "interrupt"):
                     # The driver already denied the blocked asks; retire them
-                    # bridge-side too. The client expires its permission cards
+                    # server-side too. The client expires its permission cards
                     # on the `interrupted` frame.
                     session._pending_permission_requests = {}
                     await session.safe_send({

@@ -57,7 +57,7 @@ IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
 
 # SVG is a scriptable format. These endpoints render SVG from model- or
 # repo-authored specs and serve it same-origin, so a top-level navigation to
-# one of them would otherwise run its script in the bridge origin. Forcing an
+# one of them would otherwise run its script in the server origin. Forcing an
 # opaque origin (sandbox with no allow-same-origin) removes that: the document
 # can neither read the auth cookie nor issue credentialed same-origin calls.
 # Mirrors the policy api_browser.py applies to proxied/local HTML and SVG.

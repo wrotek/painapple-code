@@ -69,10 +69,10 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
       only means anything to that engine). Unknown names fall back to the
       default rather than failing the connect.
     """
-    # Read bridge from app.state — `from server import bridge` would grab
-    # a second copy of the server module where bridge stays None (server.py
+    # Read the manager from app.state — `from server import agents` would grab
+    # a second copy of the server module where `agents` stays None (server.py
     # runs as __main__, so a `server` re-import re-runs module-level code
-    # without main() and never sets bridge).
+    # without main() and never sets it).
     await websocket.accept()
     agents = websocket.app.state.agents
 

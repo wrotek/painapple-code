@@ -722,7 +722,7 @@ class SessionStoreV2:
     def _project_data_path(self, cwd: str) -> Path:
         """Get the project-data.json path for storing per-project data."""
         if self.project_path:
-            # New: store in project's bridge directory
+            # New: store in project's data directory
             return paths.get_project_dir(cwd) / "project-data.json"
         else:
             # Legacy: store in sessions directory

@@ -50,7 +50,7 @@ COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
 
 # Domain separators for the key derivation. Opaque HMAC inputs — no user ever
 # sees these, but they are part of the credential's identity: changing one
-# re-derives everything it protects. Renaming them off the old "bridge-"
+# re-derives everything it protects. Renaming them off the old "server-"
 # codename was therefore a deliberate, one-time rotation:
 #   - every browser cookie minted under the old strings stops validating
 #     (one forced re-login), and

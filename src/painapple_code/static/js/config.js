@@ -9,7 +9,7 @@ const DEBUG = debugParam === 'true' || localStorage.getItem('debug') === 'true';
 // Server identity — set on /api/info fetch + first WebSocket connect.
 // `serverHome` is the OS user home (e.g. /home/app inside Docker, /home/me on
 // a host install) — only meaningful for ~ expansion.
-// `serverWorkspace` is the bridge's --workspace value (e.g. /workspace/myproj
+// `serverWorkspace` is the server's --workspace value (e.g. /workspace/myproj
 // inside Docker, /home/me/dev/myproj on host) — used as the project base for
 // the file explorer, autocomplete, and relative path resolution.
 let serverHome = null;
@@ -123,7 +123,7 @@ export function setServerHome(home) {
 
 // Called when server sends --workspace value (in /api/info and the WS
 // `connected` message). This is what powers the file explorer's anchor
-// and CONFIG.PROJECTS_BASE; setting it once is enough since the bridge
+// and CONFIG.PROJECTS_BASE; setting it once is enough since the server
 // can't change --workspace at runtime.
 export function setServerWorkspace(workspace) {
     if (workspace && !serverWorkspace) {

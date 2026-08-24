@@ -131,8 +131,8 @@ def test_cookie_post_proxied_forwarded_host_ok(app, test_password):
     # forwards it via X-Forwarded-Host/-Proto. Not in any allowlist -> must pass.
     c = _cookie_client(app, test_password)
     r = c.post("/api/exec", json={"command": "echo ok"},
-               headers={"Origin": "https://bridge.example.com",
-                        "X-Forwarded-Host": "bridge.example.com",
+               headers={"Origin": "https://painapple.example.com",
+                        "X-Forwarded-Host": "painapple.example.com",
                         "X-Forwarded-Proto": "https"})
     assert r.status_code == 200
 
@@ -211,8 +211,8 @@ def test_ws_same_origin_as_host_accepted_unit():
                                      "192.168.1.50:8899"), set())
     # Proxied wss handshake.
     assert check_websocket_origin(
-        ws("https://bridge.example.com", "127.0.0.1:8765",
-           scheme="wss", xfh="bridge.example.com", xfp="https"), set())
+        ws("https://painapple.example.com", "127.0.0.1:8765",
+           scheme="wss", xfh="painapple.example.com", xfp="https"), set())
     # Foreign origin still rejected.
     assert not check_websocket_origin(ws("http://evil.example",
                                          "192.168.1.50:8899"), set())

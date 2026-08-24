@@ -71,13 +71,13 @@ const state = {
 
 /**
  * Get current session ID for filtering.
- * Uses storeId (bridge session ID like "K_6Mc0diEz8") which matches shadow git.
+ * Uses storeId (session ID like "K_6Mc0diEz8") which matches shadow git.
  * Returns null if no active session or filter is disabled.
  */
 function getCurrentSessionId() {
     if (!state.currentSessionOnly) return null;
-    // Use storeId (bridge session ID), NOT providerSessionId (Claude's UUID)
-    // Shadow git stores bridge session IDs in commits
+    // Use storeId (session ID), NOT providerSessionId (Claude's UUID)
+    // Shadow git stores session IDs in commits
     return window.app?.activeSession?.storeId || null;
 }
 
@@ -340,7 +340,7 @@ function render() {
 }
 
 function renderSearchBar() {
-    // Get bridge session ID (storeId) for filtering - this matches shadow git
+    // Get session ID (storeId) for filtering - this matches shadow git
     const currentStoreId = window.app?.activeSession?.storeId;
     // Show filter on all content tabs
     const canFilterBySession = currentStoreId && state.activeTab !== 'search';

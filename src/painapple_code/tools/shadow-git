@@ -227,7 +227,7 @@ create_snapshot() {
     echo "Creating snapshot of all project files..."
     git --git-dir="$SHADOW_GIT_DIR" --work-tree="$PROJECT_PATH" add -A
 
-    # Quarantine oversized files (matches the bridge's size cap, default 50MB):
+    # Quarantine oversized files (matches the server's size cap, default 50MB):
     # unstage + append to info/exclude so they never bloat the object store
     local max_mb="${SHADOW_MAX_FILE_MB:-50}"
     if (( max_mb > 0 )); then

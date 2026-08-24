@@ -367,12 +367,12 @@ async def write_file(request: WriteFileRequest):
     Line endings: GET /api/file reads with universal newlines, which turns
     a CRLF file into `\\n` before the client ever sees it, and this write
     used `newline=""`, which suppresses the translation that would put them
-    back. So on a Windows bridge every save silently rewrote a CRLF file to
+    back. So on a Windows server every save silently rewrote a CRLF file to
     LF — and with `core.autocrlf=true`, git then reported the whole file as
     modified after a one-character edit.
 
     `newline=""` is still right (the content must go out byte-for-byte, and
-    on a Linux bridge editing a checked-out CRLF file the platform default
+    on a Linux server editing a checked-out CRLF file the platform default
     wouldn't help anyway); what was missing is that the endpoint has to
     supply the endings itself. It takes them from the file already on disk,
     which is the only place the information survives — the client's editor

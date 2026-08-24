@@ -839,7 +839,10 @@ def test_set_session_effort_validates_against_engine_vocab(tmp_path, monkeypatch
             cls.meta.update(kw)
 
     monkeypatch.setattr(api_sessions, "SessionStore", _FakeStore)
-    monkeypatch.setattr("painapple_code.server.bridge", None, raising=False)
+    # No raising=False: the attribute is a real module-level global, so if it
+    # is ever renamed again this stub fails loudly instead of silently
+    # becoming a no-op.
+    monkeypatch.setattr("painapple_code.server.agents", None)
 
     class _Req:
         def __init__(self, body):

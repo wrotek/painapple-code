@@ -66,7 +66,7 @@ def listen_scope(cfg):
     return "this interface only"
 
 
-# ──── Password (reads the bridge's config volume) ────────────────────────
+# ──── Password (reads the server's config volume) ────────────────────────
 
 def _scalar_from_yaml(text, key="password"):
     prefix = f"{key}:"
@@ -223,7 +223,7 @@ class Identity:
     ``userns``   extra flag for podman's user-namespace mapping
     ``run_user`` value for ``--user`` (None = the image's own default)
     ``env``      PAINAPPLE_UID/GID for an adapting entrypoint
-    ``app_ids``  (uid, gid) the bridge ends up running as, in-container
+    ``app_ids``  (uid, gid) the server ends up running as, in-container
     ``repair``   True when named volumes must be chowned from outside —
                  the mapping moved under them, or the image is too old
                  to put its own house in order
@@ -243,8 +243,8 @@ def plan_identity(cfg, rt, profile=None):
 
     ``profile`` only shapes the remediation hint on the give-up path.
 
-    Everything the bridge is mounted FOR is owned by the host user: the
-    workspace it edits, ~/.claude, the bridge config dir, and /data
+    Everything the server is mounted FOR is owned by the host user: the
+    workspace it edits, ~/.claude, the server config dir, and /data
     itself when a host profile rides along as a bind. The image bakes
     its `app` user at a fixed uid (1000 unless you built with
     ``--build-arg USER_UID``), so on any host whose uid isn't that, the
@@ -334,7 +334,7 @@ def prepare_volumes(cfg, rt, ident):
 
     A volume keeps the ownership of whatever populated it, so it outlives
     the image that made it: remap the namespace under it, rebuild with a
-    different USER_UID, or pull over a locally built tag, and the bridge
+    different USER_UID, or pull over a locally built tag, and the server
     can no longer write its own data home. Idempotent — the runtime-side
     check is a no-op when the ownership is already right.
 
@@ -352,7 +352,7 @@ def prepare_volumes(cfg, rt, ident):
         if is_bind or not rt.volume_exists(volume):
             continue
         if not rt.chown_volume(cfg.image, volume, uid, gid, extra):
-            warn(f"Could not adjust ownership of volume '{volume}' — the bridge "
+            warn(f"Could not adjust ownership of volume '{volume}' — the server "
                  f"may fail to write /data.")
 
 
@@ -432,7 +432,7 @@ def _tail_container_logs(cfg, rt, n=20):
 
 
 def _wait_for_password(cfg, rt, timeout=10.0, watch=False):
-    """Poll for the auth config the bridge writes on boot.
+    """Poll for the auth config the server writes on boot.
 
     Returns (password, trouble). With ``watch`` (a detached start we just
     launched), the container's own health is checked each round so a
@@ -580,7 +580,7 @@ def run_container(cfg, detach, profile=None):
                 f"(exit {result.returncode}) — see its message above.")
             return result.returncode
         say()
-        info("Waiting for the bridge to write its auth config…")
+        info("Waiting for the server to write its auth config…")
         pw, trouble = _wait_for_password(cfg, rt, watch=True)
         if pw:
             print_bootstrap_url(cfg, pw, profile=profile,
@@ -595,13 +595,13 @@ def run_container(cfg, detach, profile=None):
                  f"{hint('logs', profile)}  or  {hint('password', profile)}")
         return 0
 
-    # Foreground: the bridge's own banner shows the in-container bind
+    # Foreground: the server's own banner shows the in-container bind
     # (0.0.0.0:8765) which isn't reachable from the host, so a background
     # poller prints the real clickable URL once config.yaml appears.
     def _poll_and_print():
         pw, _trouble = _wait_for_password(cfg, rt)
         if pw:
-            time.sleep(0.5)  # let the bridge banner finish printing
+            time.sleep(0.5)  # let the server banner finish printing
             print_bootstrap_url(cfg, pw, profile=profile, raw_tty=True,
                                token=get_credentials(cfg, rt)[1])
 
@@ -666,7 +666,7 @@ def cmd_password(cfg, profile=None):
     rt = Runtime(cfg)
     pw = get_password(cfg, rt)
     if not pw:
-        die(f"No password found. Has the bridge ever started?  "
+        die(f"No password found. Has the server ever started?  "
             f"({hint('start', profile)})")
     scheme = "https" if cfg.effective_tls() == "on" else "http"
     _, token = get_credentials(cfg, rt)

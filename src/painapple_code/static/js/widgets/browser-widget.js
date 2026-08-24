@@ -13,7 +13,7 @@
  * the widget framework.
  *
  * Iframes are always sandboxed (`sandbox="allow-scripts allow-forms"`):
- *   - Scripts run, but in a null origin → no access to bridge cookies,
+ *   - Scripts run, but in a null origin → no access to app cookies,
  *     localStorage, or auth-protected APIs.
  *   - allow-forms keeps basic form submission usable.
  *   - Without `allow-popups`, the page cannot call window.open() or
@@ -113,7 +113,7 @@ function buildIframeSrc(raw) {
     const c = classify(raw);
     if (c.kind === 'empty') return { src: '', isLocal: false, isExternal: false, normalized: '' };
     if (c.kind === 'external') {
-        // Direct mode skips the bridge — gives the page its real origin and
+        // Direct mode skips the server — gives the page its real origin and
         // cookies, at the cost of breaking on any site with X-Frame-Options
         // DENY/SAMEORIGIN or a frame-ancestors CSP.
         const src = proxyEnabled

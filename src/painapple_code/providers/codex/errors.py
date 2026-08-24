@@ -37,7 +37,7 @@ class _ErrorsMixin:
         low = text.lower()
         # Auth failures need a re-login, not a resend — without this guard a
         # message containing both ("401 ... stream error") would raise the
-        # re-login card AND kick off a doomed bridge-level retry loop.
+        # re-login card AND kick off a doomed server-level retry loop.
         if any(s in low for s in _AUTH_SUBSTRINGS):
             return False
         return any(s in low for s in _RETRYABLE_SUBSTRINGS)

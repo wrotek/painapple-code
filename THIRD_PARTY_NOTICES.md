@@ -120,7 +120,7 @@ enforces.
 | wcwidth | 0.8.2 | MIT |
 | websockets | 17.0.1 | BSD-3-Clause |
 
-## Agent CLIs the bridge drives
+## Agent CLIs the server drives
 
 painapple-code drives an agent CLI as a subprocess; it does not link against
 one. Whether that CLI is redistributed depends on **which artifact** you took,

@@ -4,11 +4,11 @@
 # This script now does exactly ONE thing: build the painapple-code container
 # image from the Dockerfile next to it (including the personalized
 # --devcontainer / --dockerfile build paths). Everything else — running the
-# bridge, lifecycle, config, passwords, pulling prebuilt images — moved into
+# server, lifecycle, config, passwords, pulling prebuilt images — moved into
 # the unified `painapple` CLI:
 #
 #   pipx install painapple-code
-#   painapple --in-docker                       # run the bridge in a container
+#   painapple --in-docker                       # run the server in a container
 #   painapple setup NAME                        # per-profile setup wizard
 #   painapple start/stop/logs/password NAME     # lifecycle + auth
 #   painapple pull                              # fetch the prebuilt image
@@ -441,7 +441,7 @@ cmd_build_personalize() {
 #     `AS <alias>` suffix the user had on it, just in case downstream
 #     consumers reference it).
 #   - CMD and ENTRYPOINT lines are stripped so painapple-code:base's
-#     entrypoint (the bridge launcher) survives. If the user really needs
+#     entrypoint (the server launcher) survives. If the user really needs
 #     a different CMD they can re-add it after their build, but for the
 #     common "I want my tools installed" use case stripping is correct.
 #   - The user's project directory (= dirname of their Dockerfile) is the
@@ -494,7 +494,7 @@ cmd_build_dockerfile_personalize() {
             # `AS <alias>` suffix in case downstream stages name-reference
             # the final stage (rare but legal).
             echo "# painapple-code wrapper — final FROM rewritten to painapple-code:base;"
-            echo "# CMD/ENTRYPOINT dropped so the bridge's entrypoint stays intact."
+            echo "# CMD/ENTRYPOINT dropped so the server's entrypoint stays intact."
             awk -v base="$base_tag" -v target="$n_from" '
                 BEGIN { i = 0 }
                 /^[[:space:]]*FROM[[:space:]]/ {
@@ -559,7 +559,7 @@ ${C_BOLD}Usage:${C_RESET}
   $0 ${C_GREEN}help${C_RESET}                     This help
 
 ${C_BOLD}Everything else moved to the unified CLI${C_RESET} ${C_DIM}(pipx install painapple-code)${C_RESET}:
-  painapple --in-docker                       ${C_DIM}run the bridge in a container${C_RESET}
+  painapple --in-docker                       ${C_DIM}run the server in a container${C_RESET}
   painapple setup NAME                        ${C_DIM}interactive setup (docker or host mode)${C_RESET}
   painapple start/stop/logs/password NAME     ${C_DIM}lifecycle + auth${C_RESET}
   painapple pull                              ${C_DIM}fetch the prebuilt image (no local build)${C_RESET}

@@ -1,5 +1,5 @@
 """
-Bridge Commit Sections API Routes.
+Commit Sections API Routes.
 
 Endpoints for managing commit message sections configuration for shadow git
 on a per-project basis.

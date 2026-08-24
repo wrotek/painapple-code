@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fetch the pinned `uv` release binaries that Tauri bundles as sidecars
 # (bundle.externalBin in tauri.macos.conf.json). uv is what "local mode"
-# uses to provision the Python bridge on the user's machine — managed
+# uses to provision the Python server on the user's machine — managed
 # CPython download + `uv tool install painapple-code` — so the .app works
 # on Macs with no usable system Python (see
 # docs-ai/plans/2026-07-10-desktop-app-macos-local-mode.md).

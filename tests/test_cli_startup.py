@@ -6,7 +6,7 @@ Wall-clock assertions are flaky, so the regression fence is the module
 set: after each fast-path outcome, `fastapi` and `painapple_code.server`
 must be absent from `sys.modules`.
 
-Standalone — no bridge server required (unlike the API suite).
+Standalone — no server required (unlike the API suite).
 """
 
 import os

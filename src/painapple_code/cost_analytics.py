@@ -1,5 +1,5 @@
 """
-Cost Analytics Module for Claude iPad Bridge.
+Cost Analytics Module for painapple-code.
 
 Aggregates cost data across projects, sessions, models, and tools.
 Provides multi-dimensional breakdowns for cost analysis.

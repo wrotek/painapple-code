@@ -184,7 +184,7 @@ class JsonRpcTransport:
     async def _ensure_thread(self) -> None:
         """Fork a source thread, resume the session's own, or start a fresh one.
 
-        A forked bridge session carries the source thread id on the launch opts
+        A forked session carries the source thread id on the launch opts
         (`fork_from_session_id`) while its own `session.session_id` is still None;
         `thread/fork` branches the source into a new persisted thread — the
         native equivalent of Claude's `--fork-session`, with no rollout copy.

@@ -2,7 +2,7 @@
  * Agent-stream handler mixin — interprets the inner Claude `agent_message`
  * payload (system/init, system/status, system/compact_boundary, system/
  * task_progress, assistant, user, result) that arrives wrapped inside the
- * bridge's `agent_message` envelope.
+ * server's `agent_message` envelope.
  *
  * Emits chat messages, drives activity strip, captures slash_commands +
  * permissionMode, tracks turn boundaries (turnId), and routes tool_use blocks

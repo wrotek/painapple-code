@@ -1,5 +1,5 @@
 """
-Bridge Session Prefs API Routes - per-user UI state.
+Session Prefs API Routes - per-user UI state.
 
 These endpoints manage:
 - Tab State (server-side persistence — iPadOS PWA localStorage is unreliable)

@@ -1,7 +1,7 @@
 // Local servers card + setup wizard (desktop builds only).
 //
 // Multiple instances behind one wizard:
-//   cli    — "This Mac": uv-provisioned Python bridge, supervised child
+//   cli    — "This Mac": uv-provisioned Python server, supervised child
 //            process (src-tauri/src/local.rs local_start/local_stop).
 //            Singleton — one supervised process per app.
 //   docker — container sandboxes via Docker/Podman, any number (one per
@@ -329,7 +329,7 @@ function renderLocal() {
   if (busy) add.disabled = true;
   localActions.appendChild(add);
 
-  // The bridge needs the Claude Code CLI for sessions — cli engine only
+  // The server needs the Claude Code CLI for sessions — cli engine only
   // (the docker image bundles its own).
   if (list.some(i => i.engine === 'cli') && status && status.provisioned && !status.claudePath) {
     localNote.innerHTML = '<span class="warn">Claude Code CLI not found</span><span>— the This Mac server needs it for sessions.</span>';
@@ -589,7 +589,7 @@ async function ensureDockerRunning(inst, progress, restart) {
 }
 
 async function dockerPassword(inst) {
-  // The bridge writes its auth config shortly after first start — retry
+  // The server writes its auth config shortly after first start — retry
   // briefly (mirrors _wait_for_password in cli/deploy/container.py).
   for (let i = 0; i < 8; i++) {
     const r = await tool(['password', inst.profile], { quiet: true });
@@ -1305,7 +1305,7 @@ async function runWizardApply() {
   wizLog.textContent = '';
 
   try {
-    // 1. The Python package is needed by both engines (bridge / docker driver).
+    // 1. The Python package is needed by both engines (server / docker driver).
     if (!(lastStatus && lastStatus.provisioned)) {
       wizProgress('installing painapple-code…');
       await localInvoke('local_provision', {});
