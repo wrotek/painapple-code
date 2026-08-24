@@ -33,7 +33,7 @@ This risk isn't unique to this project, but it's worth restating the consequence
 !!! warning "Always run in isolation"
     Run your Claude environment — especially in the permissive modes — inside isolation: Docker, a VM, LXC, BSD jails, or similar. Container mode is built into the CLI: `painapple --in-docker` sandboxes the current directory ad-hoc, and `painapple setup NAME` creates a durable docker-mode profile. See the [Docker setup](install-docker.md) for both.
 
-    On Windows, isolate with Hyper-V or a WSL2 distro, and run the bridge *inside* it — a separate, non-Administrator Windows account is the bare minimum, and Windows Sandbox is too ephemeral to hold a working setup. Note that the CLI's own container mode is **untested on native Windows**: we have never had a Windows host with a working Docker daemon to validate it against, so `--in-docker` and docker-mode profiles are unsupported there. Isolation on Windows means putting the whole thing in a VM, not `--in-docker`.
+    On Windows, isolate with Hyper-V or a WSL2 distro, and run the server *inside* it — a separate, non-Administrator Windows account is the bare minimum, and Windows Sandbox is too ephemeral to hold a working setup. Note that the CLI's own container mode is **untested on native Windows**: we have never had a Windows host with a working Docker daemon to validate it against, so `--in-docker` and docker-mode profiles are unsupported there. Isolation on Windows means putting the whole thing in a VM, not `--in-docker`.
 
     **If these concepts are unfamiliar, this MVP is probably not for you yet.**
 
