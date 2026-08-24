@@ -45,8 +45,26 @@ from starlette.websockets import WebSocket
 from painapple_code.bridge_paths import lock_mode
 
 
-COOKIE_NAME = "bridge_auth"
+COOKIE_NAME = "painapple_auth"
+
+# Pre-rename cookie name. Read-only: a browser holding one still
+# authenticates (the cookie *value* derivation is unchanged, so old values
+# stay valid) and every logout path clears it alongside the current name.
+# Never written. Remove at the next major version.
+LEGACY_COOKIE_NAMES = ("bridge_auth",)
+
+# Every name a credential cookie can arrive under, newest first.
+ALL_COOKIE_NAMES = (COOKIE_NAME, *LEGACY_COOKIE_NAMES)
+
 COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
+
+# Domain separators for the key derivation. These deliberately keep the old
+# "bridge-" prefix: they are opaque HMAC inputs that no user ever sees, and
+# changing one silently re-derives the credential it protects. For the API
+# token that is a real break — api_token is *stored* in config.yaml and
+# rewritten by sync_derived_config() when stale, so a new info string would
+# rotate it out from under every saved script and ?tkn= link, with nothing
+# visible gained. Rename only at a major version, as a deliberate rotation.
 COOKIE_DERIVATION_INFO = b"bridge-cookie-v1"
 API_TOKEN_DERIVATION_INFO = b"bridge-api-v1"
 
@@ -371,7 +389,7 @@ def _get_headers(scope) -> dict[bytes, bytes]:
     the same separator used inside a single Cookie header. iPadOS WebKit over
     HTTP/2 splits cookies into multiple `:cookie` pseudo-headers; some
     reverse proxies forward those as separate `Cookie:` headers, and a naive
-    `dict(headers)` keeps only the last one — silently dropping `bridge_auth`
+    `dict(headers)` keeps only the last one — silently dropping the auth cookie
     if WebKit happened to put it earlier.
     """
     merged: dict[bytes, bytes] = {}
@@ -446,7 +464,7 @@ def _origin_matches_host(origin: str, headers: dict, scheme: str) -> bool:
     over the LAN — always does, with no preconfigured allowlist.
 
     DNS-rebinding (Origin==Host but Host is an attacker-chosen name) is not
-    covered here — it is separately defeated because the ``bridge_auth`` cookie
+    covered here — it is separately defeated because the auth cookie
     is bound to the real origin's domain and never rides an attacker-domain
     request, and ``TrustedHostMiddleware`` can be enabled for defense-in-depth.
     """
@@ -503,10 +521,33 @@ def check_csrf_origin(scope, allowed_origins) -> bool:
     return False
 
 
-def _redact_bridge_auth(value: str) -> str:
-    """Replace bridge_auth=<value> with bridge_auth=<REDACTED:N> for log safety."""
+def _cookie_matches(cookies, cookie_token: str) -> bool:
+    """True if any accepted cookie name carries the expected credential.
+
+    Each candidate is compared in constant time; the legacy name is tried
+    so a browser that logged in before the rename is not signed out.
+    """
+    for name in ALL_COOKIE_NAMES:
+        presented = cookies.get(name, "")
+        if presented and hmac.compare_digest(presented, cookie_token):
+            return True
+    return False
+
+
+def _redact_auth_cookie(value: str) -> str:
+    """Replace <name>=<value> with <name>=<REDACTED:N> for log safety.
+
+    Covers every name in ALL_COOKIE_NAMES, not just the current one: a
+    pattern pinned to a single name would log the other one's value in
+    clear the moment the name changed.
+    """
     import re
-    return re.sub(r"bridge_auth=([^;]*)", lambda m: f"bridge_auth=<REDACTED:{len(m.group(1))}>", value)
+    names = "|".join(re.escape(n) for n in ALL_COOKIE_NAMES)
+    return re.sub(
+        rf"({names})=([^;]*)",
+        lambda m: f"{m.group(1)}=<REDACTED:{len(m.group(2))}>",
+        value,
+    )
 
 
 def _log_csrf_failure(scope, path: str) -> None:
@@ -589,14 +630,14 @@ def _log_auth_failure(scope, path: str) -> None:
     import logging
     try:
         cookie_entries = [v.decode("latin1", "replace") for n, v in scope.get("headers", []) if n == b"cookie"]
-        has_bridge_auth = any("bridge_auth=" in c for c in cookie_entries)
-        redacted = [_redact_bridge_auth(c)[:200] for c in cookie_entries]
+        has_auth_cookie = any(f"{n}=" in c for n in ALL_COOKIE_NAMES for c in cookie_entries)
+        redacted = [_redact_auth_cookie(c)[:200] for c in cookie_entries]
         client = scope.get("client", ("?", 0))
         logging.getLogger("painapple-code.auth-debug").warning(
-            "AUTH-FAIL %s %s client=%s:%s cookies=%d has_bridge_auth=%s entries=%r",
+            "AUTH-FAIL %s %s client=%s:%s cookies=%d has_auth_cookie=%s entries=%r",
             scope.get("method", "?"), path,
             client[0] if client else "?", client[1] if client else 0,
-            len(cookie_entries), has_bridge_auth, redacted,
+            len(cookie_entries), has_auth_cookie, redacted,
         )
     except Exception:
         pass
@@ -624,8 +665,7 @@ def check_http_auth_detailed(
     cookie_header = headers.get(b"cookie", b"").decode("latin1")
     if cookie_header:
         cookies = _parse_cookies(cookie_header)
-        presented = cookies.get(COOKIE_NAME, "")
-        if presented and hmac.compare_digest(presented, cookie_token):
+        if _cookie_matches(cookies, cookie_token):
             return "cookie"
 
     # 2. Authorization: Bearer
@@ -661,8 +701,7 @@ def check_websocket_auth(
 
     Takes no password: the upgrade accepts the derived credentials only.
     """
-    presented = websocket.cookies.get(COOKIE_NAME, "")
-    if presented and hmac.compare_digest(presented, cookie_token):
+    if _cookie_matches(websocket.cookies, cookie_token):
         return True
     tkn = websocket.query_params.get("tkn", "")
     if tkn and hmac.compare_digest(tkn, api_token):

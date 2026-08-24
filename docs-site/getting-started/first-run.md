@@ -52,7 +52,7 @@ Three auth paths are accepted:
 
 | Path | Works for | Notes |
 |------|-----------|-------|
-| Cookie `bridge_auth=<HMAC-derived-token>` | HTTP + WebSocket | Set automatically after your first login; lasts 30 days |
+| Cookie `painapple_auth=<HMAC-derived-token>` | HTTP + WebSocket | Set automatically after your first login; lasts 30 days |
 | Query `?tkn=<api_token>` | HTTP + WebSocket | On HTTP, the middleware issues a `Set-Cookie` (and redirects HTML pages to strip the token from the URL), so follow-up requests don't need it |
 | Header `Authorization: Bearer <api_token>` | HTTP only | For `curl` and scripts |
 

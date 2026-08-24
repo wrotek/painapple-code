@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 
 from conftest import client_token
 from painapple_code.auth_middleware import (
+    ALL_COOKIE_NAMES,
     COOKIE_NAME,
     check_download_token,
     check_http_auth_detailed,
@@ -216,7 +217,7 @@ def test_split_cookie_headers_merged(test_password):
     headers. The auth check must see all of them, not just the last."""
     cookie_token = client_token(test_password)
     api_token = client_token(test_password, "bearer")
-    # bridge_auth in the FIRST header — naive dict() would drop it.
+    # The auth cookie in the FIRST header — naive dict() would drop it.
     scope = {
         "headers": [
             (b"host", b"example.com"),
@@ -824,6 +825,53 @@ def test_logout_clears_cookie_matching_attrs(unauth_client):
     assert f"{COOKIE_NAME}=" in cookie
     # delete_cookie issues Max-Age=0 or past Expires
     assert "Max-Age=0" in cookie or "Expires=Thu, 01 Jan 1970" in cookie
+
+
+def test_logout_clears_every_accepted_cookie_name(unauth_client):
+    """Logout must expire the legacy name too.
+
+    The read path still honours LEGACY_COOKIE_NAMES, so clearing only the
+    current name would hand a "logged out" browser a cookie that still
+    authenticates — the one direction this must never fail in.
+    """
+    r = unauth_client.post("/api/logout")
+    cleared = " ".join(r.headers.get_list("set-cookie"))
+    for name in ALL_COOKIE_NAMES:
+        assert f"{name}=" in cleared, f"logout left {name} intact"
+
+
+def test_legacy_cookie_name_still_authenticates(app, test_password):
+    """A browser that logged in before the rename stays logged in.
+
+    Only the cookie *name* changed; the value derivation did not, so the
+    stored value is still valid under the old name.
+    """
+    cookie_token = client_token(test_password)
+    for name in ALL_COOKIE_NAMES:
+        with TestClient(app, cookies={name: cookie_token}) as c:
+            assert c.get("/api/sessions").status_code == 200, f"{name} rejected"
+
+
+def test_legacy_cookie_name_rejects_wrong_value(app):
+    """The legacy name is an alias, not a bypass — it verifies the same."""
+    for name in ALL_COOKIE_NAMES:
+        with TestClient(app, cookies={name: "definitely-wrong"}) as c:
+            assert c.get("/api/sessions").status_code == 401, f"{name} accepted junk"
+
+
+def test_auth_failure_log_redacts_every_cookie_name(test_password):
+    """Redaction is keyed off ALL_COOKIE_NAMES, not one hardcoded name.
+
+    A pattern pinned to a single name would print the other one's value in
+    clear into the auth-debug log.
+    """
+    from painapple_code.auth_middleware import _redact_auth_cookie
+    secret = client_token(test_password)
+    for name in ALL_COOKIE_NAMES:
+        out = _redact_auth_cookie(f"{name}={secret}; other=keep")
+        assert secret not in out, f"{name} value leaked into the log"
+        assert "REDACTED" in out
+        assert "other=keep" in out
 
 
 # ---------------------------------------------------------------------------

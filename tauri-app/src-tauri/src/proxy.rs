@@ -114,7 +114,7 @@ pub fn make_tls_config() -> ClientConfig {
 ///
 /// Every proxied server lives on host `127.0.0.1` from the webview's point of
 /// view, and cookies are scoped by HOST, NOT PORT — so without isolation, two
-/// servers that both set the same cookie name (`bridge_auth` on every
+/// servers that both set the same cookie name (`painapple_auth` on every
 /// pAInapple instance) clobber each other in WKWebView's shared jar: opening
 /// a second window on server B logs the first window out of server A.
 ///
@@ -363,7 +363,7 @@ async fn handle(
     // cookies, with the prefix stripped. Everything else on the shared
     // 127.0.0.1 jar (other targets' prefixed cookies, unprefixed cookies from
     // directly-accessed loopback servers) is dropped — sending another
-    // server's `bridge_auth` upstream would just be a wrong credential.
+    // server's `painapple_auth` upstream would just be a wrong credential.
     let filtered_cookies = req
         .headers()
         .get(COOKIE)

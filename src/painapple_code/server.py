@@ -51,9 +51,11 @@ from painapple_code import bridge_paths
 
 from painapple_code.services.agent_session import AgentBridge
 from painapple_code.auth_middleware import (
+    ALL_COOKIE_NAMES,
     AuthMiddleware,
     BEARER_EPOCH_KEY,
     COOKIE_EPOCH_KEY,
+    COOKIE_NAME,
     bump_epoch,
     derive_cookie_token,
     ensure_config_file,
@@ -457,8 +459,29 @@ app.add_middleware(AccessLogMiddleware, logger=access_logger)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(AuthMiddleware)
+def _env_with_legacy(name: str, legacy: str) -> str:
+    """Read ``name``, falling back to the pre-rename ``legacy`` spelling.
+
+    The BRIDGE_* names shipped for months and appear in real deployment
+    units, so they must keep working. Honouring only the new name would not
+    fail open — an empty allowlist is *stricter* — but it would silently
+    lock a working deployment out of its own origins on upgrade, which is
+    just as bad an outcome to debug. Warn loudly, keep serving.
+    """
+    value = os.environ.get(name, "").strip()
+    if value:
+        return value
+    value = os.environ.get(legacy, "").strip()
+    if value:
+        logging.getLogger("painapple-code").warning(
+            "%s is deprecated and will be removed in a future release; rename it to %s",
+            legacy, name,
+        )
+    return value
+
+
 def _loopback_origins(port) -> set:
-    """This bridge's own loopback origins on ``port`` — the no-config default
+    """This server's own loopback origins on ``port`` — the no-config default
     trust set. Derived from the actual bind, never hardcoded per-deployment."""
     return {f"http://127.0.0.1:{port}", f"http://localhost:{port}"}
 
@@ -472,7 +495,7 @@ def resolve_allowed_origins(public_origins=(), port=None) -> set:
     request whose Origin matches the host it was reached on (config-free), so a
     LAN bind or a proxied hostname works without appearing here.
 
-    Precedence: explicit config (BRIDGE_ALLOWED_ORIGINS env + ``--public-origin``)
+    Precedence: explicit config (PAINAPPLE_ALLOWED_ORIGINS env + ``--public-origin``)
     wins and REPLACES the loopback default. That replacement is deliberate and
     load-bearing: ``Origin: http://127.0.0.1:PORT`` is asserted by the *browser*,
     so on a remote/proxied deployment it means "a page served by whatever is
@@ -486,7 +509,7 @@ def resolve_allowed_origins(public_origins=(), port=None) -> set:
     the browser may well sit on the same machine as the bridge.
     """
     origins = set()
-    env = os.environ.get("BRIDGE_ALLOWED_ORIGINS", "").strip()
+    env = _env_with_legacy("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS")
     if env:
         origins.update(o.strip() for o in env.split(",") if o.strip())
     origins.update(o for o in (public_origins or ()) if o)
@@ -498,20 +521,20 @@ def resolve_allowed_origins(public_origins=(), port=None) -> set:
 
 def resolve_allowed_hosts() -> list:
     """Host allowlist for TrustedHostMiddleware (defense-in-depth vs DNS
-    rebinding). Reads ``BRIDGE_ALLOWED_HOSTS`` / ``BRIDGE_ALLOWED_ORIGINS`` from
+    rebinding). Reads ``PAINAPPLE_ALLOWED_HOSTS`` / ``PAINAPPLE_ALLOWED_ORIGINS`` from
     the ENV only (this middleware is constructed at import, before argv is
     parsed) — the ``--public-origin`` flag does NOT enable it. Returns ``["*"]``
     (off) unless one of those env vars is set, since the primary CSRF boundary
     is the Origin-vs-Host check in auth_middleware (config-free) and the
-    ``bridge_auth`` cookie is domain-bound, which already defeats rebinding.
+    ``painapple_auth`` cookie is domain-bound, which already defeats rebinding.
     When enforcing, loopback + the TestClient host join the configured hosts.
     """
     from urllib.parse import urlparse
     hosts = set()
-    env_hosts = os.environ.get("BRIDGE_ALLOWED_HOSTS", "").strip()
+    env_hosts = _env_with_legacy("PAINAPPLE_ALLOWED_HOSTS", "BRIDGE_ALLOWED_HOSTS")
     if env_hosts:
         hosts.update(h.strip() for h in env_hosts.split(",") if h.strip())
-    origins_env = os.environ.get("BRIDGE_ALLOWED_ORIGINS", "").strip()
+    origins_env = _env_with_legacy("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS")
     if origins_env:
         for o in origins_env.split(","):
             h = urlparse(o.strip()).hostname
@@ -524,12 +547,12 @@ def resolve_allowed_hosts() -> list:
 
 
 # CORS allow-list. Constructed at import (before argv), so it reflects the ENV
-# (BRIDGE_ALLOWED_ORIGINS) only — NOT --public-origin. This governs whether a
+# (PAINAPPLE_ALLOWED_ORIGINS) only — NOT --public-origin. This governs whether a
 # cross-origin browser may *read* a credentialed response; it is not the CSRF
 # boundary (that's the runtime Origin-vs-Host check in auth_middleware, refined
 # by main() with --public-origin + host/port). The same-origin app never needs
 # CORS, so the env default is sufficient for the common case.
-# Override via BRIDGE_ALLOWED_ORIGINS=https://foo.example.com,https://bar.example.com
+# Override via PAINAPPLE_ALLOWED_ORIGINS=https://foo.example.com,https://bar.example.com
 _cors_origins = sorted(resolve_allowed_origins())
 
 app.add_middleware(
@@ -541,7 +564,7 @@ app.add_middleware(
 )
 
 # DNS-rebinding defense-in-depth: reject foreign Host headers, but only when
-# BRIDGE_ALLOWED_HOSTS/ORIGINS is set in the env (see resolve_allowed_hosts).
+# PAINAPPLE_ALLOWED_HOSTS/ORIGINS is set in the env (see resolve_allowed_hosts).
 # Added last = outermost, so a bad Host is rejected first.
 _allowed_hosts = resolve_allowed_hosts()
 if _allowed_hosts != ["*"]:
@@ -1088,7 +1111,7 @@ async def login_submit(request: Request):
 
     resp = JSONResponse({"ok": True, "next": sanitized_next})
     resp.set_cookie(
-        "bridge_auth",
+        COOKIE_NAME,
         cookie_token,
         httponly=True,
         samesite="lax",
@@ -1145,13 +1168,17 @@ async def logout_submit(request: Request):
     forwarded = request.headers.get("x-forwarded-proto", request.url.scheme)
     secure = forwarded == "https"
     resp = JSONResponse({"ok": True})
-    resp.delete_cookie(
-        "bridge_auth",
-        path="/",
-        samesite="lax",
-        secure=secure,
-        httponly=True,
-    )
+    # Clear EVERY accepted cookie name, not just the current one: the legacy
+    # name is still honoured on the read path, so dropping only the new one
+    # would leave a logged-out browser holding a working credential.
+    for name in ALL_COOKIE_NAMES:
+        resp.delete_cookie(
+            name,
+            path="/",
+            samesite="lax",
+            secure=secure,
+            httponly=True,
+        )
     return resp
 
 
@@ -1167,7 +1194,7 @@ REVOKE_SCOPES = {
 async def auth_revoke(request: Request):
     """Invalidate one class of credential by bumping its epoch.
 
-    scope=browsers -> every bridge_auth cookie dies; scripts and ?tkn= links
+    scope=browsers -> every painapple_auth cookie dies; scripts and ?tkn= links
     keep working. scope=scripts -> every api_token dies; browsers stay logged
     in. Neither touches the password.
 
@@ -1971,7 +1998,7 @@ def main(argv=None):
     # Resolve the trusted-origin set now that port/--public-origin are known.
     # The HTTP + WebSocket Origin checks read this.
     _configured_origins = bool(
-        args.public_origin or os.environ.get("BRIDGE_ALLOWED_ORIGINS", "").strip()
+        args.public_origin or _env_with_legacy("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS")
     )
     app.state.allowed_origins = resolve_allowed_origins(
         public_origins=args.public_origin or (),
@@ -2093,7 +2120,7 @@ def main(argv=None):
             "X-Forwarded-* is trusted only from 127.0.0.1/::1 by default. If "
             "your reverse proxy is on another host, set FORWARDED_ALLOW_IPS to "
             "its address (and ensure it strips client-provided X-Forwarded-* "
-            "and sets X-Forwarded-Proto). Set --public-origin/BRIDGE_ALLOWED_ORIGINS "
+            "and sets X-Forwarded-Proto). Set --public-origin/PAINAPPLE_ALLOWED_ORIGINS "
             "to your external origin so the CSRF/Origin checks accept it."
         )
         if not use_tls:

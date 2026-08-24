@@ -114,7 +114,7 @@ For the strongest guarantee, pin by digest: `wrotek/painapple-code@sha256:…`.
 |---|---|
 | `ANTHROPIC_API_KEY` | Claude API key (alternative to OAuth via `~/.claude` mount). |
 | `PAINAPPLE_CODE_HOME` | Override the state directory. Defaults to `/data` in the image. |
-| `BRIDGE_ALLOWED_ORIGINS` | Comma-separated extra trusted browser origins (CSRF/Origin gate + CORS). Rarely needed — same-origin traffic (any proxied hostname or LAN IP) is accepted automatically; set this only for a genuinely cross-origin front-end. |
+| `PAINAPPLE_ALLOWED_ORIGINS` | Comma-separated extra trusted browser origins (CSRF/Origin gate + CORS). Rarely needed — same-origin traffic (any proxied hostname or LAN IP) is accepted automatically; set this only for a genuinely cross-origin front-end. |
 | `PAINAPPLE_SKIP_AGENT_CLI` | Set to `1` to skip the first-run agent-CLI install (bring your own, or run a UI/terminal-only instance). |
 | `PAINAPPLE_AGENT_CLIS` | Override what gets installed, as space-separated `binary=npm-spec` pairs. Default: `claude=@anthropic-ai/claude-code@2 codex=@openai/codex@latest`. Drop one to skip it, or pin a version. |
 | `PAINAPPLE_AGENT_CLI_PREFIX` | Where they install. Defaults to `/data/npm-global`, i.e. on the persistent volume. |
@@ -147,7 +147,7 @@ docker exec painapple-code rm /home/app/.config/painapple-code/config.yaml \
     && docker restart painapple-code
 ```
 
-**Three auth paths:** the `bridge_auth` cookie (set automatically after first login), `?tkn=<api_token>` in any URL, or `Authorization: Bearer <api_token>` for `curl` and scripts.
+**Three auth paths:** the `painapple_auth` cookie (set automatically after first login), `?tkn=<api_token>` in any URL, or `Authorization: Bearer <api_token>` for `curl` and scripts.
 
 **The password itself is never sent on those paths.** Every credential is HMAC-derived from it and domain-separated: the browser gets the cookie, scripts and `?tkn=` links get `api_token` (written into the same config file on start). So a shared bootstrap link or a CI secret isn't the master credential — it can't open the login form — and each side revokes independently: bump `bearer_epoch` to kill every script token and link while browsers stay logged in, or `cookie_epoch` to log out every browser while automation keeps running. Rotating the password resets everything.
 

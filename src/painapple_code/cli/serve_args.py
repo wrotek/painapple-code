@@ -137,7 +137,7 @@ def build_parser():
                           "https://claude.example.com. Repeatable. Adds to the "
                           "HTTP/WebSocket Origin allowlist (and replaces the default, "
                           "which trusts only loopback on the bound port). Also "
-                          "honoured via BRIDGE_ALLOWED_ORIGINS.")
+                          "honoured via PAINAPPLE_ALLOWED_ORIGINS.")
     adv.add_argument("--enable-renderers", action="store_true",
                      help="Enable server-side Vega-Lite/Excalidraw rendering (off by "
                           "default: model-authored specs are rendered via a Node "

@@ -117,17 +117,20 @@ user that can only touch what you're willing to expose.
 | `PAINAPPLE_CODE_HOME` | Override the data directory (default `~/.painapple-code`). Set to `/data` in the Docker image. |
 | `PAINAPPLE_PROFILE` | Default [profile](profiles.md) when `--profile` isn't given. |
 | `PAINAPPLE_CODE_CONFIG` | Override the config directory (default `~/.config/painapple-code`) — where `config.yaml` and the auto-generated TLS cert/key live. |
-| `BRIDGE_ALLOWED_ORIGINS` | Comma-separated list of extra trusted browser origins for the CSRF/Origin gate **and** the CORS allow-list (see [Origin/CSRF boundary](#origincsrf-boundary)). Unlike `--public-origin`, this also drives CORS and `TrustedHostMiddleware`. Rarely needed — same-origin traffic is accepted with no config. |
+| `PAINAPPLE_ALLOWED_ORIGINS` | Comma-separated list of extra trusted browser origins for the CSRF/Origin gate **and** the CORS allow-list (see [Origin/CSRF boundary](#origincsrf-boundary)). Unlike `--public-origin`, this also drives CORS and `TrustedHostMiddleware`. Rarely needed — same-origin traffic is accepted with no config. |
 | `PAINAPPLE_ENABLE_RENDERERS` | Set to `1`/`true` to enable server-side chart/diagram rendering (same as `--enable-renderers`; off by default — see the flag). |
 | `FORWARDED_ALLOW_IPS` | Comma-separated peers whose `X-Forwarded-*` headers uvicorn trusts. Defaults to `127.0.0.1,::1` (a local reverse proxy). Set to your proxy's address if it isn't loopback; only set `*` if the server is never directly reachable. |
 | `PAINAPPLE_REVEAL_CMD` | Exact "reveal password" command shown verbatim on the login page. Launchers (the Docker wrapper) set this because they know the host-side container name and engine; unset, the page falls back to a per-environment guess. |
 | `PAINAPPLE_IN_CONTAINER` | Set to `1` inside the official image. Gates the filesystem probes that distinguish Docker from Podman for the login page's environment detection — never set this on a bare-metal host. |
 
+!!! note "Renamed from `BRIDGE_*`"
+    `PAINAPPLE_ALLOWED_ORIGINS` and `PAINAPPLE_ALLOWED_HOSTS` were previously `BRIDGE_ALLOWED_ORIGINS` and `BRIDGE_ALLOWED_HOSTS`, and the auth cookie was named `bridge_auth`. The old env names are still read (the server logs a deprecation warning and keeps working), and a browser holding a `bridge_auth` cookie stays logged in — only the name changed, not the value. Both will be removed in a future release; the `shadow-query` helper's `BRIDGE_URL`/`BRIDGE_TOKEN` are handled the same way.
+
 ## Origin/CSRF boundary
 
 Any authenticated client can reach `/api/exec` (arbitrary shell as the server
 user), so the server guards state-changing requests that carry an **ambient**
-credential (the `bridge_auth` cookie or a `?tkn=`) against cross-site forgery.
+credential (the `painapple_auth` cookie or a `?tkn=`) against cross-site forgery.
 A `Authorization: Bearer` request sets its credential explicitly and is exempt.
 
 A request is accepted when **any** of these hold:
@@ -138,11 +141,11 @@ A request is accepted when **any** of these hold:
    reverse-proxied hostname or a `0.0.0.0` LAN bind is genuinely same-origin, so
    it works with zero configuration.
 3. Its `Origin` is in the configured trusted set (`--public-origin` /
-   `BRIDGE_ALLOWED_ORIGINS`).
+   `PAINAPPLE_ALLOWED_ORIGINS`).
 
-You only need `--public-origin`/`BRIDGE_ALLOWED_ORIGINS` for a **genuinely
+You only need `--public-origin`/`PAINAPPLE_ALLOWED_ORIGINS` for a **genuinely
 cross-origin** front-end — a page served from a *different* host than the server
-that must call it with credentials. `BRIDGE_ALLOWED_ORIGINS` additionally
+that must call it with credentials. `PAINAPPLE_ALLOWED_ORIGINS` additionally
 configures the CORS allow-list and (when set) the `Host`-header allow-list;
 `--public-origin` affects only the Origin gate.
 

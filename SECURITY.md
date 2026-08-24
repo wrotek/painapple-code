@@ -29,7 +29,7 @@ and nothing else.
 
 | Credential | Presented on | Derived from | Revoke by | If it leaks |
 |---|---|---|---|---|
-| `bridge_auth` cookie | HTTP + WebSocket | password + `cookie_epoch` | bump `cookie_epoch` ("Log out everywhere") | full access until revoked; cannot open the login form |
+| `painapple_auth` cookie | HTTP + WebSocket | password + `cookie_epoch` | bump `cookie_epoch` ("Log out everywhere") | full access until revoked; cannot open the login form |
 | `api_token` | `Authorization: Bearer`, `?tkn=` | password + `bearer_epoch` | bump `bearer_epoch` ("Revoke API token") | full access until revoked; cannot open the login form |
 | `?dl=` token | one exact URL | password, separate key | expires (5 min) | that one file, for 5 minutes |
 | password | login form only | — | delete the config and restart | everything, including the ability to mint the above |

@@ -235,3 +235,48 @@ def test_login_rate_limited_after_max_failures(app):
         assert r.headers.get("Retry-After")
     finally:
         srv._login_reset()
+
+
+# ---------------------------------------------------------------------------
+# Legacy BRIDGE_* env-var fallback
+# ---------------------------------------------------------------------------
+
+def test_legacy_allowed_origins_env_still_honoured(monkeypatch):
+    """A deployment still setting BRIDGE_ALLOWED_ORIGINS keeps its allowlist.
+
+    Honouring only the new name would not fail *open* — an empty allowlist
+    is stricter — but it would silently lock a working deployment out of
+    its own origins on upgrade.
+    """
+    from painapple_code.server import resolve_allowed_origins
+    monkeypatch.delenv("PAINAPPLE_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", "https://legacy.example.com")
+    assert "https://legacy.example.com" in resolve_allowed_origins(port=8765)
+
+
+def test_new_allowed_origins_env_wins_over_legacy(monkeypatch):
+    from painapple_code.server import resolve_allowed_origins
+    monkeypatch.setenv("PAINAPPLE_ALLOWED_ORIGINS", "https://new.example.com")
+    monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", "https://legacy.example.com")
+    assert resolve_allowed_origins(port=8765) == {"https://new.example.com"}
+
+
+def test_legacy_allowed_hosts_env_still_honoured(monkeypatch):
+    from painapple_code.server import resolve_allowed_hosts
+    monkeypatch.delenv("PAINAPPLE_ALLOWED_HOSTS", raising=False)
+    monkeypatch.delenv("PAINAPPLE_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.delenv("BRIDGE_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.setenv("BRIDGE_ALLOWED_HOSTS", "host.example.com")
+    assert "host.example.com" in resolve_allowed_hosts()
+
+
+def test_no_origin_env_leaves_defaults_untouched(monkeypatch):
+    """Neither spelling set -> derived loopback pair, host check off."""
+    from painapple_code.server import resolve_allowed_hosts, resolve_allowed_origins
+    for n in ("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS",
+              "PAINAPPLE_ALLOWED_HOSTS", "BRIDGE_ALLOWED_HOSTS"):
+        monkeypatch.delenv(n, raising=False)
+    assert resolve_allowed_origins(port=8765) == {
+        "http://127.0.0.1:8765", "http://localhost:8765",
+    }
+    assert resolve_allowed_hosts() == ["*"]

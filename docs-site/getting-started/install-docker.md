@@ -100,7 +100,7 @@ Open `http://localhost:8765/` in a browser. The first run generates an auth pass
     ```bash
     # .env
     WORKSPACE=/Users/me/code/some-repo
-    BRIDGE_PORT=18765   # optional: custom host port
+    PAINAPPLE_HOST_PORT=18765   # optional: custom host port
     ```
 
     By default the compose file mounts `~/.painapple-code/claude-home/` as the container's `.claude`. To seed it with your existing login:

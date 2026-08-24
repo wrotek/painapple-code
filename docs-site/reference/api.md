@@ -42,7 +42,7 @@ printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" |
 
 | Scope | Kills | Keeps working |
 |-------|-------|---------------|
-| `browsers` | every `bridge_auth` cookie | scripts, `?tkn=` links |
+| `browsers` | every `painapple_auth` cookie | scripts, `?tkn=` links |
 | `scripts` | every `api_token` (Bearer + `?tkn=`) | logged-in browsers |
 
 Neither touches the password — rotating that resets everything. The change is written to the config and applied immediately, with no restart. Note that `scripts` revokes the very token that called it, so the response is the last thing that token does. A second instance sharing the same config file keeps its in-memory credentials until it restarts.
@@ -55,7 +55,7 @@ Neither touches the password — rotating that resets everything. The change is 
     stdin, so it never reaches argv. The same applies to any tool you script
     against this API.
 
-Browsers use the `bridge_auth` cookie or a one-time `?tkn=<api_token>` query parameter instead; the `Authorization` header is the HTTP-only path meant for scripts. See [First run & login](../getting-started/first-run.md).
+Browsers use the `painapple_auth` cookie or a one-time `?tkn=<api_token>` query parameter instead; the `Authorization` header is the HTTP-only path meant for scripts. See [First run & login](../getting-started/first-run.md).
 
 !!! warning "`?tkn=` won't work for writes — use Bearer in scripts"
     `POST`, `PUT`, `DELETE` and `PATCH` requests authenticated by an **ambient** credential (the cookie or `?tkn=`) must also pass the [Origin/CSRF gate](server-cli.md#origincsrf-boundary), or they're rejected with `403 {"error":"origin_forbidden"}`. `curl` sends no `Origin`/`Sec-Fetch-Site`, so `curl -X POST '…?tkn=…'` fails while the identical `GET` succeeds. `Authorization: Bearer` sets its credential explicitly and is exempt from the gate — that's the header scripts should use.
@@ -176,7 +176,7 @@ Each session gets its own persistent PTY that survives disconnects; `cwd` is onl
 shadow-query() {
   printf 'header = "Authorization: Bearer %s"\n' \
     "$(awk '/^api_token:/ {print $2}' ~/.config/painapple-code/config.yaml)" |
-  curl -sS --config - -X POST "${BRIDGE_URL:-http://localhost:8765}/api/shadow-db/sql?format=tsv" \
+  curl -sS --config - -X POST "${PAINAPPLE_URL:-http://localhost:8765}/api/shadow-db/sql?format=tsv" \
     -H "Content-Type: text/plain" --data-binary "$1"
 }
 

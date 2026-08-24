@@ -93,8 +93,8 @@ EOF
 
 | Variable | Purpose |
 |----------|---------|
-| `BRIDGE_URL` | Server base URL (default `http://localhost:8765`) |
-| `BRIDGE_PASSWORD` | Auth token override; otherwise read from `~/.config/painapple-code/config.yaml` |
+| `PAINAPPLE_URL` | Server base URL (default `http://localhost:8765`) |
+| `PAINAPPLE_TOKEN` | API token override; otherwise read from `~/.config/painapple-code/config.yaml` |
 
 Output is TSV by default, JSON with `--json`. `--tsv` asks for the default explicitly, and `--format json|tsv` (or `--format=json`) does the same thing if you prefer that spelling. A `-` argument reads the SQL from stdin. The endpoint rejects anything that isn't a read (no INSERT/UPDATE/DDL), and — worth knowing before you pipe into `jq` — [every value comes back as a string](api.md#shadow-db-sql).
 

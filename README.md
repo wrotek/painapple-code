@@ -131,7 +131,7 @@ docker exec painapple-code rm /home/app/.config/painapple-code/config.yaml \
     && docker restart painapple-code
 ```
 
-**Three auth paths:** the `bridge_auth` cookie (set automatically after first login), `?tkn=<api_token>` in any URL, or `Authorization: Bearer <api_token>` for `curl` and scripts.
+**Three auth paths:** the `painapple_auth` cookie (set automatically after first login), `?tkn=<api_token>` in any URL, or `Authorization: Bearer <api_token>` for `curl` and scripts.
 
 **The password itself is never sent on those paths.** Every credential is HMAC-derived from it and domain-separated: the browser gets the cookie, scripts and `?tkn=` links get `api_token` (written into the same config file on start). So a shared bootstrap link or a CI secret isn't the master credential — it can't open the login form — and each side revokes independently: bump `bearer_epoch` to kill every script token and link while browsers stay logged in, or `cookie_epoch` to log out every browser while automation keeps running. Rotating the password resets everything.
 

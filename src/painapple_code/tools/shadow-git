@@ -23,7 +23,7 @@
 
 set -e
 
-BRIDGE_DIR="${HOME}/.painapple-code"
+PAINAPPLE_DIR="${HOME}/.painapple-code"
 
 # Compute project hash (first 12 chars of SHA256)
 project_hash() {
@@ -71,7 +71,7 @@ EOF
 list_projects() {
     echo "Projects with shadow git:"
     echo ""
-    for dir in "${BRIDGE_DIR}/projects"/*/shadow-git; do
+    for dir in "${PAINAPPLE_DIR}/projects"/*/shadow-git; do
         if [[ -d "$dir" ]]; then
             project_dir=$(dirname "$dir")
             hash=$(basename "$project_dir")
@@ -276,7 +276,7 @@ if [ -z "${SHADOW_PROJECT:-}" ] && command -v cygpath >/dev/null 2>&1; then
 fi
 
 HASH=$(project_hash "$PROJECT_PATH")
-SHADOW_GIT_DIR="${BRIDGE_DIR}/projects/${HASH}/shadow-git"
+SHADOW_GIT_DIR="${PAINAPPLE_DIR}/projects/${HASH}/shadow-git"
 
 # Handle commands that need project context
 case "${1:-}" in
