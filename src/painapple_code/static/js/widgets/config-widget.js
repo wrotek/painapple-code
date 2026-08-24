@@ -796,6 +796,28 @@ function attachConfigEventHandlers(container) {
         return resp.json();
     };
 
+    // Drop the service worker's offline caches on the way out.
+    //
+    // Clearing the cookie ends the SESSION; it does nothing to bytes already
+    // written to disk by the SW, which survive logout, browser restart and
+    // going offline. The fetch handler no longer caches project content, but
+    // that only governs new writes — a client that ran an older SW still has
+    // `/view` responses on disk, and this is what actually removes them.
+    //
+    // Deliberately best-effort: logging out must succeed even if CacheStorage
+    // is unavailable (older WebViews, private modes) or a delete rejects.
+    // Failing the logout to report a cache-eviction problem would be a worse
+    // outcome than a stale cache.
+    const purgeOfflineCaches = async () => {
+        try {
+            if (!self.caches) return;
+            const names = await caches.keys();
+            await Promise.all(names.map((n) => caches.delete(n)));
+        } catch (e) {
+            console.warn('[auth] offline cache purge failed', e);
+        }
+    };
+
     // Local logout is NOT armed: it's cheap and reversible (log back in), and
     // arming it would imply a blast radius it doesn't have.
     const logoutBtn = container.querySelector('#account-logout');
@@ -804,6 +826,7 @@ function attachConfigEventHandlers(container) {
             logoutBtn.disabled = true;
             try {
                 await fetch(`${CONFIG.API_BASE || ''}/api/logout`, { method: 'POST' });
+                await purgeOfflineCaches();
                 showToast(S.toast.logged_out);
                 // The cookie is gone; every later request would 401 into the
                 // same redirect. Go there directly instead of letting the app
@@ -819,6 +842,10 @@ function attachConfigEventHandlers(container) {
     armConfirm(container.querySelector('#account-revoke-browsers'), async () => {
         try {
             await revoke('browsers');
+            // This browser is one of the browsers being logged out, so its
+            // own on-disk cache goes too. Skipping this would leave the
+            // device that ran "log out everywhere" holding cached content.
+            await purgeOfflineCaches();
             showToast(S.toast.revoked_browsers);
             // This browser was included in "everywhere" — that's the honest
             // semantic, so land on /login rather than pretending otherwise.

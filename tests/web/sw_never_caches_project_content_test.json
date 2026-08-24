@@ -1,0 +1,47 @@
+{
+  "name": "Service worker never caches project content (WP-12)",
+  "description": "The SW fetch handler used to end in a default networkFirst, which cache.put()s every 2xx. /view serves raw project file content and is not under /api/, so it fell through the default and was written to the offline cache, where it survives logout and is readable offline. Asserts /view is fetched but never stored, that the app shell still IS cached (so the PWA still works offline), and that the handler is an allowlist rather than a denylist — the shape is the actual defect, since a default-allow silently caches every route added later.",
+  "config": {
+    "browser": "chromium",
+    "headless": true,
+    "viewport": { "width": 1366, "height": 950 }
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "{{BASE}}/app?tkn={{TKN}}"
+    },
+    { "action": "waitFor", "selector": "#app", "timeout": 10000 },
+    {
+      "action": "execute",
+      "comment": "Wait for the service worker to control this page — without a controller every cache assertion below is vacuously true",
+      "script": "(async () => { const reg = await navigator.serviceWorker.ready; for (let i = 0; i < 40 && !navigator.serviceWorker.controller; i++) { await new Promise(r => setTimeout(r, 500)); } return { scope: reg?.scope, controlled: !!navigator.serviceWorker.controller }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 1: the SW is actually controlling the page (guards against a vacuous pass)",
+      "script": "(() => { const c = !!navigator.serviceWorker.controller; return { controlled: c, PASS: c }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 2: /view returns real project content through the SW, and is NOT written to any cache",
+      "script": "(async () => { const url = '/view?path=' + encodeURIComponent('README.md'); const r = await fetch(url); const body = await r.text(); const names = await caches.keys(); let cachedIn = []; for (const n of names) { const c = await caches.open(n); for (const req of await c.keys()) { if (new URL(req.url).pathname === '/view') cachedIn.push(n); } } return { status: r.status, gotBody: body.length > 0, cacheNames: names, cachedIn, PASS: r.status === 200 && body.length > 0 && cachedIn.length === 0 }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 3: no cache entry anywhere carries a non-allowlisted path — catches future routes leaking in, not just /view",
+      "script": "(async () => { const allowed = p => p.startsWith('/static/') || p.startsWith('/instance-icons/') || ['/', '/app', '/sessions', '/triage', '/manifest.json'].includes(p); const bad = []; for (const n of await caches.keys()) { const c = await caches.open(n); for (const req of await c.keys()) { const p = new URL(req.url).pathname; if (!allowed(p)) bad.push(p); } } return { unexpected: bad.slice(0, 10), count: bad.length, PASS: bad.length === 0 }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 4: the app shell IS still cached — the fix must not break offline PWA use",
+      "script": "(async () => { const hit = await caches.match('/app'); return { appCached: !!hit, PASS: !!hit }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 5: shape check — the allowlist exists and there are exactly two respondWith(networkFirst) call sites (JS/CSS, app shell). A third means a trailing default-allow came back. NB gates 2-3 are the behavioral proof; this one guards the shape so the leak cannot return by a different route.",
+      "script": "(async () => { const src = await (await fetch('/sw.js')).text(); const hasAllowlist = /CACHEABLE_PAGES/.test(src) && /isCacheablePage/.test(src); const sites = (src.match(/respondWith\\(networkFirst\\(event\\.request\\)\\)/g) || []).length; const viewHardcoded = /['\"]\\/view['\"]/.test(src); return { hasAllowlist, networkFirstSites: sites, viewHardcoded, PASS: hasAllowlist && sites === 2 && !viewHardcoded }; })()"
+    },
+    { "action": "screenshot", "name": "sw-cache-audit" }
+  ]
+}

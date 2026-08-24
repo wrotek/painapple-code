@@ -113,18 +113,39 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For HTML pages - network first with cache fallback
-  if (event.request.headers.get('accept')?.includes('text/html') ||
-      url.pathname === '/app' ||
-      url.pathname === '/test' ||
-      url.pathname === '/') {
+  // App shell and PWA chrome - network first with cache fallback
+  if (isCacheablePage(url)) {
     event.respondWith(networkFirst(event.request));
     return;
   }
 
-  // Default - network first
-  event.respondWith(networkFirst(event.request));
+  // EVERYTHING ELSE GOES TO THE NETWORK AND IS NEVER STORED.
+  //
+  // This used to be `event.respondWith(networkFirst(...))` — a default that
+  // writes every 2xx to disk. `/view` serves raw project file content and is
+  // not under `/api/`, so it fell through and landed in the offline cache,
+  // where it outlives the session and is readable by anyone holding the
+  // device. That is exactly what WP-12 asks not to happen ("offline cache
+  // inspection contains no user/project content").
+  //
+  // Adding `/view` to the skip list above would have fixed today's leak and
+  // left the shape intact: with a default-allow, every route added later is
+  // cached unless someone remembers to exclude it, and nothing fails loudly
+  // when they don't. Inverted, a new route is uncached until it is
+  // deliberately listed as cacheable — the failure mode becomes "missing from
+  // the offline cache", which is visible, rather than "silently persisted".
 });
+
+// The complete set of non-/static/ paths allowed into the offline cache.
+// Everything here is app chrome: HTML shells, the manifest and instance icons.
+// None of it carries user or project content. `/view` is deliberately absent
+// (project file content), as are `/health`, `/login` and `/sw.js` — none is
+// useful offline and the last two should never be served stale.
+const CACHEABLE_PAGES = new Set(['/', '/app', '/sessions', '/triage', '/manifest.json']);
+
+function isCacheablePage(url) {
+  return CACHEABLE_PAGES.has(url.pathname) || url.pathname.startsWith('/instance-icons/');
+}
 
 /**
  * Cache-first strategy
