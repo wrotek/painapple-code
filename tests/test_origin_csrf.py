@@ -238,44 +238,8 @@ def test_login_rate_limited_after_max_failures(app):
 
 
 # ---------------------------------------------------------------------------
-# Obsolete BRIDGE_* env vars
+# Origin / host env resolution
 # ---------------------------------------------------------------------------
-
-def test_obsolete_origins_env_is_not_honoured(monkeypatch):
-    """The pre-rename spelling carries no configuration authority.
-
-    It fails *closed* — an empty allowlist is stricter, not looser — so the
-    risk being guarded here is a silently dropped config, not an opening.
-    """
-    from painapple_code.server import resolve_allowed_origins
-    monkeypatch.delenv("PAINAPPLE_ALLOWED_ORIGINS", raising=False)
-    monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", "https://legacy.example.com")
-    assert "https://legacy.example.com" not in resolve_allowed_origins(port=8765)
-
-
-def test_obsolete_hosts_env_is_not_honoured(monkeypatch):
-    from painapple_code.server import resolve_allowed_hosts
-    for n in ("PAINAPPLE_ALLOWED_HOSTS", "PAINAPPLE_ALLOWED_ORIGINS",
-              "BRIDGE_ALLOWED_ORIGINS"):
-        monkeypatch.delenv(n, raising=False)
-    monkeypatch.setenv("BRIDGE_ALLOWED_HOSTS", "host.example.com")
-    assert resolve_allowed_hosts() == ["*"]
-
-
-def test_obsolete_env_is_reported_not_swallowed(monkeypatch):
-    """Set-but-ignored obsolete vars are named in the log.
-
-    Dropping a deployment's origin config with no explanation is its own
-    failure mode, so presence is surfaced even though it is not honoured.
-    """
-    from painapple_code.server import OBSOLETE_ENV_VARS, warn_obsolete_env
-    for n in OBSOLETE_ENV_VARS:
-        monkeypatch.delenv(n, raising=False)
-    assert warn_obsolete_env() == []
-    monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", "https://legacy.example.com")
-    monkeypatch.setenv("BRIDGE_URL", "http://old:1")
-    assert set(warn_obsolete_env()) == {"BRIDGE_ALLOWED_ORIGINS", "BRIDGE_URL"}
-
 
 def test_new_env_names_still_work(monkeypatch):
     from painapple_code.server import resolve_allowed_hosts, resolve_allowed_origins
@@ -289,8 +253,7 @@ def test_new_env_names_still_work(monkeypatch):
 def test_no_origin_env_leaves_defaults_untouched(monkeypatch):
     """Nothing set -> derived loopback pair, host check off."""
     from painapple_code.server import resolve_allowed_hosts, resolve_allowed_origins
-    for n in ("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS",
-              "PAINAPPLE_ALLOWED_HOSTS", "BRIDGE_ALLOWED_HOSTS"):
+    for n in ("PAINAPPLE_ALLOWED_ORIGINS", "PAINAPPLE_ALLOWED_HOSTS"):
         monkeypatch.delenv(n, raising=False)
     assert resolve_allowed_origins(port=8765) == {
         "http://127.0.0.1:8765", "http://localhost:8765",

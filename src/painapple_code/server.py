@@ -458,39 +458,6 @@ app.add_middleware(AccessLogMiddleware, logger=access_logger)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(AuthMiddleware)
-# Env vars renamed off the old "bridge" codename. The old spellings are not
-# read anywhere; they live here only so a stale deployment unit gets told.
-OBSOLETE_ENV_VARS = {
-    "BRIDGE_ALLOWED_ORIGINS": "PAINAPPLE_ALLOWED_ORIGINS",
-    "BRIDGE_ALLOWED_HOSTS": "PAINAPPLE_ALLOWED_HOSTS",
-    "BRIDGE_URL": "PAINAPPLE_URL",
-    "BRIDGE_TOKEN": "PAINAPPLE_TOKEN",
-    "BRIDGE_PASSWORD": "PAINAPPLE_TOKEN",
-    "BRIDGE_PORT": "PAINAPPLE_HOST_PORT",
-}
-
-
-def warn_obsolete_env() -> list:
-    """Report obsolete BRIDGE_* env vars that are set, and are being ignored.
-
-    The old spellings are NOT read. Silently ignoring one would not fail
-    open — an empty origin allowlist is *stricter*, not looser — but it
-    would drop a deployment's config with no explanation, which is its own
-    kind of bad afternoon. So presence is surfaced, never honoured.
-
-    Returns the obsolete names that were found, for tests.
-    """
-    found = [
-        (old, new) for old, new in OBSOLETE_ENV_VARS.items()
-        if os.environ.get(old, "").strip()
-    ]
-    for old, new in found:
-        logging.getLogger("painapple-code").warning(
-            "%s is set but is no longer read — rename it to %s", old, new,
-        )
-    return [old for old, _ in found]
-
-
 def _loopback_origins(port) -> set:
     """This server's own loopback origins on ``port`` — the no-config default
     trust set. Derived from the actual bind, never hardcoded per-deployment."""
@@ -1950,10 +1917,6 @@ def main(argv=None):
     setup_logging(log_dir=log_dir)
     if args.log_dir:
         logger.info(f"Logging redirected to {log_dir}")
-
-    # Surface obsolete BRIDGE_* env vars now that logging exists — they are
-    # ignored, and a silently-dropped origin allowlist is hard to diagnose.
-    warn_obsolete_env()
 
     if serve_defaults:
         logger.info(f"Serve defaults from {active_config_path()}: "
