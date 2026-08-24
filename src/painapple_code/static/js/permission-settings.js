@@ -10,7 +10,7 @@
  * The mode list itself is engine vocabulary: each provider self-describes
  * its modes (value/label/desc/color), delivered alongside the permission
  * endpoints (`GET /api/session/{id}/permission-mode`,
- * `GET /api/bridge/default-permissions`). The strings.yaml level table is
+ * `GET /api/app/default-permissions`). The strings.yaml level table is
  * only the pre-fetch fallback, so e.g. the claude-sdk provider's extra
  * "Ask" mode appears without any frontend edit.
  */
@@ -188,7 +188,7 @@ class PermissionSettingsManager {
                 : (session?.pendingProvider || null);
             if (pendingProvider) {
                 try {
-                    const r = await fetch(`${CONFIG.API_BASE}/api/bridge/default-permissions?provider=${encodeURIComponent(pendingProvider)}`);
+                    const r = await fetch(`${CONFIG.API_BASE}/api/app/default-permissions?provider=${encodeURIComponent(pendingProvider)}`);
                     // Bail if a newer setSession() superseded us during the await.
                     if (this.currentSessionId !== sessionId) return;
                     if (r.ok) {
@@ -349,7 +349,7 @@ class PermissionSettingsManager {
      */
     async saveToGlobal(level) {
         try {
-            await fetch(`${CONFIG.API_BASE}/api/bridge/default-permissions`, {
+            await fetch(`${CONFIG.API_BASE}/api/app/default-permissions`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ permission_level: level })
@@ -365,7 +365,7 @@ class PermissionSettingsManager {
      */
     async loadGlobalDefaults() {
         try {
-            const response = await fetch(`${CONFIG.API_BASE}/api/bridge/default-permissions`);
+            const response = await fetch(`${CONFIG.API_BASE}/api/app/default-permissions`);
             if (response.ok) {
                 const data = await response.json();
                 if (Array.isArray(data.modes) && data.modes.length) {

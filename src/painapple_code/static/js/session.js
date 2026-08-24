@@ -902,7 +902,7 @@ export class SessionManager {
                 ? { kind: 'widget', id: tabCtrl.activeWidgetTabId }
                 : { kind: 'session', storeId: activeStoreId };
 
-            fetch(`${CONFIG.API_BASE}/api/bridge/tabs`, {
+            fetch(`${CONFIG.API_BASE}/api/app/tabs`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessions, activeStoreId, widgetTabs, order, activeTab }),
@@ -923,7 +923,7 @@ export class SessionManager {
      */
     async reconcileWithServer() {
         try {
-            const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/tabs`);
+            const resp = await fetch(`${CONFIG.API_BASE}/api/app/tabs`);
             if (!resp.ok) return false;
             const serverState = await resp.json();
 

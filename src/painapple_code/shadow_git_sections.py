@@ -6,7 +6,7 @@ each rich commit: each entry becomes a key in the JSON schema fed to the model
 and a `## Title` block in the resulting markdown commit body. Users can extend
 or override sections via per-project config (`shadow_git.commit_sections`).
 
-Public functions (consumed by ShadowGit and `routes/api_bridge_commit_sections.py`):
+Public functions (consumed by ShadowGit and `routes/api_app_commit_sections.py`):
 - `get_sections_config` — merge builtins with user overrides
 - `build_commit_schema` — JSON schema for `--json-schema` output mode
 - `build_commit_prompt_for_json` — natural-language prompt that mirrors the schema

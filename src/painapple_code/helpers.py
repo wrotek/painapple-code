@@ -5,7 +5,7 @@ Mirrors the FILES array in `tools/install-helpers.sh`. If you add a new
 helper there, add it here too (and vice versa).
 
 Surfaces install/freshness state via `helpers_status()`, used by the
-GET /api/bridge/helpers/status endpoint to drive the install-prompt UI.
+GET /api/app/helpers/status endpoint to drive the install-prompt UI.
 """
 
 import hashlib

@@ -9,10 +9,10 @@ These endpoints expose:
 Other former sections of this module have moved:
 - Quick action presets, claude path, max thinking tokens, API auto-retry,
   default permissions, token profiles, models, default effort, session
-  timeouts          -> routes/api_bridge_config.py
+  timeouts          -> routes/api_app_config.py
 - Tab state, keyboard shortcuts, user snippets, agent patterns, shadow-git
-  defaults          -> routes/api_bridge_session_prefs.py
-- Commit sections   -> routes/api_bridge_commit_sections.py
+  defaults          -> routes/api_app_session_prefs.py
+- Commit sections   -> routes/api_app_commit_sections.py
 - Project config, project rename, project commands (and the CLI command
   description cache used by routes/api_commands.py) -> routes/api_project_config.py
 - Agent discovery   -> routes/api_agents.py
@@ -31,7 +31,7 @@ from painapple_code.utils.file_paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["bridge"])
+router = APIRouter(tags=["app"])
 
 # Pinned at boot by capture_boot_version(); this is the code the process
 # actually imported. Never recomputed — that's the whole point.
@@ -293,14 +293,14 @@ async def get_server_info(request: Request):
 # Bridge Config
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/config")
-async def get_bridge_config():
+@router.get("/api/app/config")
+async def get_app_config():
     """Get global bridge configuration."""
     return bridge_paths.load_global_config()
 
 
-@router.put("/api/bridge/config")
-async def update_bridge_config(config: dict):
+@router.put("/api/app/config")
+async def update_app_config(config: dict):
     """Update global bridge configuration."""
     bridge_paths.save_global_config(config)
     return bridge_paths.load_global_config()
@@ -310,13 +310,13 @@ async def update_bridge_config(config: dict):
 # Helper Install (shadow-git CLI + agent template)
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/helpers/status")
+@router.get("/api/app/helpers/status")
 async def get_helpers_status():
     """Return install + freshness state for bundled helpers."""
     return helpers_module.helpers_status()
 
 
-@router.post("/api/bridge/helpers/install")
+@router.post("/api/app/helpers/install")
 async def install_helpers():
     """
     Run tools/install-helpers.sh --update on the bridge server's filesystem.
@@ -342,7 +342,7 @@ async def install_helpers():
         return {"ok": False, "exit_code": -1, "stdout": "", "stderr": str(e)}
 
 
-@router.post("/api/bridge/helpers/uninstall")
+@router.post("/api/app/helpers/uninstall")
 async def uninstall_helpers():
     """
     Remove the installed helper files from the bridge server's filesystem.
@@ -352,7 +352,7 @@ async def uninstall_helpers():
     return helpers_module.uninstall_helpers()
 
 
-@router.post("/api/bridge/helpers/agent-model")
+@router.post("/api/app/helpers/agent-model")
 async def set_helper_agent_model(payload: dict):
     """Set the model the shadow-git-helper subagent runs on.
 

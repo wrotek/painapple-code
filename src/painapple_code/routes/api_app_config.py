@@ -25,7 +25,7 @@ from painapple_code import bridge_paths
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["bridge:config"])
+router = APIRouter(tags=["app:config"])
 
 # Default max thinking tokens (31999 to stay under limit, 63999 is Opus 4.5 max)
 DEFAULT_MAX_THINKING_TOKENS = 31999
@@ -35,20 +35,20 @@ DEFAULT_MAX_THINKING_TOKENS = 31999
 # Quick Action Presets  (~/.painapple-code/presets/*.json)
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/presets")
+@router.get("/api/app/presets")
 async def get_presets():
     """List all quick-action presets (one JSON file per preset)."""
     return bridge_paths.load_all_presets()
 
 
-@router.put("/api/bridge/presets/{preset_id}")
+@router.put("/api/app/presets/{preset_id}")
 async def save_preset(preset_id: str, data: dict):
     """Create or update a preset."""
     bridge_paths.save_preset(preset_id, data)
     return bridge_paths.load_all_presets()
 
 
-@router.delete("/api/bridge/presets/{preset_id}")
+@router.delete("/api/app/presets/{preset_id}")
 async def delete_preset(preset_id: str):
     """Delete a preset file."""
     deleted = bridge_paths.delete_preset(preset_id)
@@ -110,14 +110,14 @@ async def _engine_path_payload(p) -> dict:
     }
 
 
-@router.get("/api/bridge/engine-path/{provider_name}")
+@router.get("/api/app/engine-path/{provider_name}")
 async def get_engine_path(provider_name: str):
     """Configured CLI binary for one engine (provider self-describes the
     config key — nothing per-engine is hardcoded here)."""
     return await _engine_path_payload(_provider_or_404(provider_name))
 
 
-@router.put("/api/bridge/engine-path/{provider_name}")
+@router.put("/api/app/engine-path/{provider_name}")
 async def set_engine_path(provider_name: str, request: Request):
     """Set (or clear with null/empty) an engine's CLI binary path.
 
@@ -177,13 +177,13 @@ def _engine_models_payload(p) -> dict:
     }
 
 
-@router.get("/api/bridge/engine-models/{provider_name}")
+@router.get("/api/app/engine-models/{provider_name}")
 async def get_engine_models(provider_name: str):
     """Full model catalog + visibility flags for one engine."""
     return _engine_models_payload(_provider_or_404(provider_name))
 
 
-@router.put("/api/bridge/engine-models/{provider_name}")
+@router.put("/api/app/engine-models/{provider_name}")
 async def set_engine_models(provider_name: str, request: Request):
     """Replace the hidden-model set for one engine: ``{disabled: [ids]}``.
 
@@ -223,7 +223,7 @@ async def set_engine_models(provider_name: str, request: Request):
 # Engine CLI auth (login-status probe, self-described commands)
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/engine-auth/{provider_name}")
+@router.get("/api/app/engine-auth/{provider_name}")
 async def get_engine_auth(provider_name: str):
     """Login status for one engine's CLI (Settings → Engines auth row).
 
@@ -351,13 +351,13 @@ def _engine_defaults_payload(p) -> dict:
     }
 
 
-@router.get("/api/bridge/engine-defaults/{provider_name}")
+@router.get("/api/app/engine-defaults/{provider_name}")
 async def get_engine_defaults(provider_name: str):
     """One engine's new-session defaults + auto-journal model."""
     return _engine_defaults_payload(_provider_or_404(provider_name))
 
 
-@router.put("/api/bridge/engine-defaults/{provider_name}")
+@router.put("/api/app/engine-defaults/{provider_name}")
 async def set_engine_defaults(provider_name: str, request: Request):
     """Set any subset of one engine's defaults.
 
@@ -427,7 +427,7 @@ async def set_engine_defaults(provider_name: str, request: Request):
     return _engine_defaults_payload(p)
 
 
-@router.get("/api/bridge/max-thinking-tokens")
+@router.get("/api/app/max-thinking-tokens")
 async def get_max_thinking_tokens_api():
     """Get the max thinking tokens setting."""
     config = bridge_paths.load_global_config()
@@ -440,7 +440,7 @@ async def get_max_thinking_tokens_api():
     }
 
 
-@router.put("/api/bridge/max-thinking-tokens")
+@router.put("/api/app/max-thinking-tokens")
 async def set_max_thinking_tokens_api(request: Request):
     """Set the max thinking tokens."""
     body = await request.json()
@@ -479,7 +479,7 @@ async def set_max_thinking_tokens_api(request: Request):
 DEFAULT_API_RETRY_MAX = 3
 
 
-@router.get("/api/bridge/api-retry-max")
+@router.get("/api/app/api-retry-max")
 async def get_api_retry_max():
     """Get the API auto-retry max setting."""
     config = bridge_paths.load_global_config()
@@ -491,7 +491,7 @@ async def get_api_retry_max():
     }
 
 
-@router.put("/api/bridge/api-retry-max")
+@router.put("/api/app/api-retry-max")
 async def set_api_retry_max(request: Request):
     """Set the API auto-retry max."""
     body = await request.json()
@@ -527,7 +527,7 @@ async def set_api_retry_max(request: Request):
 SIGINT_ON_ASK_DEFAULT = True
 
 
-@router.get("/api/bridge/sigint-on-ask")
+@router.get("/api/app/sigint-on-ask")
 async def get_sigint_on_ask():
     """Get whether Claude is SIGINT-stopped when it calls AskUserQuestion."""
     config = bridge_paths.load_global_config()
@@ -537,7 +537,7 @@ async def get_sigint_on_ask():
     }
 
 
-@router.put("/api/bridge/sigint-on-ask")
+@router.put("/api/app/sigint-on-ask")
 async def set_sigint_on_ask(request: Request):
     """Toggle SIGINT-on-AskUserQuestion.
 
@@ -571,7 +571,7 @@ async def set_sigint_on_ask(request: Request):
 # Default Permission Levels
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/default-permissions")
+@router.get("/api/app/default-permissions")
 async def get_default_permissions(request: Request, provider: str = None):
     """Get the global default permission level, plus the mode vocabulary of the
     engine new sessions run on (the effective default provider — the
@@ -599,7 +599,7 @@ async def get_default_permissions(request: Request, provider: str = None):
     }
 
 
-@router.put("/api/bridge/default-permissions")
+@router.put("/api/app/default-permissions")
 async def set_default_permissions(request: Request):
     """Set the global default permission level for normal sessions."""
     body = await request.json()
@@ -630,7 +630,7 @@ async def set_default_permissions(request: Request):
 # Token Profiles
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/token-profiles")
+@router.get("/api/app/token-profiles")
 async def get_token_profiles(request: Request):
     """List available token profiles and the default engine's default."""
     from painapple_code.routes.dependencies import effective_default_provider
@@ -646,7 +646,7 @@ async def get_token_profiles(request: Request):
     }
 
 
-@router.put("/api/bridge/default-token-profile")
+@router.put("/api/app/default-token-profile")
 async def set_default_token_profile(request: Request):
     """Legacy wrapper: set the DEFAULT ENGINE's default token profile."""
     from painapple_code.routes.dependencies import effective_default_provider
@@ -685,7 +685,7 @@ async def set_default_token_profile(request: Request):
 # Models
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/models")
+@router.get("/api/app/models")
 async def get_models():
     """Get available models from models.yaml."""
     return {
@@ -694,7 +694,7 @@ async def get_models():
     }
 
 
-@router.put("/api/bridge/models")
+@router.put("/api/app/models")
 async def put_models(request: Request):
     """Replace models.yaml with the posted config. Body: {selectable: [...], summary_model: "..."}"""
     body = await request.json()
@@ -723,7 +723,7 @@ async def put_models(request: Request):
     return {"selectable": cleaned, "summary_model": summary_model.strip()}
 
 
-@router.post("/api/bridge/models/reset")
+@router.post("/api/app/models/reset")
 async def reset_models():
     """Restore models.yaml to the shipped defaults."""
     defaults = bridge_paths.get_default_models_config()
@@ -739,7 +739,7 @@ async def reset_models():
 # Default Provider (engine for new sessions)
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/default-provider")
+@router.get("/api/app/default-provider")
 async def get_default_provider(request: Request):
     """The engine NEW sessions get when the picker isn't touched.
 
@@ -757,7 +757,7 @@ async def get_default_provider(request: Request):
     }
 
 
-@router.put("/api/bridge/default-provider")
+@router.put("/api/app/default-provider")
 async def set_default_provider(request: Request):
     """Set (or clear with null) the `default_provider` config key. Validated
     against the live registry; note a --default-provider server flag still
@@ -788,7 +788,7 @@ async def set_default_provider(request: Request):
 # Providers enabled (which engines the picker offers)
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/providers-enabled")
+@router.get("/api/app/providers-enabled")
 async def get_providers_enabled(request: Request):
     """Per-engine picker visibility.
 
@@ -804,7 +804,7 @@ async def get_providers_enabled(request: Request):
     }
 
 
-@router.put("/api/bridge/providers-enabled")
+@router.put("/api/app/providers-enabled")
 async def set_provider_enabled(request: Request):
     """Toggle one engine in/out of the picker: `{provider, enabled}`.
 
@@ -841,7 +841,7 @@ async def set_provider_enabled(request: Request):
     return await get_providers_enabled(request)
 
 
-@router.get("/api/bridge/default-model")
+@router.get("/api/app/default-model")
 async def get_default_model(request: Request):
     """Legacy wrapper: the DEFAULT ENGINE's configured new-session model.
 
@@ -854,7 +854,7 @@ async def get_default_model(request: Request):
     return {"default_model": bridge_paths.engine_default_model(p)}
 
 
-@router.put("/api/bridge/default-model")
+@router.put("/api/app/default-model")
 async def set_default_model(request: Request):
     """Legacy wrapper: set the DEFAULT ENGINE's new-session model."""
     from painapple_code.routes.dependencies import effective_default_provider
@@ -889,7 +889,7 @@ VALID_EFFORT_LEVELS = {"low", "medium", "high", "xhigh", "max"}
 DEFAULT_EFFORT = "high"
 
 
-@router.get("/api/bridge/default-effort")
+@router.get("/api/app/default-effort")
 async def get_default_effort(request: Request):
     """Legacy wrapper: the DEFAULT ENGINE's configured default effort.
 
@@ -905,7 +905,7 @@ async def get_default_effort(request: Request):
     }
 
 
-@router.put("/api/bridge/default-effort")
+@router.put("/api/app/default-effort")
 async def set_default_effort(request: Request):
     """Legacy wrapper: set the DEFAULT ENGINE's default effort."""
     from painapple_code.routes.dependencies import effective_default_provider
@@ -940,7 +940,7 @@ async def set_default_effort(request: Request):
 # Session Timeout Settings
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/session-timeouts")
+@router.get("/api/app/session-timeouts")
 async def get_session_timeouts():
     """Get session timeout settings (in minutes)."""
     from painapple_code.services.agent_session import AgentBridge
@@ -961,7 +961,7 @@ async def get_session_timeouts():
     }
 
 
-@router.put("/api/bridge/session-timeouts")
+@router.put("/api/app/session-timeouts")
 async def set_session_timeouts(request: Request):
     """Update session timeout settings (in minutes)."""
     from painapple_code.services.agent_session import AgentBridge

@@ -1130,7 +1130,7 @@ export class ChatController {
             }
             : () => 'var(--text-secondary)';
 
-        fetch('/api/bridge/token-profiles')
+        fetch('/api/app/token-profiles')
             .then(r => r.json())
             .then(data => {
                 if (!data.profiles?.length) {
@@ -3863,7 +3863,7 @@ export class ChatController {
         };
 
         // Reflect the current global setting (one GET per question card).
-        fetch('/api/bridge/sigint-on-ask')
+        fetch('/api/app/sigint-on-ask')
             .then(r => r.ok ? r.json() : null)
             .then(d => { if (d) apply(!!d.sigint_on_ask); })
             .catch(() => {});
@@ -3871,7 +3871,7 @@ export class ChatController {
         cb.addEventListener('change', async () => {
             const value = cb.checked;
             try {
-                const resp = await fetch('/api/bridge/sigint-on-ask', {
+                const resp = await fetch('/api/app/sigint-on-ask', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ sigint_on_ask: value }),

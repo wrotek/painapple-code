@@ -1,5 +1,5 @@
 # models.yaml - Available Claude models (single source of truth)
-# Server serves this via GET /api/bridge/models
+# Server serves this via GET /api/app/models
 # Edit via Settings → Engines (Claude tab), or by hand (both work).
 
 selectable:

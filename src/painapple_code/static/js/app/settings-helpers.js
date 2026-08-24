@@ -163,7 +163,7 @@ export const settingsHelperMethods = {
      */
     async _checkHelpersInstall({ promptIfNeeded = true } = {}) {
         try {
-            const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/helpers/status`);
+            const resp = await fetch(`${CONFIG.API_BASE}/api/app/helpers/status`);
             if (!resp.ok) return;
             const status = await resp.json();
             this._updateHelpersPill(status);

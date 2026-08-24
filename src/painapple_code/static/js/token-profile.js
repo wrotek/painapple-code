@@ -70,7 +70,7 @@ class TokenProfileManager {
 
     async loadProfiles() {
         try {
-            const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/token-profiles`);
+            const resp = await fetch(`${CONFIG.API_BASE}/api/app/token-profiles`);
             if (!resp.ok) return;
             const data = await resp.json();
             this.profiles = data.profiles || [];
@@ -249,8 +249,8 @@ class TokenProfileManager {
         const s = window.app?.activeSession;
         const engine = s?.provider || s?.pendingProvider || null;
         const url = engine
-            ? `${CONFIG.API_BASE}/api/bridge/engine-defaults/${encodeURIComponent(engine)}`
-            : `${CONFIG.API_BASE}/api/bridge/default-token-profile`;
+            ? `${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(engine)}`
+            : `${CONFIG.API_BASE}/api/app/default-token-profile`;
         try {
             await fetch(url, {
                 method: 'PUT',

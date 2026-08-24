@@ -326,7 +326,7 @@ def _patch_config_store(monkeypatch, store):
 def test_engine_path_get(client, monkeypatch):
     store = {"codex_path": "/opt/somewhere/codex"}
     _patch_config_store(monkeypatch, store)
-    r = client.get("/api/bridge/engine-path/codex-app-server")
+    r = client.get("/api/app/engine-path/codex-app-server")
     assert r.status_code == 200
     data = r.json()
     assert data["configurable"] is True
@@ -334,13 +334,13 @@ def test_engine_path_get(client, monkeypatch):
     assert data["default_binary"] == "codex"
     # Unset key → path None (UI shows the default_binary placeholder)
     store.clear()
-    data = client.get("/api/bridge/engine-path/claude-sdk").json()
+    data = client.get("/api/app/engine-path/claude-sdk").json()
     assert data["path"] is None
     assert data["default_binary"] == "claude"
 
 
 def test_engine_path_get_unknown_provider(client):
-    assert client.get("/api/bridge/engine-path/nonexistent").status_code == 404
+    assert client.get("/api/app/engine-path/nonexistent").status_code == 404
 
 
 def test_engine_path_put_roundtrip(client, monkeypatch, tmp_path):
@@ -350,19 +350,19 @@ def test_engine_path_put_roundtrip(client, monkeypatch, tmp_path):
     fake.write_text("#!/bin/sh\n")
 
     # Explicit path → stored under the provider's own key
-    r = client.put("/api/bridge/engine-path/codex", json={"path": str(fake)})
+    r = client.put("/api/app/engine-path/codex", json={"path": str(fake)})
     assert r.status_code == 200
     assert store["codex_path"] == str(fake)
     assert r.json()["path"] == str(fake)
 
     # Nonexistent path → 400, config untouched
-    r = client.put("/api/bridge/engine-path/codex", json={"path": str(tmp_path / "nope")})
+    r = client.put("/api/app/engine-path/codex", json={"path": str(tmp_path / "nope")})
     assert r.status_code == 400
     assert store["codex_path"] == str(fake)
 
     # null (and the bare default binary name) clear the override — always
     # allowed, even if the CLI isn't installed (stale overrides removable)
-    r = client.put("/api/bridge/engine-path/codex", json={"path": None})
+    r = client.put("/api/app/engine-path/codex", json={"path": None})
     assert r.status_code == 200
     assert "codex_path" not in store
     assert r.json()["path"] is None
@@ -371,7 +371,7 @@ def test_engine_path_put_roundtrip(client, monkeypatch, tmp_path):
 def test_engine_path_not_configurable():
     """A provider without a path_config_key reports non-configurable."""
     import asyncio
-    from painapple_code.routes.api_bridge_config import _engine_path_payload
+    from painapple_code.routes.api_app_config import _engine_path_payload
 
     class _NoPath:
         name = "stub"
@@ -460,7 +460,7 @@ def test_engine_models_get(client, monkeypatch, tmp_path):
     ])
     _patch_config_store(
         monkeypatch, {"models_disabled": {"codex": ["gpt-b", "gpt-stale"]}})
-    r = client.get("/api/bridge/engine-models/codex-app-server")
+    r = client.get("/api/app/engine-models/codex-app-server")
     assert r.status_code == 200
     data = r.json()
     assert data["provider"] == "codex-app-server"
@@ -469,7 +469,7 @@ def test_engine_models_get(client, monkeypatch, tmp_path):
     assert [(m["id"], m["enabled"]) for m in data["models"]] == [
         ("gpt-a", True), ("gpt-b", False)]
     assert data["disabled"] == ["gpt-b", "gpt-stale"]
-    assert client.get("/api/bridge/engine-models/nonexistent").status_code == 404
+    assert client.get("/api/app/engine-models/nonexistent").status_code == 404
 
 
 def test_engine_models_put_roundtrip(client, monkeypatch):
@@ -481,20 +481,20 @@ def test_engine_models_put_roundtrip(client, monkeypatch):
     _patch_config_store(monkeypatch, store)
     hide = get_provider("claude-sdk").models()[0]["id"]
 
-    r = client.put("/api/bridge/engine-models/claude-sdk", json={"disabled": [hide]})
+    r = client.put("/api/app/engine-models/claude-sdk", json={"disabled": [hide]})
     assert r.status_code == 200
     assert store["models_disabled"] == {"claude": [hide]}
     flags = {m["id"]: m["enabled"] for m in r.json()["models"]}
     assert flags[hide] is False
-    twin = client.get("/api/bridge/engine-models/claude").json()
+    twin = client.get("/api/app/engine-models/claude").json()
     assert twin["disabled"] == [hide]
 
     for bad in ("gpt", [1], None):
-        r = client.put("/api/bridge/engine-models/claude-sdk", json={"disabled": bad})
+        r = client.put("/api/app/engine-models/claude-sdk", json={"disabled": bad})
         assert r.status_code == 400, bad
     assert store["models_disabled"] == {"claude": [hide]}
 
-    r = client.put("/api/bridge/engine-models/claude-sdk", json={"disabled": []})
+    r = client.put("/api/app/engine-models/claude-sdk", json={"disabled": []})
     assert r.status_code == 200
     assert "models_disabled" not in store
 
@@ -556,7 +556,7 @@ def test_engine_auth_endpoint(client, monkeypatch, tmp_path):
     fake.chmod(0o755)
     _patch_config_store(monkeypatch, {"claude_path": str(fake)})
 
-    r = client.get("/api/bridge/engine-auth/claude-sdk")
+    r = client.get("/api/app/engine-auth/claude-sdk")
     assert r.status_code == 200
     data = r.json()
     assert data["supported"] is True
@@ -569,19 +569,19 @@ def test_engine_auth_endpoint(client, monkeypatch, tmp_path):
     fake_codex.write_text("#!/bin/sh\necho 'Not logged in' >&2\nexit 1\n")
     fake_codex.chmod(0o755)
     _patch_config_store(monkeypatch, {"codex_path": str(fake_codex)})
-    data = client.get("/api/bridge/engine-auth/codex-app-server").json()
+    data = client.get("/api/app/engine-auth/codex-app-server").json()
     assert data["logged_in"] is False
     assert data["detail"] == ""
     assert data["login_command"] == f"{fake_codex} login --device-auth"
 
     # Broken binary → probe can't run → logged_in null, login still offered
     _patch_config_store(monkeypatch, {"claude_path": "/nope/claude"})
-    data = client.get("/api/bridge/engine-auth/claude").json()
+    data = client.get("/api/app/engine-auth/claude").json()
     assert data["supported"] is True
     assert data["logged_in"] is None
     assert data["login_command"] == "/nope/claude auth login"
 
-    assert client.get("/api/bridge/engine-auth/nonexistent").status_code == 404
+    assert client.get("/api/app/engine-auth/nonexistent").status_code == 404
 
 
 def test_engine_auth_unsupported(client, monkeypatch):
@@ -589,7 +589,7 @@ def test_engine_auth_unsupported(client, monkeypatch):
     Settings panel removes the login row instead of guessing."""
     p = get_provider("claude-sdk")
     monkeypatch.setattr(p, "auth_status_args", None)
-    data = client.get("/api/bridge/engine-auth/claude-sdk").json()
+    data = client.get("/api/app/engine-auth/claude-sdk").json()
     assert data == {"provider": "claude-sdk", "supported": False}
 
 
@@ -677,7 +677,7 @@ def test_engine_defaults_get(client, monkeypatch):
     }
     _patch_config_store(monkeypatch, store)
 
-    data = client.get("/api/bridge/engine-defaults/claude-sdk").json()
+    data = client.get("/api/app/engine-defaults/claude-sdk").json()
     assert data["models_key"] == "claude"
     assert data["default_model"] == "claude-fable-5"
     assert data["default_effort"] == "max"
@@ -685,13 +685,13 @@ def test_engine_defaults_get(client, monkeypatch):
     assert data["summary_supported"] is True
     assert data["summary_model"]                       # models.yaml value
 
-    data = client.get("/api/bridge/engine-defaults/codex-app-server").json()
+    data = client.get("/api/app/engine-defaults/codex-app-server").json()
     assert data["default_effort"] == "medium"
     assert data["accounts"] == []
     assert data["token_profile"] is None
     assert data["summary_placeholder"] == "session model"
 
-    assert client.get("/api/bridge/engine-defaults/nonexistent").status_code == 404
+    assert client.get("/api/app/engine-defaults/nonexistent").status_code == 404
 
 
 def test_engine_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path):
@@ -706,7 +706,7 @@ def test_engine_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path
     store = {"default_model": ids[0], "default_effort": "max"}
     _patch_config_store(monkeypatch, store)
 
-    r = client.put("/api/bridge/engine-defaults/codex-app-server",
+    r = client.put("/api/app/engine-defaults/codex-app-server",
                    json={"default_effort": "medium"})
     assert r.status_code == 200
     # Legacy max seeds claude (in vocab) but NOT codex (caps at high);
@@ -716,20 +716,20 @@ def test_engine_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path
     assert store["default_model"] == ids[0]            # untouched — different field
 
     # Vocab validation: max is not a codex level
-    r = client.put("/api/bridge/engine-defaults/codex-app-server",
+    r = client.put("/api/app/engine-defaults/codex-app-server",
                    json={"default_effort": "max"})
     assert r.status_code == 400
 
     # Model migration: claude id seeds only the claude namespace (codex
     # catalog is empty without a models cache → can't speak it)
-    r = client.put("/api/bridge/engine-defaults/claude-sdk",
+    r = client.put("/api/app/engine-defaults/claude-sdk",
                    json={"default_model": ids[-1]})
     assert r.status_code == 200
     assert store["default_models"] == {"claude": ids[-1]}
     assert "default_model" not in store
 
     # Clearing sticks (no flat key left to resurrect the old value)
-    r = client.put("/api/bridge/engine-defaults/claude-sdk",
+    r = client.put("/api/app/engine-defaults/claude-sdk",
                    json={"default_model": None})
     assert r.status_code == 200
     assert "default_models" not in store                 # entry cleared
@@ -738,9 +738,9 @@ def test_engine_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path
     assert r.json()["default_model"] == ids[0]
 
     # Token profile guards: engine without accounts 400s; unknown profile 400s
-    assert client.put("/api/bridge/engine-defaults/codex-app-server",
+    assert client.put("/api/app/engine-defaults/codex-app-server",
                       json={"token_profile": "x"}).status_code == 400
-    assert client.put("/api/bridge/engine-defaults/claude-sdk",
+    assert client.put("/api/app/engine-defaults/claude-sdk",
                       json={"token_profile": "definitely-missing"}).status_code == 400
 
 
@@ -752,7 +752,7 @@ def test_engine_defaults_journal_model(client, monkeypatch):
     store = {}
     _patch_config_store(monkeypatch, store)
 
-    r = client.put("/api/bridge/engine-defaults/codex-app-server",
+    r = client.put("/api/app/engine-defaults/codex-app-server",
                    json={"summary_model": "gpt-5.4-mini"})
     assert r.status_code == 200
     assert store["codex_summary_model"] == "gpt-5.4-mini"
@@ -760,7 +760,7 @@ def test_engine_defaults_journal_model(client, monkeypatch):
     # Twin driver reads the same override
     assert get_provider("codex").get_summary_model_override() == "gpt-5.4-mini"
 
-    r = client.put("/api/bridge/engine-defaults/codex-app-server",
+    r = client.put("/api/app/engine-defaults/codex-app-server",
                    json={"summary_model": ""})
     assert "codex_summary_model" not in store
     assert r.json()["summary_model"] is None
@@ -771,7 +771,7 @@ def test_engine_defaults_journal_model(client, monkeypatch):
                         lambda cfg: saved.update(cfg))
     monkeypatch.setattr(bridge_paths, "get_selectable_models",
                         lambda: [{"id": "m1", "label": "M1", "desc": ""}])
-    r = client.put("/api/bridge/engine-defaults/claude-sdk",
+    r = client.put("/api/app/engine-defaults/claude-sdk",
                    json={"summary_model": "claude-haiku-9"})
     assert r.status_code == 200
     assert saved == {"selectable": [{"id": "m1", "label": "M1", "desc": ""}],
@@ -785,15 +785,15 @@ def test_legacy_default_endpoints_wrap_default_engine(client, monkeypatch):
     store = {}
     _patch_config_store(monkeypatch, store)
 
-    r = client.put("/api/bridge/default-model", json={"default_model": ids[0]})
+    r = client.put("/api/app/default-model", json={"default_model": ids[0]})
     assert r.status_code == 200
     assert store["default_models"] == {"claude": ids[0]}   # default engine = claude-sdk
-    assert client.get("/api/bridge/default-model").json()["default_model"] == ids[0]
+    assert client.get("/api/app/default-model").json()["default_model"] == ids[0]
 
-    r = client.put("/api/bridge/default-effort", json={"default_effort": "max"})
+    r = client.put("/api/app/default-effort", json={"default_effort": "max"})
     assert r.status_code == 200
     assert store["default_efforts"] == {"claude": "max"}
-    data = client.get("/api/bridge/default-effort").json()
+    data = client.get("/api/app/default-effort").json()
     assert data["default_effort"] == "max"
     assert data["valid_levels"] == ["low", "medium", "high", "xhigh", "max"]
 

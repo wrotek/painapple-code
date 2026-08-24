@@ -16,14 +16,14 @@ from painapple_code.shadow_git import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["bridge:commit-sections"])
+router = APIRouter(tags=["app:commit-sections"])
 
 
 # ═══════════════════════════════════════════════════════════════════
 # Commit Sections API
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/bridge/projects/{project_hash}/commit-sections")
+@router.get("/api/app/projects/{project_hash}/commit-sections")
 async def get_commit_sections(project_hash: str):
     """Get commit message sections configuration for a project."""
     project_path = bridge_paths.get_project_path_from_hash(project_hash)
@@ -34,7 +34,7 @@ async def get_commit_sections(project_hash: str):
     return get_commit_sections_for_api(project_config)
 
 
-@router.put("/api/bridge/projects/{project_hash}/commit-sections")
+@router.put("/api/app/projects/{project_hash}/commit-sections")
 async def update_commit_sections(project_hash: str, request: Request):
     """Update commit sections configuration for a project."""
     project_path = bridge_paths.get_project_path_from_hash(project_hash)
@@ -106,7 +106,7 @@ async def update_commit_sections(project_hash: str, request: Request):
     return get_commit_sections_for_api(project_config)
 
 
-@router.post("/api/bridge/projects/{project_hash}/commit-sections/reset")
+@router.post("/api/app/projects/{project_hash}/commit-sections/reset")
 async def reset_commit_sections(project_hash: str):
     """Reset commit sections to defaults."""
     project_path = bridge_paths.get_project_path_from_hash(project_hash)

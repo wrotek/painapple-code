@@ -931,7 +931,7 @@ class App {
      * `/login` is interactive-only, so we drop the user into a PTY where the
      * OAuth/device flow works as designed. `command` (from the auth_error
      * frame's `login_command`) wins; otherwise the active session's engine is
-     * resolved via the registry (`/api/bridge/engine-auth`), falling back to
+     * resolved via the registry (`/api/app/engine-auth`), falling back to
      * `claude auth login`.
      */
     async openLoginTerminal(command = null) {
@@ -946,7 +946,7 @@ class App {
                 const engine = this.activeSession?.provider || this.activeSession?.pendingProvider;
                 if (engine) {
                     try {
-                        const resp = await fetch(`/api/bridge/engine-auth/${encodeURIComponent(engine)}`);
+                        const resp = await fetch(`/api/app/engine-auth/${encodeURIComponent(engine)}`);
                         if (resp.ok) command = (await resp.json()).login_command || null;
                     } catch { /* fall through to the claude default */ }
                 }

@@ -2018,7 +2018,7 @@ class AgentBridge:
         """Build the `auth_error` WS frame with engine identity attached.
 
         Carries the session's own engine label + the provider-declared login
-        command (same computation as GET /api/bridge/engine-auth) so the
+        command (same computation as GET /api/app/engine-auth) so the
         client's re-login card says "Log in to Codex" and opens the right CLI
         — not a hardcoded `claude auth login`.
         """

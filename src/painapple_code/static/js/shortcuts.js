@@ -695,7 +695,7 @@ function loadUserShortcutOverrides() {
  */
 export async function fetchServerShortcuts() {
     try {
-        const resp = await fetch('/api/bridge/shortcuts');
+        const resp = await fetch('/api/app/shortcuts');
         if (!resp.ok) return null;
         const data = await resp.json();
         return data.shortcuts || {};
@@ -710,7 +710,7 @@ export async function fetchServerShortcuts() {
  * @param {Object} overrides - {id: [keys]} map
  */
 export function pushServerShortcuts(overrides) {
-    fetch('/api/bridge/shortcuts', {
+    fetch('/api/app/shortcuts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortcuts: overrides || {} }),

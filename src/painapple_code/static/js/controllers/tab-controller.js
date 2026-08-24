@@ -31,7 +31,7 @@ export class TabController {
         // Unified strip order — sessions and widget tabs interleaved.
         // Entries: {kind:'session', id, storeId?} | {kind:'widget', id}
         // Self-healing via _syncTabOrder(); persisted to localStorage and
-        // carried to the server inside the /api/bridge/tabs payload.
+        // carried to the server inside the /api/app/tabs payload.
         this.tabOrder = Storage.get(CONFIG.TAB_ORDER_KEY, []) || [];
         this._lastSavedOrderJson = null;
 
@@ -1213,7 +1213,7 @@ export class TabController {
     /**
      * Restore widget tabs — from server state when available (server wins,
      * matching session reconciliation), else from localStorage.
-     * @param {Object} [serverState] - v2 /api/bridge/tabs response
+     * @param {Object} [serverState] - v2 /api/app/tabs response
      * @returns {boolean} True if widget tabs were restored
      */
     restoreWidgetTabs(serverState = null) {

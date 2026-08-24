@@ -242,7 +242,7 @@ class QuickActionsMenu {
     async loadServerConfig() {
         try {
             // Load presets from ~/.painapple-code/presets/*.json
-            const presetsRes = await fetch('/api/bridge/presets');
+            const presetsRes = await fetch('/api/app/presets');
             if (presetsRes.ok) {
                 const presets = await presetsRes.json();
                 if (Object.keys(presets).length > 0) {
@@ -251,7 +251,7 @@ class QuickActionsMenu {
                 }
             }
             // Load user's active config (slots, options)
-            const response = await fetch('/api/bridge/config');
+            const response = await fetch('/api/app/config');
             if (response.ok) {
                 const globalConfig = await response.json();
                 if (globalConfig.quickActions) {
@@ -306,7 +306,7 @@ class QuickActionsMenu {
     async _doSaveServerConfig() {
         try {
             // Load current global config first
-            const response = await fetch('/api/bridge/config');
+            const response = await fetch('/api/app/config');
             const globalConfig = response.ok ? await response.json() : {};
 
             // Update quickActions section
@@ -317,7 +317,7 @@ class QuickActionsMenu {
             };
 
             // Save back
-            await fetch('/api/bridge/config', {
+            await fetch('/api/app/config', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(globalConfig)

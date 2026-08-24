@@ -69,13 +69,13 @@ Not exhaustive — a map of where things live, with representative routes.
 | Chat | `ws://…/chat` | Main Claude WebSocket (see [protocol](#websocket-chat-protocol)) |
 | Terminal | `ws://…/ws/terminal` | PTY WebSocket; also `GET /api/terminals`, `DELETE /api/terminal/{id}`, `GET /api/active-sessions` |
 | Sessions | `/api/sessions`, `/api/session/{id}` | CRUD, `POST /api/session/{id}/fork`, `PUT /api/session/{id}/permission-mode`, `PUT /api/session/{id}/provider`, `GET /api/session/{id}/threads` |
-| Engines | `/api/providers`, `/api/bridge/engine-*` | `GET /api/providers` (engine catalog + capabilities), `GET/PUT /api/bridge/engine-path/{name}`, `…/engine-auth/{name}`, `…/engine-models/{name}`, `…/engine-defaults/{name}`, `PUT /api/bridge/default-provider` |
+| Engines | `/api/providers`, `/api/app/engine-*` | `GET /api/providers` (engine catalog + capabilities), `GET/PUT /api/app/engine-path/{name}`, `…/engine-auth/{name}`, `…/engine-models/{name}`, `…/engine-defaults/{name}`, `PUT /api/app/default-provider` |
 | Logs | `/api/sessions/{id}/logs` | `…/logs/messages`, `…/logs/raw`, `…/logs/tools`, `GET /api/sessions/{id}/changes` |
 | Files | `/api/files`, `/api/file` | Directory listing (`GET /api/files?path=…`), `GET /api/file?path=…`, `POST /api/file/write` |
 | Search | `/api/search` | `GET /api/search?…` — project-wide content search (ripgrep, with a Python fallback) |
 | Drafts | `/api/drafts` | `GET`/`POST /api/drafts`, `PUT`/`DELETE /api/drafts/{draft_id}`, `DELETE /api/drafts` (clear all) — saved prompt drafts |
 | Git | `/api/git` | Status, diff, log, show |
-| Server | `/api/bridge` | `GET/POST /api/bridge/tabs`, `GET /api/bridge/presets`, `GET/PUT /api/bridge/config`, `GET /api/info` |
+| Server | `/api/app` | `GET/POST /api/app/tabs`, `GET /api/app/presets`, `GET/PUT /api/app/config`, `GET /api/info` |
 | Project config | `/api/project` | `GET/PUT /api/project/config`, `POST /api/project/rename` |
 | Stash | `/api/session/{id}/stash` | GET/POST/DELETE stash items; `GET /api/favorites` |
 | Welcome | `/api/welcome` | `GET /api/welcome/sessions`, `POST /api/welcome/search`, `GET /api/welcome/projects` |

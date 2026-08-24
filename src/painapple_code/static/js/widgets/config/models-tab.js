@@ -9,17 +9,17 @@
  *      (`providers-enabled` / `default-provider` config keys).
  *   2. Engine Settings — one SUB-TAB per enabled engine selecting a
  *      single unified panel: CLI path override (generic
- *      `/api/bridge/engine-path/{name}` with a live version probe), a
- *      CLI login-status row (`/api/bridge/engine-auth/{name}` with a
+ *      `/api/app/engine-path/{name}` with a live version probe), a
+ *      CLI login-status row (`/api/app/engine-auth/{name}` with a
  *      terminal-tab Log in handoff), the engine's model catalog — every
  *      row the same shape: a show/hide toggle
- *      (`/api/bridge/engine-models/{name}`, persisted per shared
+ *      (`/api/app/engine-models/{name}`, persisted per shared
  *      `models_key` so driver variants agree) and id/label/desc fields,
  *      editable when the app owns the catalog (`models_editable`,
- *      models.yaml via `/api/bridge/models`), readonly when the engine's
+ *      models.yaml via `/api/app/models`), readonly when the engine's
  *      own CLI manages the definitions (e.g. Codex's models_cache.json) —
  *      then the engine's NEW SESSION DEFAULTS (model / effort / account,
- *      `/api/bridge/engine-defaults/{name}` → per-engine config maps
+ *      `/api/app/engine-defaults/{name}` → per-engine config maps
  *      keyed by `models_key`, legacy flat keys migrate on first write)
  *      and its AUTO-JOURNAL model (same endpoint; Claude stores it in
  *      models.yaml, Codex in `codex_summary_model`, empty = inherit the
@@ -45,7 +45,7 @@ let _tab = {
     activeEngine: null,   // which engine sub-tab is selected
     engineModels: {},     // models_key → full catalog defs [{id,label,desc}]
     disabledByKey: {},    // models_key → Set(hidden ids, incl. stale extras)
-    engineDefaults: {},   // provider name → /api/bridge/engine-defaults payload
+    engineDefaults: {},   // provider name → /api/app/engine-defaults payload
 };
 
 export function setupModelsTab(container) {
@@ -65,7 +65,7 @@ async function loadAll(container) {
     try {
         const [prov, models] = await Promise.all([
             fetch('/api/providers').then(r => r.json()),
-            fetch('/api/bridge/models').then(r => r.json()),
+            fetch('/api/app/models').then(r => r.json()),
         ]);
         _adoptProviders(prov);
         _tab.selectable = models.selectable || [];
@@ -105,7 +105,7 @@ async function loadEngineModelsState() {
     }
     await Promise.all([...byKey.entries()].map(async ([key, name]) => {
         try {
-            const resp = await fetch(`/api/bridge/engine-models/${encodeURIComponent(name)}`);
+            const resp = await fetch(`/api/app/engine-models/${encodeURIComponent(name)}`);
             if (!resp.ok) return;
             const data = await resp.json();
             _adoptEngineModels(key, data);
@@ -216,7 +216,7 @@ function wireEnginesList(container) {
         const name = toggle.dataset.engine;
         const enabled = toggle.checked;
         try {
-            const resp = await fetch('/api/bridge/providers-enabled', {
+            const resp = await fetch('/api/app/providers-enabled', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ provider: name, enabled }),
@@ -241,7 +241,7 @@ function wireEnginesList(container) {
         if (!btn) return;
         btn.disabled = true;
         try {
-            const resp = await fetch('/api/bridge/default-provider', {
+            const resp = await fetch('/api/app/default-provider', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ default_provider: btn.dataset.engine }),
@@ -311,7 +311,7 @@ function renderPanelDefaultModelOptions(container, p) {
 
 async function loadEngineDefaults(root, container, name) {
     try {
-        const resp = await fetch(`/api/bridge/engine-defaults/${encodeURIComponent(name)}`);
+        const resp = await fetch(`/api/app/engine-defaults/${encodeURIComponent(name)}`);
         if (!resp.ok) return;
         if (root.dataset.engine !== name) return;   // stale — panel switched
         _tab.engineDefaults[name] = await resp.json();
@@ -352,7 +352,7 @@ function applyEngineDefaults(root, container, p) {
 async function saveEngineDefaults(container, p, patch) {
     const root = container.querySelector('#engine-panel');
     try {
-        const resp = await fetch(`/api/bridge/engine-defaults/${encodeURIComponent(p.name)}`, {
+        const resp = await fetch(`/api/app/engine-defaults/${encodeURIComponent(p.name)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(patch),
@@ -496,11 +496,11 @@ function renderEnginePanel(container) {
     loadEngineDefaults(root, container, p.name);
 }
 
-// --- CLI path (generic /api/bridge/engine-path/{name}) -----------------
+// --- CLI path (generic /api/app/engine-path/{name}) -----------------
 
 async function loadEnginePath(root, name) {
     try {
-        const resp = await fetch(`/api/bridge/engine-path/${encodeURIComponent(name)}`);
+        const resp = await fetch(`/api/app/engine-path/${encodeURIComponent(name)}`);
         if (!resp.ok) return;
         // The probe takes up to 5s — drop the reply if the user has
         // switched the panel to another engine meanwhile.
@@ -531,7 +531,7 @@ async function saveEnginePath(container, root, path) {
     const versionEl = root.querySelector('[data-role="version"]');
     try {
         if (saveBtn) saveBtn.disabled = true;
-        const resp = await fetch(`/api/bridge/engine-path/${encodeURIComponent(name)}`, {
+        const resp = await fetch(`/api/app/engine-path/${encodeURIComponent(name)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: path || null }),
@@ -557,11 +557,11 @@ async function saveEnginePath(container, root, path) {
     }
 }
 
-// --- CLI login status (generic /api/bridge/engine-auth/{name}) ----------
+// --- CLI login status (generic /api/app/engine-auth/{name}) ----------
 
 async function loadEngineAuth(root, name) {
     try {
-        const resp = await fetch(`/api/bridge/engine-auth/${encodeURIComponent(name)}`);
+        const resp = await fetch(`/api/app/engine-auth/${encodeURIComponent(name)}`);
         if (!resp.ok) return;
         // The probe shells out to the CLI — drop the reply if the user has
         // switched the panel to another engine meanwhile.
@@ -620,7 +620,7 @@ function startAuthPoll(root, name) {
             return;
         }
         try {
-            const resp = await fetch(`/api/bridge/engine-auth/${encodeURIComponent(name)}`);
+            const resp = await fetch(`/api/app/engine-auth/${encodeURIComponent(name)}`);
             if (!resp.ok) return;
             const data = await resp.json();
             if (root.isConnected && root.dataset.engine === name) {
@@ -694,7 +694,7 @@ async function saveModelVisibility(container, p, toggleEl) {
     toggleEl.closest('.models-row')?.classList.toggle('model-off', !toggleEl.checked);
     renderPanelDefaultModelOptions(container, p);
     try {
-        const resp = await fetch(`/api/bridge/engine-models/${encodeURIComponent(p.name)}`, {
+        const resp = await fetch(`/api/app/engine-models/${encodeURIComponent(p.name)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ disabled: [...set] }),
@@ -837,7 +837,7 @@ function wireEnginePanel(container) {
             resetBtn.classList.remove('armed');
             resetBtn.textContent = S.settings.hints.models_reset_button;
             try {
-                const response = await fetch('/api/bridge/models/reset', { method: 'POST' });
+                const response = await fetch('/api/app/models/reset', { method: 'POST' });
                 if (!response.ok) {
                     const err = await response.json().catch(() => ({}));
                     showToast(`Reset failed: ${err.detail || 'unknown error'}`);
@@ -954,7 +954,7 @@ function wireAutoJournalLink(container) {
 
 async function saveModelsConfig() {
     try {
-        const response = await fetch('/api/bridge/models', {
+        const response = await fetch('/api/app/models', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

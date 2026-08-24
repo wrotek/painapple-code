@@ -1199,7 +1199,7 @@ export function syncCustomActions(defs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Presets — loaded from server (/api/bridge/presets → ~/.painapple-code/presets/)
+// Presets — loaded from server (/api/app/presets → ~/.painapple-code/presets/)
 // Source of truth: presets.defaults.json (ships with project, seeds user dir)
 // ─────────────────────────────────────────────────────────────────────────────
 

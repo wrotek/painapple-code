@@ -972,7 +972,7 @@ function attachConfigEventHandlers(container) {
     // Permission level select (loaded from server API)
     const permSelect = container.querySelector('#default-permission-level');
     if (permSelect) {
-        fetch(`${CONFIG.API_BASE || ''}/api/bridge/default-permissions`)
+        fetch(`${CONFIG.API_BASE || ''}/api/app/default-permissions`)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (!data) return;
@@ -986,7 +986,7 @@ function attachConfigEventHandlers(container) {
             })
             .catch(() => {});
         permSelect.addEventListener('change', (e) => {
-            fetch(`${CONFIG.API_BASE || ''}/api/bridge/default-permissions`, {
+            fetch(`${CONFIG.API_BASE || ''}/api/app/default-permissions`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ permission_level: e.target.value })

@@ -4,7 +4,7 @@
  * Single panel for the auto-journal feature. Surfaces:
  *  - feature explanation (so users discover what it does)
  *  - per-project toggles (shadow git, rich commits) via PATCH /api/project/config
- *  - helper file install / update / uninstall via /api/bridge/helpers/{install,uninstall}
+ *  - helper file install / update / uninstall via /api/app/helpers/{install,uninstall}
  *  - "Open Journal" shortcut to the history-explorer widget
  *  - link to system-settings defaults
  *
@@ -26,7 +26,7 @@ function subModel(s) {
 const DISMISS_KEY = 'helpers_install_dismissed';
 
 async function fetchStatus() {
-    const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/helpers/status`);
+    const resp = await fetch(`${CONFIG.API_BASE}/api/app/helpers/status`);
     if (!resp.ok) throw new Error(`status ${resp.status}`);
     return resp.json();
 }
@@ -70,13 +70,13 @@ async function saveGlobalDefaults(updates) {
 }
 
 async function fetchCommitSections(hash) {
-    const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/projects/${hash}/commit-sections`);
+    const resp = await fetch(`${CONFIG.API_BASE}/api/app/projects/${hash}/commit-sections`);
     if (!resp.ok) throw new Error(`commit-sections ${resp.status}`);
     return resp.json();
 }
 
 async function saveCommitSections(hash, sections) {
-    const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/projects/${hash}/commit-sections`, {
+    const resp = await fetch(`${CONFIG.API_BASE}/api/app/projects/${hash}/commit-sections`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sections }),
@@ -86,21 +86,21 @@ async function saveCommitSections(hash, sections) {
 }
 
 async function runInstall() {
-    const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/helpers/install`, {
+    const resp = await fetch(`${CONFIG.API_BASE}/api/app/helpers/install`, {
         method: 'POST',
     });
     return resp.json();
 }
 
 async function runUninstall() {
-    const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/helpers/uninstall`, {
+    const resp = await fetch(`${CONFIG.API_BASE}/api/app/helpers/uninstall`, {
         method: 'POST',
     });
     return resp.json();
 }
 
 async function setAgentModel(model) {
-    const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/helpers/agent-model`, {
+    const resp = await fetch(`${CONFIG.API_BASE}/api/app/helpers/agent-model`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model }),

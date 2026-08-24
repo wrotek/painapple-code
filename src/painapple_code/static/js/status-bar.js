@@ -7,7 +7,7 @@ import { CONFIG } from './config.js';
 import S from './strings.js';
 import { showToast } from './context-menu.js';
 
-// Models loaded from server (GET /api/bridge/models)
+// Models loaded from server (GET /api/app/models)
 let MODELS = [];
 let SUMMARY_MODEL_ID = '';
 let _modelsLoaded = false;
@@ -77,7 +77,7 @@ function engineCatalog(engine) {
 async function ensureModelsLoaded() {
     if (_modelsLoaded) return;
     try {
-        const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/models`);
+        const resp = await fetch(`${CONFIG.API_BASE}/api/app/models`);
         if (resp.ok) {
             const data = await resp.json();
             MODELS = data.selectable || [];
@@ -477,8 +477,8 @@ export class StatusBar {
             // endpoint otherwise).
             try {
                 const url = seedEngineName
-                    ? `${CONFIG.API_BASE}/api/bridge/engine-defaults/${encodeURIComponent(seedEngineName)}`
-                    : `${CONFIG.API_BASE}/api/bridge/default-model`;
+                    ? `${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(seedEngineName)}`
+                    : `${CONFIG.API_BASE}/api/app/default-model`;
                 const gr = await fetch(url);
                 if (this.currentSessionId !== sessionId) return;
                 if (gr.ok) {
@@ -1096,7 +1096,7 @@ export class StatusBar {
         if (!name) return;
         this._closeEnginePopup();
         try {
-            const resp = await fetch(`${CONFIG.API_BASE}/api/bridge/default-provider`, {
+            const resp = await fetch(`${CONFIG.API_BASE}/api/app/default-provider`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ default_provider: name }),
@@ -1148,7 +1148,7 @@ export class StatusBar {
             const name = engineName || this._activeEngine()?.name || PROVIDERS_INFO?.default;
             const key = engineInfo(name)?.models_key || name;
             if (key) this._defaultModelByEngine[key] = modelId;
-            await fetch(`${CONFIG.API_BASE}/api/bridge/engine-defaults/${encodeURIComponent(name)}`, {
+            await fetch(`${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(name)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ default_model: modelId }),

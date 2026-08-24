@@ -283,7 +283,7 @@ async def cli_command_descriptions() -> dict[str, str]:
     it. (The `strings` subprocess it replaced was slower in wall-clock but
     released the GIL, so it never had this effect.) Same
     `asyncio.to_thread` shape as the `--version` probe in
-    api_bridge_config.
+    api_app_config.
 
     The `functools.lru_cache` underneath means only the first call pays;
     concurrent first calls can duplicate the work, which costs CPU but not

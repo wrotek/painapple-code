@@ -1,6 +1,6 @@
 /**
  * Bridge-side system controls — API auto-retry max, SIGINT-on-ask. Each is
- * its own GET-on-load, save-on-change pair against `/api/bridge/*`.
+ * its own GET-on-load, save-on-change pair against `/api/app/*`.
  *
  * Grouped here because the patterns are nearly identical (small `setupX`
  * function that wires inputs to API calls), but each panel is otherwise
@@ -18,7 +18,7 @@ export function setupApiRetryControls(container) {
     if (!input) return;
 
     // Load current value from bridge config
-    fetch('/api/bridge/api-retry-max')
+    fetch('/api/app/api-retry-max')
         .then(r => r.ok ? r.json() : null)
         .then(data => {
             if (data) input.value = data.api_retry_max;
@@ -30,7 +30,7 @@ export function setupApiRetryControls(container) {
         const value = parseInt(e.target.value, 10);
         if (value >= 0 && value <= 10) {
             try {
-                const resp = await fetch('/api/bridge/api-retry-max', {
+                const resp = await fetch('/api/app/api-retry-max', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ api_retry_max: value })
@@ -57,7 +57,7 @@ export function setupSigintOnAskControls(container) {
     if (!checkbox) return;
 
     // Load current value from bridge config
-    fetch('/api/bridge/sigint-on-ask')
+    fetch('/api/app/sigint-on-ask')
         .then(r => r.ok ? r.json() : null)
         .then(data => {
             if (data) checkbox.checked = !!data.sigint_on_ask;
@@ -68,7 +68,7 @@ export function setupSigintOnAskControls(container) {
     checkbox.addEventListener('change', async () => {
         const value = checkbox.checked;
         try {
-            const resp = await fetch('/api/bridge/sigint-on-ask', {
+            const resp = await fetch('/api/app/sigint-on-ask', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sigint_on_ask: value }),

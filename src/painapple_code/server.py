@@ -112,7 +112,7 @@ async def lifespan(app: FastAPI):
     # An editable checkout can be fast-forwarded mid-run (deploy.fish does
     # exactly that), and only a snapshot taken here still describes the code
     # this process actually imported.
-    from painapple_code.routes.api_bridge import capture_boot_version
+    from painapple_code.routes.api_app import capture_boot_version
     capture_boot_version()
 
     # `git` is a hard requirement, not an optional extra: the auto-journal
@@ -599,10 +599,10 @@ from painapple_code.routes.api_costs import router as costs_router
 from painapple_code.routes.api_files import router as files_router
 from painapple_code.routes.api_search import router as search_router
 from painapple_code.routes.api_git import router as git_router
-from painapple_code.routes.api_bridge import router as bridge_router
-from painapple_code.routes.api_bridge_config import router as bridge_config_router
-from painapple_code.routes.api_bridge_session_prefs import router as bridge_session_prefs_router
-from painapple_code.routes.api_bridge_commit_sections import router as bridge_commit_sections_router
+from painapple_code.routes.api_app import router as app_router
+from painapple_code.routes.api_app_config import router as app_config_router
+from painapple_code.routes.api_app_session_prefs import router as app_session_prefs_router
+from painapple_code.routes.api_app_commit_sections import router as app_commit_sections_router
 from painapple_code.routes.api_project_config import router as project_config_router
 from painapple_code.routes.api_sessions import router as sessions_router
 from painapple_code.routes.api_session_stash import router as session_stash_router
@@ -654,10 +654,10 @@ app.include_router(costs_router)
 app.include_router(files_router)
 app.include_router(search_router)
 app.include_router(git_router)
-app.include_router(bridge_router)
-app.include_router(bridge_config_router)
-app.include_router(bridge_session_prefs_router)
-app.include_router(bridge_commit_sections_router)
+app.include_router(app_router)
+app.include_router(app_config_router)
+app.include_router(app_session_prefs_router)
+app.include_router(app_commit_sections_router)
 app.include_router(project_config_router)
 app.include_router(sessions_router)
 app.include_router(session_stash_router)

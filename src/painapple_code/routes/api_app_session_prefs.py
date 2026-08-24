@@ -20,7 +20,7 @@ from painapple_code import bridge_paths
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["bridge:session-prefs"])
+router = APIRouter(tags=["app:session-prefs"])
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -32,7 +32,7 @@ router = APIRouter(tags=["bridge:session-prefs"])
 # constant would capture the un-suffixed path and silently defeat tier isolation.
 
 
-@router.get("/api/bridge/tabs")
+@router.get("/api/app/tabs")
 async def get_tab_state():
     """Return the last-saved tab state (list of open sessions + active session)."""
     tab_state_file = bridge_paths.get_tab_state_path()
@@ -54,7 +54,7 @@ class TabStatePayload(BaseModel):
     activeTab: Optional[Dict] = None          # {kind:'session', storeId} | {kind:'widget', id}
 
 
-@router.post("/api/bridge/tabs")
+@router.post("/api/app/tabs")
 async def save_tab_state(payload: TabStatePayload):
     """Persist current tab state to disk (called by client on every structural change)."""
     from datetime import datetime, timezone
@@ -87,7 +87,7 @@ async def save_tab_state(payload: TabStatePayload):
 # Resolved per-call (see the tab-state note above) so --state-suffix applies.
 
 
-@router.get("/api/bridge/shortcuts")
+@router.get("/api/app/shortcuts")
 async def get_shortcut_overrides():
     """Return saved keyboard-shortcut overrides ({id: [keys]})."""
     shortcuts_file = bridge_paths.get_shortcuts_path()
@@ -103,7 +103,7 @@ class ShortcutsPayload(BaseModel):
     shortcuts: Dict[str, List[str]]
 
 
-@router.post("/api/bridge/shortcuts")
+@router.post("/api/app/shortcuts")
 async def save_shortcut_overrides(payload: ShortcutsPayload):
     """Persist keyboard-shortcut overrides to disk."""
     from datetime import datetime, timezone

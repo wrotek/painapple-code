@@ -207,7 +207,7 @@ class Provider(ABC):
     default_enabled: bool = True
     # Global-config key holding a user override for `binary()` (e.g.
     # "claude_path"), and the bare command it falls back to when unset.
-    # Drives the generic Settings "CLI path" row + /api/bridge/engine-path
+    # Drives the generic Settings "CLI path" row + /api/app/engine-path
     # endpoint; None → this engine has no path setting (row hidden).
     # Same-engine driver variants share one key (both Claude drivers run the
     # same binary), so the setting edits the engine, not the driver.
@@ -234,7 +234,7 @@ class Provider(ABC):
     models_key: Optional[str] = None
     # CLI login surface (Settings → Engines auth row). `auth_status_args` are
     # appended to the resolved binary for a fast non-interactive login-status
-    # probe (drives GET /api/bridge/engine-auth/{name}); None → the engine
+    # probe (drives GET /api/app/engine-auth/{name}); None → the engine
     # shows no login row. `auth_login_args` is the CLI's own interactive
     # login flow — the client runs it in a PTY terminal tab, so pick a
     # variant whose prompts survive a remote box (device-code flows beat

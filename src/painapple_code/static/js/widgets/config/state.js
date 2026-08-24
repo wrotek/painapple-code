@@ -271,7 +271,7 @@ class ConfigState {
         }
 
         try {
-            const response = await fetch(`${CONFIG.API_BASE}/api/bridge/projects/${hash}/commit-sections`);
+            const response = await fetch(`${CONFIG.API_BASE}/api/app/projects/${hash}/commit-sections`);
             if (response.ok) {
                 this.commitSections = await response.json();
             }
@@ -289,7 +289,7 @@ class ConfigState {
         if (!hash) return;
 
         try {
-            const response = await fetch(`${CONFIG.API_BASE}/api/bridge/projects/${hash}/commit-sections`, {
+            const response = await fetch(`${CONFIG.API_BASE}/api/app/projects/${hash}/commit-sections`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sections: sectionsUpdate })
@@ -312,7 +312,7 @@ class ConfigState {
         if (!hash) return;
 
         try {
-            const response = await fetch(`${CONFIG.API_BASE}/api/bridge/projects/${hash}/commit-sections/reset`, {
+            const response = await fetch(`${CONFIG.API_BASE}/api/app/projects/${hash}/commit-sections/reset`, {
                 method: 'POST'
             });
             if (response.ok) {
@@ -327,7 +327,7 @@ class ConfigState {
 
     async loadGlobalExtraDirs() {
         try {
-            const response = await fetch(`${CONFIG.API_BASE}/api/bridge/config`);
+            const response = await fetch(`${CONFIG.API_BASE}/api/app/config`);
             if (response.ok) {
                 const config = await response.json();
                 this.globalExtraDirs = config.extra_dirs || [];
@@ -339,10 +339,10 @@ class ConfigState {
 
     async saveGlobalExtraDirs(dirs) {
         try {
-            const response = await fetch(`${CONFIG.API_BASE}/api/bridge/config`);
+            const response = await fetch(`${CONFIG.API_BASE}/api/app/config`);
             const config = response.ok ? await response.json() : {};
             config.extra_dirs = dirs;
-            const saveResponse = await fetch(`${CONFIG.API_BASE}/api/bridge/config`, {
+            const saveResponse = await fetch(`${CONFIG.API_BASE}/api/app/config`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(config)

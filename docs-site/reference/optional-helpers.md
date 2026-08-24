@@ -34,7 +34,7 @@ All targets are user-scoped: no `sudo`, no `$PATH` edits, no shell-rc changes. T
 
 ### From the UI
 
-The status bar **always** shows an auto-journal pill, so the feature stays discoverable — it just changes label to report state: *Auto-journal* when everything is current, *Helpers outdated*, or *Helpers not installed*. Click it to open the **helpers-install widget** (the auto-journal control center). It shows per-file install/freshness state, installs or updates all three with one click (`POST /api/bridge/helpers/install`), and also holds the per-project journal toggles.
+The status bar **always** shows an auto-journal pill, so the feature stays discoverable — it just changes label to report state: *Auto-journal* when everything is current, *Helpers outdated*, or *Helpers not installed*. Click it to open the **helpers-install widget** (the auto-journal control center). It shows per-file install/freshness state, installs or updates all three with one click (`POST /api/app/helpers/install`), and also holds the per-project journal toggles.
 
 What *is* conditional is the widget opening by itself: it auto-pops when anything is outdated (always) or missing (unless you've ticked "Don't show again"), and never when everything is current.
 
@@ -55,7 +55,7 @@ src/painapple_code/tools/install-helpers.sh --help      # usage (-h works too)
 
 All three scripts take `--help` / `-h`; `shadow-git` also answers a bare `shadow-git help`.
 
-The server tracks freshness by content hash (`GET /api/bridge/helpers/status`), so after an upgrade the UI pill reappears when the installed copies are stale.
+The server tracks freshness by content hash (`GET /api/app/helpers/status`), so after an upgrade the UI pill reappears when the installed copies are stale.
 
 ## `shadow-git`
 

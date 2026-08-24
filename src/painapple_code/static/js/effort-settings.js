@@ -256,8 +256,8 @@ class EffortSettingsManager {
         const s = window.app?.activeSession;
         const engine = s?.provider || s?.pendingProvider || null;
         const url = engine
-            ? `${CONFIG.API_BASE}/api/bridge/engine-defaults/${encodeURIComponent(engine)}`
-            : `${CONFIG.API_BASE}/api/bridge/default-effort`;
+            ? `${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(engine)}`
+            : `${CONFIG.API_BASE}/api/app/default-effort`;
         try {
             const response = await fetch(url, {
                 method: 'PUT',
@@ -280,7 +280,7 @@ class EffortSettingsManager {
      */
     async loadGlobalDefault() {
         try {
-            const response = await fetch(`${CONFIG.API_BASE}/api/bridge/default-effort`);
+            const response = await fetch(`${CONFIG.API_BASE}/api/app/default-effort`);
             if (response.ok) {
                 const data = await response.json();
                 this.globalDefault = data.default_effort || 'high';
