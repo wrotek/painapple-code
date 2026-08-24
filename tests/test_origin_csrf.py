@@ -238,40 +238,56 @@ def test_login_rate_limited_after_max_failures(app):
 
 
 # ---------------------------------------------------------------------------
-# Legacy BRIDGE_* env-var fallback
+# Obsolete BRIDGE_* env vars
 # ---------------------------------------------------------------------------
 
-def test_legacy_allowed_origins_env_still_honoured(monkeypatch):
-    """A deployment still setting BRIDGE_ALLOWED_ORIGINS keeps its allowlist.
+def test_obsolete_origins_env_is_not_honoured(monkeypatch):
+    """The pre-rename spelling carries no configuration authority.
 
-    Honouring only the new name would not fail *open* — an empty allowlist
-    is stricter — but it would silently lock a working deployment out of
-    its own origins on upgrade.
+    It fails *closed* — an empty allowlist is stricter, not looser — so the
+    risk being guarded here is a silently dropped config, not an opening.
     """
     from painapple_code.server import resolve_allowed_origins
     monkeypatch.delenv("PAINAPPLE_ALLOWED_ORIGINS", raising=False)
     monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", "https://legacy.example.com")
-    assert "https://legacy.example.com" in resolve_allowed_origins(port=8765)
+    assert "https://legacy.example.com" not in resolve_allowed_origins(port=8765)
 
 
-def test_new_allowed_origins_env_wins_over_legacy(monkeypatch):
-    from painapple_code.server import resolve_allowed_origins
-    monkeypatch.setenv("PAINAPPLE_ALLOWED_ORIGINS", "https://new.example.com")
-    monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", "https://legacy.example.com")
-    assert resolve_allowed_origins(port=8765) == {"https://new.example.com"}
-
-
-def test_legacy_allowed_hosts_env_still_honoured(monkeypatch):
+def test_obsolete_hosts_env_is_not_honoured(monkeypatch):
     from painapple_code.server import resolve_allowed_hosts
-    monkeypatch.delenv("PAINAPPLE_ALLOWED_HOSTS", raising=False)
-    monkeypatch.delenv("PAINAPPLE_ALLOWED_ORIGINS", raising=False)
-    monkeypatch.delenv("BRIDGE_ALLOWED_ORIGINS", raising=False)
+    for n in ("PAINAPPLE_ALLOWED_HOSTS", "PAINAPPLE_ALLOWED_ORIGINS",
+              "BRIDGE_ALLOWED_ORIGINS"):
+        monkeypatch.delenv(n, raising=False)
     monkeypatch.setenv("BRIDGE_ALLOWED_HOSTS", "host.example.com")
+    assert resolve_allowed_hosts() == ["*"]
+
+
+def test_obsolete_env_is_reported_not_swallowed(monkeypatch):
+    """Set-but-ignored obsolete vars are named in the log.
+
+    Dropping a deployment's origin config with no explanation is its own
+    failure mode, so presence is surfaced even though it is not honoured.
+    """
+    from painapple_code.server import OBSOLETE_ENV_VARS, warn_obsolete_env
+    for n in OBSOLETE_ENV_VARS:
+        monkeypatch.delenv(n, raising=False)
+    assert warn_obsolete_env() == []
+    monkeypatch.setenv("BRIDGE_ALLOWED_ORIGINS", "https://legacy.example.com")
+    monkeypatch.setenv("BRIDGE_URL", "http://old:1")
+    assert set(warn_obsolete_env()) == {"BRIDGE_ALLOWED_ORIGINS", "BRIDGE_URL"}
+
+
+def test_new_env_names_still_work(monkeypatch):
+    from painapple_code.server import resolve_allowed_hosts, resolve_allowed_origins
+    monkeypatch.setenv("PAINAPPLE_ALLOWED_ORIGINS", "https://new.example.com")
+    assert resolve_allowed_origins(port=8765) == {"https://new.example.com"}
+    monkeypatch.delenv("PAINAPPLE_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.setenv("PAINAPPLE_ALLOWED_HOSTS", "host.example.com")
     assert "host.example.com" in resolve_allowed_hosts()
 
 
 def test_no_origin_env_leaves_defaults_untouched(monkeypatch):
-    """Neither spelling set -> derived loopback pair, host check off."""
+    """Nothing set -> derived loopback pair, host check off."""
     from painapple_code.server import resolve_allowed_hosts, resolve_allowed_origins
     for n in ("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS",
               "PAINAPPLE_ALLOWED_HOSTS", "BRIDGE_ALLOWED_HOSTS"):

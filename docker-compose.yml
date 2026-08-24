@@ -17,7 +17,7 @@ services:
       # Loopback-only by default so a plain `docker compose up` isn't exposed on
       # the LAN. To expose deliberately, drop the 127.0.0.1 prefix — but put a
       # reverse proxy with TLS in front first (the bridge is a remote shell).
-      - "127.0.0.1:${PAINAPPLE_HOST_PORT:-${BRIDGE_PORT:-8765}}:8765"
+      - "127.0.0.1:${PAINAPPLE_HOST_PORT:-8765}:8765"
     volumes:
       # Bridge state: sessions, logs, shadow DBs, project metadata.
       # Mountpoint matches PAINAPPLE_CODE_HOME=/data set in the Dockerfile.

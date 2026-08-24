@@ -26,10 +26,6 @@
 #                    Dev:  PAINAPPLE_URL=http://localhost:8880 shadow-query '...'
 #   PAINAPPLE_TOKEN  API token override; otherwise read from config.yaml.
 #
-#   The pre-rename spellings BRIDGE_URL, BRIDGE_TOKEN and BRIDGE_PASSWORD
-#   are still accepted, in that order of preference, and will be removed
-#   in a future release.
-#
 # Auth:
 #   Reads `api_token:` from ~/.config/painapple-code/config.yaml when
 #   PAINAPPLE_TOKEN is unset. That token is derived from the password and
@@ -89,19 +85,11 @@ if [ -z "$sql" ]; then
     exit 2
 fi
 
-base_url="${PAINAPPLE_URL:-${BRIDGE_URL:-$DEFAULT_URL}}"
+base_url="${PAINAPPLE_URL:-$DEFAULT_URL}"
 base_url="${base_url%/}"
 
 if [ -n "${PAINAPPLE_TOKEN:-}" ]; then
     token="$PAINAPPLE_TOKEN"
-elif [ -n "${BRIDGE_TOKEN:-}" ]; then
-    # Pre-rename spelling, still honoured.
-    token="$BRIDGE_TOKEN"
-elif [ -n "${BRIDGE_PASSWORD:-}" ]; then
-    # Deprecated spelling. The value it wants is the api_token, not the
-    # password — the server stopped accepting the password as a Bearer
-    # credential, so a literal password here will 401.
-    token="$BRIDGE_PASSWORD"
 elif [ -r "$CONFIG_FILE" ]; then
     token="$(awk '/^api_token:/ {print $2; exit}' "$CONFIG_FILE" 2>/dev/null || true)"
     if [ -z "$token" ]; then

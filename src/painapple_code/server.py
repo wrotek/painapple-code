@@ -458,25 +458,37 @@ app.add_middleware(AccessLogMiddleware, logger=access_logger)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(StaticCacheMiddleware)
 app.add_middleware(AuthMiddleware)
-def _env_with_legacy(name: str, legacy: str) -> str:
-    """Read ``name``, falling back to the pre-rename ``legacy`` spelling.
+# Env vars renamed off the old "bridge" codename. The old spellings are not
+# read anywhere; they live here only so a stale deployment unit gets told.
+OBSOLETE_ENV_VARS = {
+    "BRIDGE_ALLOWED_ORIGINS": "PAINAPPLE_ALLOWED_ORIGINS",
+    "BRIDGE_ALLOWED_HOSTS": "PAINAPPLE_ALLOWED_HOSTS",
+    "BRIDGE_URL": "PAINAPPLE_URL",
+    "BRIDGE_TOKEN": "PAINAPPLE_TOKEN",
+    "BRIDGE_PASSWORD": "PAINAPPLE_TOKEN",
+    "BRIDGE_PORT": "PAINAPPLE_HOST_PORT",
+}
 
-    The BRIDGE_* names shipped for months and appear in real deployment
-    units, so they must keep working. Honouring only the new name would not
-    fail open — an empty allowlist is *stricter* — but it would silently
-    lock a working deployment out of its own origins on upgrade, which is
-    just as bad an outcome to debug. Warn loudly, keep serving.
+
+def warn_obsolete_env() -> list:
+    """Report obsolete BRIDGE_* env vars that are set, and are being ignored.
+
+    The old spellings are NOT read. Silently ignoring one would not fail
+    open — an empty origin allowlist is *stricter*, not looser — but it
+    would drop a deployment's config with no explanation, which is its own
+    kind of bad afternoon. So presence is surfaced, never honoured.
+
+    Returns the obsolete names that were found, for tests.
     """
-    value = os.environ.get(name, "").strip()
-    if value:
-        return value
-    value = os.environ.get(legacy, "").strip()
-    if value:
+    found = [
+        (old, new) for old, new in OBSOLETE_ENV_VARS.items()
+        if os.environ.get(old, "").strip()
+    ]
+    for old, new in found:
         logging.getLogger("painapple-code").warning(
-            "%s is deprecated and will be removed in a future release; rename it to %s",
-            legacy, name,
+            "%s is set but is no longer read — rename it to %s", old, new,
         )
-    return value
+    return [old for old, _ in found]
 
 
 def _loopback_origins(port) -> set:
@@ -508,7 +520,7 @@ def resolve_allowed_origins(public_origins=(), port=None) -> set:
     the browser may well sit on the same machine as the bridge.
     """
     origins = set()
-    env = _env_with_legacy("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS")
+    env = os.environ.get("PAINAPPLE_ALLOWED_ORIGINS", "").strip()
     if env:
         origins.update(o.strip() for o in env.split(",") if o.strip())
     origins.update(o for o in (public_origins or ()) if o)
@@ -530,10 +542,10 @@ def resolve_allowed_hosts() -> list:
     """
     from urllib.parse import urlparse
     hosts = set()
-    env_hosts = _env_with_legacy("PAINAPPLE_ALLOWED_HOSTS", "BRIDGE_ALLOWED_HOSTS")
+    env_hosts = os.environ.get("PAINAPPLE_ALLOWED_HOSTS", "").strip()
     if env_hosts:
         hosts.update(h.strip() for h in env_hosts.split(",") if h.strip())
-    origins_env = _env_with_legacy("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS")
+    origins_env = os.environ.get("PAINAPPLE_ALLOWED_ORIGINS", "").strip()
     if origins_env:
         for o in origins_env.split(","):
             h = urlparse(o.strip()).hostname
@@ -1939,6 +1951,10 @@ def main(argv=None):
     if args.log_dir:
         logger.info(f"Logging redirected to {log_dir}")
 
+    # Surface obsolete BRIDGE_* env vars now that logging exists — they are
+    # ignored, and a silently-dropped origin allowlist is hard to diagnose.
+    warn_obsolete_env()
+
     if serve_defaults:
         logger.info(f"Serve defaults from {active_config_path()}: "
                     f"{', '.join(serve_defaults)} (explicit flags override)")
@@ -1993,7 +2009,7 @@ def main(argv=None):
     # Resolve the trusted-origin set now that port/--public-origin are known.
     # The HTTP + WebSocket Origin checks read this.
     _configured_origins = bool(
-        args.public_origin or _env_with_legacy("PAINAPPLE_ALLOWED_ORIGINS", "BRIDGE_ALLOWED_ORIGINS")
+        args.public_origin or os.environ.get("PAINAPPLE_ALLOWED_ORIGINS", "").strip()
     )
     app.state.allowed_origins = resolve_allowed_origins(
         public_origins=args.public_origin or (),

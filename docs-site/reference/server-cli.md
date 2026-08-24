@@ -124,7 +124,7 @@ user that can only touch what you're willing to expose.
 | `PAINAPPLE_IN_CONTAINER` | Set to `1` inside the official image. Gates the filesystem probes that distinguish Docker from Podman for the login page's environment detection — never set this on a bare-metal host. |
 
 !!! note "Renamed from `BRIDGE_*`"
-    `PAINAPPLE_ALLOWED_ORIGINS` and `PAINAPPLE_ALLOWED_HOSTS` were previously `BRIDGE_ALLOWED_ORIGINS` and `BRIDGE_ALLOWED_HOSTS`. The old names are still read — the server logs a deprecation warning and keeps working — and will be removed in a future release. The `shadow-query` helper's `BRIDGE_URL`/`BRIDGE_TOKEN` are handled the same way.
+    `PAINAPPLE_ALLOWED_ORIGINS` and `PAINAPPLE_ALLOWED_HOSTS` were previously `BRIDGE_ALLOWED_ORIGINS` and `BRIDGE_ALLOWED_HOSTS`, and `shadow-query` took `BRIDGE_URL`/`BRIDGE_TOKEN`. The old names are **no longer read**. If one is still set, the server logs `… is set but is no longer read` at startup naming its replacement — it is never silently honoured, and never silently swallowed.
 
 !!! warning "One-time credential rotation on upgrade"
     The auth cookie was renamed `bridge_auth` → `painapple_auth` **and** the HMAC domain separators behind every derived credential were renamed off the old codename. That is a deliberate rotation, so on the first start after upgrading:
