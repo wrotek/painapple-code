@@ -9,8 +9,8 @@ Simple code-server-style password authentication:
 - Three auth paths: cookie, ?tkn= query param, Authorization: Bearer header
 - NO request path accepts the password. Every credential is HMAC-derived from
   it, domain-separated, and independently revocable via its own epoch:
-      cookie    <- HMAC(password, "bridge-cookie-v1:<cookie_epoch>")
-      Bearer    <- HMAC(password, "bridge-api-v1:<bearer_epoch>")   [api_token]
+      cookie    <- HMAC(password, "painapple-cookie-v1:<cookie_epoch>")
+      Bearer    <- HMAC(password, "painapple-api-v1:<bearer_epoch>")  [api_token]
       ?tkn=     <- the same api_token
   So a leaked CI secret or bootstrap link is not the master credential: it
   cannot open the login form, and bumping bearer_epoch kills it without
@@ -46,27 +46,22 @@ from painapple_code.bridge_paths import lock_mode
 
 
 COOKIE_NAME = "painapple_auth"
-
-# Pre-rename cookie name. Read-only: a browser holding one still
-# authenticates (the cookie *value* derivation is unchanged, so old values
-# stay valid) and every logout path clears it alongside the current name.
-# Never written. Remove at the next major version.
-LEGACY_COOKIE_NAMES = ("bridge_auth",)
-
-# Every name a credential cookie can arrive under, newest first.
-ALL_COOKIE_NAMES = (COOKIE_NAME, *LEGACY_COOKIE_NAMES)
-
 COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
 
-# Domain separators for the key derivation. These deliberately keep the old
-# "bridge-" prefix: they are opaque HMAC inputs that no user ever sees, and
-# changing one silently re-derives the credential it protects. For the API
-# token that is a real break — api_token is *stored* in config.yaml and
-# rewritten by sync_derived_config() when stale, so a new info string would
-# rotate it out from under every saved script and ?tkn= link, with nothing
-# visible gained. Rename only at a major version, as a deliberate rotation.
-COOKIE_DERIVATION_INFO = b"bridge-cookie-v1"
-API_TOKEN_DERIVATION_INFO = b"bridge-api-v1"
+# Domain separators for the key derivation. Opaque HMAC inputs — no user ever
+# sees these, but they are part of the credential's identity: changing one
+# re-derives everything it protects. Renaming them off the old "bridge-"
+# codename was therefore a deliberate, one-time rotation:
+#   - every browser cookie minted under the old strings stops validating
+#     (one forced re-login), and
+#   - the stored api_token in config.yaml goes stale and is rewritten by
+#     sync_derived_config() on the next start, so any script or ?tkn= link
+#     holding the old token must re-read it.
+# Safe to do only because this predates real adoption. Do NOT edit these
+# again without treating it as a credential rotation and saying so in the
+# release notes; the trailing -v1 is the handle for that.
+COOKIE_DERIVATION_INFO = b"painapple-cookie-v1"
+API_TOKEN_DERIVATION_INFO = b"painapple-api-v1"
 
 # Config keys holding the revocation epochs. Both are treated as OPAQUE
 # discriminators, never parsed as integers here: any change to the stored
@@ -92,7 +87,7 @@ CONFIG_HEADER = """\
 """
 
 DOWNLOAD_TOKEN_TTL = 5 * 60  # 5 minutes
-DOWNLOAD_TOKEN_INFO = b"bridge-download-v1"
+DOWNLOAD_TOKEN_INFO = b"painapple-download-v1"
 DOWNLOAD_TOKEN_PARAM = "dl"
 
 PUBLIC_PATHS = frozenset({
@@ -459,7 +454,7 @@ def _req_scheme(scope, headers) -> str:
 def _origin_matches_host(origin: str, headers: dict, scheme: str) -> bool:
     """True when ``origin`` addresses the SAME host:port the request was sent to
     (its ``Host`` / ``X-Forwarded-Host``). This is the standard, config-free
-    CSRF defense: a cross-site page's Origin never matches the bridge's own host,
+    CSRF defense: a cross-site page's Origin never matches the server's own host,
     while genuine same-origin traffic — proxied under any hostname or reached
     over the LAN — always does, with no preconfigured allowlist.
 
@@ -522,29 +517,21 @@ def check_csrf_origin(scope, allowed_origins) -> bool:
 
 
 def _cookie_matches(cookies, cookie_token: str) -> bool:
-    """True if any accepted cookie name carries the expected credential.
-
-    Each candidate is compared in constant time; the legacy name is tried
-    so a browser that logged in before the rename is not signed out.
-    """
-    for name in ALL_COOKIE_NAMES:
-        presented = cookies.get(name, "")
-        if presented and hmac.compare_digest(presented, cookie_token):
-            return True
-    return False
+    """True if the auth cookie carries the expected credential."""
+    presented = cookies.get(COOKIE_NAME, "")
+    return bool(presented) and hmac.compare_digest(presented, cookie_token)
 
 
 def _redact_auth_cookie(value: str) -> str:
     """Replace <name>=<value> with <name>=<REDACTED:N> for log safety.
 
-    Covers every name in ALL_COOKIE_NAMES, not just the current one: a
-    pattern pinned to a single name would log the other one's value in
-    clear the moment the name changed.
+    Built from COOKIE_NAME rather than a literal so a future rename cannot
+    leave this pattern pointing at the old name and print the live cookie's
+    value in clear into the auth-debug log.
     """
     import re
-    names = "|".join(re.escape(n) for n in ALL_COOKIE_NAMES)
     return re.sub(
-        rf"({names})=([^;]*)",
+        rf"({re.escape(COOKIE_NAME)})=([^;]*)",
         lambda m: f"{m.group(1)}=<REDACTED:{len(m.group(2))}>",
         value,
     )
@@ -630,7 +617,7 @@ def _log_auth_failure(scope, path: str) -> None:
     import logging
     try:
         cookie_entries = [v.decode("latin1", "replace") for n, v in scope.get("headers", []) if n == b"cookie"]
-        has_auth_cookie = any(f"{n}=" in c for n in ALL_COOKIE_NAMES for c in cookie_entries)
+        has_auth_cookie = any(f"{COOKIE_NAME}=" in c for c in cookie_entries)
         redacted = [_redact_auth_cookie(c)[:200] for c in cookie_entries]
         client = scope.get("client", ("?", 0))
         logging.getLogger("painapple-code.auth-debug").warning(

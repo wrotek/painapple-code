@@ -124,7 +124,15 @@ user that can only touch what you're willing to expose.
 | `PAINAPPLE_IN_CONTAINER` | Set to `1` inside the official image. Gates the filesystem probes that distinguish Docker from Podman for the login page's environment detection — never set this on a bare-metal host. |
 
 !!! note "Renamed from `BRIDGE_*`"
-    `PAINAPPLE_ALLOWED_ORIGINS` and `PAINAPPLE_ALLOWED_HOSTS` were previously `BRIDGE_ALLOWED_ORIGINS` and `BRIDGE_ALLOWED_HOSTS`, and the auth cookie was named `bridge_auth`. The old env names are still read (the server logs a deprecation warning and keeps working), and a browser holding a `bridge_auth` cookie stays logged in — only the name changed, not the value. Both will be removed in a future release; the `shadow-query` helper's `BRIDGE_URL`/`BRIDGE_TOKEN` are handled the same way.
+    `PAINAPPLE_ALLOWED_ORIGINS` and `PAINAPPLE_ALLOWED_HOSTS` were previously `BRIDGE_ALLOWED_ORIGINS` and `BRIDGE_ALLOWED_HOSTS`. The old names are still read — the server logs a deprecation warning and keeps working — and will be removed in a future release. The `shadow-query` helper's `BRIDGE_URL`/`BRIDGE_TOKEN` are handled the same way.
+
+!!! warning "One-time credential rotation on upgrade"
+    The auth cookie was renamed `bridge_auth` → `painapple_auth` **and** the HMAC domain separators behind every derived credential were renamed off the old codename. That is a deliberate rotation, so on the first start after upgrading:
+
+    - **Every browser is logged out once.** Log in again with the same password — it is unchanged.
+    - **The stored `api_token` is re-derived.** `config.yaml` is rewritten automatically on start, but any script, bookmark or `?tkn=` link holding the old token will 401 until you re-read it with `painapple password`.
+
+    Nothing else is affected, and this does not recur.
 
 ## Origin/CSRF boundary
 

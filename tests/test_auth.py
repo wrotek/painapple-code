@@ -17,7 +17,6 @@ from fastapi.testclient import TestClient
 
 from conftest import client_token
 from painapple_code.auth_middleware import (
-    ALL_COOKIE_NAMES,
     COOKIE_NAME,
     check_download_token,
     check_http_auth_detailed,
@@ -827,51 +826,53 @@ def test_logout_clears_cookie_matching_attrs(unauth_client):
     assert "Max-Age=0" in cookie or "Expires=Thu, 01 Jan 1970" in cookie
 
 
-def test_logout_clears_every_accepted_cookie_name(unauth_client):
-    """Logout must expire the legacy name too.
+def test_legacy_cookie_name_is_not_accepted(app, test_password):
+    """The pre-rename cookie name carries no authority at all.
 
-    The read path still honours LEGACY_COOKIE_NAMES, so clearing only the
-    current name would hand a "logged out" browser a cookie that still
-    authenticates — the one direction this must never fail in.
+    Both the name and the derivation moved, so an old browser gets one
+    forced re-login rather than a silent alias.
     """
-    r = unauth_client.post("/api/logout")
-    cleared = " ".join(r.headers.get_list("set-cookie"))
-    for name in ALL_COOKIE_NAMES:
-        assert f"{name}=" in cleared, f"logout left {name} intact"
+    with TestClient(app, cookies={"bridge_auth": client_token(test_password)}) as c:
+        assert c.get("/api/sessions").status_code == 401
 
 
-def test_legacy_cookie_name_still_authenticates(app, test_password):
-    """A browser that logged in before the rename stays logged in.
+def test_derivation_domains_are_separated(test_password):
+    """cookie / api / download tokens must not collide.
 
-    Only the cookie *name* changed; the value derivation did not, so the
-    stored value is still valid under the old name.
+    They are three different credentials with three different revocation
+    levers; deriving two of them from the same info string would silently
+    fuse those levers together.
     """
-    cookie_token = client_token(test_password)
-    for name in ALL_COOKIE_NAMES:
-        with TestClient(app, cookies={name: cookie_token}) as c:
-            assert c.get("/api/sessions").status_code == 200, f"{name} rejected"
+    from painapple_code.auth_middleware import (
+        derive_api_token, derive_cookie_token, mint_download_token,
+    )
+    cookie = derive_cookie_token(test_password)
+    api = derive_api_token(test_password)
+    assert cookie != api
+    assert test_password not in (cookie, api)
+    assert len({cookie, api}) == 2
 
 
-def test_legacy_cookie_name_rejects_wrong_value(app):
-    """The legacy name is an alias, not a bypass — it verifies the same."""
-    for name in ALL_COOKIE_NAMES:
-        with TestClient(app, cookies={name: "definitely-wrong"}) as c:
-            assert c.get("/api/sessions").status_code == 401, f"{name} accepted junk"
+def test_derivation_info_strings_carry_no_old_codename():
+    """Tripwire: the rotation off the "bridge-" codename stays done."""
+    from painapple_code import auth_middleware as am
+    for const in (
+        am.COOKIE_DERIVATION_INFO,
+        am.API_TOKEN_DERIVATION_INFO,
+        am.DOWNLOAD_TOKEN_INFO,
+    ):
+        assert const.startswith(b"painapple-"), const
+        assert b"bridge" not in const, const
 
 
-def test_auth_failure_log_redacts_every_cookie_name(test_password):
-    """Redaction is keyed off ALL_COOKIE_NAMES, not one hardcoded name.
-
-    A pattern pinned to a single name would print the other one's value in
-    clear into the auth-debug log.
-    """
+def test_auth_failure_log_redacts_the_cookie(test_password):
+    """Redaction follows COOKIE_NAME, so a rename can't leak the value."""
     from painapple_code.auth_middleware import _redact_auth_cookie
     secret = client_token(test_password)
-    for name in ALL_COOKIE_NAMES:
-        out = _redact_auth_cookie(f"{name}={secret}; other=keep")
-        assert secret not in out, f"{name} value leaked into the log"
-        assert "REDACTED" in out
-        assert "other=keep" in out
+    out = _redact_auth_cookie(f"{COOKIE_NAME}={secret}; other=keep")
+    assert secret not in out
+    assert "REDACTED" in out
+    assert "other=keep" in out
 
 
 # ---------------------------------------------------------------------------

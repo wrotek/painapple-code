@@ -51,7 +51,6 @@ from painapple_code import bridge_paths
 
 from painapple_code.services.agent_session import AgentBridge
 from painapple_code.auth_middleware import (
-    ALL_COOKIE_NAMES,
     AuthMiddleware,
     BEARER_EPOCH_KEY,
     COOKIE_EPOCH_KEY,
@@ -1168,17 +1167,13 @@ async def logout_submit(request: Request):
     forwarded = request.headers.get("x-forwarded-proto", request.url.scheme)
     secure = forwarded == "https"
     resp = JSONResponse({"ok": True})
-    # Clear EVERY accepted cookie name, not just the current one: the legacy
-    # name is still honoured on the read path, so dropping only the new one
-    # would leave a logged-out browser holding a working credential.
-    for name in ALL_COOKIE_NAMES:
-        resp.delete_cookie(
-            name,
-            path="/",
-            samesite="lax",
-            secure=secure,
-            httponly=True,
-        )
+    resp.delete_cookie(
+        COOKIE_NAME,
+        path="/",
+        samesite="lax",
+        secure=secure,
+        httponly=True,
+    )
     return resp
 
 
