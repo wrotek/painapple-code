@@ -110,6 +110,9 @@ errors:
 preview:
   tab_edit: "Edit"
   tab_history: "History"
+  tab_diff: "Diff"
+  diff_unified: "Unified view"
+  diff_unparsable: "Not a recognizable unified diff — use the Code tab."
   editor_search: "Search ({key:Ctrl+F})"
   editor_replace: "Search & replace"
   search_open: "Search ({key:Ctrl+F})"

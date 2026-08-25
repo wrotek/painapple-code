@@ -57,6 +57,7 @@ export function detectLanguage(path) {
         json: 'json',
         yaml: 'yaml', yml: 'yaml',
         md: 'markdown', markdown: 'markdown',
+        diff: 'diff', patch: 'diff',
         sql: 'sql',
         sh: 'shell', bash: 'shell', zsh: 'shell', fish: 'shell',
         dockerfile: 'dockerfile',

@@ -483,4 +483,4 @@ function renderSideBySideDiff(entries, options = {}) {
     return html;
 }
 
-export { generateSmartDiff, renderSmartDiff, renderSideBySideDiff, computeWordDiff };
+export { generateSmartDiff, renderSmartDiff, renderSideBySideDiff, computeWordDiff, areSimilarLines };

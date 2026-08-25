@@ -9,6 +9,7 @@ import excalidraw from './excalidraw-plugin.js';
 import chart from './chart-plugin.js';
 import image from './image-plugin.js';
 import csv from './csv-plugin.js';
+import diff from './diff-plugin.js';
 import markdown from './markdown-plugin.js';
 import html from './html-plugin.js';
 import jsonl from './jsonl-plugin.js';
@@ -19,7 +20,8 @@ import json from './json-plugin.js';
 // Chart before json (since .vl.json should go to chart, not json tree).
 // JSONL before json (extensions are disjoint, but listing it earlier signals
 // the more specific match.)
-export const previewPlugins = [excalidraw, chart, image, csv, markdown, html, jsonl, json];
+// Diff sits with the other text formats; .diff/.patch are disjoint from everything.
+export const previewPlugins = [excalidraw, chart, image, csv, diff, markdown, html, jsonl, json];
 
 /**
  * Find the plugin that handles a given file path.

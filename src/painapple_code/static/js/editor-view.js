@@ -99,6 +99,7 @@ async function loadCodeMirror() {
                 ini: cm.properties,
                 env: cm.env,
                 makefile: null,  // Not in @codemirror/legacy-modes
+                diff: null,      // No CM package; hljs (grmr_diff, core bundle) handles it
                 text: null
             }
         };

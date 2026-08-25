@@ -1,0 +1,103 @@
+/* ============================================================
+   Diff preview plugin (.diff / .patch files)
+
+   Only the chrome AROUND the diff lives here — the rows themselves are
+   rendered by diff-utils.js and styled by 22-edit-diff.css (unified) and
+   67-diff-viewer.css (side-by-side), so a change to those follows here
+   automatically instead of drifting into a second set of colors.
+   ============================================================ */
+
+.diff-preview {
+    padding: var(--sp-8) 0 var(--sp-16);
+}
+
+.diff-preview-file + .diff-preview-file {
+    margin-top: var(--sp-16);
+}
+
+.diff-preview-file-header {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    padding: var(--sp-6) var(--sp-12);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    position: sticky;
+    top: 0;
+    z-index: var(--z-internal);
+}
+
+.diff-preview-file-name {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.diff-preview-stats {
+    display: flex;
+    gap: var(--sp-6);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    flex-shrink: 0;
+}
+
+.diff-preview-hunk-header {
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    background: var(--bg-secondary);
+    padding: var(--sp-4) var(--sp-12);
+    border-left: 1px solid var(--border-primary);
+    border-right: 1px solid var(--border-primary);
+    border-bottom: 1px solid var(--border-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.diff-preview .diff-hunk,
+.diff-preview .sbs-diff-stack {
+    border-left: 1px solid var(--border-primary);
+    border-right: 1px solid var(--border-primary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.diff-preview-sbs-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.diff-preview-sbs-toggle svg { width: 16px; height: 16px; }
+
+.diff-preview-sbs-toggle:hover {
+    color: var(--text-primary);
+    border-color: var(--accent);
+}
+
+.diff-preview-sbs-toggle.active {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: transparent;
+}
+
+.diff-preview-empty {
+    padding: var(--sp-24);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
