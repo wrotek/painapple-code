@@ -16,7 +16,7 @@ from pathlib import Path
 
 from painapple_code.cli.netinfo import detect_local_ips
 from painapple_code.cli.ui import (
-    BOLD, DIM, GREEN, RESET, die, err, info, ok, say, warn,
+    BOLD, DIM, GREEN, RESET, die, err, info, ok, print_credentials, say, warn,
 )
 from painapple_code.cli.deploy.config import DEFAULT_IMAGE, UPSTREAM_IMAGE
 from painapple_code.cli.deploy.runtime import Runtime
@@ -124,12 +124,13 @@ def print_bootstrap_url(cfg, pw, profile=None, raw_tty=False, token=None):
     scheme = "https" if cfg.effective_tls() == "on" else "http"
     nl = "\r\n" if raw_tty else "\n"
     out = [""]
-    out.append(f"{GREEN}✓{RESET} Open this URL once (cookie keeps you logged in):")
+    url_kind = "auto-login URL" if token else "URL"
+    out.append(f"{GREEN}✓{RESET} Open this {url_kind} once (cookie keeps you logged in):")
     link = token or ""
     for host in bootstrap_hosts(cfg):
         base = f"{scheme}://{host}:{cfg.port}/"
         out.append(f"    {BOLD}{base}?tkn={link}{RESET}" if link else f"    {BOLD}{base}{RESET}")
-    out.append(f"    {BOLD}Password: {pw}{RESET}")
+    out.append(f"    {BOLD}Password (login form): {pw}{RESET}")
     out.append(f"{DIM}    Reveal again later with:  {hint('password', profile)}{RESET}")
     sys.stdout.write(nl.join(out) + nl)
     sys.stdout.flush()
@@ -674,17 +675,9 @@ def cmd_password(cfg, profile=None):
             f"({hint('start', profile)})")
     scheme = "https" if cfg.effective_tls() == "on" else "http"
     _, token = get_credentials(cfg, rt)
-    label = f"{BOLD}URL:{RESET}      "
-    for host in bootstrap_hosts(cfg):
-        base = f"{scheme}://{host}:{cfg.port}/"
-        say(f"{label}{base}?tkn={token}" if token else f"{label}{base}")
-        label = "          "
-    say(f"{BOLD}Password:{RESET} {pw}")
-    if token:
-        say(f"{BOLD}API token:{RESET} {token}")
-    say(f"{DIM}  Open the URL once; the cookie keeps you logged in after that.{RESET}")
-    if token:
-        say(f"{DIM}  Scripts use the API token (Bearer / ?tkn=), never the password.{RESET}")
+    urls = [f"{scheme}://{host}:{cfg.port}/" + (f"?tkn={token}" if token else "")
+            for host in bootstrap_hosts(cfg)]
+    print_credentials(urls, pw, token)
     return 0
 
 

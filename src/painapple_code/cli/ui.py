@@ -77,6 +77,33 @@ def sanitize(value):
     return re.sub(r"[\x00-\x1f\x7f]", "", value)
 
 
+def print_credentials(urls, pw, token):
+    """The credential block behind `painapple password` (host AND docker).
+
+    One shared body so the two paths can't drift. Labels carry each
+    credential's purpose — users copy the line they need, not the footer
+    hints. ``token`` is "" on a config written by a pre-WP-02 build; the
+    URL is then a bare address (manual login form) and the API-token
+    row/hint are dropped.
+    """
+    width = len("Password (login form):") + 2
+
+    def _row(label, value):
+        say(f"{BOLD}{label}{RESET}{' ' * (width - len(label))}{value}")
+
+    url_label = "Auto-Login URL:" if token else "URL:"
+    for url in urls:
+        _row(url_label, url)
+        url_label = ""
+    _row("Password (login form):", pw)
+    if token:
+        _row("API token (scripts):", token)
+        say(f"{DIM}  Open the URL once; the cookie keeps you logged in after that.{RESET}")
+        say(f"{DIM}  Scripts use the API token (Bearer / ?tkn=), never the password.{RESET}")
+    else:
+        say(f"{DIM}  Open the URL and log in with the password; the cookie keeps you logged in.{RESET}")
+
+
 def require_tty(what="interactive setup", alternative=None):
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         die(f"{what} needs a terminal.",

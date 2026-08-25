@@ -25,7 +25,7 @@ from painapple_code import paths
 from painapple_code.cli import profiles, serve_config
 from painapple_code.cli.netinfo import detect_local_ips
 from painapple_code.cli.ui import (
-    BOLD, DIM, GREEN, RESET, die, err, ok, say, warn,
+    BOLD, DIM, GREEN, RESET, die, err, ok, print_credentials, say, warn,
 )
 
 DOCKER_ONLY = ("shell", "extract", "claude-login")
@@ -165,16 +165,8 @@ def _host_password(vals, label):
             None if label else
             f"  {DIM}Running it containerized?  painapple password --in-docker{RESET}")
     token = _host_token_value()
-    label_prefix = f"{BOLD}URL:{RESET}      "
-    for url in _host_urls(vals):
-        say(f"{label_prefix}{url}/?tkn={token}" if token else f"{label_prefix}{url}/")
-        label_prefix = "          "
-    say(f"{BOLD}Password:{RESET} {pw}")
-    if token:
-        say(f"{BOLD}API token:{RESET} {token}")
-    say(f"{DIM}  Open the URL once; the cookie keeps you logged in after that.{RESET}")
-    if token:
-        say(f"{DIM}  Scripts use the API token (Bearer / ?tkn=), never the password.{RESET}")
+    urls = [f"{url}/?tkn={token}" if token else f"{url}/" for url in _host_urls(vals)]
+    print_credentials(urls, pw, token)
     return 0
 
 
@@ -333,13 +325,13 @@ def _docker_status(name, cfg):
         ok(f"Running ({status})")
         say(f"  → {scheme}://{url_host}:{cfg.port}/")
         if pw:
-            say(f"  Password: {BOLD}{pw}{RESET}")
+            say(f"  Password (login form): {BOLD}{pw}{RESET}")
     else:
         warn(f"Container is not running. Start with: "
              f"painapple start {name or ''}".rstrip()
              if name else "Container is not running. Start with: painapple --in-docker")
         if pw:
-            say(f"  {DIM}Password (persisted, reused on next start):{RESET} {BOLD}{pw}{RESET}")
+            say(f"  {DIM}Password (login form; reused on next start):{RESET} {BOLD}{pw}{RESET}")
     return 0
 
 

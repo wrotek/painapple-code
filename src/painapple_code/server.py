@@ -2119,15 +2119,19 @@ def main(argv=None):
     if use_tls:
         tls_line = f"\n║  TLS Cert:       {tls_cert_path} (self-signed, unverified by clients)"
 
-    # The login URL is THE line users need — labelled with the product name
-    # (it IS where the app lives, token included) and painted bold green so it
-    # stands out from the rest of the box (TTY-only; cli.ui's constants
-    # are empty strings when piped or NO_COLOR is set). When credentials
-    # are hidden (--no-password, or any non-loopback bind without
-    # --show-password) the box still shows WHERE to log in, but the
-    # password and the ?tkn= query are withheld from stdout.
+    # The login URL is THE line users need — labelled by what it does
+    # ("Auto-Login URL", the token logs you in; the label answers "then
+    # what's the password for?", which the password line's annotation
+    # also spells out) and painted bold green so it stands out from the
+    # rest of the box (TTY-only; cli.ui's constants are empty strings
+    # when piped or NO_COLOR is set). When credentials are hidden
+    # (--no-password, or any non-loopback bind without --show-password)
+    # the box still shows WHERE to log in — but that URL carries no
+    # token, so it falls back to the product-name label; the password
+    # and the ?tkn= query are withheld from stdout.
     # NOTE: every label in the box is padded to a 16-char field so the values
-    # line up — "pAInapple Code:" is the longest and sets that width.
+    # line up — "Auto-Login URL:" and "pAInapple Code:" are the longest
+    # (both 15 chars) and set that width.
     from painapple_code.cli.ui import BOLD, DIM, GREEN, RESET as _ANSI_RESET
     if not show_credentials:
         why = ("--no-password" if args.no_password
@@ -2138,8 +2142,8 @@ def main(argv=None):
         )
     else:
         auth_lines = (
-            f"\n║  Password:       {app.state.auth_password}"
-            f"\n║  {BOLD}pAInapple Code:{_ANSI_RESET} {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
+            f"\n║  Password:       {app.state.auth_password}  {DIM}(login form only){_ANSI_RESET}"
+            f"\n║  {BOLD}Auto-Login URL:{_ANSI_RESET} {BOLD}{GREEN}{login_url}{_ANSI_RESET}"
         )
 
     print(f"""
