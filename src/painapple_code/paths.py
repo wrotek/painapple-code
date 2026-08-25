@@ -278,16 +278,45 @@ def load_all_presets() -> dict:
     return presets
 
 
+def _preset_file(preset_id: str) -> Path:
+    """Resolve a preset id to its JSON file, contained to the presets dir.
+
+    `preset_id` reaches the route as a single-segment FastAPI path param, so it
+    can't hold a `/` — but that is a POSIX-only guarantee: on Windows a
+    backslash survives the `[^/]+` convertor, so `..\\..\\evil` would land
+    `<traversal>.json` outside the presets dir on a `write_text`/`unlink`. This
+    is the one preset sink the WP-08 audit found with no explicit guard.
+
+    Validate lexically (reject any separator, traversal, or NUL — checked for
+    BOTH separators regardless of host OS, so the POSIX CI catches a
+    Windows-only escape) and then confirm containment with `is_relative_to`
+    after resolve() as the platform-correct backstop. Raises ValueError on a
+    bad id; callers surface it as 400.
+    """
+    if (not preset_id
+            or preset_id in (".", "..")
+            or "/" in preset_id
+            or "\\" in preset_id
+            or "\x00" in preset_id
+            or preset_id != Path(preset_id).name):
+        raise ValueError(f"Invalid preset id: {preset_id!r}")
+    presets_dir = get_presets_dir()
+    resolved = (presets_dir / f"{preset_id}.json").resolve()
+    if not resolved.is_relative_to(presets_dir.resolve()):
+        raise ValueError(f"Preset id escapes the presets directory: {preset_id!r}")
+    return resolved
+
+
 def save_preset(preset_id: str, data: dict):
     """Save a single preset to ~/.painapple-code/presets/{id}.json"""
-    presets_dir = ensure_presets_dir()
-    path = presets_dir / f"{preset_id}.json"
+    ensure_presets_dir()
+    path = _preset_file(preset_id)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 def delete_preset(preset_id: str) -> bool:
     """Delete a preset file. Returns True if deleted."""
-    path = get_presets_dir() / f"{preset_id}.json"
+    path = _preset_file(preset_id)
     if path.exists():
         path.unlink()
         return True

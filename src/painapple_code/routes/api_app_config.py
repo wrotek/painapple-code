@@ -44,14 +44,20 @@ async def get_presets():
 @router.put("/api/app/presets/{preset_id}")
 async def save_preset(preset_id: str, data: dict):
     """Create or update a preset."""
-    paths.save_preset(preset_id, data)
+    try:
+        paths.save_preset(preset_id, data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return paths.load_all_presets()
 
 
 @router.delete("/api/app/presets/{preset_id}")
 async def delete_preset(preset_id: str):
     """Delete a preset file."""
-    deleted = paths.delete_preset(preset_id)
+    try:
+        deleted = paths.delete_preset(preset_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return {"deleted": deleted, "presets": paths.load_all_presets()}
 
 

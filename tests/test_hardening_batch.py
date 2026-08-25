@@ -419,3 +419,40 @@ def test_is_path_allowed_for_read_denies_unc_before_resolving(monkeypatch):
 ])
 def test_sanitize_filename_is_platform_independent(raw, expected):
     assert sanitize_filename(raw) == expected
+
+
+# ---------------------------------------------------------------------------
+# T16 — preset id must stay inside the presets dir (WP-08)
+# ---------------------------------------------------------------------------
+#
+# PUT/DELETE /api/app/presets/{preset_id} was the one disk-writing sink the
+# WP-08 audit found with no explicit guard — it built `presets_dir /
+# f"{preset_id}.json"` and wrote/unlinked directly, trusting FastAPI's
+# single-segment `{preset_id}` to exclude separators. POSIX-safe, but a
+# Windows backslash survives the `[^/]+` convertor, so `..\..\x` would escape.
+# `paths._preset_file` now validates for BOTH separators regardless of host OS,
+# so this runs meaningfully on the POSIX CI.
+
+from painapple_code import paths as _paths
+
+
+@pytest.mark.parametrize("good", ["balanced", "power-user", "abc-123", "a.b"])
+def test_preset_file_allows_plain_ids(good):
+    p = _paths._preset_file(good)
+    assert p.name == f"{good}.json"
+    assert p.parent == _paths.get_presets_dir().resolve()
+
+
+@pytest.mark.parametrize("bad", [
+    "../evil",
+    r"..\..\evil",          # Windows-separator escape, caught on POSIX
+    "a/b",
+    "..",
+    ".",
+    "",
+    "x\x00y",
+    "/etc/passwd",
+])
+def test_preset_file_rejects_traversal(bad):
+    with pytest.raises(ValueError):
+        _paths._preset_file(bad)
