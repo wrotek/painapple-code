@@ -8,6 +8,27 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # The floors in requirements.txt are DOCUMENTED DECISIONS, not a record of
+    # what was newest last Monday — `fastapi>=0.115` is "where starlette>=0.40
+    # lands for CVE-2024-47874", not "the fastapi release we happened to see".
+    # pip's default strategy (`increase`) ratchets every floor to latest, which
+    # replaces that rationale with a timestamp while changing nothing that
+    # actually installs: no lockfile, no pins, so `pip install -r` already
+    # resolves to newest-satisfying everywhere (Dockerfile, tests, docs build).
+    # It also can't read the file — PR #4 rewrote a CVE rationale comment and
+    # bumped one half of the uvicorn platform-marker pair, leaving win_arm64
+    # behind at a different floor.
+    #
+    # `increase-if-necessary` only edits a requirement the newest release does
+    # NOT already satisfy. Open-ended `>=` floors are therefore left alone, and
+    # what survives is the part worth being told about: the three deliberate
+    # upper caps (httpx<1.0, httpcore<2.0, claude-agent-sdk<0.3) open a PR the
+    # moment a release breaches one — exactly the "re-check the private-internal
+    # poke before raising this" tripwire those comments ask for.
+    #
+    # Security updates are unaffected — they're a repo-level setting, not this
+    # file, and they open regardless of schedule or strategy.
+    versioning-strategy: increase-if-necessary
     groups:
       python-deps:
         patterns: ["*"]
