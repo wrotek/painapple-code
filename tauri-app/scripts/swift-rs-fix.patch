@@ -1,0 +1,119 @@
+--- a/src-rs/build.rs	2026-08-25 21:34:45.256022939 +0200
++++ b/src-rs/build.rs	2026-08-25 21:35:22.756603575 +0200
+@@ -361,7 +361,14 @@
+                 if direct.join(&lib_file).exists() {
+                     direct
+                 } else {
+-                    xcode27_products_dir(&out_path, configuration, &lib_file).unwrap_or(direct)
++                    xcode27_products_dir(&out_path, configuration, &lib_file)
++                        // The products layout moves between Xcode 27 betas, and a
++                        // missed probe is silent: we emit a link-search path with
++                        // no archive in it and the consumer fails much later with
++                        // "library not found". Fall back to locating the archive
++                        // itself — the file is the only ground truth.
++                        .or_else(|| find_archive(&out_path, &lib_file))
++                        .unwrap_or(direct)
+                 }
+             } else {
+                 out_path
+@@ -373,10 +380,9 @@
+                 // Xcode 27's SwiftPM internalizes @_cdecl exports in static
+                 // products (they show as local 't' in nm), so consumers fail to
+                 // link with "undefined symbols". Promote them back to global.
+-                globalize_cdecl_symbols(
+-                    &search_path.join(format!("lib{}.a", package.name)),
+-                    &package.name,
+-                );
++                let archive = search_path.join(format!("lib{}.a", package.name));
++                globalize_cdecl_symbols(&archive, &package.name);
++                globalize_runtime_symbols(&archive, &package.name);
+             }
+ 
+             println!("cargo:rerun-if-changed={}", package_path.display());
+@@ -572,3 +578,86 @@
+         .join("bin/llvm-objcopy");
+     p.exists().then_some(p)
+ }
++
++/// Recursively locate `lib_file` under `root`, preferring the most recently
++/// modified match. Used when the Xcode 27 products-dir heuristics miss: the
++/// archive exists, just not where the layout rules predicted.
++fn find_archive(root: &Path, lib_file: &str) -> Option<PathBuf> {
++    let mut best: Option<(std::time::SystemTime, PathBuf)> = None;
++    let mut stack = vec![root.to_path_buf()];
++    while let Some(dir) = stack.pop() {
++        let Ok(entries) = std::fs::read_dir(&dir) else {
++            continue;
++        };
++        for entry in entries.flatten() {
++            let path = entry.path();
++            let Ok(ft) = entry.file_type() else { continue };
++            if ft.is_dir() {
++                stack.push(path);
++            } else if entry.file_name() == lib_file {
++                let mtime = entry
++                    .metadata()
++                    .and_then(|m| m.modified())
++                    .unwrap_or(std::time::UNIX_EPOCH);
++                if best.as_ref().is_none_or(|(t, _)| mtime > *t) {
++                    best = Some((mtime, path));
++                }
++            }
++        }
++    }
++    best.map(|(_, p)| p).and_then(|p| p.parent().map(Path::to_path_buf))
++}
++
++/// The three @_cdecl functions the swift-rs *Rust* crate calls itself
++/// (`retain_object` / `release_object` / `string_from_bytes`) are defined in the
++/// SwiftRs *Swift* library, which SwiftPM embeds into each consumer archive as a
++/// dependency member (`SwiftRs.o`). `globalize_cdecl_symbols` skips dependency
++/// members on purpose — promoting them in every archive would define the same
++/// globals more than once — so on Xcode 27 they stay local `t` and EVERY build
++/// fails with "Undefined symbols: _retain_object, ...".
++///
++/// Promote them in exactly one archive: the package that owns the Swift runtime
++/// (`Tauri` by default, overridable via SWIFT_RS_RUNTIME_PACKAGE). ld resolves
++/// the undefined refs there and never pulls the duplicate member out of a
++/// sibling archive, so no duplicate-symbol error.
++fn globalize_runtime_symbols(archive: &Path, package_name: &str) {
++    const RUNTIME_SYMBOLS: [&str; 3] = ["_retain_object", "_release_object", "_string_from_bytes"];
++
++    let owner = env::var("SWIFT_RS_RUNTIME_PACKAGE").unwrap_or_else(|_| "Tauri".into());
++    if package_name != owner || !archive.exists() {
++        return;
++    }
++    let Some(objcopy) = rustup_llvm_objcopy() else {
++        println!(
++            "cargo:warning=swift-rs: llvm-objcopy not found (run `rustup component add \
++             llvm-tools`); SwiftRs runtime symbols stay internalized on Xcode 27"
++        );
++        return;
++    };
++    // Only promote what is actually present and local — globalizing an absent or
++    // already-global symbol is a no-op, but checking keeps the log honest.
++    let Ok(nm) = Command::new("nm").arg(archive).output() else {
++        return;
++    };
++    let listing = String::from_utf8_lossy(&nm.stdout);
++    let local: Vec<&str> = RUNTIME_SYMBOLS
++        .iter()
++        .copied()
++        .filter(|s| listing.lines().any(|l| l.ends_with(&format!(" t {s}"))))
++        .collect();
++    if local.is_empty() {
++        return;
++    }
++    let mut cmd = Command::new(objcopy);
++    for s in &local {
++        cmd.arg(format!("--globalize-symbol={s}"));
++    }
++    cmd.arg(archive);
++    if cmd.status().map(|s| s.success()).unwrap_or(false) {
++        println!(
++            "cargo:warning=swift-rs: promoted {} SwiftRs runtime symbol(s) in {}",
++            local.len(),
++            archive.display()
++        );
++    }
++}

@@ -98,3 +98,6 @@ objc2-ui-kit = { version = "0.3", features = ["UIApplication", "UIApplicationSho
 # in ../package.json once an upstream release ships the fix.
 [patch.crates-io]
 tao = { path = "../../tao" }
+# Patched swift-rs 1.0.8 — Xcode 27 archive discovery + SwiftRs @_cdecl symbols
+# (see tauri-app/scripts/swift-rs-setup.sh for what breaks without it).
+swift-rs = { path = "../../swift-rs" }
