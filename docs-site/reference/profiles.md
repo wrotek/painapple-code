@@ -20,7 +20,7 @@ cd ~/code/my-project
 painapple --in-docker     # current dir mounted, foreground, Ctrl-C stops
 ```
 
-It's the containerized twin of a bare `painapple`: the current directory (or `--workspace PATH`) is mounted into the image, the workspace layout is auto-picked (`.git` present → single project, else a folder of projects), and explicit serve flags (`--host`, `--port`, `--tls`, `--instance-name`, `--accent`) forward into the container. The runtime and image come from the global defaults saved by [`painapple setup`](#global-defaults-vs-profiles). Foreground runs are ephemeral (`--rm`); for a durable, detached sandbox make it a profile and `painapple start` it.
+It's the containerized twin of a bare `painapple`: the current directory (or `--workspace PATH`) is mounted into the image, the workspace layout is auto-picked (`.git` present → single project, offered as one pickable project on the welcome screen; else a folder of projects), and explicit serve flags (`--host`, `--port`, `--tls`, `--instance-name`, `--accent`) forward into the container. The runtime and image come from the global defaults saved by [`painapple setup`](#global-defaults-vs-profiles). Foreground runs are ephemeral (`--rm`); for a durable, detached sandbox make it a profile and `painapple start` it.
 
 ## Global defaults vs profiles
 

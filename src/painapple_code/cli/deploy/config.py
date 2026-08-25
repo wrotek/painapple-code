@@ -97,8 +97,15 @@ class DockerSettings:
     def config_is_bind(self):
         return Path(self.config_volume).is_absolute()
 
-    def container_workspace(self):
-        """In-container mount path — the path hash keys project identity."""
+    def container_mount(self):
+        """In-container mount path — the path hash keys project identity.
+
+        The server itself always serves ``--workspace /workspace`` (the dir
+        that HOLDS projects); modes only differ in what lands where. Project
+        mode therefore mounts the single repo one level down — /workspace
+        acts as a synthetic parent, so the welcome screen offers the repo as
+        one pickable project instead of listing its own subdirs as projects.
+        """
         if self.workspace_mode in ("parent", "multi"):
             return "/workspace"
         return f"/workspace/{Path(self.workspace).name}"

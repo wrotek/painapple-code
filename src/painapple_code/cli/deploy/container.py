@@ -387,14 +387,18 @@ def build_run_argv(cfg, rt, detach, profile=None, ident=None):
         for ws in cfg.workspaces:
             argv += ["-v", mount(f"{ws}:/workspace/{Path(ws).name}")]
     else:
-        argv += ["-v", mount(f"{cfg.workspace}:{cfg.container_workspace()}")]
+        argv += ["-v", mount(f"{cfg.workspace}:{cfg.container_mount()}")]
 
     if rt.name == "podman":
         argv += [ident.userns or "--userns=keep-id"]
 
+    # The served workspace is ALWAYS /workspace — the dir holding projects.
+    # In project mode the repo is mounted one level down (container_mount),
+    # so it shows up as the single pickable project on the welcome screen
+    # rather than the server treating the repo's own subdirs as projects.
     argv += [cfg.image, "python", "-m", "painapple_code",
              "--host", "0.0.0.0", "--port", "8765",
-             "--workspace", cfg.container_workspace()]
+             "--workspace", "/workspace"]
     if cfg.instance_name:
         argv += ["--instance-name", cfg.instance_name]
     if cfg.accent:
@@ -551,7 +555,7 @@ def run_container(cfg, detach, profile=None):
         for ws in cfg.workspaces:
             say(f"    {DIM}↳ /workspace/{Path(ws).name}  ← {ws}{RESET}")
     else:
-        say(f"  Workspace : {DIM}{cfg.workspace}{RESET} → {cfg.container_workspace()} {DIM}({cfg.workspace_mode}){RESET}")
+        say(f"  Workspace : {DIM}{cfg.workspace}{RESET} → {cfg.container_mount()} {DIM}({cfg.workspace_mode}){RESET}")
     say(f"  .claude   : {DIM}{cfg.claude_home}{RESET} → /home/app/.claude")
     say(f"  .claude.json: {DIM}{cfg.effective_claude_json()}{RESET} → /home/app/.claude.json")
     say(f"  Data      : {DIM}{cfg.data_volume}{RESET} ({'bind' if cfg.data_is_bind() else 'volume'}) → /data")

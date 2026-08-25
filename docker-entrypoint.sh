@@ -34,6 +34,14 @@ EOF
     exit 78  # EX_CONFIG: configuration error
 fi
 
+# Mount check passed — drop the sentinel so it never shows up in the file
+# explorer. In project/multi mode /workspace is the served workspace root
+# (an image dir with repos mounted one level down), so the sentinel would
+# otherwise sit next to the user's projects. Parent mode is a no-op: the
+# bind overlays the image dir and the sentinel isn't there. May fail when
+# started non-root against a read-only layer — cosmetic, so best-effort.
+rm -f /workspace/.painapple-not-mounted 2>/dev/null || true
+
 # Seed the shadow-git-helper agent template into ~/.claude/agents/ on first
 # run. The Dockerfile already installs it at build time, but ~/.claude is
 # bind-mounted from the host so the build-layer copy gets overlaid. Only

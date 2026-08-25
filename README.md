@@ -140,7 +140,7 @@ Git for Windows is worth installing even if you use another git: the optional [h
 
 The console prints the **app URL with a login token embedded** — open it in any browser on the network, pick a project on the welcome screen, and you're in. Point a phone or tablet at the same URL and install it as a PWA.
 
-In container mode the image is pulled automatically on the first run (`painapple pull` re-fetches it to update or pin a release); state persists in named volumes and your projects are bind-mounted. Running it inside a single project works too — the workspace is simply the current directory — and `--workspace /path` serves any folder without `cd`-ing there.
+In container mode the image is pulled automatically on the first run (`painapple pull` re-fetches it to update or pin a release); state persists in named volumes and your projects are bind-mounted. Running it inside a single project works too, and `--workspace /path` serves any folder without `cd`-ing there.
 
 ### More ways to run it
 

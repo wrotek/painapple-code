@@ -406,6 +406,10 @@ def test_build_run_argv_project_mode(tmp_path):
     assert f"{cfg.listen_host}:9100:8765" in argv
     assert argv[-2:] == ["--tls", "on"]
     assert "--userns=keep-id" not in argv
+    # The repo mounts one level DOWN but the server serves /workspace — the
+    # synthetic parent — so the welcome screen offers the repo as a single
+    # pickable project instead of listing its subdirs as projects.
+    assert argv[argv.index("--workspace") + 1] == "/workspace"
 
 
 def test_build_run_argv_detached_and_podman_selinux(tmp_path):
