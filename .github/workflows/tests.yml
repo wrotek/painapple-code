@@ -55,7 +55,13 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                python-version: ["3.12", "3.13"]
+                # Floor (requires-python) .. the interpreter the published
+                # Docker image runs. Keep the top entry in step with the
+                # Dockerfile's `FROM python:` tag — nothing else builds that
+                # image on a PR (docker-publish.yml fires on v* tags only), so
+                # this matrix is the only pre-release signal that the shipped
+                # interpreter works.
+                python-version: ["3.12", "3.13", "3.14"]
         steps:
             # fetch-depth: 0 so setuptools-scm can resolve a version from
             # tags rather than falling back to 0.1.devN.

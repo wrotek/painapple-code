@@ -24,7 +24,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                python-version: ["3.12", "3.13"]
+                python-version: ["3.12", "3.13", "3.14"]
         steps:
             # fetch-depth: 0 so setuptools-scm can resolve a version from
             # tags; without it the build falls back to 0.1.devN, which is
