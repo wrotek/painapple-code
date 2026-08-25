@@ -129,6 +129,64 @@ leg. Platform-specific regressions in those areas would not be caught by CI.
 Risk-averse Windows users should run under WSL2, where the Linux test
 coverage applies.
 
+### Session data is retained until you remove it
+
+Deleting a session is not offered in the UI, and closing a tab only removes
+the tab — the session's on-disk store (`messages.jsonl`, `raw.jsonl`, tool
+outputs, uploads), its rows in the DuckDB journal, and its shadow-git commits
+all remain. The one endpoint that erases anything, `DELETE
+/api/session/{id}`, removes only the on-disk store and is called by no UI. So
+nothing in the app claims to erase your history, and nothing does so behind
+your back — but equally, there is no one-click "forget this session."
+
+This is deliberate: the journal is on by default (see *Auto-journal* above),
+and its value is a durable, searchable record. Everything stays local, under
+your OS user, on your disk.
+
+**This stops being acceptable if** the box becomes multi-user, or you add a
+"delete session" UI — at which point that UI must stop the live agent first
+and state plainly what it removes versus retains (the on-disk store is easy;
+DuckDB rows and shadow-git commits are separate operations with a wider blast
+radius). To clear history today, remove the session directory and, if you
+want it gone from search too, its journal rows by hand.
+
+### Subprocesses inherit the server's environment
+
+The agent CLIs (`claude`, `codex`), `!bang`/`/api/exec` shell commands, git,
+and the renderers are spawned with the server process's full environment.
+A secret exported into the shell that launched the server is therefore
+visible to those children — and the agent can print its own environment
+(`env`) into a turn, which then reaches the model provider and the local
+session store.
+
+Accepted because those children are things you already trust with your
+machine: the agents you are here to run, and commands you typed yourself.
+The environment they inherit is the one your own shell already had.
+
+**This stops being acceptable if** you put a credential in the server's
+environment that the agents themselves must not see (a deploy key for a
+*different* system, say). There is no per-child environment allowlist yet;
+until there is, keep such secrets out of the launching shell's environment
+and pass them only to the specific tool that needs them.
+
+### The browser proxy caps responses after decompression
+
+`/api/browser/proxy` enforces its 25 MiB size limit on the decompressed body,
+after httpx has inflated the response into memory. A response advertising a
+small size but decompressing to gigabytes (a "zip bomb") is refused, but only
+once it has been inflated — so peak memory is bounded by the upstream's
+compression ratio, not by the cap.
+
+Accepted because you are the only one who drives the proxy: it fetches the URL
+*you* put in the browser widget, on a single-user bridge. The connection is
+already SSRF-guarded (DNS-pinned, private hosts refused, redirects
+re-validated), so it cannot be aimed at an internal target.
+
+**This stops being acceptable if** anyone but you can reach the proxy — a
+shared bridge, or a chat automation that fetches attacker-chosen URLs. The
+fix is to stream the response into a bounded sink and abort past the cap
+mid-transfer, rather than buffering then measuring.
+
 ## Supported versions
 
 This project is pre-1.0 (Beta). Security fixes land on the latest released

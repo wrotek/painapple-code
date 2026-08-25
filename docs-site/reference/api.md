@@ -68,7 +68,7 @@ Not exhaustive — a map of where things live, with representative routes.
 |-------|--------|----------|
 | Chat | `ws://…/chat` | Main Claude WebSocket (see [protocol](#websocket-chat-protocol)) |
 | Terminal | `ws://…/ws/terminal` | PTY WebSocket; also `GET /api/terminals`, `DELETE /api/terminal/{id}`, `GET /api/active-sessions` |
-| Sessions | `/api/sessions`, `/api/session/{id}` | CRUD, `POST /api/session/{id}/fork`, `PUT /api/session/{id}/permission-mode`, `PUT /api/session/{id}/provider`, `GET /api/session/{id}/threads` |
+| Sessions | `/api/sessions`, `/api/session/{id}` | CRUD, `POST /api/session/{id}/fork`, `POST /api/session/{id}/stop` (interrupt the live turn), `PUT /api/session/{id}/permission-mode`, `PUT /api/session/{id}/provider`, `GET /api/session/{id}/threads` |
 | Engines | `/api/providers`, `/api/app/engine-*` | `GET /api/providers` (engine catalog + capabilities), `GET/PUT /api/app/engine-path/{name}`, `…/engine-auth/{name}`, `…/engine-models/{name}`, `…/engine-defaults/{name}`, `PUT /api/app/default-provider` |
 | Logs | `/api/sessions/{id}/logs` | `…/logs/messages`, `…/logs/raw`, `…/logs/tools`, `GET /api/sessions/{id}/changes` |
 | Files | `/api/files`, `/api/file` | Directory listing (`GET /api/files?path=…`), `GET /api/file?path=…`, `POST /api/file/write` |
@@ -171,6 +171,7 @@ Each session gets its own persistent PTY that survives disconnects; `cwd` is onl
 - **Body:** raw SQL (`Content-Type: text/plain`) or `{"sql": "…"}` JSON.
 - **Format:** default JSON `{columns, rows, count}`; `?format=tsv` returns tab-separated text with a header row.
 - **Read-only:** a validator rejects mutation keywords (INSERT, UPDATE, DROP, ATTACH, …) and file-access functions.
+- **Bounded:** each query runs under a 30-second deadline and is interrupted past it (returning an `INTERRUPT` error), so a runaway query can't hang the bridge. There is no row limit — aggregate or `LIMIT` in SQL if you want a small result.
 
 ```bash
 shadow-query() {
