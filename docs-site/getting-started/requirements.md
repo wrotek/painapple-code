@@ -20,7 +20,7 @@ pAInapple Code runs natively on all three desktop platforms. No WSL required.
 |---|---|---|
 | **Linux** | Fully supported | The primary development and deployment target. |
 | **macOS** | Fully supported | Intel and Apple Silicon. On Intel, TLS needs [one extra package](install-pip.md) — `cryptography` is Apple-Silicon-only from 49.0.0. |
-| **Windows 10/11** | Fully supported | Native — no WSL, no VM. See the Windows notes below. |
+| **Windows 10/11** | Fully supported | Native — no WSL required. WSL2 also works: inside the distro it's the Linux build. See the Windows notes below. |
 
 #### Windows notes
 
@@ -28,6 +28,7 @@ pAInapple Code runs natively on all three desktop platforms. No WSL required.
 - **Get git from [Git for Windows](https://git-scm.com/download/win)**, which is what `winget install Git.Git` installs too. Besides `git.exe` it ships a `bash.exe`, and the optional `shadow-git` / `shadow-query` [helpers](../reference/optional-helpers.md) are shell scripts that run under it — the installer generates a small `.cmd` wrapper so you can still call them by name from PowerShell. (It deliberately does *not* use `C:\Windows\System32\bash.exe`; that one is the WSL launcher, which would look for your data inside the Linux filesystem.)
 - **The terminal tab runs PowerShell** through ConPTY. `pwsh` (PowerShell 7) is preferred when present, otherwise Windows PowerShell; override with `PAINAPPLE_CODE_SHELL`.
 - **`!bang` commands are PowerShell-flavored** on Windows, not `sh`.
+- **WSL2 is a fully valid alternative, not a fallback** — inside the distro this is simply the Linux build, so use the Linux instructions verbatim, container mode included (native Windows can't run `--in-docker`). Keep projects on the Linux filesystem rather than `/mnt/c/…`, and open the printed `localhost` URL in your Windows browser — WSL2 forwards the port through.
 - **File permissions** are enforced with NTFS ACLs (owner-only, applied via `icacls`) rather than POSIX mode bits — see [security](security.md).
 - **Windows on ARM** (Surface, Snapdragon X) installs with no extra flags, with two wheel caveats — both handled automatically, neither needing anything from you. The HTTP stack is slightly slower: the optional `httptools` parser publishes no ARM64 wheel, so those machines use uvicorn's pure-Python parser. And TLS is opt-in: `cryptography` stopped publishing ARM64 Windows wheels after 46.0.3, so it isn't installed by default and `--tls` needs one extra package. See [pip install](install-pip.md). Use a **64-bit** Python — `cryptography` dropped 32-bit Windows builds in 49.0.0.
 - Data lives in `%USERPROFILE%\.painapple-code` — the same `~/.painapple-code` layout as the other platforms, deliberately, so the docs and support answers match everywhere.

@@ -68,7 +68,7 @@ Full reference: [Docker & container mode](https://painapple.ai/getting-started/i
 
 ## Quick start
 
-One install with [pipx](https://pipx.pypa.io/), then run `painapple` in the project you want to work on. Scroll to your platform: **[macOS](#macos) · [Linux](#linux) · [Windows](#windows)**.
+One install with [pipx](https://pipx.pypa.io/), then run `painapple` in the project you want to work on.
 
 ### macOS
 
@@ -109,7 +109,7 @@ Container mode uses whichever of Docker or Podman it finds — rootless Podman i
 
 ### Windows
 
-Run it **natively** — no WSL, no VM. Container mode (`--in-docker`) is not supported on Windows; use the bare command.
+Runs **natively** on Windows — WSL and VMs are optional, not required. Everything below is **PowerShell**: open *Terminal* or *Windows PowerShell* from the Start menu (PowerShell 7 works too) and paste. Container mode (`--in-docker`) is the one thing native Windows can't do — use the bare command, or WSL2 (see below).
 
 ```powershell
 # 1. Prerequisites (skip what you already have)
@@ -128,6 +128,8 @@ painapple
 ```
 
 Git for Windows is worth installing even if you use another git: the optional [helpers](#optional-helpers) are shell scripts that run under the `bash.exe` it ships. The built-in terminal tab runs PowerShell (`pwsh` when present), and `!bang` commands are PowerShell-flavored.
+
+> **Prefer WSL2?** It works, and it's the better-worn path — inside the distro this *is* Linux, so follow the [Linux](#linux) steps verbatim, `--in-docker` included. Two things to know: keep your projects on the Linux filesystem (`~/code/…`, not `/mnt/c/…`) or file watching and git crawl, and open the printed URL in your Windows browser as-is — WSL2 forwards `localhost` through for you.
 
 > **Windows on ARM** (Surface, Snapdragon X) installs with no extra flags. Two upstream wheels are missing, both handled for you: the HTTP parser falls back to pure Python, and `--tls` needs `pipx inject painapple-code "cryptography<=46.0.3"`. Use a 64-bit Python.
 
