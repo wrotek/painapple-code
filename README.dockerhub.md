@@ -129,27 +129,20 @@ For the strongest guarantee, pin by digest: `wrotek/painapple-code@sha256:…`.
 
 ## Authentication
 
-**Every HTTP and WebSocket request needs a password.** The server generates one on first start, stores it in `~/.config/painapple-code/config.yaml` (inside the container that's under `/home/app/`; **owner-only either way** — mode 0600 on Unix, an owner-only NTFS ACL on Windows), and — on a loopback bind — logs a bootstrap URL with the token embedded as `?tkn=…`: open it once, the cookie does the rest. Non-loopback binds (LAN, `0.0.0.0`, inside the container) hide the credentials from stdout by default, since a server's console tends to end up in journald or `docker logs`; retrieve them with `painapple password`, or opt back in with `--show-password`.
+**Every HTTP and WebSocket request needs a password.** The server generates one on first start and stores it owner-only in `~/.config/painapple-code/config.yaml` (under `/home/app/` inside the container). On a loopback bind it logs a bootstrap URL with the token embedded as `?tkn=…` — open it once, the cookie does the rest. Non-loopback binds (LAN, `0.0.0.0`, inside the container) hide credentials from stdout by default, since a server's console tends to end up in journald or `docker logs`; retrieve them with `painapple password`, or opt back in with `--show-password`.
 
 ```bash
 # Reveal the password — prints ready-to-open login URLs
 painapple password                # add a profile name for named deployments
-# …or read the config file directly
+# …or read the config file directly (in a container not managed by the CLI,
+# prefix with `docker exec painapple-code` and use the /home/app/… path)
 awk '/^password:/ {print $2}' ~/.config/painapple-code/config.yaml
-# …or in a container not managed by the CLI
-docker exec painapple-code awk '/^password:/ {print $2}' \
-    /home/app/.config/painapple-code/config.yaml
 
-# Rotate: delete the config, restart, and a new password is generated
+# Rotate: delete the config and a new password is generated
 rm ~/.config/painapple-code/config.yaml   # then restart the server
-# …or when running in a container
-docker exec painapple-code rm /home/app/.config/painapple-code/config.yaml \
-    && docker restart painapple-code
 ```
 
-**Three auth paths:** the `painapple_auth` cookie (set automatically after first login), `?tkn=<api_token>` in any URL, or `Authorization: Bearer <api_token>` for `curl` and scripts.
-
-**The password itself is never sent on those paths.** Every credential is HMAC-derived from it and domain-separated: the browser gets the cookie, scripts and `?tkn=` links get `api_token` (written into the same config file on start). So a shared bootstrap link or a CI secret isn't the master credential — it can't open the login form — and each side revokes independently: bump `bearer_epoch` to kill every script token and link while browsers stay logged in, or `cookie_epoch` to log out every browser while automation keeps running. Rotating the password resets everything.
+**Three auth paths:** the `painapple_auth` cookie (set automatically after first login), `?tkn=<api_token>` in any URL, or `Authorization: Bearer <api_token>` for `curl` and scripts. **None of them carries the password itself** — cookies and tokens are HMAC-derived from it, so a shared bootstrap link or a CI secret can't open the login form, and each side is revocable independently (log out every browser, or kill every script token, without touching the other). Details in the [security notes](https://painapple.ai/getting-started/security/).
 
 ## Architectures
 
