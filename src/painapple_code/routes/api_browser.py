@@ -535,17 +535,38 @@ class _SSRFGuardBackend(httpcore.AsyncNetworkBackend):
             socket_options=socket_options)
 
 
+class SSRFGuardUnavailable(RuntimeError):
+    """The request-time SSRF-guard backend could not be installed on httpx.
+
+    Raised so the proxy FAILS CLOSED. The guard pins each connection to a
+    DNS-validated IP, closing the rebind TOCTOU the pre-checks can't. The old
+    behavior degraded to "pre-checks only" and logged a warning — safe against
+    a crash, but a silent security downgrade: an httpx bump that renamed the
+    private internal would quietly drop rebind protection with nothing but a
+    log line. Refusing the fetch turns that into a loud 503 instead.
+    """
+
+
 def _guarded_async_client(**kwargs) -> httpx.AsyncClient:
     """Build an AsyncClient whose connections go through the SSRF-guard backend.
 
-    Falls back to a plain client (pre-checks only) if httpx's internals ever
-    stop exposing the pool backend — the _is_private_host checks still apply.
+    Fails closed (raises `SSRFGuardUnavailable`) if httpx's internals ever stop
+    exposing the pool backend, rather than returning a client that silently
+    connects without the IP pin. Callers must convert this to a refusal.
     """
     transport = httpx.AsyncHTTPTransport()
     try:
         transport._pool._network_backend = _SSRFGuardBackend()
-    except AttributeError:  # pragma: no cover - httpx internal shape changed
-        logger.warning("SSRF-guard backend not installed; relying on pre-checks only")
+    except AttributeError as e:  # httpx internal shape changed (attr renamed/removed)
+        raise SSRFGuardUnavailable(
+            "httpx transport internals changed; SSRF-guard backend not installed"
+        ) from e
+    # Belt-and-suspenders: the assignment above raises if `_pool` is missing,
+    # but a future httpx could make `_pool` reject or ignore the set (slots /
+    # read-only property) without raising. Read it back and confirm it is
+    # actually ours, so "install succeeded" can never be a false positive.
+    if not isinstance(getattr(transport._pool, "_network_backend", None), _SSRFGuardBackend):
+        raise SSRFGuardUnavailable("SSRF-guard backend did not attach to the transport pool")
     return httpx.AsyncClient(transport=transport, **kwargs)
 
 
@@ -608,6 +629,15 @@ async def browser_proxy(url: str):
                 current_url = next_url
             else:
                 raise HTTPException(502, "Too many redirects")
+    except SSRFGuardUnavailable:
+        # httpx internals shifted under a version bump: the IP-pinning backend
+        # didn't install. Refuse rather than fetch with pre-checks only — the
+        # canary test should have caught this in CI first.
+        logger.error(
+            "Browser proxy disabled: SSRF-guard backend unavailable "
+            "(httpx internals changed under a version bump)"
+        )
+        raise HTTPException(503, "Browser proxy is disabled: request-time SSRF protection is unavailable")
     except httpx.HTTPError as e:
         logger.warning("Browser proxy fetch failed: %s — %s", safe_url, e)
         raise HTTPException(502, f"Upstream fetch failed: {e.__class__.__name__}")
