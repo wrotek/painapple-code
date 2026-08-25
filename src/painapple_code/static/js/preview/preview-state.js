@@ -23,6 +23,8 @@ export class PreviewState {
         this.plugin = null;        // matched plugin object (or null for default code view)
         this.pluginState = {};     // per-file state initialized by plugin.initState()
         this.viewMode = 'code';    // 'code' | 'edit' | plugin-defined modes ('rendered', 'table', etc.)
+        this.inlineEdit = false;   // rendered-markdown inline-edit mode — PER INSTANCE, so a
+                                   // floating preview and a tab preview can't fight over one flag
         this.isLoading = false;
         this.error = null;
         this.mtime = null;
@@ -122,6 +124,15 @@ export function getSessionState(sessionId) {
 export function removeSessionState(sessionId) {
     const s = sessionStates.get(sessionId);
     if (s) { s.reset(); sessionStates.delete(sessionId); }
+}
+
+// Re-point the active state at a specific, already-materialized instance.
+// Used by interaction handlers (inline edit, checkboxes) that know which
+// instance the user actually clicked in — the widget-lifecycle events
+// (render / tab-activated / session:changed) don't fire on a plain click, so
+// without this a click in the floating preview can act on a tab's state.
+export function activateStateInstance(s) {
+    if (s) state = s;
 }
 
 // Activate either a widget-tab state (when tabId is provided) or the current

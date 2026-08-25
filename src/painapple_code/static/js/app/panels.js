@@ -116,13 +116,22 @@ export const panelMethods = {
     },
 
     async togglePreviewInlineEdit() {
-        // Find file-preview container — could be floating widget OR a tab
-        const container = document.querySelector('.file-preview-widget');
-        if (!container) return;
-
         // Use module namespace (not destructuring) so state is the live binding
         // — activateState(tabId) reassigns the module-level state variable
         const mod = await import('../preview/preview-state.js');
+
+        // Find file-preview container — could be floating widget OR a tab.
+        // Prefer the ACTIVE instance's own container (state.container is set on
+        // every render): a bare document.querySelector takes the first
+        // .file-preview-widget in DOM order, which with a floating preview +
+        // hidden tab previews open could be a pane the user isn't looking at —
+        // the viewMode check below and the toggle would then disagree
+        // ("e does nothing" / toggles a hidden pane).
+        const stateContainer = mod.state.container?.isConnected ? mod.state.container : null;
+        const container = stateContainer?.querySelector('.file-preview-widget')
+            || stateContainer
+            || document.querySelector('.file-preview-widget');
+        if (!container) return;
 
         if (mod.state.viewMode === 'code' && mod.isEditable()) {
             // Code view → enter edit mode, capturing visible line for scroll restoration

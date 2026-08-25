@@ -1801,7 +1801,13 @@ class App {
         // Match anywhere in DOM — works for both floating widgets and tab-hosted ones,
         // which WidgetManager.get() doesn't always return.
         if (FilePreviewWidget.isOpen()) {
-            const rendered = document.querySelector('.preview-rendered.inline-edit-mode');
+            // Prefer a VISIBLE pane: hidden session/widget tabs keep their
+            // .file-preview-widget in the DOM, and the first match could be one
+            // of those — Esc would then report "edit mode off" while the pane
+            // the user is looking at stays in edit mode.
+            const candidates = document.querySelectorAll('.preview-rendered.inline-edit-mode');
+            const rendered = Array.from(candidates).find(el => el.offsetParent !== null)
+                || candidates[0];
             if (rendered) {
                 const container = rendered.closest('.file-preview-widget');
                 import('./preview/preview-inline-edit.js').then(({ toggleInlineEdit }) => {

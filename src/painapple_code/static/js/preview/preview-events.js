@@ -150,7 +150,7 @@ export function setupEventHandlers(container) {
         }
         // Ctrl+E: only enter edit mode from code/preview view.
         // In edit mode or inline edit, let Ctrl+E pass through for end-of-line (iPadOS/Emacs).
-        if ((e.ctrlKey || e.metaKey) && e.key === 'e' && !isEditMode() && !isInlineEditActive()) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e' && !isEditMode() && !isInlineEditActive(container)) {
             if (isEditable()) {
                 e.preventDefault();
                 fns.switchToEditView();

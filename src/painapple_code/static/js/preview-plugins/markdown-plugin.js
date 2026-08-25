@@ -230,7 +230,7 @@ export default {
             }
 
             rendered?.addEventListener('click', async (e) => {
-                if (isInlineEditActive()) return;
+                if (isInlineEditActive(rendered)) return;
                 const a = e.target.closest('a[href]');
                 if (!a || !rendered.contains(a)) return;
                 const href = a.getAttribute('href') || '';

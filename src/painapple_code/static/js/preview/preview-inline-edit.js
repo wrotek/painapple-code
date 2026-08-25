@@ -5,15 +5,39 @@
  * to edit its raw markdown source inline. Press Enter to save, Escape to cancel.
  */
 
-import { state, fns } from './preview-state.js';
+import { state, fns, activateStateInstance } from './preview-state.js';
 import { showToast } from './preview-utils.js';
 import { appConfirm } from '../utils.js';
 import { CONFIG } from '../config.js';
 import S from '../strings.js';
 
-let active = false;
 let currentEdit = null;
 let discardConfirmOpen = false;
+
+// ─── Per-instance state resolution ──────────────────────────────────────
+// The preview has one PreviewState per widget tab / per session (see
+// preview-state.js), but this module used to keep the edit-mode flag in a
+// module-level boolean — so a floating preview and a tab preview shared one
+// flag, and whichever instance toggled last won. Symptoms: pencil not
+// highlighting, Esc reporting "edit mode off" while the visible pane stayed
+// active, `e` acting on a hidden instance. The flag now lives on PreviewState
+// (state.inlineEdit); each rendered instance stamps its state onto its
+// `.file-preview-widget` host so callers holding only a DOM node (Esc handler,
+// keyboard shortcut) can resolve the right instance.
+
+/** Normalize any preview-related element to its `.file-preview-widget` host. */
+function hostOf(el) {
+    if (!el) return null;
+    if (el.classList?.contains('file-preview-widget')) return el;
+    return el.querySelector?.('.file-preview-widget')
+        || el.closest?.('.file-preview-widget')
+        || el;
+}
+
+/** Resolve the PreviewState instance owning `el`; falls back to the active state. */
+function stateFor(el) {
+    return hostOf(el)?._previewState || state;
+}
 
 const TRASH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
@@ -44,45 +68,63 @@ function saveFailedMsg(err, base) {
     return reason ? `${label} — ${reason}` : label;
 }
 
-export function isInlineEditActive() { return active; }
+// Optional `el`: resolve the instance owning that element (event handlers);
+// without it, reports the ACTIVE instance (render-time callers, where the
+// module state pointer is guaranteed correct).
+export function isInlineEditActive(el) { return !!stateFor(el).inlineEdit; }
 
 // True while a block's textarea is open — used by the file-change poll to avoid
 // a rerenderContent() that would wipe the in-progress edit (and its keystrokes).
 export function isInlineEditInProgress() { return !!currentEdit; }
 
 export function toggleInlineEdit(container) {
-    active = !active;
-    const rendered = container?.querySelector('.preview-rendered');
+    const host = hostOf(container);
+    const s = host?._previewState || state;
+    // The user is engaging with THIS instance — make it the active one, so the
+    // downstream machinery keyed on the module state pointer (rerenderContent,
+    // save paths) targets the pane the user is actually looking at.
+    activateStateInstance(s);
+    s.inlineEdit = !s.inlineEdit;
+    const active = s.inlineEdit;
+    const scope = host || container;
+    const rendered = scope?.querySelector('.preview-rendered');
     if (rendered) {
         rendered.classList.toggle('inline-edit-mode', active);
     }
-    const btn = container?.querySelector('.inline-edit-toggle');
+    const btn = scope?.querySelector('.inline-edit-toggle');
     if (btn) {
         btn.classList.toggle('active', active);
         btn.setAttribute('data-tooltip', active
             ? (S.preview?.inline_edit_disable || 'Disable inline editing')
             : (S.preview?.inline_edit_enable || 'Click to edit'));
     }
-    // Cancel any in-progress edit when toggling off
-    if (!active && currentEdit) {
+    // Cancel any in-progress edit when toggling THIS instance off
+    if (!active && currentEdit && (!scope || scope.contains(currentEdit.element))) {
         cancelEdit();
     }
     return active;
 }
 
 export function setInlineEdit(val) {
-    active = val;
+    state.inlineEdit = val;
 }
 
 /**
  * Setup inline edit click handlers on rendered markdown container
  */
 export function setupInlineEdit(container) {
+    // Setup runs during render, when the module state pointer IS this
+    // instance's state (render() calls activateState first). Capture it and
+    // stamp it on the host so later interactions resolve the right instance.
+    const s = state;
+    const host = hostOf(container);
+    if (host) host._previewState = s;
+
     const rendered = container.querySelector('.preview-rendered');
     if (!rendered) return;
 
-    // Restore state if re-rendered while active
-    if (active) {
+    // Restore mode class if re-rendered while this instance is active
+    if (s.inlineEdit) {
         rendered.classList.add('inline-edit-mode');
     }
 
@@ -90,7 +132,9 @@ export function setupInlineEdit(container) {
     addTrashButtons(rendered);
 
     rendered.addEventListener('click', (e) => {
-        if (!active) return;
+        if (!s.inlineEdit) return;
+        // Clicked into this instance — the pointer-keyed machinery follows.
+        activateStateInstance(s);
 
         // Trash click → delete block directly (no edit step)
         const trashBtn = e.target.closest('.inline-edit-trash-btn');
@@ -746,10 +790,13 @@ export function setupCheckboxes(container) {
         cb.classList.add('md-task-checkbox');
     });
 
-    // Delegate click handling
+    // Delegate click handling. Re-point the active state to this instance
+    // first — toggleCheckboxInSource reads state.content/currentPath.
+    const s = state;
     rendered.addEventListener('change', (e) => {
         const cb = e.target;
         if (!cb.classList.contains('md-task-checkbox')) return;
+        activateStateInstance(s);
         toggleCheckboxInSource(cb);
     });
 }
