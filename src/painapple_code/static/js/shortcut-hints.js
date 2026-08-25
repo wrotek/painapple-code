@@ -14,6 +14,9 @@
 import S from './strings.js';
 import { SHORTCUTS, resolveKeys, formatKeyForDisplay } from './shortcuts.js';
 import { registerActions } from './action-delegate.js';
+// Side-effect import: owns body.fine-pointer, which is what re-enables the
+// rows' pointer-events on a touch-reporting device driven by a real cursor.
+import './pointer-input.js';
 import { escapeHtml, escapeAttr } from './utils.js';
 
 const CONFIG_STORAGE_KEY = 'claude-code-user-config';

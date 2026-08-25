@@ -273,12 +273,21 @@
    hover there is nothing to advertise that the rows are buttons at all.
    Phones (≤768px) hide the overlay outright; this is what covers tablets.
    iPadOS always reports hover:none + pointer:coarse, even with a Magic
-   Keyboard trackpad, so iPads land here by design — see the tooltip section
-   of CLAUDE.md for why (hover: hover) is never the right test here. */
+   Keyboard trackpad, so an iPad matches here no matter what is driving it —
+   see the tooltip section of CLAUDE.md for why (hover: hover) is never the
+   right test. That makes this query a SAFE DEFAULT, not the whole answer:
+   the runtime body.fine-pointer signal (js/pointer-input.js) lifts the gate
+   the moment a real cursor appears, which restores clicking for an iPad on a
+   trackpad without ever arming a bare-finger tap. */
 @media (hover: none) and (pointer: coarse) {
     .shortcut-hints-pair {
         pointer-events: none;
         cursor: default;
+    }
+
+    body.fine-pointer .shortcut-hints-pair {
+        pointer-events: auto;
+        cursor: pointer;
     }
 }
 
