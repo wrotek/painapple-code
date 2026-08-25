@@ -17,7 +17,6 @@ source dev-container-features-test-lib
 check "source-cloned"        test -f /opt/painapple-code/src/painapple_code/server.py
 check "requirements-present" test -f /opt/painapple-code/requirements.txt
 check "venv-created"         test -x /opt/painapple-code/venv/bin/python
-check "state-dir-created"    test -d /var/painapple-code
 check "launcher-installed"   test -x /usr/local/bin/painapple-code-start
 check "autostart-hook"       test -f /etc/profile.d/painapple-code.sh
 
@@ -38,15 +37,21 @@ import ast, pathlib
 ast.parse(pathlib.Path('/opt/painapple-code/src/painapple_code/server.py').read_text())
 "
 
-# --- 5. Launcher is idempotent and starts the server ----------------------
+# --- 5. Launcher creates its state dir and starts the server --------------
+# State lives under $PAINAPPLE_CODE_HOME (default ~/.painapple-code, or
+# /workspaces/.painapple-code in Codespaces) — the launcher mkdir -p's it at
+# run time; install.sh deliberately creates no system-wide path. Point it at
+# a scratch dir so the check doesn't depend on which user the harness runs as.
 # Run in a subshell so a failure here doesn't kill the whole test script
 # before reportResults() gets called.
 check "launcher-runs" bash -c '
+    export PAINAPPLE_CODE_HOME=/tmp/painapple-state
     PAINAPPLE_WORKSPACE=/tmp painapple-code-start
     sleep 2
-    # PID file should now exist and point at a live process
-    test -f /tmp/painapple-code.pid
-    kill -0 "$(cat /tmp/painapple-code.pid)"
+    # State dir + PID file should now exist, pointing at a live process
+    test -d "$PAINAPPLE_CODE_HOME"
+    test -f "$PAINAPPLE_CODE_HOME/launcher.pid"
+    kill -0 "$(cat "$PAINAPPLE_CODE_HOME/launcher.pid")"
 '
 
 # --- 6. Server actually serves on the configured port ---------------------

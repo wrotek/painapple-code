@@ -26,7 +26,6 @@ AUTOSTART="${AUTOSTART:-true}"
 INSTALLHELPERS="${INSTALLHELPERS:-true}"
 
 INSTALL_DIR="/opt/painapple-code"
-STATE_DIR="/var/painapple-code"
 LAUNCHER="/usr/local/bin/painapple-code-start"
 
 # --- Resolve the non-root container user ----------------------------------
@@ -388,6 +387,6 @@ chmod 1777 /tmp /var/tmp 2>/dev/null || true
 
 echo "==> pAInapple Code Feature install complete."
 echo "    Source:    $INSTALL_DIR"
-echo "    State:     $STATE_DIR"
+echo "    State:     \$PAINAPPLE_CODE_HOME (created by the launcher at run time)"
 echo "    Launcher:  $LAUNCHER"
 echo "    Port:      $PORT (forward in devcontainer.json to expose)"
