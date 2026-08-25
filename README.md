@@ -7,7 +7,7 @@ Inspired by [code-server](https://github.com/coder/code-server).
 
 Right now it's a PWA, but **desktop and mobile apps are in development**.
 
-[What it is](#what-it-is-and-what-it-isnt) · [Features](#highlighted-features) · [Security](#security-model) · [Requirements](#requirements) · [Quick start](#quick-start) · [Known weaknesses](#known-weaknesses)
+[What it is](#what-it-is-and-what-it-isnt) · [Security](#security-model) · [Features](#highlighted-features) · [Requirements](#requirements) · [Quick start](#quick-start) · [Known weaknesses](#known-weaknesses)
 
 ![pAInapple Code session with the Auto Journal widget open next to the chat](docs-site/assets/overview.png)
 
@@ -18,6 +18,20 @@ Right now it's a PWA, but **desktop and mobile apps are in development**.
 **It is not** a hosted service. You run it, on your hardware, with your own Claude account.
 
 **It is not zero-config "code from anywhere".** The client works as a PWA on a phone or iPad, but the networking between them is yours to wire up. The practical path: keep the default `127.0.0.1` bind and add a reverse proxy (Caddy, nginx) or a VPN for remote access — mobile browsers handle self-signed certificates poorly.
+
+## Security model
+
+**This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I try to keep the security hygiene tight, but I can't promise there isn't an RCE hiding somewhere — one more reason to take the isolation advice below seriously. **A rewrite to a more rigorous standard is planned;** for now there are plenty of ideas I want to implement and test first.
+
+**Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** It exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user — and prompt injection and poisoned packages are real risks for *any* coding agent. Treat the password like an SSH key.
+
+The server binds `127.0.0.1` over plain HTTP by default; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or behind a personal VPN. **I strongly discourage exposing it on a public interface.**
+
+It is **single-user, not multi-tenant**. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead. → [Security notes](https://painapple.ai/getting-started/security/)
+
+**The easiest mitigation is the built-in container mode:** `painapple --in-docker` sandboxes a workspace in a prebuilt image with the dev tools and agent CLIs included ([Quick start](#quick-start)), and `painapple setup NAME` creates named, persistent sandboxes ([Server options](#server-options)). Full reference: [Docker & container mode](https://painapple.ai/getting-started/install-docker/).
+
+**Found a vulnerability?** Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
 ## Highlighted features
 
@@ -60,20 +74,6 @@ Search **every prompt you've ever sent**, across all sessions and projects, with
 ### And more
 
 → [All features](https://painapple.ai/features/)
-
-## Security model
-
-**This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I try to keep the security hygiene tight, but I can't promise there isn't an RCE hiding somewhere — one more reason to take the isolation advice below seriously. **A rewrite to a more rigorous standard is planned;** for now there are plenty of ideas I want to implement and test first.
-
-**Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** It exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user — and prompt injection and poisoned packages are real risks for *any* coding agent. Treat the password like an SSH key.
-
-The server binds `127.0.0.1` over plain HTTP by default; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or behind a personal VPN. **I strongly discourage exposing it on a public interface.**
-
-It is **single-user, not multi-tenant**. Don't share one instance between people who shouldn't have each other's shell access; run separate instances as separate OS users instead. → [Security notes](https://painapple.ai/getting-started/security/)
-
-**The easiest mitigation is the built-in container mode:** `painapple --in-docker` sandboxes a workspace in a prebuilt image with the dev tools and agent CLIs included ([Quick start](#quick-start)), and `painapple setup NAME` creates named, persistent sandboxes ([Server options](#server-options)). Full reference: [Docker & container mode](https://painapple.ai/getting-started/install-docker/).
-
-**Found a vulnerability?** Please report it privately — see [`SECURITY.md`](SECURITY.md).
 
 ## Requirements
 
