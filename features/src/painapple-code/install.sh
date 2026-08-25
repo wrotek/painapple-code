@@ -6,7 +6,8 @@
 #   - System deps Painapple Code needs at runtime (python3-venv, git, fd, rg, …)
 #   - Node 20 + the `claude` CLI (only if not already present from another Feature)
 #   - The Painapple Code source under /opt/painapple-code
-#   - A Python venv with the server's requirements
+#   - A Python venv with the server's requirements (on a base whose distro
+#     python3 is older than 3.12, a standalone CPython is fetched first)
 #   - A `painapple-code-start` launcher script at /usr/local/bin
 #   - (optional) a /etc/profile.d hook that auto-starts the server on shell entry
 #   - (optional) the shadow-git + shadow-query + shadow-git-helper agent into the user's home
@@ -170,13 +171,69 @@ else
     fi
 fi
 
-# --- 4. Python venv --------------------------------------------------------
+# --- 4. Python interpreter -------------------------------------------------
+# painapple-code needs Python >= 3.12 (pyproject's requires-python). Ubuntu
+# 24.04 — devcontainers/base:ubuntu, the default in our own README — ships
+# 3.12 as its python3, so the distro interpreter is fine there. Debian
+# bookworm, which backs devcontainers/base:debian and every `*-bookworm-slim`
+# image, ships 3.11 and has no backport: `pip install -e` dies with
+# "requires a different Python: 3.11.2 not in '>=3.12'". There is no
+# deadsnakes equivalent for Debian, so rather than compile CPython (minutes)
+# we fetch a prebuilt standalone build with a throwaway uv (seconds).
+#
+# We deliberately do NOT repoint the container's own `python3`. The server
+# runs out of its own venv; hijacking the user's default interpreter is not
+# this Feature's business, and it would fight the official python Feature --
+# which we already list in installsAfter, so if the user included it, its
+# 3.12+ is what the probe below finds.
+PYTHON_MIN_MINOR=12
+PYTHON_FALLBACK="3.13"
+MANAGED_PYTHON_DIR="/opt/painapple-python"
+
+python_new_enough() {
+    "$1" -c "import sys; raise SystemExit(0 if sys.version_info >= (3, $PYTHON_MIN_MINOR) else 1)" \
+        >/dev/null 2>&1
+}
+
+VENV_PYTHON=""
+for candidate in python3.14 python3.13 python3.12 python3; do
+    resolved="$(command -v "$candidate" 2>/dev/null || true)"
+    if [ -n "$resolved" ] && python_new_enough "$resolved"; then
+        VENV_PYTHON="$resolved"
+        break
+    fi
+done
+
+if [ -z "$VENV_PYTHON" ]; then
+    echo "==> $(python3 -V 2>&1) is below 3.$PYTHON_MIN_MINOR; fetching a standalone CPython $PYTHON_FALLBACK"
+    UV_TMP="$(mktemp -d)"
+    # uv is a BUILD-time tool here -- installed to a temp dir and deleted
+    # below, so the Feature doesn't silently add a global `uv` that could
+    # shadow the user's own (or the devcontainers uv Feature).
+    # INSTALLER_NO_MODIFY_PATH: don't rewrite shell rc files on the way past.
+    curl -LsSf https://astral.sh/uv/install.sh \
+        | env UV_INSTALL_DIR="$UV_TMP" INSTALLER_NO_MODIFY_PATH=1 sh
+    # --no-bin: skip the ~/.local/bin/python3.13 shim (it warns, and on some
+    # bases collides with an existing entry). --managed-python: never hand
+    # back a system interpreter that happens to match the request.
+    UV_PYTHON_INSTALL_DIR="$MANAGED_PYTHON_DIR" "$UV_TMP/uv" python install \
+        --no-bin --managed-python "$PYTHON_FALLBACK"
+    VENV_PYTHON="$(UV_PYTHON_INSTALL_DIR="$MANAGED_PYTHON_DIR" "$UV_TMP/uv" python find \
+        --managed-python "$PYTHON_FALLBACK")"
+    rm -rf "$UV_TMP"
+    # The venv records this absolute path in pyvenv.cfg, so it has to stay
+    # readable and executable for whichever user ends up running the server.
+    chmod -R a+rX "$MANAGED_PYTHON_DIR"
+fi
+echo "==> Python for the venv: $VENV_PYTHON ($("$VENV_PYTHON" -V 2>&1))"
+
+# --- 5. Python venv --------------------------------------------------------
 echo "==> Setting up Python venv"
-python3 -m venv "$INSTALL_DIR/venv"
+"$VENV_PYTHON" -m venv "$INSTALL_DIR/venv"
 "$INSTALL_DIR/venv/bin/pip" install --no-cache-dir --upgrade pip
 "$INSTALL_DIR/venv/bin/pip" install --no-cache-dir -e "$INSTALL_DIR"
 
-# --- 5. Ownership ----------------------------------------------------------
+# --- 6. Ownership ----------------------------------------------------------
 # The server's state dir (PAINAPPLE_CODE_HOME) lives under the container
 # user's $HOME — set by the launcher at runtime — so we don't need a
 # system-wide /var path. Two reasons:
@@ -186,7 +243,7 @@ python3 -m venv "$INSTALL_DIR/venv"
 #      docs / `shadow-query` / shadow-git commands work identically in both.
 chown -R "$CONTAINER_USER:$CONTAINER_USER" "$INSTALL_DIR"
 
-# --- 6. Launcher script ----------------------------------------------------
+# --- 7. Launcher script ----------------------------------------------------
 # The Feature spec has no native "run on container start" hook. We install a
 # launcher and (when AUTOSTART=true) a /etc/profile.d snippet that fires it
 # on first interactive shell. Codespaces always opens a shell at startup, so
@@ -288,7 +345,7 @@ print_login_url
 EOF
 chmod 755 "$LAUNCHER"
 
-# --- 7. Auto-start hook ----------------------------------------------------
+# --- 8. Auto-start hook ----------------------------------------------------
 # Two hooks because login shells differ:
 #   - bash/zsh/sh read /etc/profile.d/*.sh (the default path in Codespaces)
 #   - fish reads /etc/fish/conf.d/*.fish (defensive — only fires if the
@@ -339,7 +396,7 @@ end
 EOF
 chmod 644 /etc/fish/conf.d/painapple-code-path.fish
 
-# --- 8. Bash alias convenience --------------------------------------------
+# --- 9. Bash alias convenience --------------------------------------------
 # Tiny QoL: Dockerfile bakes in an `ll` alias; mirror that here for the
 # bash login shell that Codespaces ships by default. Shell choice itself
 # (fish/zsh/etc.) is left to the consuming devcontainer.
@@ -349,7 +406,7 @@ if [ -f "$BASHRC" ] && ! grep -q "alias ll=" "$BASHRC" 2>/dev/null; then
     chown "$CONTAINER_USER:$CONTAINER_USER" "$BASHRC"
 fi
 
-# --- 9. Helpers (shadow-git, shadow-query, agent template) -------------------------
+# --- 10. Helpers (shadow-git, shadow-query, agent template) -------------------------
 if [ "$INSTALLHELPERS" = "true" ] && [ -x "$INSTALL_DIR/tools/install-helpers.sh" ]; then
     echo "==> Installing helpers as $CONTAINER_USER"
     # install-helpers.sh is user-scoped (writes to ~/.local/bin and ~/.claude),

@@ -126,6 +126,7 @@ codespace, `http://localhost:<port>/?tkn=<password>` elsewhere.
 | Path | Purpose |
 |---|---|
 | `/opt/painapple-code/` | Cloned source + Python venv |
+| `/opt/painapple-python/` ‡ | Standalone CPython, only on bases whose `python3` is older than 3.12 |
 | State dir † | Server state (sessions, logs, shadow DB, launcher PID + log) |
 | Auth config † | Password file the server reads / writes |
 | `/usr/local/bin/painapple-code-start` | Idempotent launcher script |
@@ -134,6 +135,13 @@ codespace, `http://localhost:<port>/?tkn=<password>` elsewhere.
 | `/etc/fish/conf.d/painapple-code-path.fish` | Adds `~/.local/bin` to PATH under fish |
 | `~/.local/bin/shadow-git`, `shadow-query` | Optional helpers (when `installHelpers=true`) |
 | `~/.claude/agents/shadow-git-helper.md` | Optional agent template |
+
+**‡ Python:** the server needs Python >= 3.12. Ubuntu 24.04 bases
+(`devcontainers/base:ubuntu`) ship that already and are used as-is. On
+Debian bookworm bases (`devcontainers/base:debian`, `*-bookworm-slim`)
+`python3` is 3.11 with no backport, so the Feature fetches a prebuilt
+standalone CPython for its own venv. Your container's `python3` is left
+untouched either way.
 
 **† State and auth path:** in **Codespaces** the launcher anchors both
 under `/workspaces/.painapple-code/` (state) and

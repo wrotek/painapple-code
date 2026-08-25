@@ -17,6 +17,10 @@ source dev-container-features-test-lib
 check "source-cloned"        test -f /opt/painapple-code/src/painapple_code/server.py
 check "requirements-present" test -f /opt/painapple-code/requirements.txt
 check "venv-created"         test -x /opt/painapple-code/venv/bin/python
+# pyproject sets requires-python >=3.12. Debian bookworm ships 3.11, so on
+# that base install.sh has to source a newer interpreter — assert it did.
+check "venv-python-supported" /opt/painapple-code/venv/bin/python -c \
+    "import sys; raise SystemExit(0 if sys.version_info >= (3, 12) else 1)"
 check "launcher-installed"   test -x /usr/local/bin/painapple-code-start
 check "autostart-hook"       test -f /etc/profile.d/painapple-code.sh
 
