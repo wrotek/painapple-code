@@ -85,7 +85,7 @@ Search **every prompt you've ever sent**, across all sessions and projects, with
 
 ## Quick start
 
-One install with [pipx](https://pipx.pypa.io/), then run `painapple` in the project you want to work on.
+One install with [pipx](https://pipx.pypa.io/), then run `painapple` from the directory that **holds your projects** — one instance serves them all, and you pick the project to work on from the welcome screen.
 
 ### macOS & Linux
 
@@ -98,9 +98,9 @@ python3 -m pip install --user pipx && python3 -m pipx ensurepath   # anywhere el
 # 2. Install pAInapple Code
 pipx install painapple-code
 
-# 3. Run it in your project
-cd ~/code/my-project
-painapple --in-docker      # recommended: each instance sandboxed in a container
+# 3. Run it from the directory that holds your projects
+cd ~/code
+painapple --in-docker      # recommended: sandboxed in a container
 painapple                  # …or straight on the host, serving the current directory
 ```
 
@@ -125,8 +125,8 @@ python -m pipx ensurepath
 # reopen PowerShell so the PATH change takes effect
 pipx install painapple-code
 
-# 3. Run it in your project
-cd C:\Users\you\projects\my-project
+# 3. Run it from the directory that holds your projects
+cd C:\Users\you\projects
 painapple
 ```
 
@@ -138,9 +138,9 @@ Git for Windows is worth installing even if you use another git: the optional [h
 
 ### Then what?
 
-The console prints the **app URL with a login token embedded** — open it in any browser on the network and you're in. Point a phone or tablet at the same URL and install it as a PWA.
+The console prints the **app URL with a login token embedded** — open it in any browser on the network, pick a project on the welcome screen, and you're in. Point a phone or tablet at the same URL and install it as a PWA.
 
-In container mode the image is pulled automatically on the first run (`painapple pull` re-fetches it to update or pin a release); state persists in named volumes and your project is bind-mounted. To serve a folder other than the current one — or a parent holding several projects — pass `--workspace /path/to/your/projects`.
+In container mode the image is pulled automatically on the first run (`painapple pull` re-fetches it to update or pin a release); state persists in named volumes and your projects are bind-mounted. Running it inside a single project works too — the workspace is simply the current directory — and `--workspace /path` serves any folder without `cd`-ing there.
 
 ### More ways to run it
 
