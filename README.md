@@ -68,37 +68,76 @@ Full reference: [Docker & container mode](https://painapple.ai/getting-started/i
 
 ## Quick start
 
-### pipx (recommended)
+One install with [pipx](https://pipx.pypa.io/), then run `painapple` in the project you want to work on. Scroll to your platform: **[macOS](#macos) · [Linux](#linux) · [Windows](#windows)**.
 
-No pipx yet? It's two lines (or `brew install pipx` on macOS):
-
-```bash
-python3 -m pip install --user pipx
-python3 -m pipx ensurepath
-```
-
-Then:
+### macOS
 
 ```bash
+# 1. Install pipx (skip if you have it)
+brew install pipx && pipx ensurepath
+
+# 2. Install pAInapple Code
 pipx install painapple-code
 
-# Recommended: sandbox each instance in a container (see above).
+# 3. Run it in your project
 cd ~/code/my-project
-painapple --in-docker
-
-# …or run it straight on the host — it serves the current directory:
-painapple
-# …or point it at a workspace holding several projects:
-painapple --workspace /path/to/your/projects
+painapple --in-docker      # recommended: each instance sandboxed in a container
+painapple                  # …or straight on the host, serving the current directory
 ```
 
-**Installing on the host doesn't mean running on the host.** One pipx install manages both: bare is the simplest setup, `--in-docker` gives each instance its own sandbox without a separate install.
+No Homebrew? `python3 -m pip install --user pipx && python3 -m pipx ensurepath` does the same job. Container mode needs Docker Desktop, Podman, or OrbStack — without one, use the bare `painapple`.
 
-The console prints the **app URL with a generated password embedded**
+> **Intel Macs:** everything works out of the box except `--tls`, which needs one extra package — `pipx inject painapple-code "cryptography<49"`. Apple Silicon is unaffected.
 
-Plain `pip install painapple-code` into a venv works too — see the [pip/pipx guide](https://painapple.ai/getting-started/install-pip/).
+### Linux
 
-In container mode the image is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted. Raw `docker run` / compose / Podman recipes and source builds: [Docker install guide](https://painapple.ai/getting-started/install-docker/).
+```bash
+# 1. Install pipx (skip if you have it)
+python3 -m pip install --user pipx && python3 -m pipx ensurepath
+# Debian/Ubuntu can also use:  sudo apt install pipx
+
+# 2. Install pAInapple Code
+pipx install painapple-code
+
+# 3. Run it in your project
+cd ~/code/my-project
+painapple --in-docker      # recommended: each instance sandboxed in a container
+painapple                  # …or straight on the host, serving the current directory
+```
+
+Container mode uses whichever of Docker or Podman it finds — rootless Podman included.
+
+### Windows
+
+Run it **natively** — no WSL, no VM. Container mode (`--in-docker`) is not supported on Windows; use the bare command.
+
+```powershell
+# 1. Prerequisites (skip what you already have)
+winget install Python.Python.3.13
+winget install Git.Git
+
+# 2. Install pipx, then pAInapple Code
+python -m pip install --user pipx
+python -m pipx ensurepath
+# reopen PowerShell so the PATH change takes effect
+pipx install painapple-code
+
+# 3. Run it in your project
+cd C:\Users\you\projects\my-project
+painapple
+```
+
+Git for Windows is worth installing even if you use another git: the optional [helpers](#optional-helpers) are shell scripts that run under the `bash.exe` it ships. The built-in terminal tab runs PowerShell (`pwsh` when present), and `!bang` commands are PowerShell-flavored.
+
+> **Windows on ARM** (Surface, Snapdragon X) installs with no extra flags. Two upstream wheels are missing, both handled for you: the HTTP parser falls back to pure Python, and `--tls` needs `pipx inject painapple-code "cryptography<=46.0.3"`. Use a 64-bit Python.
+
+### Then what?
+
+The console prints the **app URL with a login token embedded** — open it in any browser on the network and you're in. Point a phone or tablet at the same URL and install it as a PWA.
+
+**Installing on the host doesn't mean running on the host.** One pipx install manages both: bare is the simplest setup, `--in-docker` gives each instance its own sandbox without a separate install. In container mode the image is pulled automatically on the first run; `painapple pull` re-fetches it to update or pin a release. State persists in named volumes and your project is bind-mounted.
+
+To serve a folder other than the current one — or a parent holding several projects — pass `--workspace /path/to/your/projects`.
 
 ### Desktop & mobile apps (in development)
 
@@ -106,6 +145,8 @@ Desktop and mobile apps are in development — stay tuned.
 
 ### More ways to run it
 
+- **Docker / Podman directly** — raw `docker run`, compose files, Podman flags and source builds → [Docker install guide](https://painapple.ai/getting-started/install-docker/)
+- **pip into a venv** — plain `pip install painapple-code` works the same way → [pip/pipx guide](https://painapple.ai/getting-started/install-pip/)
 - **GitHub Codespaces / Dev Containers** — one line in `devcontainer.json` boots every Codespace with pAInapple Code installed, started, and port-forwarded → [Dev Container Feature](https://painapple.ai/getting-started/install-devcontainer/)
 - **From source** — `git clone`, `venv/bin/pip install -e .`, run with `venv/bin/painapple` → [source install](https://painapple.ai/getting-started/install-pip/#from-a-source-checkout)
 
