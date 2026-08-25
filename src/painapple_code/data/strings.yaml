@@ -608,6 +608,10 @@ widgets:
     global_desc: "Always visible, even in terminal fullscreen"
 
   active_sessions:
+    stop:
+      stopped: "Response stopped"
+      not_running: "Nothing to stop — session is idle"
+      failed: "Failed to stop session"
     statuses:
       thinking: "Thinking"
       tasks: "Tasks"

@@ -157,19 +157,33 @@ async function stopSession(storeId, btn) {
     btn.innerHTML = ICONS.loader;
 
     try {
-        const response = await fetch(`${CONFIG.API_BASE}/api/session/${storeId}`, {
-            method: 'DELETE'
+        // POST /stop interrupts the in-flight response and touches no data.
+        // For 8 months this was `DELETE /api/session/${storeId}` — a birth-era
+        // "for now" shortcut (b8b36bda) that rmtree'd the session's on-disk
+        // store while leaving the process running, i.e. the exact opposite of
+        // the label. Do not "simplify" back to the DELETE endpoint: it
+        // destroys data and stops nothing.
+        const response = await fetch(`${CONFIG.API_BASE}/api/session/${storeId}/stop`, {
+            method: 'POST'
         });
 
         if (response.ok) {
+            const result = await response.json();
             await loadData();
-            WidgetBus.emit('notification', { type: 'success', message: 'Session stopped' });
+            if (result.stopped) {
+                WidgetBus.emit('notification', { type: 'success', message: S.widgets.active_sessions.stop.stopped });
+            } else {
+                // Live but idle — the turn ended between render and click.
+                WidgetBus.emit('notification', { type: 'info', message: S.widgets.active_sessions.stop.not_running });
+            }
+        } else {
+            btn.disabled = false;
+            WidgetBus.emit('notification', { type: 'error', message: S.widgets.active_sessions.stop.failed });
         }
     } catch (error) {
         console.error('Failed to stop session:', error);
         btn.disabled = false;
-        btn.textContent = 'Stop';
-        WidgetBus.emit('notification', { type: 'error', message: 'Failed to stop session' });
+        WidgetBus.emit('notification', { type: 'error', message: S.widgets.active_sessions.stop.failed });
     }
 }
 
@@ -346,7 +360,7 @@ function renderSessionCard(session) {
             </div>
             <div class="as-session-actions">
                 <button class="as-btn as-btn-jump" data-action="jump" data-tooltip="Jump to session">${ICONS.external}</button>
-                ${session.is_running ? `<button class="as-btn as-btn-stop" data-action="stop" data-tooltip="Stop">${ICONS.x}</button>` : ''}
+                ${session.is_running && !session.is_idle ? `<button class="as-btn as-btn-stop" data-action="stop" data-tooltip="Stop">${ICONS.x}</button>` : ''}
             </div>
         </div>
     `;

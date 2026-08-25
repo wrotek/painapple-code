@@ -88,10 +88,53 @@ async def get_session(session_id: str):
 
 @router.delete("/api/session/{session_id}")
 async def delete_session(session_id: str):
-    """Delete a session."""
+    """Delete a session's ON-DISK store (rmtree of the session directory).
+
+    Deliberately narrow, and as of 2026-08 called by NO UI surface — the
+    Active Sessions widget's Stop button pointed here for 8 months as an
+    explicit "for now" shortcut (b8b36bda) and silently destroyed session
+    data; it now uses /stop below. This endpoint does NOT stop a live agent
+    process, NOT remove the in-memory session, and NOT touch DuckDB turns or
+    shadow-git commits (retained by design — see SECURITY.md). If a real
+    "delete session" UI is ever added, it must not point here as-is: stop the
+    agent first and say what is retained.
+    """
     if SessionStore.delete(session_id):
         return {"deleted": True, "id": session_id}
     raise HTTPException(status_code=404, detail="Session not found")
+
+
+@router.post("/api/session/{session_id}/stop")
+async def stop_session(session_id: str):
+    """Interrupt a session's in-flight response. Data is untouched.
+
+    REST twin of the WebSocket `stop` message (`_handle_stop` in ws_chat.py),
+    for surfaces that hold no socket to the session — the Active Sessions
+    widget lists every live session but is attached to none of them. Same
+    engine-aware path (`interrupt_agent`): JSON-RPC turn/interrupt or SDK
+    control-plane where the provider supports it (process stays warm), SIGINT
+    otherwise. Precedent: f513748a gave worktrees a stop endpoint after its
+    widget's stop button was found calling DELETE — the same bug shape this
+    endpoint exists to close.
+
+    404: no live session by that id (stored-but-not-running sessions have no
+    process to interrupt). 200 {stopped: false}: session is live but idle —
+    reachable by racing a turn's natural end, so it is a state, not an error.
+    The idle check happens HERE, not in interrupt_agent: a warm-idle claude-sdk
+    process acks a control-plane interrupt even with nothing in flight, so
+    without this guard the race would report "stopped: true" for a no-op.
+    """
+    from painapple_code.server import agents
+
+    session = agents.sessions.get(session_id) if agents else None
+    if session is None:
+        raise HTTPException(status_code=404, detail="No live session with that id")
+
+    if session.is_idle:
+        return {"stopped": False, "id": session_id}
+
+    stopped = await agents.interrupt_agent(session)
+    return {"stopped": stopped, "id": session_id}
 
 
 @router.patch("/api/sessions/{session_id}/meta")
