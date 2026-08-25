@@ -1,24 +1,24 @@
 # Security floors raised 2026-08-07 (pre-publish hardening). Rationale:
 #   fastapi>=0.115  -> pulls starlette>=0.40 (CVE-2024-47874, multipart DoS)
-#   python-multipart>=0.0.31 -> CVE-2024-53981 (multipart boundary DoS, fixed 0.0.18)
+#   python-multipart>=0.0.32 -> CVE-2024-53981 (multipart boundary DoS, fixed 0.0.18)
 #   Pillow>=12.3.0  -> clears the 10.x/11.x image-parsing CVE run (e.g. CVE-2023-50447,
 #                      CVE-2024-28219, CVE-2025-48379)
 #   cryptography         -> floor raised again 2026-08-14; see its own block below
 #                           (it also became platform-conditional there)
-fastapi>=0.115.0
+fastapi>=0.141.1
 # uvicorn's [standard] extra pulls httptools, which publishes no
 # win_arm64 wheel — pip would try to build it from source and fail on a
 # stock Windows-on-ARM box (Surface / Snapdragon X). Those machines get
 # plain uvicorn (asyncio loop, h11 parser): measurably slower per request,
 # entirely fine for a single-user server. Everyone else keeps the fast path.
-uvicorn[standard]>=0.24.0; platform_machine != "ARM64" or sys_platform != "win32"
+uvicorn[standard]>=0.52.4; platform_machine != "ARM64" or sys_platform != "win32"
 uvicorn>=0.24.0; platform_machine == "ARM64" and sys_platform == "win32"
-websockets>=12.0
-duckdb>=1.0.0
+websockets>=17.0.1
+duckdb>=1.5.5
 pytz
-pyyaml>=6.0
+pyyaml>=6.0.3
 Pillow>=12.3.0
-python-multipart>=0.0.31
+python-multipart>=0.0.32
 # cryptography is used by exactly one module — tls_cert.py, which mints the
 # self-signed cert for `--tls` and is imported lazily, only when TLS is on.
 # It is therefore REQUIRED only on the platforms upstream still ships wheels
@@ -53,9 +53,9 @@ cryptography>=50.0.0; (platform_machine != "ARM64" or sys_platform != "win32") a
 # httpcore 2.0 ship. A hard-coded AttributeError fallback in
 # `_guarded_async_client` already degrades to pre-checks-only if the httpx
 # internal shape shifts within the allowed range.
-httpx>=0.28.0,<1.0
-httpcore>=1.0,<2.0  # imported directly for the browser-proxy SSRF-guard transport
-questionary>=2.1
-psutil>=5.9  # utils/proc.py liveness + process discovery — os.kill(pid,0) lies on win32 and /proc doesn't exist on macOS/Windows
-pywinpty>=2.0; sys_platform == "win32"  # utils/pty_windows.py — ConPTY for the terminal tab (POSIX uses stdlib pty)
-claude-agent-sdk>=0.2.111,<0.3  # claude-sdk provider driver (providers/claude_sdk/); upper-pinned because the driver's tee subclasses the SDK's _internal SubprocessCLITransport — raise the ceiling deliberately (test-cli skill) when bumping the minor
+httpx>=0.28.1,<1.0
+httpcore>=1.0.9,<2.0  # imported directly for the browser-proxy SSRF-guard transport
+questionary>=2.1.1
+psutil>=7.2.2  # utils/proc.py liveness + process discovery — os.kill(pid,0) lies on win32 and /proc doesn't exist on macOS/Windows
+pywinpty>=3.0.5; sys_platform == "win32"  # utils/pty_windows.py — ConPTY for the terminal tab (POSIX uses stdlib pty)
+claude-agent-sdk>=0.2.144,<0.3  # claude-sdk provider driver (providers/claude_sdk/); upper-pinned because the driver's tee subclasses the SDK's _internal SubprocessCLITransport — raise the ceiling deliberately (test-cli skill) when bumping the minor
