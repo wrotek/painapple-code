@@ -110,7 +110,9 @@ Container mode uses whichever of Docker or Podman it finds — Docker Desktop, O
 
 ### Windows
 
-Runs **natively** on Windows — WSL and VMs are optional, not required. Everything below is **PowerShell**: open *Terminal* or *Windows PowerShell* from the Start menu (PowerShell 7 works too) and paste.
+Runs **natively** on Windows. WSL2 is just a Linux VM, so it should work there without any issues — unfortunately I couldn't test it: WSL2 inside a Windows VM needs nested virtualization, which neither Apple's hypervisor nor the Windows VM I rented supports.
+
+Open *Terminal* or *Windows PowerShell* from the Start menu and paste.
 
 ```powershell
 # 1. Prerequisites (skip what you already have)
@@ -130,7 +132,7 @@ painapple
 
 Git for Windows is worth installing even if you use another git: the optional [helpers](#optional-helpers) are shell scripts that run under the `bash.exe` it ships. The built-in terminal tab runs PowerShell (`pwsh` when present), and `!bang` commands are PowerShell-flavored.
 
-**Prefer WSL2?** It hasn't been explicitly tested here, but it's likely the safer bet anyway: inside the distro this *is* the daily-exercised Linux build, and container mode (`--in-docker`) — the one thing native Windows can't do — works there too. Follow the [macOS & Linux](#macos--linux) steps verbatim. Two things to know: keep your projects on the Linux filesystem (`~/code/…`, not `/mnt/c/…` — file watching and git are painfully slow across the mount), and open the printed URL in your Windows browser as-is — WSL2 forwards `localhost` through for you.
+**Prefer WSL2?** Likely the safer bet: inside the distro this *is* the daily-exercised Linux build, and container mode (`--in-docker`) — the one thing native Windows can't do — works there too. Follow the [macOS & Linux](#macos--linux) steps verbatim. Two things to know: keep your projects on the Linux filesystem (`~/code/…`, not `/mnt/c/…` — file watching and git are painfully slow across the mount), and open the printed URL in your Windows browser as-is — WSL2 forwards `localhost` through for you.
 
 **Windows on ARM** (Surface, Snapdragon X) installs with no extra flags. Two upstream wheels are missing, both handled for you: the HTTP parser falls back to pure Python, and `--tls` needs `pipx inject painapple-code "cryptography<=46.0.3"`. Use a 64-bit Python.
 
@@ -216,7 +218,7 @@ pAInapple Code runs a coding agent, so it is not a light-touch program. Its own 
 
 This is an MVP — there are tradeoffs.
 
-1. **Windows support is new** — the server runs natively (ConPTY terminal, Windows file locking and process control, CI smoke-tested on every push), but it is by far the **youngest and least-exercised platform**; Linux is where this is developed and used daily, so expect rougher edges. If you'd rather not be on the young path, **install it inside WSL2 instead** — not explicitly tested either, but it runs the daily-exercised Linux build, so it should sidestep the native-Windows caveats.
+1. **Windows support is new and not well tested** — the server runs natively (ConPTY terminal, Windows file locking and process control, CI smoke-tested on every push), but it is by far the **youngest and least-exercised platform**; Linux is where this is developed and used daily, so expect rougher edges. Running inside WSL2 is probably the better option — not explicitly tested either, but it runs the daily-exercised Linux build, so it should sidestep the native-Windows caveats.
 2. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
 3. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
 4. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
