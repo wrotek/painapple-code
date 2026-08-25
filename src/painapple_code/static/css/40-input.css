@@ -222,9 +222,12 @@
     align-items: center;
     gap: var(--sp-8);
     min-width: 0;
-    /* Re-enable hits on the row only — the gaps around it still fall through
-       to the textarea, so clicking empty overlay space focuses the input. */
-    pointer-events: auto;
+    /* Rows start INERT. The overlay is drawn inside the empty textarea, so
+       the click that focuses the input must not also fire whatever row sits
+       under the cursor — see the :focus-within rule below, which is what
+       actually arms them. The gaps around a row always fall through to the
+       textarea, so clicking empty overlay space just focuses the input. */
+    pointer-events: none;
     cursor: pointer;
     /* Padding gives the hover chrome some breathing room; the matching
        negative margin keeps the grid metrics identical to the flat version,
@@ -256,6 +259,16 @@
     transform: translateY(1px);
 }
 
+/* A row is clickable only once the input ALREADY has focus. This is what
+   stops "click the chat to focus it" from doubling as "close the tab": the
+   first click lands on the textarea underneath (rows inert), focus moves,
+   and only the NEXT click can reach a row. Ordering matters as much as the
+   selector — a media query adds no specificity, so the touch gate further
+   down has to restate this selector to beat it. */
+.input-textarea-wrapper:focus-within .shortcut-hints-pair {
+    pointer-events: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .shortcut-hints-pair,
     .shortcut-hints-key,
@@ -280,12 +293,12 @@
    the moment a real cursor appears, which restores clicking for an iPad on a
    trackpad without ever arming a bare-finger tap. */
 @media (hover: none) and (pointer: coarse) {
-    .shortcut-hints-pair {
+    .input-textarea-wrapper:focus-within .shortcut-hints-pair {
         pointer-events: none;
         cursor: default;
     }
 
-    body.fine-pointer .shortcut-hints-pair {
+    body.fine-pointer .input-textarea-wrapper:focus-within .shortcut-hints-pair {
         pointer-events: auto;
         cursor: pointer;
     }
