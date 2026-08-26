@@ -71,7 +71,7 @@
     display: flex;
     align-items: stretch;
     gap: var(--sp-2);
-    padding: var(--sp-4) var(--sp-8);
+    padding: var(--sp-2) var(--sp-8);
     border-bottom: 1px solid var(--border-primary);
     background: var(--bg-primary);
     flex-shrink: 0;
@@ -88,7 +88,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--sp-5);
-    padding: var(--sp-4) var(--sp-8);
+    padding: var(--sp-2) var(--sp-8);
     border: none;
     border-radius: var(--radius-sm);
     background: transparent;
@@ -99,8 +99,9 @@
     white-space: nowrap;
     cursor: pointer;
     flex-shrink: 0;
-    /* Own the touch target without growing the strip. */
-    min-height: 28px;
+    /* Tall enough to tap, short enough that the strip costs a result row
+     * rather than two — the tab's width is doing most of the target work. */
+    min-height: 22px;
 }
 
 .qs-tab:hover {
