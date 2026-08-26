@@ -29,7 +29,6 @@ function tabHtml({ prefix, glyph, label }, index) {
         + ` data-index="${index}" data-prefix="${escapeHtml(prefix)}" tabindex="-1">`
         + glyphHtml
         + `<span class="qs-tab-label">${escapeHtml(label)}</span>`
-        + `<span class="qs-tab-count" hidden></span>`
         + `</button>`;
 }
 
@@ -85,6 +84,7 @@ export class QuickPicker {
                            data-shortcuts-disabled="true"
                            aria-controls="qs-list" aria-activedescendant=""
                            placeholder="${S.quick_switcher.placeholders.default}">
+                    <span class="qs-result-count" aria-live="polite" hidden></span>
                 </div>
                 <div class="qs-tabs" role="tablist" aria-label="${escapeHtml(H.labels.tabs || 'switch mode')}">${tabsHtml}</div>
                 <div class="qs-list" id="qs-list" role="listbox"></div>
@@ -99,6 +99,7 @@ export class QuickPicker {
         this.modal = overlay.querySelector('.qs-modal');
         this.input = overlay.querySelector('.qs-input');
         this.list = overlay.querySelector('.qs-list');
+        this.resultCount = overlay.querySelector('.qs-result-count');
         this.tabsEl = overlay.querySelector('.qs-tabs');
         this.tabEls = Array.from(this.tabsEl.querySelectorAll('.qs-tab'));
         this.drillHint = overlay.querySelector('.qs-hint-drill');
@@ -385,15 +386,15 @@ export class QuickPicker {
         active?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
     }
 
-    /** Result count badge on the active tab (replaces the old section header). */
+    /**
+     * Result count for the current list — the number the old "FILES 15"
+     * header carried. It lives at the end of the input row, not on the
+     * active tab: a tab sized by its own count would resize on every mode
+     * switch and shuffle every tab after it.
+     */
     _setActiveCount(count) {
-        for (const el of this.tabEls) {
-            const badge = el.querySelector('.qs-tab-count');
-            if (!badge) continue;
-            const show = el.classList.contains('active') && count > 0;
-            badge.textContent = show ? String(count) : '';
-            badge.hidden = !show;
-        }
+        this.resultCount.textContent = count > 0 ? String(count) : '';
+        this.resultCount.hidden = !(count > 0);
     }
 
     setItems(items, sectionTitle = null) {

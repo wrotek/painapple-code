@@ -61,6 +61,27 @@
     color: var(--text-muted);
 }
 
+/* Result count — the number the old "FILES 15" header carried. Anchored to
+ * the input row so it never moves: same spot in every mode, and centred in a
+ * tall row rather than riding the tab label's baseline. min-width keeps the
+ * input from twitching as the count crosses a digit boundary. */
+.qs-result-count {
+    flex-shrink: 0;
+    min-width: 3ch;
+    padding: 1px var(--sp-6);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--font-size-xs);
+    line-height: 1.5;
+    text-align: center;
+}
+
+.qs-result-count[hidden] {
+    display: none;
+}
+
 /* ─── Mode tabs ───
  * The prefix legend used to be a passive footer row; it's now the switcher's
  * primary navigation, so it sits directly under the input where the section
@@ -109,10 +130,11 @@
     color: var(--text-secondary);
 }
 
+/* No font-weight change: bold text is wider, so lighting a tab would resize
+ * it and shuffle every tab after it. The accent fill carries the state. */
 .qs-tab.active {
     background: var(--accent-muted);
     color: var(--accent);
-    font-weight: 600;
 }
 
 /* The prefix character that types this mode — doubles as the tab's icon. */
@@ -124,17 +146,6 @@
 
 .qs-tab.active .qs-tab-glyph {
     opacity: 1;
-}
-
-/* Result count — carries the number the old "FILES 15" header showed. */
-.qs-tab-count {
-    font-family: var(--font-mono);
-    font-size: 0.9em;
-    opacity: 0.65;
-}
-
-.qs-tab-count[hidden] {
-    display: none;
 }
 
 /* ─── Result list ─── */
