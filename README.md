@@ -51,6 +51,20 @@ Context usage, token delta, files changed with diff stats, tool counts, duration
 
 ![Collapsed per-turn summary bar with file pills, tool counts, cost and duration](docs-site/assets/turn-summary-bar.png)
 
+### Quick Switcher
+
+One `Ctrl/Cmd+K` popup to jump anywhere — VS-Code-style **fuzzy file search** (recent files first), with prefix modes for everything else: `>` commands, `#` panels, `~` projects, `$` skills, `!` files Claude read this session. `~` drills into any project's **sessions** and opens them as tabs; `Ctrl+click` opens a file in a background tab.
+
+<img src="docs-site/assets/quick-switcher.png" alt="Quick Switcher over a session: search box, mode tabs (Files, Open Path, Read, Commands, Panels, Projects, Skills), and a fuzzy-matched file list" width="700">
+
+![Quick Switcher opening a rendered file preview, then drilling into a project's sessions and switching tabs](docs-site/assets/quick-switcher.gif)
+
+### Chat input autocomplete
+
+The message box completes as you type: **`@` files** (recents first), **`#` agents & saved snippets**, **`$` skills**, **`/` commands** — plus **`!` for shell mode**, whose command output rides along as context for your next prompt. `Tab` on an empty input cycles through all of them.
+
+![Composing one prompt from three popups: a # agent, an @ file and a $ skill completion](docs-site/assets/input-autocomplete.gif)
+
 ### Comments stash
 
 Click the bubble next to any paragraph, add a note, and it **attaches — quote included — to your next prompt**.
