@@ -55,8 +55,6 @@ Context usage, token delta, files changed with diff stats, tool counts, duration
 
 One `Ctrl/Cmd+K` popup to jump anywhere — VS-Code-style **fuzzy file search** (recent files first), with prefix modes for everything else: `>` commands, `#` panels, `~` projects, `$` skills, `!` files Claude read this session. `~` drills into any project's **sessions** and opens them as tabs; `Ctrl+click` opens a file in a background tab.
 
-<img src="docs-site/assets/quick-switcher.png" alt="Quick Switcher over a session: search box, mode tabs (Files, Open Path, Read, Commands, Panels, Projects, Skills), and a fuzzy-matched file list" width="700">
-
 ![Quick Switcher opening a rendered file preview, then drilling into a project's sessions and switching tabs](docs-site/assets/quick-switcher.gif)
 
 ### Chat input autocomplete
