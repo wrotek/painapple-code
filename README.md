@@ -114,7 +114,7 @@ painapple                  # …or straight on the host, serving the current dir
 
 Container mode uses whichever of Docker or Podman it finds — Docker Desktop, OrbStack, and rootless Podman all work. Without one, use the bare `painapple`.
 
-**Intel Macs:** everything works out of the box except `--tls`, which needs one extra package — `pipx inject painapple-code "cryptography<49"`. Apple Silicon is unaffected.
+**Intel Macs:** everything works out of the box except `--tls`. To enable it, install as `pipx install "painapple-code[tls]"` — the extra pulls the last `cryptography` release that still ships an Intel wheel, so nothing compiles. Apple Silicon is unaffected.
 
 ### Windows
 
@@ -142,7 +142,7 @@ Git for Windows is worth installing even if you use another git: the optional [h
 
 **Prefer WSL2?** Likely the safer bet: inside the distro this *is* the daily-exercised Linux build, and container mode (`--in-docker`) — the one thing native Windows can't do — works there too. Follow the [macOS & Linux](#macos--linux) steps verbatim. Two things to know: keep your projects on the Linux filesystem (`~/code/…`, not `/mnt/c/…` — file watching and git are painfully slow across the mount), and open the printed URL in your Windows browser as-is — WSL2 forwards `localhost` through for you.
 
-**Windows on ARM** (Surface, Snapdragon X) installs with no extra flags. Two upstream wheels are missing, both handled for you: the HTTP parser falls back to pure Python, and `--tls` needs `pipx inject painapple-code "cryptography<=46.0.3"`. Use a 64-bit Python.
+**Windows on ARM** (Surface, Snapdragon X) installs with no extra flags. Two upstream wheels are missing, both handled for you: the HTTP parser falls back to pure Python, and `--tls` needs `pipx install "painapple-code[tls]"`. Use a 64-bit Python.
 
 ### Then what?
 

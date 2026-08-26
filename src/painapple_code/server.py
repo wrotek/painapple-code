@@ -1839,15 +1839,21 @@ def _tls_unavailable(tls_mode: str, host: str) -> NoReturn:
     non-loopback address and trips `--tls auto`.
     """
     import platform
-    pin, why = _CRYPTOGRAPHY_GAP.get(
-        (platform.machine(), sys.platform),
+    gap = _CRYPTOGRAPHY_GAP.get((platform.machine(), sys.platform))
+    if gap:
+        pin, why = gap
+        # The `[tls]` extra carries this same pin behind a PEP 508 marker, so
+        # the install command below is platform-agnostic; naming the pin is
+        # informational — it explains why nothing has to compile.
+        detail = (f"║  The extra resolves to `{pin}` here — the last release\n"
+                  f"║  upstream still ships a wheel for, so nothing compiles.\n║")
+    else:
         # Not a platform we exclude — cryptography is a required dependency
         # here, so its absence means a broken/partial install rather than the
-        # deliberate opt-out below.
-        ('cryptography',
-         "It is a required dependency on this platform, so the install looks "
-         "incomplete — reinstalling painapple-code should restore it."),
-    )
+        # deliberate opt-out above.
+        why = ("It is a required dependency on this platform, so the install "
+               "looks incomplete — reinstalling painapple-code should restore it.")
+        detail = "║"
     trigger = (f"--tls auto turned TLS on because {host} is not loopback."
                if tls_mode == "auto" else "TLS was requested with --tls on.")
     print(f"""
@@ -1858,9 +1864,9 @@ def _tls_unavailable(tls_mode: str, host: str) -> NoReturn:
 ║  {trigger}
 ║  {why}
 ║
-║  Install it:  pipx inject painapple-code "{pin}"
+║  Install it:  pipx install --force "painapple-code[tls]"
 ║          or:  pip install "painapple-code[tls]"
-║
+{detail}
 ║  Or start without TLS:  painapple --tls off
 ╚══════════════════════════════════════════════════════════════╝
 """, file=sys.__stderr__ or sys.stdout)

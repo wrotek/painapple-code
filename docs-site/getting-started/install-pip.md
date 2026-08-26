@@ -46,27 +46,26 @@ Then:
 
     pAInapple Code uses [`cryptography`](https://cryptography.io/) for exactly one thing: minting the self-signed cert for `--tls`. Upstream stopped publishing wheels for those two platforms — Windows on ARM after 46.0.3, Intel macOS after 48.0.1 — so installing it there means either compiling it from Rust source or pinning a version with known advisories. The default install leaves it out rather than make that choice for you. Everything except TLS works normally, and if you ask for TLS without it the server says so and tells you what to run.
 
-    To enable TLS, opt in. This pins the last version that still ships a wheel for your platform, so there's nothing to compile:
+    To enable TLS, opt in with the `[tls]` extra. It resolves to the last version that still ships a wheel for the platform it's installed on, so there's nothing to compile — and it's the same command everywhere:
 
-    === "Windows on ARM"
-
-        ```powershell
-        pipx inject painapple-code "cryptography<=46.0.3"
-        ```
-
-    === "Intel Mac"
+    === "pipx"
 
         ```bash
-        pipx inject painapple-code "cryptography<49"
+        pipx install "painapple-code[tls]"
         ```
 
-    === "pip / venv (any platform)"
+        Already installed without it? Add `--force` to reinstall in place:
+        `pipx install --force "painapple-code[tls]"`.
+
+    === "pip / venv"
 
         ```bash
         pip install "painapple-code[tls]"
         ```
 
-        The `[tls]` extra picks the right pin for the platform it's installed on, and is a no-op everywhere `cryptography` is already a dependency.
+    The extra is a no-op on every platform where `cryptography` is already a
+    dependency, so it's the correct thing to install anywhere — you don't need
+    to know which platform you're on.
 
     Windows on ARM is expected to get wheels again — [upstream is planning to restore it](https://github.com/pyca/cryptography/pull/15350) — at which point this stops being necessary. Intel macOS support was removed deliberately and won't come back. On 32-bit Windows, use a 64-bit Python instead; `cryptography` dropped 32-bit builds in 49.0.0.
 
