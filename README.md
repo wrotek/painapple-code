@@ -23,7 +23,7 @@ Right now it's a PWA, but **desktop and mobile apps are in development**.
 
 **This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I try to keep the security hygiene tight, but I can't promise there isn't an RCE hiding somewhere — one more reason to take the isolation advice below seriously. **A rewrite to a more rigorous standard is planned;** for now there are plenty of ideas I want to implement and test first.
 
-**Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** It exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute as that user — and prompt injection and poisoned packages are real risks for *any* coding agent. Treat the password like an SSH key.
+**Whoever can authenticate to pAInapple Code gets the same shell and filesystem access as the server process itself.** It exists to run a coding agent on your behalf — `/api/exec`, the embedded PTY, and every approved tool call execute with the server's privileges: on a bare host install that's your OS user; in container mode it's the sandbox. Prompt injection and poisoned packages are real risks for *any* coding agent.
 
 The server binds `127.0.0.1` over plain HTTP by default; non-loopback binds auto-enable TLS with a self-signed cert. Auth is a single-password gate — adequate on a home network or behind a personal VPN. **I strongly discourage exposing it on a public interface.**
 

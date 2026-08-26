@@ -4,8 +4,8 @@
 
 painapple-code is a **single-user** server that runs Claude Code (and other
 CLI agents) on your behalf. **Anyone who can authenticate to the server gains
-the full shell and filesystem authority of the OS user the server runs as** —
-it can read and write that user's files and execute arbitrary commands
+the full shell and filesystem authority of the server process** — everything
+the OS user (or container) it runs as can read, write, and execute
 (`/api/exec`, the terminal, and any agent tool). Treat the password like an
 SSH key.
 

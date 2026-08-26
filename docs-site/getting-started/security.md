@@ -1,6 +1,6 @@
 # Read this first
 
-**Whoever can authenticate to pAInapple Code gets the shell and filesystem authority of the OS user that runs it.** It exists to run a coding agent on your behalf — `/api/exec`, the embedded terminal, and every approved tool call execute as that user. Treat the password like an SSH key, and read this page before you run it anywhere that matters.
+**Whoever can authenticate to pAInapple Code gets the same shell and filesystem access as the server process itself.** It exists to run a coding agent on your behalf — `/api/exec`, the embedded terminal, and every approved tool call execute with the server's privileges: on a bare host install that's your OS user; in container mode it's the sandbox. Treat the password like an SSH key, and read this page before you run it anywhere that matters.
 
 **This is an MVP, and heavily "vibe-coded".** All of the code was written by AI. I try to keep the security hygiene tight, but I can't promise there isn't an RCE hiding somewhere — one more reason to take the isolation advice below seriously.
 

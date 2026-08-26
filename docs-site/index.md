@@ -10,7 +10,7 @@ Thanks to the [**Auto Journal**](guides/shadow-git.md), you can easily **pull up
 The **server** runs natively on Linux, macOS, and Windows 10/11 — no WSL required. Right now it's a PWA — installable on iOS, Android, and desktop — but **desktop and mobile apps are in development**. Roughly a third of this app was developed on an iPhone, and the rest on an iPad with a hardware keyboard.
 
 !!! danger "Read the security notes first"
-    **Whoever can authenticate gets the shell and filesystem authority of the OS user that runs it.** The embedded terminal is a real PTY, and every approved tool call executes as that user. This is an MVP, and all of its code was written by AI. Run it isolated (Docker, VM) and read [Read this first](getting-started/security.md) before exposing it to anything.
+    **Whoever can authenticate gets the same shell and filesystem access as the server process itself.** The embedded terminal is a real PTY, and every approved tool call runs with the server's privileges — your OS user's on a bare host install, the sandbox's in container mode. This is an MVP, and all of its code was written by AI. Run it isolated (Docker, VM) and read [Read this first](getting-started/security.md) before exposing it to anything.
 
 !!! warning "These docs were written by AI — read them with caution"
     Like the rest of this project, the whole documentation site was written by AI (Claude) reading the source code, not by a human writing from experience. It was fact-checked against the code at the time of writing, but it has not been fully human-reviewed, and the code moves faster than the docs do.
