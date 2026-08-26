@@ -45,21 +45,6 @@
     flex-shrink: 0;
 }
 
-.qs-prefix-badge {
-    font-family: var(--font-mono);
-    font-size: var(--font-size-base);
-    color: var(--accent);
-    background: var(--accent-muted);
-    padding: 2px var(--sp-8);
-    border-radius: var(--radius-sm);
-    line-height: 1.3;
-    flex-shrink: 0;
-}
-
-.qs-prefix-badge[hidden] {
-    display: none;
-}
-
 .qs-input {
     flex: 1;
     background: transparent;
@@ -74,6 +59,81 @@
 
 .qs-input::placeholder {
     color: var(--text-muted);
+}
+
+/* ─── Mode tabs ───
+ * The prefix legend used to be a passive footer row; it's now the switcher's
+ * primary navigation, so it sits directly under the input where the section
+ * header used to be. Scrolls horizontally rather than wrapping — a wrapped
+ * strip would change the modal's height as modes change.
+ */
+.qs-tabs {
+    display: flex;
+    align-items: stretch;
+    gap: var(--sp-2);
+    padding: var(--sp-4) var(--sp-8);
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-primary);
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+
+.qs-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.qs-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-5);
+    padding: var(--sp-4) var(--sp-8);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    flex-shrink: 0;
+    /* Own the touch target without growing the strip. */
+    min-height: 28px;
+}
+
+.qs-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+}
+
+.qs-tab.active {
+    background: var(--accent-muted);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* The prefix character that types this mode — doubles as the tab's icon. */
+.qs-tab-glyph {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.qs-tab.active .qs-tab-glyph {
+    opacity: 1;
+}
+
+/* Result count — carries the number the old "FILES 15" header showed. */
+.qs-tab-count {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    opacity: 0.65;
+}
+
+.qs-tab-count[hidden] {
+    display: none;
 }
 
 /* ─── Result list ─── */
@@ -242,16 +302,7 @@
     gap: var(--sp-5) var(--sp-14);
 }
 
-/* Prefix legend sits on its own row under the action keys, divided subtly so
- * the long list never crowds/wraps the navigation hints. */
-.qs-footer-prefixes {
-    gap: var(--sp-6) var(--sp-12);
-    padding-top: var(--sp-8);
-    border-top: 1px solid var(--border-secondary);
-}
-
-.qs-hint,
-.qs-prefix-hint {
+.qs-hint {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-5);
@@ -285,12 +336,6 @@
     line-height: 1;
 }
 
-/* Prefix glyphs carry the accent so the legend reads as "type this". */
-.qs-kbd-prefix {
-    color: var(--accent);
-    font-weight: 600;
-}
-
 /* ─── Mobile / iPad-portrait tweaks ─── */
 @media (max-width: 600px) {
     .qs-overlay {
@@ -307,11 +352,20 @@
         font-size: var(--font-size-lg);        /* prevents iOS zoom on focus */
     }
 
-    .qs-footer-prefixes {
-        display: none;          /* prefixes stay discoverable via the placeholder */
+    /* The legend row this replaced was display:none here — tabs stay, since
+     * tapping is the only way to switch modes without a hardware keyboard. */
+    .qs-tabs {
+        padding-left: var(--sp-4);
+        padding-right: var(--sp-4);
     }
 
     .qs-item-desc {
         display: none;          /* keep label visible on narrow screens */
+    }
+
+    /* No hardware keyboard to press ⌃←→ with — the tabs themselves are the
+     * control here, so the hint is dead weight competing for footer width. */
+    .qs-hint-tabs {
+        display: none;
     }
 }

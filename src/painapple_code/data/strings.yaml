@@ -2178,6 +2178,7 @@ quick_switcher:
       close: "esc"
       drill_in: "→"
       drill_out: "←"
+      tabs: "⌃ ←→"
     labels:
       navigate: "navigate"
       open: "open"
@@ -2185,13 +2186,18 @@ quick_switcher:
       close: "close"
       sessions: "sessions"
       back: "back"
-    prefixes:
-      - { glyph: "@", label: "open path" }
-      - { glyph: "!", label: "read files" }
-      - { glyph: ">", label: "commands" }
-      - { glyph: "#", label: "panels" }
-      - { glyph: "~", label: "projects" }
-      - { glyph: "$", label: "skills" }
+      tabs: "switch mode"
+  # Mode tabs rendered under the search input. `prefix` is the registry key the
+  # tab activates (empty string = the default Files provider); `action` marks a
+  # tab that fires a one-shot action instead of switching provider.
+  tabs:
+    - { id: "files",    prefix: "",  glyph: "",  label: "Files" }
+    - { id: "open",     prefix: "@", glyph: "@", label: "Open Path", action: "open_path" }
+    - { id: "read",     prefix: "!", glyph: "!", label: "Read" }
+    - { id: "commands", prefix: ">", glyph: ">", label: "Commands" }
+    - { id: "panels",   prefix: "#", glyph: "#", label: "Panels" }
+    - { id: "projects", prefix: "~", glyph: "~", label: "Projects" }
+    - { id: "skills",   prefix: "$", glyph: "$", label: "Skills" }
   action:
     label: "Quick Switcher"
     desc: "Fuzzy-find files, commands, panels, projects, sessions, and skills"

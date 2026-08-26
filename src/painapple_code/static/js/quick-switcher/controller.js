@@ -27,7 +27,7 @@ class QuickSwitcherControllerClass {
         this._picker = null;
         this._currentEntry = null;
         // Prefix becomes controller state once detected so the input box
-        // doesn't have to carry it — the badge is the source of truth.
+        // doesn't have to carry it — the tab strip renders it.
         this._activePrefix = '';
         this._reqToken = 0;
         this._ctxMenu = null;
@@ -46,6 +46,7 @@ class QuickSwitcherControllerClass {
             onBackspaceEmpty: () => this._onBackspaceEmpty(),
             onDrillIn: (item) => this._drillIn(item),
             onDrillOut: () => this._drillOut(),
+            onTabSelect: (tab) => this._onTabSelect(tab),
         });
     }
 
@@ -84,7 +85,8 @@ class QuickSwitcherControllerClass {
         let query;
 
         // `@` hands off to the literal-path Open dialog. It's an action, not a
-        // mode (no badge/provider) — a single keystroke swaps pickers. The
+        // mode (no tab stays lit, no provider) — a single keystroke swaps
+        // pickers, exactly like tapping the `@` tab. The
         // Open dialog mirrors this: Backspace on empty hands back here.
         if (!this._activePrefix && value === '@') {
             this.hide();
@@ -137,14 +139,17 @@ class QuickSwitcherControllerClass {
         }
         if (token !== this._reqToken) return;
 
-        const sectionTitle = items.length && items[0].type
+        // A flat list is named by its own (lit) tab, so it needs no header.
+        // A drilled-in list has no tab of its own — "Sessions" under the lit
+        // Projects tab is the one case that still has to say what it is.
+        const drilled = !!provider.isDrilledIn?.();
+        const sectionTitle = drilled && items.length && items[0].type
             ? SECTION_TITLE[items[0].type] || null
             : null;
         this._picker.setItems(items, sectionTitle);
         // "→ sessions" only applies to the projects list — the only place
         // where the right arrow drills in. Anywhere else it's noise.
         // While drilled into a project's sessions, "← back" applies instead.
-        const drilled = !!provider.isDrilledIn?.();
         const canDrill = !!provider.drillIn && !drilled
             && items.some(it => it.type === 'project');
         const H = S.quick_switcher.hints;
@@ -153,6 +158,53 @@ class QuickSwitcherControllerClass {
             : drilled ? { key: H.keys.drill_out, label: H.labels.back }
             : null
         );
+    }
+
+    /**
+     * A tab was tapped/cycled. Tabs are the visible face of the prefix state,
+     * so this is the same transition typing the prefix performs — plus the
+     * two cases typing can't express: re-tapping the active tab (drill out /
+     * clear the query) and the `@` action tab (hands off to the Open dialog).
+     */
+    _onTabSelect(tab) {
+        if (!tab) return;
+
+        if (tab.action === 'open_path') {
+            this.hide();
+            OpenDialog.show();
+            return;
+        }
+
+        const prefix = tab.prefix || '';
+        const provider = this._currentEntry
+            ? QuickAccessRegistry.instance(this._currentEntry)
+            : null;
+
+        // Re-tapping the active tab backs out of a drill-in rather than
+        // being a no-op; with nothing to back out of it just clears the query.
+        if (prefix === this._activePrefix) {
+            if (provider?.isDrilledIn?.()) {
+                this._drillOut();
+                this._picker.focusInput();
+                return;
+            }
+            if (!this._picker.getValue()) {
+                this._picker.focusInput();
+                return;
+            }
+        } else if (provider?.isDrilledIn?.()) {
+            // Leaving a drilled-in provider — reset it so returning to the
+            // tab later starts at the top level, not mid-drill.
+            provider.drillOut?.();
+        }
+
+        this._activePrefix = prefix;
+        this._currentEntry = null;
+        this._savedDrillQuery = '';
+        this._picker.setValue('');
+        this._picker.setPrefix(prefix);
+        this._picker.focusInput();
+        this._onChange('');
     }
 
     _clearPrefix() {

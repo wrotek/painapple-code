@@ -27,13 +27,13 @@ The basics: ++cmd+1++ … ++cmd+9++ jump to a tab by position, ++cmd+bracket-lef
 
 ### Quick switcher
 
-++cmd+k++ or ++cmd+p++ (++ctrl+k++ / ++ctrl+p++) opens a fuzzy finder. With no prefix it searches files in the current project, blended with recently opened ones. A prefix character switches mode — the footer legend reminds you which is which:
+++cmd+k++ or ++cmd+p++ (++ctrl+k++ / ++ctrl+p++) opens a fuzzy finder. A row of tabs under the search box holds the modes — click or tap one to switch, or type its prefix character and the matching tab lights up. The active tab also carries the result count. ++ctrl+arrow-left++ / ++ctrl+arrow-right++ step between modes from the keyboard.
 
-![The quick switcher open over a session: a search box, a fuzzy-matched list of project files, and a footer legend showing the prefix modes (@ open path, ! read files, > commands, # panels, ~ projects, $ skills) with keycap navigation hints](../assets/quick-switcher.png)
+![The quick switcher open over a session: a search box, a row of mode tabs (Files, @ Open Path, ! Read, > Commands, # Panels, ~ Projects, $ Skills) with Files active and showing a result count, and a fuzzy-matched list of project files below](../assets/quick-switcher.png)
 
-| Prefix | Searches |
-|--------|----------|
-| *(none)* | Files in the project, recency-ranked |
+| Tab / prefix | Searches |
+|--------------|----------|
+| **Files** *(default)* | Files in the project, recency-ranked |
 | `@` | Hands off to the [Open dialog](#open-dialog) (filesystem paths) |
 | `!` | Files Claude has read this session |
 | `>` | Commands (every quick action) |

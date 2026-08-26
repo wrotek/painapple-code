@@ -16,18 +16,28 @@ function hintHtml(key, label, cls = '') {
         + `<span class="qs-hint-label">${escapeHtml(label)}</span></span>`;
 }
 
-/** A prefix legend chip: accent keycap glyph + what it opens. */
-function prefixHint({ glyph, label }) {
-    return `<span class="qs-prefix-hint">`
-        + `<kbd class="qs-kbd qs-kbd-prefix">${escapeHtml(glyph)}</kbd>`
-        + `<span class="qs-hint-label">${escapeHtml(label)}</span></span>`;
+/**
+ * A mode tab. `prefix` doubles as the identity key (the registry prefix the
+ * tab activates), so the active tab can be resolved from controller state
+ * without a parallel id lookup.
+ */
+function tabHtml({ prefix, glyph, label }, index) {
+    const glyphHtml = glyph
+        ? `<span class="qs-tab-glyph">${escapeHtml(glyph)}</span>`
+        : '';
+    return `<button type="button" class="qs-tab" role="tab" aria-selected="false"`
+        + ` data-index="${index}" data-prefix="${escapeHtml(prefix)}" tabindex="-1">`
+        + glyphHtml
+        + `<span class="qs-tab-label">${escapeHtml(label)}</span>`
+        + `<span class="qs-tab-count" hidden></span>`
+        + `</button>`;
 }
 
 const DEBOUNCE_MS = 100;
 const LONG_PRESS_MS = 500;
 
 export class QuickPicker {
-    constructor({ onValueChange, onSubmit, onCancel, onContextMenu, onBackspaceEmpty, onDrillIn, onDrillOut }) {
+    constructor({ onValueChange, onSubmit, onCancel, onContextMenu, onBackspaceEmpty, onDrillIn, onDrillOut, onTabSelect }) {
         this.onValueChange = onValueChange;
         this.onSubmit = onSubmit;
         this.onCancel = onCancel;
@@ -35,6 +45,7 @@ export class QuickPicker {
         this.onBackspaceEmpty = onBackspaceEmpty;
         this.onDrillIn = onDrillIn;
         this.onDrillOut = onDrillOut;
+        this.onTabSelect = onTabSelect;
 
         this.items = [];
         this.selectedIndex = 0;
@@ -42,6 +53,8 @@ export class QuickPicker {
         this._debounceTimer = null;
         this._previousActiveEl = null;
         this._longPressTimer = null;
+        this._tabs = S.quick_switcher.tabs || [];
+        this._activePrefix = '';
 
         this._build();
     }
@@ -59,24 +72,24 @@ export class QuickPicker {
             hintHtml(H.keys.nav, H.labels.navigate),
             hintHtml(H.keys.open, H.labels.open),
             hintHtml(H.keys.menu, H.labels.menu),
+            hintHtml(H.keys.tabs, H.labels.tabs, 'qs-hint-tabs'),
             hintHtml(H.keys.close, H.labels.close),
             `<span class="qs-hint qs-hint-drill" hidden></span>`,
         ].join('');
-        const prefixesHtml = (H.prefixes || []).map(prefixHint).join('');
+        const tabsHtml = this._tabs.map(tabHtml).join('');
         overlay.innerHTML = `
             <div class="qs-modal" role="combobox" aria-expanded="true" aria-haspopup="listbox" aria-owns="qs-list">
                 <div class="qs-input-wrap">
-                    <span class="qs-prefix-badge" hidden></span>
                     <input type="text" class="qs-input" autocomplete="off" autocapitalize="off"
                            autocorrect="off" spellcheck="false"
                            data-shortcuts-disabled="true"
                            aria-controls="qs-list" aria-activedescendant=""
                            placeholder="${S.quick_switcher.placeholders.default}">
                 </div>
+                <div class="qs-tabs" role="tablist" aria-label="${escapeHtml(H.labels.tabs || 'switch mode')}">${tabsHtml}</div>
                 <div class="qs-list" id="qs-list" role="listbox"></div>
                 <div class="qs-footer">
                     <div class="qs-footer-row qs-footer-actions">${actionsHtml}</div>
-                    <div class="qs-footer-row qs-footer-prefixes">${prefixesHtml}</div>
                 </div>
             </div>
         `;
@@ -85,9 +98,15 @@ export class QuickPicker {
         this.overlay = overlay;
         this.modal = overlay.querySelector('.qs-modal');
         this.input = overlay.querySelector('.qs-input');
-        this.prefixBadge = overlay.querySelector('.qs-prefix-badge');
         this.list = overlay.querySelector('.qs-list');
+        this.tabsEl = overlay.querySelector('.qs-tabs');
+        this.tabEls = Array.from(this.tabsEl.querySelectorAll('.qs-tab'));
         this.drillHint = overlay.querySelector('.qs-hint-drill');
+
+        // mousedown, not click: the input must never lose focus to the button,
+        // or the picker closes/blurs between press and release on iPadOS.
+        this.tabsEl.addEventListener('mousedown', (e) => this._onTabPointer(e));
+        this.tabsEl.addEventListener('touchstart', (e) => this._onTabPointer(e), { passive: false });
 
         this.input.addEventListener('input', () => this._scheduleChange());
         this.input.addEventListener('keydown', (e) => this._onKey(e));
@@ -129,6 +148,25 @@ export class QuickPicker {
         this.list.addEventListener('touchend', () => this._cancelLongPress());
         this.list.addEventListener('touchmove', () => this._cancelLongPress(), { passive: true });
         this.list.addEventListener('scroll', () => this._cancelLongPress(), { passive: true });
+    }
+
+    _onTabPointer(e) {
+        const btn = e.target.closest('.qs-tab');
+        if (!btn) return;
+        // Keep focus in the input — a focused <button> would swallow the
+        // arrow keys the list navigation depends on.
+        e.preventDefault();
+        const tab = this._tabs[parseInt(btn.dataset.index, 10)];
+        if (tab) this.onTabSelect?.(tab);
+    }
+
+    /** Step to the next/previous non-action tab (Ctrl/Cmd + ←/→). */
+    _cycleTab(delta) {
+        const selectable = this._tabs.filter(t => !t.action);
+        if (!selectable.length) return;
+        const cur = selectable.findIndex(t => t.prefix === this._activePrefix);
+        const next = selectable[((cur < 0 ? 0 : cur) + delta + selectable.length) % selectable.length];
+        if (next) this.onTabSelect?.(next);
     }
 
     _optsFromEvent(e) {
@@ -190,6 +228,11 @@ export class QuickPicker {
                 this._move(-1);
                 break;
             case 'ArrowRight':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    this._cycleTab(1);
+                    break;
+                }
                 // Drill into the selected item — only meaningful at the end of
                 // the input so we don't steal cursor-movement inside a query.
                 if (this.input.selectionStart === this.input.value.length) {
@@ -198,6 +241,11 @@ export class QuickPicker {
                 }
                 break;
             case 'ArrowLeft':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    this._cycleTab(-1);
+                    break;
+                }
                 // Drill out only when the cursor is at the very start of an
                 // empty input — leaves normal text editing untouched.
                 if (this.input.value === '' && this.input.selectionStart === 0) {
@@ -318,12 +366,33 @@ export class QuickPicker {
         }
     }
 
+    /**
+     * Reflect the controller's active prefix on the tab strip. Named
+     * setPrefix because the prefix remains the mode's identity — the tabs
+     * are just its rendering.
+     */
     setPrefix(prefix) {
-        if (prefix) {
-            this.prefixBadge.textContent = prefix.trim() || prefix;
-            this.prefixBadge.hidden = false;
-        } else {
-            this.prefixBadge.hidden = true;
+        this._activePrefix = prefix || '';
+        let active = null;
+        for (const el of this.tabEls) {
+            const on = el.dataset.prefix === this._activePrefix;
+            el.classList.toggle('active', on);
+            el.setAttribute('aria-selected', on ? 'true' : 'false');
+            if (on) active = el;
+        }
+        // The strip scrolls horizontally on narrow screens; a mode reached by
+        // typing its prefix must still bring its own tab into view.
+        active?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+    }
+
+    /** Result count badge on the active tab (replaces the old section header). */
+    _setActiveCount(count) {
+        for (const el of this.tabEls) {
+            const badge = el.querySelector('.qs-tab-count');
+            if (!badge) continue;
+            const show = el.classList.contains('active') && count > 0;
+            badge.textContent = show ? String(count) : '';
+            badge.hidden = !show;
         }
     }
 
@@ -333,6 +402,7 @@ export class QuickPicker {
         // the ~ list); otherwise selection starts at the top as usual.
         this.selectedIndex = Math.max(0, this.items.findIndex(it => it.preselected));
         this._sectionTitle = sectionTitle;
+        this._setActiveCount(this.items.length);
         this._render();
         if (this.selectedIndex > 0) {
             this.list.querySelector('.qs-item.selected')
@@ -346,6 +416,7 @@ export class QuickPicker {
                 ? S.quick_switcher.empty.no_results
                 : ' ';
             this.list.innerHTML = renderEmpty(text);
+            this._setActiveCount(0);
             this.input.setAttribute('aria-activedescendant', '');
             return;
         }
@@ -363,6 +434,9 @@ export class QuickPicker {
                 parts.push(renderItem(this.items[i], i, i === this.selectedIndex));
             }
         } else {
+            // A flat list gets no header — the active tab already names the
+            // mode and carries the count. The controller passes a title only
+            // for the one list a tab can't name: a project's sessions.
             if (this._sectionTitle) parts.push(renderSection(this._sectionTitle, this.items.length));
             for (let i = 0; i < this.items.length; i++) {
                 parts.push(renderItem(this.items[i], i, i === this.selectedIndex));
