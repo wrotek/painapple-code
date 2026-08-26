@@ -63,13 +63,9 @@ Click the bubble next to any paragraph, add a note, and it **attaches — quote 
 
 A **real PTY** via xterm.js (`` Ctrl+` ``). On mobile there's a key bar with Ctrl/Alt/arrows above the keyboard, and a virtual d-pad joystick on touch-and-hold.
 
-![Embedded terminal running ls, git status and the project test suite](docs-site/assets/terminal.gif)
-
 ### Prompt history + favorites
 
 Search **every prompt you've ever sent**, across all sessions and projects, with phrase, exclusion, date, and content filters (`Alt+P` or `Ctrl+R`). Mark favorites; reuse any result or fork it into a new session.
-
-<img src="docs-site/assets/prompt-history.png" alt="Prompt history explorer with search filters, a favorited prompt, and reuse actions" width="700">
 
 ### And more
 
