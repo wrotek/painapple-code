@@ -85,6 +85,12 @@ def build_parser():
                            "its own directory. This anchors the file explorer and "
                            "the welcome screen's project suggestions. Mapped to "
                            "/workspace inside Docker. (--cwd is an alias)")
+    core.add_argument("--project", dest="project",
+                      action=argparse.BooleanOptionalAction, default=None,
+                      help="Treat the workspace as ONE project (the welcome screen "
+                           "offers it as a single entry) instead of a folder of "
+                           "projects. Default: auto-detect by a top-level .git; "
+                           "--no-project disables the auto-detect.")
     core.add_argument("--instance-name", default=None,
                       help="Instance label for PWA icon and UI (e.g., DEV, STABLE)")
     core.add_argument("--accent", default=None,

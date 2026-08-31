@@ -494,6 +494,30 @@ def _looks_like_project(child: Path) -> bool:
     return False
 
 
+def resolve_workspace_is_project(workspace: str, flag: Optional[bool]) -> tuple[bool, str]:
+    """Decide whether the workspace IS one project (vs a wrapper dir of projects).
+
+    flag: True/False = forced by --project/--no-project, None = auto-detect.
+    Auto-detect keys on a top-level ``.git`` ONLY (dir for a normal repo,
+    file for a git worktree) — the same zero-config pick the Docker launch
+    path uses (cli/deploy/launch.py), deliberately NOT the broader
+    ``_looks_like_project`` manifest list: a wrapper dir with a stray
+    requirements.txt must not silently flip modes.
+
+    Returns:
+        (is_project, reason) — reason is human-readable for the startup log.
+    """
+    if flag is True:
+        return True, "forced by --project"
+    if flag is False:
+        return False, "forced by --no-project"
+    try:
+        has_git = (Path(workspace).expanduser() / ".git").exists()
+    except OSError:
+        has_git = False
+    return (True, "found .git") if has_git else (False, "no .git")
+
+
 def list_workspace_dirs(root: str, exclude_paths: Optional[list[str]] = None,
                         limit: int = 100) -> list[dict]:
     """List immediate sub-directories of a workspace root, excluding ones

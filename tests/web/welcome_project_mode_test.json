@@ -1,0 +1,49 @@
+{
+  "name": "Welcome Project Mode (single-project workspace)",
+  "description": "With --workspace pointed directly at a project (auto-detected via .git, or forced with --project), the welcome screen offers the workspace root as ONE unvisited chip instead of spilling its internals (src/, node_modules/, ...). Target: throwaway TEST instance on 8890 started with --workspace <repo>.",
+  "_mode": "inject",
+  "config": {
+    "browser": "chromium",
+    "headless": true,
+    "viewport": {
+      "width": 1366,
+      "height": 900
+    }
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "http://localhost:8890/app?tkn={{TKN}}",
+      "comment": "Load app on the project-mode test instance"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app",
+      "timeout": 10000
+    },
+    {
+      "action": "delay",
+      "ms": 2500,
+      "comment": "Let welcome state settle"
+    },
+    {
+      "action": "execute",
+      "comment": "TEST 1 (API): project mode returns exactly one chip = the workspace root, and no internals",
+      "script": "(async () => { const r = await fetch('/api/welcome/projects'); const d = await r.json(); const dirs = d.workspace_dirs || []; const names = dirs.map(x => x.name); const isProject = d.workspace_is_project === true; const oneChip = dirs.length === 1; const chipIsRoot = oneChip && dirs[0].path === d.workspace_root; const noJunk = !names.some(n => ['src','tests','node_modules','venv','dist','build'].includes(n)); const PASS = r.ok && isProject && oneChip && chipIsRoot && noJunk; window._test1 = PASS; return { PASS, status: r.status, workspace_is_project: d.workspace_is_project, workspace_root: d.workspace_root, dir_names: names }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "TEST 2 (UI): unvisited row renders exactly one chip, named after the repo",
+      "script": "(async () => { const sel = '.welcome-project-chip--unvisited'; for (let i = 0; i < 20; i++) { if (document.querySelectorAll(sel).length) break; await new Promise(res => setTimeout(res, 500)); } const chips = [...document.querySelectorAll(sel)]; const texts = chips.map(c => c.textContent.trim()); const one = chips.length === 1; const named = texts.some(t => t.includes('painapple-code')); const noJunkUi = !texts.some(t => /node_modules|venv/.test(t)); const PASS = one && named && noJunkUi; window._test2 = PASS; return { PASS, chip_count: chips.length, texts }; })()"
+    },
+    {
+      "action": "screenshot",
+      "name": "welcome-project-mode"
+    },
+    {
+      "action": "execute",
+      "comment": "VERDICT",
+      "script": "(() => { const PASS = window._test1 && window._test2; return { PASS, test1_api: window._test1, test2_ui: window._test2 }; })()"
+    }
+  ]
+}

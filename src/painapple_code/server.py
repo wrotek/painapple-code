@@ -2039,16 +2039,23 @@ def main(argv=None):
     app.state.agents = agents
     app.state.workspace = args.workspace
 
-    # --workspace IS the root: the dir that holds the project subdirs, not
-    # one project. Sessions pick their own cwd from the welcome screen and
-    # files/git/terminal follow THAT, so this only anchors discovery (the
-    # welcome "Unvisited" chips, the file-explorer browse root) and supplies
-    # a fallback cwd for sessions created without one. Stored as absolute
-    # string (or None) for route modules to read.
+    # --workspace anchors discovery (the welcome "Unvisited" chips, the
+    # file-explorer browse root) and supplies a fallback cwd for sessions
+    # created without one — sessions pick their own cwd from the welcome
+    # screen and files/git/terminal follow THAT. Two modes: a WRAPPER dir
+    # holding project subdirs (welcome lists them), or ONE project
+    # (welcome offers just the workspace itself — never its internals like
+    # src/ or node_modules/). Mode from --project/--no-project, else
+    # auto-detected by a top-level .git (same pick as Docker's launch
+    # path, which sidesteps this via the one-level-down mount). Stored as
+    # absolute string (or None) for route modules to read.
     try:
         app.state.workspace_root = str(Path(args.workspace).expanduser().resolve())
     except (OSError, RuntimeError):
         app.state.workspace_root = None
+    is_project, project_reason = paths.resolve_workspace_is_project(
+        args.workspace, args.project)
+    app.state.workspace_is_project = is_project
 
     # Load config file and populate auth state (fails open if the directory
     # can't be written — intentional: we want a noisy permissions error).
@@ -2116,6 +2123,13 @@ def main(argv=None):
                 "Use --tls=auto (default) unless you have a reason."
             )
 
+    # Project-mode annotation on the Workspace banner line; a fuller notice
+    # prints below the box ONLY when the mode was auto-detected (explicit
+    # --project/--no-project users already know what they asked for).
+    workspace_mode = ""
+    if app.state.workspace_is_project:
+        workspace_mode = f"  (single project: {project_reason})"
+
     instance_line = ""
     if instance_config.get("name"):
         instance_line = f"\n║  Instance:       {instance_config['name']} (accent: {instance_config.get('accent', 'default')})"
@@ -2164,10 +2178,15 @@ def main(argv=None):
 ╠══════════════════════════════════════════════════════════════╣
 ║  WebSocket:      {ws_scheme}://{args.host}:{args.port}/chat
 ║  Files API:      {scheme}://{args.host}:{args.port}/api/files
-║  Workspace:      {args.workspace}{instance_line}{shadow_db_line}{log_dir_line}{state_suffix_line}
+║  Workspace:      {args.workspace}{workspace_mode}{instance_line}{shadow_db_line}{log_dir_line}{state_suffix_line}
 ║  Auth File:      {app.state.auth_config_file}{tls_line}{auth_lines}
 ╚══════════════════════════════════════════════════════════════╝
     """)
+
+    if args.project is None and app.state.workspace_is_project:
+        print(f"{DIM}Workspace looks like a project (found .git) — the welcome "
+              f"screen shows it as one project, not its subfolders. Pass "
+              f"--no-project to treat it as a folder of projects.{_ANSI_RESET}")
 
     # Trust X-Forwarded-* only from loopback by default (a reverse proxy on
     # the same host). A remote proxy sets FORWARDED_ALLOW_IPS explicitly. The

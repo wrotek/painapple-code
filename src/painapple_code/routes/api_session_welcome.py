@@ -93,16 +93,48 @@ async def get_welcome_projects(request: Request):
     enriched.sort(key=lambda x: x["name"].lower())
 
     workspace_root = getattr(request.app.state, "workspace_root", None)
+    is_project = bool(getattr(request.app.state, "workspace_is_project", False))
     workspace_dirs: list[dict] = []
-    if workspace_root:
+    if workspace_root and is_project:
+        # The workspace IS one project — never list its internals
+        # (src/, node_modules/, …). Offer the root itself as the single
+        # "unvisited" chip until the first session tracks it as a project.
+        workspace_dirs = _root_as_workspace_entry(workspace_root, projects)
+    elif workspace_root:
         exclude = [p["path"] for p in projects]
         workspace_dirs = list_workspace_dirs(workspace_root, exclude_paths=exclude)
 
     return {
         "projects": enriched,
         "workspace_root": workspace_root,
+        "workspace_is_project": is_project,
         "workspace_dirs": workspace_dirs,
     }
+
+
+def _root_as_workspace_entry(workspace_root: str, projects: list[dict]) -> list[dict]:
+    """Project-mode chip list: the workspace root itself, in the same shape
+    `list_workspace_dirs` emits — or [] once it's already a tracked project
+    (it then appears in `projects` instead)."""
+    root = Path(workspace_root)
+    tracked = set()
+    for p in projects:
+        try:
+            tracked.add(str(Path(p["path"]).expanduser().resolve()))
+        except (OSError, RuntimeError):
+            continue
+    if str(root) in tracked:
+        return []
+    try:
+        mtime = root.stat().st_mtime
+    except OSError:
+        return []
+    return [{
+        "path": str(root),
+        "name": root.name,
+        "mtime": mtime,
+        "looks_like_project": True,
+    }]
 
 
 @router.get("/api/welcome/projects/sessions")
