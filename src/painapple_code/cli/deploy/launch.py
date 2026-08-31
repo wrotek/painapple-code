@@ -58,13 +58,36 @@ def _apply_serve_flags(cfg, argv):
     return False
 
 
-def _auto_workspace_mode(cfg):
-    """Zero-config mode pick: a git checkout → 'project', anything else
+def _forced_project_flag(argv):
+    """--project / --no-project from raw argv: True / False / None (auto).
+    Last occurrence wins, matching argparse BooleanOptionalAction."""
+    forced = None
+    for tok in argv:
+        if tok == "--project":
+            forced = True
+        elif tok == "--no-project":
+            forced = False
+    return forced
+
+
+def _auto_workspace_mode(cfg, argv=()):
+    """Mode pick for the mount layer. --project/--no-project force it;
+    otherwise zero-config: a git checkout → 'project', anything else
     → 'parent' — matching "I'm in a repo" vs "I opened a folder of
-    repos" without asking. (.git can be a dir or a worktree file.)"""
+    repos" without asking. (.git can be a dir or a worktree file.)
+    The serve flag itself is NOT forwarded into the container — project
+    mode is realized by the one-level-down mount (container_mount());
+    build_run_argv adds --no-project only where the container's own
+    auto-detect would wrongly flip a parent-mode git mount."""
     ws = Path(cfg.workspace or ".")
-    mode = "project" if (ws / ".git").exists() else "parent"
-    reason = "found .git" if mode == "project" else "no .git"
+    forced = _forced_project_flag(argv)
+    if forced is True:
+        mode, reason = "project", "forced by --project"
+    elif forced is False:
+        mode, reason = "parent", "forced by --no-project"
+    else:
+        mode = "project" if (ws / ".git").exists() else "parent"
+        reason = "found .git" if mode == "project" else "no .git"
     cfg.workspace_mode = mode
     info(f"{ws} → {mode} mode {DIM}({reason}){RESET}")
 
@@ -100,7 +123,7 @@ def adhoc_settings(argv):
     explicit_ws = _apply_serve_flags(cfg, argv)
     if not explicit_ws:
         cfg.workspace = str(Path.cwd())
-    _auto_workspace_mode(cfg)
+    _auto_workspace_mode(cfg, argv)
     return cfg
 
 
@@ -146,9 +169,9 @@ def profile_settings(prof, argv=()):
     explicit_ws = _apply_serve_flags(cfg, list(argv))
     if not cfg.workspace and cfg.workspace_mode != "multi":
         cfg.workspace = str(Path.cwd())
-        _auto_workspace_mode(cfg)
+        _auto_workspace_mode(cfg, argv)
     elif explicit_ws and prof.is_docker is False:
-        _auto_workspace_mode(cfg)
+        _auto_workspace_mode(cfg, argv)
     return cfg
 
 

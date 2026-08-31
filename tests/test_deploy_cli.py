@@ -6,6 +6,8 @@ Isolation: every test points PAINAPPLE_CODE_HOME at tmp_path so nothing
 reads/writes the real ~/.painapple-code.
 """
 
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -410,6 +412,48 @@ def test_build_run_argv_project_mode(tmp_path):
     # synthetic parent — so the welcome screen offers the repo as a single
     # pickable project instead of listing its subdirs as projects.
     assert argv[argv.index("--workspace") + 1] == "/workspace"
+
+
+def test_forced_project_flag_steers_mode_pick(tmp_path):
+    from painapple_code.cli.deploy.launch import _auto_workspace_mode
+    ws = tmp_path / "plain"
+    ws.mkdir()
+    cfg = DockerSettings()
+    cfg.assign("WORKSPACE", str(ws))
+    # No .git: auto → parent, but --project forces the one-level-down mount.
+    _auto_workspace_mode(cfg, ["--in-docker", "--project"])
+    assert cfg.workspace_mode == "project"
+    # A git checkout: auto → project, but --no-project forces parent.
+    (ws / ".git").mkdir()
+    _auto_workspace_mode(cfg, ["--no-project"])
+    assert cfg.workspace_mode == "parent"
+    # Last occurrence wins (argparse BooleanOptionalAction semantics).
+    _auto_workspace_mode(cfg, ["--no-project", "--project"])
+    assert cfg.workspace_mode == "project"
+    # No flag: plain auto-detect.
+    _auto_workspace_mode(cfg, [])
+    assert cfg.workspace_mode == "project"
+
+
+def test_build_run_argv_pins_no_project_for_parent_git_mount(tmp_path):
+    from painapple_code.cli.deploy.container import build_run_argv
+    cfg = _sample_settings(tmp_path)
+    cfg.workspace_mode = "parent"
+    # Parent mount of a non-git dir: container auto-detect is safe — the
+    # flag stays off so older images keep working.
+    argv = build_run_argv(cfg, _FakeRuntime(), detach=False)
+    assert "--no-project" not in argv
+    # Parent mount of a git checkout (forced --no-project / hand-edited
+    # profile): pin the container to wrapper mode or its own auto-detect
+    # flips /workspace to single-project.
+    (Path(cfg.workspace) / ".git").mkdir()
+    argv = build_run_argv(cfg, _FakeRuntime(), detach=False)
+    assert "--no-project" in argv
+    assert argv[-2:] == ["--tls", "on"]
+    # Project mode mounts one level down — synthetic parent, never pinned.
+    cfg.workspace_mode = "project"
+    argv = build_run_argv(cfg, _FakeRuntime(), detach=False)
+    assert "--no-project" not in argv
 
 
 def test_build_run_argv_detached_and_podman_selinux(tmp_path):

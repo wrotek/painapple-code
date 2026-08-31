@@ -400,6 +400,13 @@ def build_run_argv(cfg, rt, detach, profile=None, ident=None):
     argv += [cfg.image, "python", "-m", "painapple_code",
              "--host", "0.0.0.0", "--port", "8765",
              "--workspace", "/workspace"]
+    # Parent mode mounts the dir AT /workspace. If it's a git checkout
+    # (forced --no-project, or a hand-edited profile), the container's own
+    # serve auto-detect would see /workspace/.git and flip to single-project
+    # mode — pin it to wrapper. Only appended when needed: older images
+    # don't know the flag and would crash-loop on it.
+    if cfg.workspace_mode == "parent" and (Path(cfg.workspace) / ".git").exists():
+        argv += ["--no-project"]
     if cfg.instance_name:
         argv += ["--instance-name", cfg.instance_name]
     if cfg.accent:
