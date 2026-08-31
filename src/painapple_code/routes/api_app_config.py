@@ -642,7 +642,7 @@ async def get_token_profiles(request: Request):
     from painapple_code.routes.dependencies import effective_default_provider
     from painapple_code.utils.token_profiles import list_profiles
     profiles = list_profiles()
-    # Legacy shape; the default shown is the DEFAULT ENGINE's configured
+    # Legacy shape; the default shown is the DEFAULT PROVIDER's configured
     # profile (per-provider `default_token_profiles` map, flat key fallback).
     default = paths.provider_default_token_profile(
         effective_default_provider(request.app))
@@ -654,7 +654,7 @@ async def get_token_profiles(request: Request):
 
 @router.put("/api/app/default-token-profile")
 async def set_default_token_profile(request: Request):
-    """Legacy wrapper: set the DEFAULT ENGINE's default token profile."""
+    """Legacy wrapper: set the DEFAULT PROVIDER's default token profile."""
     from painapple_code.routes.dependencies import effective_default_provider
     from painapple_code.utils.token_profiles import list_profiles
     p = effective_default_provider(request.app)
@@ -849,7 +849,7 @@ async def set_provider_enabled(request: Request):
 
 @router.get("/api/app/default-model")
 async def get_default_model(request: Request):
-    """Legacy wrapper: the DEFAULT ENGINE's configured new-session model.
+    """Legacy wrapper: the DEFAULT PROVIDER's configured new-session model.
 
     Storage moved to the per-provider `default_models` map (see
     provider-defaults); this endpoint stays for old callers and reads/writes
@@ -862,7 +862,7 @@ async def get_default_model(request: Request):
 
 @router.put("/api/app/default-model")
 async def set_default_model(request: Request):
-    """Legacy wrapper: set the DEFAULT ENGINE's new-session model."""
+    """Legacy wrapper: set the DEFAULT PROVIDER's new-session model."""
     from painapple_code.routes.dependencies import effective_default_provider
     p = effective_default_provider(request.app)
     body = await request.json()
@@ -897,7 +897,7 @@ DEFAULT_EFFORT = "high"
 
 @router.get("/api/app/default-effort")
 async def get_default_effort(request: Request):
-    """Legacy wrapper: the DEFAULT ENGINE's configured default effort.
+    """Legacy wrapper: the DEFAULT PROVIDER's configured default effort.
 
     Storage moved to the per-provider `default_efforts` map (see
     provider-defaults); this stays for old callers (effort popup fallback).
@@ -913,7 +913,7 @@ async def get_default_effort(request: Request):
 
 @router.put("/api/app/default-effort")
 async def set_default_effort(request: Request):
-    """Legacy wrapper: set the DEFAULT ENGINE's default effort."""
+    """Legacy wrapper: set the DEFAULT PROVIDER's default effort."""
     from painapple_code.routes.dependencies import effective_default_provider
     p = effective_default_provider(request.app)
     body = await request.json()

@@ -55,7 +55,7 @@ def read_token(profile_name: str) -> Optional[str]:
 def resolve_profile(session_profile: Optional[str], provider=None) -> Optional[str]:
     """Resolve effective token profile: session override > provider default > None.
 
-    With a provider, the default is that ENGINE's configured profile
+    With a provider, the default is that PROVIDER's configured profile
     (`default_token_profiles` map, legacy flat key as fallback) — providers
     without selectable accounts resolve to None. Provider-less callers keep
     the legacy flat-key behavior.

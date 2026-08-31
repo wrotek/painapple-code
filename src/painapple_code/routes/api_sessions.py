@@ -301,7 +301,7 @@ async def get_session_token_profile(session_id: str):
 
     from painapple_code.providers import get_provider
     session_profile = meta.get("token_profile")
-    # The default shown/used is the SESSION ENGINE's configured profile.
+    # The default shown/used is the SESSION PROVIDER's configured profile.
     global_default = paths.provider_default_token_profile(
         get_provider(meta.get("provider")))
 
@@ -360,7 +360,7 @@ async def get_session_model(session_id: str):
 
     from painapple_code.providers import get_provider
     session_model = meta.get("preferred_model")
-    # The default shown by the chip is the SESSION ENGINE's configured model
+    # The default shown by the chip is the SESSION PROVIDER's configured model
     # (models_key-scoped map, legacy flat key as fallback).
     global_default = paths.provider_default_model(
         get_provider(meta.get("provider")))
@@ -416,7 +416,7 @@ async def get_session_effort(session_id: str):
 
     from painapple_code.providers import get_provider
     session_effort = meta.get("effort_level")
-    # The default is the SESSION ENGINE's configured effort (vocab-gated).
+    # The default is the SESSION PROVIDER's configured effort (vocab-gated).
     global_default = paths.provider_default_effort(
         get_provider(meta.get("provider"))) or "high"
 
@@ -438,7 +438,7 @@ async def set_session_effort(session_id: str, request: Request):
     value = body.get("effort_level")  # string or null
 
     if value is not None:
-        # Validate against the SESSION ENGINE's own effort vocabulary — Codex
+        # Validate against the SESSION PROVIDER's own effort vocabulary — Codex
         # speaks a richer scale (xhigh/max/ultra, per its models cache) than the
         # Claude 5-level fallback, so a hardcoded set would reject valid levels.
         from painapple_code.providers import get_provider

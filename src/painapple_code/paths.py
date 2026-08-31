@@ -709,7 +709,7 @@ def save_models_config(config: dict) -> None:
 
 # ─── Per-provider new-session defaults ──────────────────────────────────────────
 #
-# Session defaults are per ENGINE: each map is keyed by the provider's
+# Session defaults are per PROVIDER: each map is keyed by the provider's
 # `models_key` namespace (driver pairs share — same convention as
 # `models_disabled`). The flat legacy keys (`default_model`, `default_effort`,
 # `default_token_profile`) remain as read fallbacks for configs written before
