@@ -1031,6 +1031,23 @@
     transition: all 0.15s;
 }
 
+/* Icon buttons in the panzoom toolbar (e.g. annotate): the inline SVG ships
+   only a viewBox, so without explicit sizing it renders at the 300×150
+   replaced-element default and the icon clips out of the button entirely. */
+.panzoom-annotate-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--layout-btn-sm);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.panzoom-annotate-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
 .panzoom-ctrl-btn:hover, .panzoom-ctrl-btn:active {
     background: var(--surface-hover, #30363d);
     color: var(--text-primary, #e6edf3);
