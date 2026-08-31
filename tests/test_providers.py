@@ -90,7 +90,7 @@ def test_registry_defaults_and_fallback():
     for name in ("claude-sdk", "codex-app-server"):
         assert name in provider_names()
     # The removed plain CLI drivers alias to their same-family successor —
-    # NOT the global default — so old bound sessions land on the right engine.
+    # NOT the global default — so old bound sessions land on the right provider.
     for legacy, successor in (("claude", "claude-sdk"), ("codex", "codex-app-server")):
         assert legacy not in provider_names()
         assert get_provider(legacy).name == successor
@@ -98,7 +98,7 @@ def test_registry_defaults_and_fallback():
     assert provider_names()[0] == DEFAULT_PROVIDER
 
 
-# ── Engine picker surface (describe metadata + lock predicate) ──────────
+# ── Provider picker surface (describe metadata + lock predicate) ──────────
 
 
 def test_describe_carries_picker_metadata():
@@ -124,12 +124,12 @@ def test_describe_capability_matrix_for_picker_gating():
     # codex has run, absent otherwise; either way the shape must hold.
     assert isinstance(app_server["models"], list)
     assert all(m.get("id") and m.get("label") for m in app_server["models"])
-    assert claude_sdk["models"], "default engine should list models"
+    assert claude_sdk["models"], "default provider should list models"
     assert app_server["capabilities"]["cumulative_cost"] is False  # USD hidden
 
 
 def test_provider_is_locked_predicate():
-    """Engine switchable only while the session is empty."""
+    """Provider switchable only while the session is empty."""
     from painapple_code.routes.dependencies import provider_is_locked
     assert provider_is_locked({}) is False
     assert provider_is_locked({"message_count": 0, "provider_session_id": None}) is False
@@ -142,7 +142,7 @@ def test_provider_is_locked_predicate():
 
 
 def test_default_enabled_split():
-    """The picker offers exactly one entry per engine: the plain CLI drivers
+    """The picker offers exactly one entry per provider: the plain CLI drivers
     (line-protocol claude, codex exec) were removed outright, so everything
     registered ships enabled."""
     from painapple_code.providers import all_providers, get_provider
@@ -154,8 +154,8 @@ def test_default_enabled_split():
 
 
 def test_bind_permission_level_anchoring():
-    """A permission level the new engine doesn't speak is re-anchored to the
-    engine's own default at bind time; a shared/valid level survives."""
+    """A permission level the new provider doesn't speak is re-anchored to the
+    provider's own default at bind time; a shared/valid level survives."""
     from painapple_code.routes.dependencies import bind_permission_level
     from painapple_code.providers import get_provider
     codex = get_provider("codex-app-server")
@@ -164,7 +164,7 @@ def test_bind_permission_level_anchoring():
     assert bind_permission_level("dontAsk", codex) == "workspace-write"
     # Sandbox tier landing back on Claude → claude-sdk's default (Ask)
     assert bind_permission_level("workspace-write", claude_sdk) == "default"
-    # Identity: engine already speaks it → nothing to change
+    # Identity: provider already speaks it → nothing to change
     assert bind_permission_level("read-only", codex) is None
     assert bind_permission_level("bypassPermissions", claude_sdk) is None
     # No provider → no opinion
@@ -214,7 +214,7 @@ def test_codex_models_empty_without_cache(tmp_path, monkeypatch):
 
 def _write_codex_efforts_cache(home):
     """Two listed models with different reasoning ranges + one hidden model
-    whose exotic level must NOT leak into the engine vocabulary."""
+    whose exotic level must NOT leak into the provider vocabulary."""
     _write_codex_cache(home, [
         {"slug": "m-new", "display_name": "New", "visibility": "list",
          "priority": 1, "supported_reasoning_levels": [
@@ -286,8 +286,8 @@ def test_codex_launch_effort_clamped_per_model(tmp_path, monkeypatch):
 
 
 def test_describe_settings_surface():
-    """The Settings engines tab renders per-engine cards off describe():
-    which engines have an app-owned (editable) catalog, which have a
+    """The Settings providers tab renders per-provider cards off describe():
+    which providers have an app-owned (editable) catalog, which have a
     configurable CLI path, and the bare command the path falls back to."""
     from painapple_code.providers import get_provider
     d = get_provider("claude-sdk").describe()
@@ -305,7 +305,7 @@ def test_describe_settings_surface():
     assert ClaudeProvider.path_config_key == get_provider("claude-sdk").path_config_key
 
 
-# ── Generic engine-path endpoint (provider self-describes the key) ──────
+# ── Generic provider-path endpoint (provider self-describes the key) ──────
 
 
 def _patch_config_store(monkeypatch, store):
@@ -318,10 +318,10 @@ def _patch_config_store(monkeypatch, store):
     monkeypatch.setattr(paths, "save_global_config", _save)
 
 
-def test_engine_path_get(client, monkeypatch):
+def test_provider_path_get(client, monkeypatch):
     store = {"codex_path": "/opt/somewhere/codex"}
     _patch_config_store(monkeypatch, store)
-    r = client.get("/api/app/engine-path/codex-app-server")
+    r = client.get("/api/app/provider-path/codex-app-server")
     assert r.status_code == 200
     data = r.json()
     assert data["configurable"] is True
@@ -329,58 +329,58 @@ def test_engine_path_get(client, monkeypatch):
     assert data["default_binary"] == "codex"
     # Unset key → path None (UI shows the default_binary placeholder)
     store.clear()
-    data = client.get("/api/app/engine-path/claude-sdk").json()
+    data = client.get("/api/app/provider-path/claude-sdk").json()
     assert data["path"] is None
     assert data["default_binary"] == "claude"
 
 
-def test_engine_path_get_unknown_provider(client):
-    assert client.get("/api/app/engine-path/nonexistent").status_code == 404
+def test_provider_path_get_unknown_provider(client):
+    assert client.get("/api/app/provider-path/nonexistent").status_code == 404
 
 
-def test_engine_path_put_roundtrip(client, monkeypatch, tmp_path):
+def test_provider_path_put_roundtrip(client, monkeypatch, tmp_path):
     store = {}
     _patch_config_store(monkeypatch, store)
     fake = tmp_path / "codex"
     fake.write_text("#!/bin/sh\n")
 
     # Explicit path → stored under the provider's own key
-    r = client.put("/api/app/engine-path/codex-app-server", json={"path": str(fake)})
+    r = client.put("/api/app/provider-path/codex-app-server", json={"path": str(fake)})
     assert r.status_code == 200
     assert store["codex_path"] == str(fake)
     assert r.json()["path"] == str(fake)
 
     # Nonexistent path → 400, config untouched
-    r = client.put("/api/app/engine-path/codex-app-server", json={"path": str(tmp_path / "nope")})
+    r = client.put("/api/app/provider-path/codex-app-server", json={"path": str(tmp_path / "nope")})
     assert r.status_code == 400
     assert store["codex_path"] == str(fake)
 
     # null (and the bare default binary name) clear the override — always
     # allowed, even if the CLI isn't installed (stale overrides removable)
-    r = client.put("/api/app/engine-path/codex-app-server", json={"path": None})
+    r = client.put("/api/app/provider-path/codex-app-server", json={"path": None})
     assert r.status_code == 200
     assert "codex_path" not in store
     assert r.json()["path"] is None
 
 
-def test_engine_path_not_configurable():
+def test_provider_path_not_configurable():
     """A provider without a path_config_key reports non-configurable."""
     import asyncio
-    from painapple_code.routes.api_app_config import _engine_path_payload
+    from painapple_code.routes.api_app_config import _provider_path_payload
 
     class _NoPath:
         name = "stub"
         display_name = "Stub"
         path_config_key = None
 
-    payload = asyncio.run(_engine_path_payload(_NoPath()))
+    payload = asyncio.run(_provider_path_payload(_NoPath()))
     assert payload == {"provider": "stub", "configurable": False}
 
 
-def test_preferred_model_anchoring_on_engine_switch(tmp_path, monkeypatch):
-    """A preferred_model from the old engine's catalog is cleared when the
-    session binds to an engine whose catalog doesn't offer it; in-catalog
-    picks (and dated variants of them) survive; an engine with no catalog
+def test_preferred_model_anchoring_on_provider_switch(tmp_path, monkeypatch):
+    """A preferred_model from the old provider's catalog is cleared when the
+    session binds to a provider whose catalog doesn't offer it; in-catalog
+    picks (and dated variants of them) survive; a provider with no catalog
     keeps whatever is stored (its launch path decides what to forward)."""
     from painapple_code.providers import get_provider
     from painapple_code.routes.dependencies import preferred_model_survives
@@ -399,9 +399,9 @@ def test_preferred_model_anchoring_on_engine_switch(tmp_path, monkeypatch):
     assert preferred_model_survives(claude_id, claude_sdk) is True
     assert preferred_model_survives(claude_id + "-20260101", claude_sdk) is True
     assert preferred_model_survives(None, codex) is True            # nothing stored
-    assert preferred_model_survives("anything", None) is True       # no engine
+    assert preferred_model_survives("anything", None) is True       # no provider
 
-    # Engine with an empty catalog → stored value kept
+    # Provider with an empty catalog → stored value kept
     monkeypatch.setenv("CODEX_HOME", str(tmp_path / "empty"))
     assert preferred_model_survives(claude_id, codex) is True
 
@@ -410,7 +410,7 @@ def test_preferred_model_anchoring_on_engine_switch(tmp_path, monkeypatch):
 
 
 def test_models_key_shared_across_driver_pairs():
-    """Hiding a model must hide it on BOTH drivers of an engine — the
+    """Hiding a model must hide it on BOTH drivers of a provider — the
     visibility namespace follows the catalog, not the driver."""
     from painapple_code.providers import get_provider
     assert get_provider("claude").models_key == "claude"
@@ -444,7 +444,7 @@ def test_enabled_models_filters_hidden_ids(tmp_path, monkeypatch):
     assert p.enabled_models() == p.models()
 
 
-def test_engine_models_get(client, monkeypatch, tmp_path):
+def test_provider_models_get(client, monkeypatch, tmp_path):
     """Settings GET returns the FULL catalog with per-model enabled flags
     (hidden models still render, toggle off) + the raw stored set — stale
     ids (catalog churned underneath) are preserved, not pruned."""
@@ -455,7 +455,7 @@ def test_engine_models_get(client, monkeypatch, tmp_path):
     ])
     _patch_config_store(
         monkeypatch, {"models_disabled": {"codex": ["gpt-b", "gpt-stale"]}})
-    r = client.get("/api/app/engine-models/codex-app-server")
+    r = client.get("/api/app/provider-models/codex-app-server")
     assert r.status_code == 200
     data = r.json()
     assert data["provider"] == "codex-app-server"
@@ -464,10 +464,10 @@ def test_engine_models_get(client, monkeypatch, tmp_path):
     assert [(m["id"], m["enabled"]) for m in data["models"]] == [
         ("gpt-a", True), ("gpt-b", False)]
     assert data["disabled"] == ["gpt-b", "gpt-stale"]
-    assert client.get("/api/app/engine-models/nonexistent").status_code == 404
+    assert client.get("/api/app/provider-models/nonexistent").status_code == 404
 
 
-def test_engine_models_put_roundtrip(client, monkeypatch):
+def test_provider_models_put_roundtrip(client, monkeypatch):
     """PUT replaces the hidden set under the models_key; empty list clears the
     key; malformed bodies → 400 with config untouched."""
     from painapple_code.providers import get_provider
@@ -475,20 +475,20 @@ def test_engine_models_put_roundtrip(client, monkeypatch):
     _patch_config_store(monkeypatch, store)
     hide = get_provider("claude-sdk").models()[0]["id"]
 
-    r = client.put("/api/app/engine-models/claude-sdk", json={"disabled": [hide]})
+    r = client.put("/api/app/provider-models/claude-sdk", json={"disabled": [hide]})
     assert r.status_code == 200
     assert store["models_disabled"] == {"claude": [hide]}
     flags = {m["id"]: m["enabled"] for m in r.json()["models"]}
     assert flags[hide] is False
-    again = client.get("/api/app/engine-models/claude-sdk").json()
+    again = client.get("/api/app/provider-models/claude-sdk").json()
     assert again["disabled"] == [hide]
 
     for bad in ("gpt", [1], None):
-        r = client.put("/api/app/engine-models/claude-sdk", json={"disabled": bad})
+        r = client.put("/api/app/provider-models/claude-sdk", json={"disabled": bad})
         assert r.status_code == 400, bad
     assert store["models_disabled"] == {"claude": [hide]}
 
-    r = client.put("/api/app/engine-models/claude-sdk", json={"disabled": []})
+    r = client.put("/api/app/provider-models/claude-sdk", json={"disabled": []})
     assert r.status_code == 200
     assert "models_disabled" not in store
 
@@ -498,7 +498,7 @@ def test_hidden_model_does_not_survive_as_preferred(monkeypatch):
     catalog: a hidden model isn't offered, so it can't stay the default
     (chip would say "Default" while launch passed the hidden id). The
     all-hidden case clears too — raw catalog non-empty means the app DOES
-    know this engine's vocabulary, unlike the empty-catalog escape."""
+    know this provider's vocabulary, unlike the empty-catalog escape."""
     from painapple_code.providers import get_provider
     from painapple_code.routes.dependencies import preferred_model_survives
     claude_sdk = get_provider("claude-sdk")
@@ -514,7 +514,7 @@ def test_hidden_model_does_not_survive_as_preferred(monkeypatch):
     assert preferred_model_survives(ids[1], claude_sdk) is False   # offer nothing
 
 
-# ── Generic engine-auth endpoint (provider self-describes the probe) ─────
+# ── Generic provider-auth endpoint (provider self-describes the probe) ─────
 
 
 def test_parse_auth_status_providers():
@@ -539,7 +539,7 @@ def test_parse_auth_status_providers():
         "logged_in": False, "detail": ""}
 
 
-def test_engine_auth_endpoint(client, monkeypatch, tmp_path):
+def test_provider_auth_endpoint(client, monkeypatch, tmp_path):
     """The endpoint runs the provider's own status probe against the
     CONFIGURED binary and returns the parsed verdict plus the terminal
     login command (also built from the configured binary)."""
@@ -550,7 +550,7 @@ def test_engine_auth_endpoint(client, monkeypatch, tmp_path):
     fake.chmod(0o755)
     _patch_config_store(monkeypatch, {"claude_path": str(fake)})
 
-    r = client.get("/api/app/engine-auth/claude-sdk")
+    r = client.get("/api/app/provider-auth/claude-sdk")
     assert r.status_code == 200
     data = r.json()
     assert data["supported"] is True
@@ -563,36 +563,36 @@ def test_engine_auth_endpoint(client, monkeypatch, tmp_path):
     fake_codex.write_text("#!/bin/sh\necho 'Not logged in' >&2\nexit 1\n")
     fake_codex.chmod(0o755)
     _patch_config_store(monkeypatch, {"codex_path": str(fake_codex)})
-    data = client.get("/api/app/engine-auth/codex-app-server").json()
+    data = client.get("/api/app/provider-auth/codex-app-server").json()
     assert data["logged_in"] is False
     assert data["detail"] == ""
     assert data["login_command"] == f"{fake_codex} login --device-auth"
 
     # Broken binary → probe can't run → logged_in null, login still offered
     _patch_config_store(monkeypatch, {"claude_path": "/nope/claude"})
-    data = client.get("/api/app/engine-auth/claude-sdk").json()
+    data = client.get("/api/app/provider-auth/claude-sdk").json()
     assert data["supported"] is True
     assert data["logged_in"] is None
     assert data["login_command"] == "/nope/claude auth login"
 
-    assert client.get("/api/app/engine-auth/nonexistent").status_code == 404
+    assert client.get("/api/app/provider-auth/nonexistent").status_code == 404
 
 
-def test_engine_auth_unsupported(client, monkeypatch):
+def test_provider_auth_unsupported(client, monkeypatch):
     """A provider describing no auth probe reports supported: false — the
     Settings panel removes the login row instead of guessing."""
     p = get_provider("claude-sdk")
     monkeypatch.setattr(p, "auth_status_args", None)
-    data = client.get("/api/app/engine-auth/claude-sdk").json()
+    data = client.get("/api/app/provider-auth/claude-sdk").json()
     assert data == {"provider": "claude-sdk", "supported": False}
 
 
-# ── Per-engine session defaults + auto-journal model ─────────────────────
+# ── Per-provider session defaults + auto-journal model ─────────────────────
 
 
-def test_engine_defaults_resolution(monkeypatch, tmp_path):
+def test_provider_defaults_resolution(monkeypatch, tmp_path):
     """Scoped map beats legacy flat key; legacy is vocab/accounts-gated per
-    engine; the provider-aware resolve_profile threads through."""
+    provider; the provider-aware resolve_profile threads through."""
     from painapple_code import paths
     from painapple_code.utils.token_profiles import resolve_profile
     # Pin codex to its no-cache vocabulary (low/medium/high) so the legacy
@@ -612,30 +612,30 @@ def test_engine_defaults_resolution(monkeypatch, tmp_path):
     _patch_config_store(monkeypatch, store)
 
     # Legacy flat default, in Claude's catalog → honored (not overridden).
-    assert paths.engine_default_model(claude) == claude_other
+    assert paths.provider_default_model(claude) == claude_other
     # Codex has NO catalog here (CODEX_HOME=tmp_path, no cache) → the value is
     # trusted raw; the launch path lets the CLI decide.
-    assert paths.engine_default_model(codex) == claude_other
-    # A configured default the engine can't serve → its top catalog model.
+    assert paths.provider_default_model(codex) == claude_other
+    # A configured default the provider can't serve → its top catalog model.
     store["default_model"] = "totally-unknown"
-    assert paths.engine_default_model(claude) == claude_top
-    assert paths.engine_default_effort(claude) == "max"         # in claude vocab
-    assert paths.engine_default_effort(codex) == "medium"       # scoped beats legacy
+    assert paths.provider_default_model(claude) == claude_top
+    assert paths.provider_default_effort(claude) == "max"         # in claude vocab
+    assert paths.provider_default_effort(codex) == "medium"       # scoped beats legacy
 
     store["default_efforts"] = {}
-    assert paths.engine_default_effort(codex) is None           # legacy max ∉ codex vocab
+    assert paths.provider_default_effort(codex) is None           # legacy max ∉ codex vocab
 
-    assert paths.engine_default_token_profile(codex) is None    # no accounts
+    assert paths.provider_default_token_profile(codex) is None    # no accounts
     store["default_token_profiles"] = {"claude": "prof1"}
     assert resolve_profile(None, claude) == "prof1"
     assert resolve_profile("explicit", claude) == "explicit"           # session wins
     assert resolve_profile(None, codex) is None
 
 
-def test_engine_default_model_top_catalog_fallback(tmp_path, monkeypatch):
-    """With nothing configured, engine_default_model falls back to the
-    engine's top (priority-first) enabled model — so the app always presents
-    a concrete default (never the ambiguous 'Default'). An engine with NO
+def test_provider_default_model_top_catalog_fallback(tmp_path, monkeypatch):
+    """With nothing configured, provider_default_model falls back to the
+    provider's top (priority-first) enabled model — so the app always presents
+    a concrete default (never the ambiguous 'Default'). A provider with NO
     catalog (Codex, no models cache) resolves to None and the launch path lets
     the CLI use its own configured model."""
     from painapple_code import paths
@@ -644,26 +644,26 @@ def test_engine_default_model_top_catalog_fallback(tmp_path, monkeypatch):
     _patch_config_store(monkeypatch, {})
 
     codex = get_provider("codex-app-server")
-    assert paths.engine_default_model(codex) is None            # no cache → CLI decides
+    assert paths.provider_default_model(codex) is None            # no cache → CLI decides
     _write_codex_cache(tmp_path, [
         {"slug": "gpt-top", "display_name": "Top", "visibility": "list", "priority": 1},
         {"slug": "gpt-2", "display_name": "Two", "visibility": "list", "priority": 2},
     ])
-    assert paths.engine_default_model(codex) == "gpt-top"       # priority-first
-    assert paths.engine_default_model(get_provider("codex")) == "gpt-top"  # twin
+    assert paths.provider_default_model(codex) == "gpt-top"       # priority-first
+    assert paths.provider_default_model(get_provider("codex")) == "gpt-top"  # twin
 
     # Claude always had an in-catalog default (models.yaml) — still concrete.
     claude = get_provider("claude-sdk")
     claude_ids = [m["id"] for m in claude.enabled_models()]
-    assert paths.engine_default_model(claude) == claude_ids[0]
+    assert paths.provider_default_model(claude) == claude_ids[0]
 
     # A hidden top model steps the fallback to the next visible one.
     _patch_config_store(monkeypatch, {"models_disabled": {"codex": ["gpt-top"]}})
     monkeypatch.setenv("CODEX_HOME", str(tmp_path))
-    assert paths.engine_default_model(codex) == "gpt-2"
+    assert paths.provider_default_model(codex) == "gpt-2"
 
 
-def test_engine_defaults_get(client, monkeypatch):
+def test_provider_defaults_get(client, monkeypatch):
     store = {
         "default_model": "claude-fable-5",
         "default_effort": "max",
@@ -671,7 +671,7 @@ def test_engine_defaults_get(client, monkeypatch):
     }
     _patch_config_store(monkeypatch, store)
 
-    data = client.get("/api/app/engine-defaults/claude-sdk").json()
+    data = client.get("/api/app/provider-defaults/claude-sdk").json()
     assert data["models_key"] == "claude"
     assert data["default_model"] == "claude-fable-5"
     assert data["default_effort"] == "max"
@@ -679,18 +679,18 @@ def test_engine_defaults_get(client, monkeypatch):
     assert data["summary_supported"] is True
     assert data["summary_model"]                       # models.yaml value
 
-    data = client.get("/api/app/engine-defaults/codex-app-server").json()
+    data = client.get("/api/app/provider-defaults/codex-app-server").json()
     assert data["default_effort"] == "medium"
     assert data["accounts"] == []
     assert data["token_profile"] is None
     assert data["summary_placeholder"] == "session model"
 
-    assert client.get("/api/app/engine-defaults/nonexistent").status_code == 404
+    assert client.get("/api/app/provider-defaults/nonexistent").status_code == 404
 
 
-def test_engine_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path):
-    """First PUT folds legacy flat keys into per-engine map entries (only
-    where the engine speaks the value) and drops them — so per-engine
+def test_provider_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path):
+    """First PUT folds legacy flat keys into per-provider map entries (only
+    where the provider speaks the value) and drops them — so per-provider
     clears actually stick instead of resurrecting the flat key."""
     # Pin codex to the no-cache vocabulary (low/medium/high) so the
     # "max ∉ codex vocab" seeding gate and 400 below are hermetic — a real
@@ -700,7 +700,7 @@ def test_engine_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path
     store = {"default_model": ids[0], "default_effort": "max"}
     _patch_config_store(monkeypatch, store)
 
-    r = client.put("/api/app/engine-defaults/codex-app-server",
+    r = client.put("/api/app/provider-defaults/codex-app-server",
                    json={"default_effort": "medium"})
     assert r.status_code == 200
     # Legacy max seeds claude (in vocab) but NOT codex (caps at high);
@@ -710,43 +710,43 @@ def test_engine_defaults_put_scoped_with_migration(client, monkeypatch, tmp_path
     assert store["default_model"] == ids[0]            # untouched — different field
 
     # Vocab validation: max is not a codex level
-    r = client.put("/api/app/engine-defaults/codex-app-server",
+    r = client.put("/api/app/provider-defaults/codex-app-server",
                    json={"default_effort": "max"})
     assert r.status_code == 400
 
     # Model migration: claude id seeds only the claude namespace (codex
     # catalog is empty without a models cache → can't speak it)
-    r = client.put("/api/app/engine-defaults/claude-sdk",
+    r = client.put("/api/app/provider-defaults/claude-sdk",
                    json={"default_model": ids[-1]})
     assert r.status_code == 200
     assert store["default_models"] == {"claude": ids[-1]}
     assert "default_model" not in store
 
     # Clearing sticks (no flat key left to resurrect the old value)
-    r = client.put("/api/app/engine-defaults/claude-sdk",
+    r = client.put("/api/app/provider-defaults/claude-sdk",
                    json={"default_model": None})
     assert r.status_code == 200
     assert "default_models" not in store                 # entry cleared
-    # Cleared, but an engine with a catalog never resolves to null — it falls
+    # Cleared, but a provider with a catalog never resolves to null — it falls
     # back to its top (priority-first) model, so the picker always has one.
     assert r.json()["default_model"] == ids[0]
 
-    # Token profile guards: engine without accounts 400s; unknown profile 400s
-    assert client.put("/api/app/engine-defaults/codex-app-server",
+    # Token profile guards: provider without accounts 400s; unknown profile 400s
+    assert client.put("/api/app/provider-defaults/codex-app-server",
                       json={"token_profile": "x"}).status_code == 400
-    assert client.put("/api/app/engine-defaults/claude-sdk",
+    assert client.put("/api/app/provider-defaults/claude-sdk",
                       json={"token_profile": "definitely-missing"}).status_code == 400
 
 
-def test_engine_defaults_journal_model(client, monkeypatch):
-    """The journal knob writes each engine's own store: codex → the shared
+def test_provider_defaults_journal_model(client, monkeypatch):
+    """The journal knob writes each provider's own store: codex → the shared
     `codex_summary_model` config key (clear = inherit the session model),
     claude → models.yaml summary_model (clear = reset to shipped default)."""
     from painapple_code import paths
     store = {}
     _patch_config_store(monkeypatch, store)
 
-    r = client.put("/api/app/engine-defaults/codex-app-server",
+    r = client.put("/api/app/provider-defaults/codex-app-server",
                    json={"summary_model": "gpt-5.4-mini"})
     assert r.status_code == 200
     assert store["codex_summary_model"] == "gpt-5.4-mini"
@@ -754,7 +754,7 @@ def test_engine_defaults_journal_model(client, monkeypatch):
     # Twin driver reads the same override
     assert get_provider("codex").get_summary_model_override() == "gpt-5.4-mini"
 
-    r = client.put("/api/app/engine-defaults/codex-app-server",
+    r = client.put("/api/app/provider-defaults/codex-app-server",
                    json={"summary_model": ""})
     assert "codex_summary_model" not in store
     assert r.json()["summary_model"] is None
@@ -765,23 +765,23 @@ def test_engine_defaults_journal_model(client, monkeypatch):
                         lambda cfg: saved.update(cfg))
     monkeypatch.setattr(paths, "get_selectable_models",
                         lambda: [{"id": "m1", "label": "M1", "desc": ""}])
-    r = client.put("/api/app/engine-defaults/claude-sdk",
+    r = client.put("/api/app/provider-defaults/claude-sdk",
                    json={"summary_model": "claude-haiku-9"})
     assert r.status_code == 200
     assert saved == {"selectable": [{"id": "m1", "label": "M1", "desc": ""}],
                      "summary_model": "claude-haiku-9"}
 
 
-def test_legacy_default_endpoints_wrap_default_engine(client, monkeypatch):
+def test_legacy_default_endpoints_wrap_default_provider(client, monkeypatch):
     """The old flat endpoints keep working as views over the DEFAULT
-    engine's per-engine entry (old scripts / popup fallbacks)."""
+    provider's per-provider entry (old scripts / popup fallbacks)."""
     ids = [m["id"] for m in get_provider("claude-sdk").models()]
     store = {}
     _patch_config_store(monkeypatch, store)
 
     r = client.put("/api/app/default-model", json={"default_model": ids[0]})
     assert r.status_code == 200
-    assert store["default_models"] == {"claude": ids[0]}   # default engine = claude-sdk
+    assert store["default_models"] == {"claude": ids[0]}   # default provider = claude-sdk
     assert client.get("/api/app/default-model").json()["default_model"] == ids[0]
 
     r = client.put("/api/app/default-effort", json={"default_effort": "max"})
@@ -792,8 +792,8 @@ def test_legacy_default_endpoints_wrap_default_engine(client, monkeypatch):
     assert data["valid_levels"] == ["low", "medium", "high", "xhigh", "max"]
 
 
-def test_cli_resume_template_per_engine():
-    """The 'Continue in CLI' quick action is engine-driven: each provider
+def test_cli_resume_template_per_provider():
+    """The 'Continue in CLI' quick action is provider-driven: each provider
     self-describes its resume command template (no hardcoded verb client-side).
     Both Codex drivers share the codex template (app-server inherits the mixin)."""
     assert get_provider("claude-sdk").describe()["cli_resume_template"] == "claude -r {id}"
@@ -802,8 +802,8 @@ def test_cli_resume_template_per_engine():
     assert get_provider("codex-app-server").describe()["cli_resume_template"] == "codex exec resume {id}"
 
 
-def test_set_session_effort_validates_against_engine_vocab(tmp_path, monkeypatch):
-    """PUT /api/session/{id}/effort validates against the SESSION ENGINE's own
+def test_set_session_effort_validates_against_provider_vocab(tmp_path, monkeypatch):
+    """PUT /api/session/{id}/effort validates against the SESSION PROVIDER's own
     effort vocabulary, not a hardcoded Claude set: a Codex session accepts a
     level (ultra) outside the Claude 5-level fallback, a Claude session rejects
     that same level, and an unknown level is rejected everywhere."""
@@ -812,7 +812,7 @@ def test_set_session_effort_validates_against_engine_vocab(tmp_path, monkeypatch
     from fastapi import HTTPException
     from painapple_code.routes import api_sessions
 
-    # Codex cache listing a model that speaks 'ultra' → engine vocab includes it.
+    # Codex cache listing a model that speaks 'ultra' → provider vocab includes it.
     _write_codex_cache(tmp_path, [
         {"slug": "m-ultra", "display_name": "Ultra", "visibility": "list",
          "priority": 1, "supported_reasoning_levels": [
@@ -851,14 +851,14 @@ def test_set_session_effort_validates_against_engine_vocab(tmp_path, monkeypatch
         "sid", _Req({"effort_level": "ultra"})))
     assert res["effort_level"] == "ultra"
 
-    # A level no engine speaks → still rejected.
+    # A level no provider speaks → still rejected.
     with pytest.raises(HTTPException) as ei:
         asyncio.run(api_sessions.set_session_effort(
             "sid", _Req({"effort_level": "turbo"})))
     assert ei.value.status_code == 400 and "turbo" in ei.value.detail
 
-    # Per-engine gating: a Claude session rejects 'ultra' (not in its 5-level
-    # vocabulary) — the validator is scoped to the session's own engine.
+    # Per-provider gating: a Claude session rejects 'ultra' (not in its 5-level
+    # vocabulary) — the validator is scoped to the session's own provider.
     _FakeStore.meta = {"provider": "claude-sdk"}
     with pytest.raises(HTTPException) as ei2:
         asyncio.run(api_sessions.set_session_effort(

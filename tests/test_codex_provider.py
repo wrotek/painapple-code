@@ -1,7 +1,7 @@
 """
 Codex provider tests (`codex-app-server`).
 
-The exec driver (`codex exec --json`, prompt in argv — the `ps`-leak engine)
+The exec driver (`codex exec --json`, prompt in argv — the `ps`-leak provider)
 was removed; `codex-app-server` is the only registered Codex driver. Covers
 registry/alias behavior, the JSON-RPC event translation, the shared error
 classification inherited from `providers/codex/`, and the native summary-fork
@@ -58,10 +58,10 @@ def test_plain_claude_is_gone_and_aliases_to_sdk():
     assert get_provider("claude").name == "claude-sdk"
 
 
-def test_no_registered_engine_puts_prompts_in_argv():
+def test_no_registered_provider_puts_prompts_in_argv():
     # The reason the exec driver was removed. The `prompt_in_argv` seam stays
-    # (a drop-in engine may declare it and get the Settings warning), but no
-    # shipped engine may carry it.
+    # (a drop-in provider may declare it and get the Settings warning), but no
+    # shipped provider may carry it.
     from painapple_code.providers import all_providers
     leaky = [p.name for p in all_providers() if p.capabilities.prompt_in_argv]
     assert leaky == []

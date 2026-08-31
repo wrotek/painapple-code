@@ -1,0 +1,56 @@
+{
+  "name": "No shipped provider puts prompts in argv (WP-07)",
+  "description": "The codex exec provider — the one provider that passed each prompt as a command-line argument, readable in ps/proc by every local account — was removed outright. The `prompt_in_argv` capability seam and its Settings → Providers warning stay for drop-in providers that declare the trait. Asserts no registered provider self-describes the trait, no provider row renders the warning note, the warning wording still exists in strings.yaml (the seam is alive, not vestigial), and the note rendering is still not keyed off any hardcoded provider name.",
+  "config": {
+    "browser": "chromium",
+    "headless": true,
+    "viewport": {
+      "width": 1366,
+      "height": 950
+    }
+  },
+  "steps": [
+    {
+      "action": "navigate",
+      "url": "{{BASE}}/app?tkn={{TKN}}"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app",
+      "timeout": 10000
+    },
+    {
+      "action": "delay",
+      "ms": 3500
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 1: no registered provider self-describes prompt_in_argv (the leaky exec driver is gone; codex resolves only to the app-server)",
+      "script": "(async () => { const r = await fetch('/api/providers'); const d = await r.json(); const rows = d.providers || d; const names = rows.map(p => p.name); const flagged = rows.filter(p => p.capabilities?.prompt_in_argv).map(p => p.name); return { names, flagged, PASS: flagged.length === 0 && !names.includes('codex') && !names.includes('claude') }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "Open Settings on the Providers tab (internally still data-tab=models)",
+      "script": "(async () => { window.WidgetManager.open('config', { tab: 'models' }); await new Promise(r=>setTimeout(r,2500)); return !!document.querySelector('#providers-list'); })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 2: no provider row renders the argv warning note",
+      "script": "(() => { const rows = [...document.querySelectorAll('#providers-list .provider-row')]; const withNote = rows.filter(r => r.querySelector('.provider-row-note')); return { totalRows: rows.length, withNote: withNote.length, PASS: rows.length >= 2 && withNote.length === 0 }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 3: the seam is alive — the warning string still exists in strings.yaml for a drop-in provider that declares the trait",
+      "script": "(async () => { const mod = await import('/static/js/strings.js' + window.location.search.replace(/^\\?tkn=[^&]*/,'?')); const expected = mod.default.settings.hints.providers_prompt_in_argv; return { present: !!expected, PASS: !!expected && expected.length > 20 }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "GATE 4: the note rendering is NOT keyed off a provider name anywhere in the tab source",
+      "script": "(async () => { const r = await fetch('/static/js/widgets/config/models-tab.js' + window.location.search.replace(/^\\?tkn=[^&]*/,'?')); const src = await r.text(); const hardcoded = /['\\\"]codex['\\\"]/.test(src); const usesCapability = /prompt_in_argv/.test(src); return { hardcoded, usesCapability, PASS: !hardcoded && usesCapability }; })()"
+    },
+    {
+      "action": "screenshot",
+      "name": "providers-tab-no-argv-note"
+    }
+  ]
+}
