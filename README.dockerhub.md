@@ -14,7 +14,7 @@ The image ships Python 3.13 and Node 20; the agent CLIs (`@anthropic-ai/claude-c
 
 **pAInapple Code effectively gives whoever holds its password a remote shell on the host.** Claude Code can execute commands, edit files, and reach the network on the user that started the container. The built-in auth is a single-password gate — useful, but not a substitute for proper network controls.
 
-- The default `docker run` example below binds **`127.0.0.1:8765`**. Don't change that to `0.0.0.0` (or a public IP) without putting a reverse proxy with TLS and ideally a VPN / Tailscale / SSH-tunnel layer in front.
+- The default `docker run` example below binds **`127.0.0.1:8765`**. Don't change that to `0.0.0.0` (or a public IP) without putting a reverse proxy with TLS and ideally a VPN or SSH-tunnel layer in front.
 - The auth password is generated on first start but **not printed to the container's logs** (inside the container the bind is non-loopback, so credentials are hidden from stdout by default — `docker logs` persists). Reveal the login URL with `painapple password` (pip CLI), or read it directly: `docker exec painapple-code awk '/^password:/ {print $2}' /home/app/.config/painapple-code/config.yaml`. Open it once — the cookie keeps you logged in afterwards.
 - The terminal widget is a real PTY running as the container user. In `YOLO` permission mode anyone with the password can run arbitrary commands.
 

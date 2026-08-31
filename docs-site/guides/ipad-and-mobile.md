@@ -23,7 +23,7 @@ Why bother, instead of a browser tab:
 Your phone or tablet needs a route to the server — `localhost` won't cut it:
 
 - **Bind beyond loopback** — start the server with `--host 0.0.0.0` (or a LAN IP). Binding a non-loopback host auto-enables TLS with a self-signed certificate; the browser shows a one-time certificate warning you accept on first visit.
-- **Or put a reverse proxy in front** — Caddy/nginx/Tailscale with a real certificate gives you a clean HTTPS origin, which PWAs and service workers prefer.
+- **Or put a reverse proxy in front** — Caddy/nginx with a real certificate gives you a clean HTTPS origin, which PWAs and service workers prefer.
 
 Either way, read [Read this first (security)](../getting-started/security.md) before exposing the server to anything wider than your desk, and [First run & login](../getting-started/first-run.md) for the password flow.
 
