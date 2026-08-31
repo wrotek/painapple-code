@@ -206,7 +206,7 @@ def _mapped_bytes(path: Path):
         yield b""
 
 
-# `name:"xxx",description:"yyy"` / `…,description:'yyy'` as it appears in
+# `name:"xxx",…,description:"yyy"` / `…,description:'yyy'` as it appears in
 # the CLI's embedded JS, matched against the raw binary.
 #
 # There is no `strings` pass in front of this any more, and none is needed.
@@ -215,13 +215,26 @@ def _mapped_bytes(path: Path):
 # body to printable ASCII does that directly — `[ -!#-~]` is 0x20..0x7e
 # minus `"`, `[ -&(-~]` the same minus `'`. Every other byte of the pattern
 # is printable too, so a match still can't span the boundary `strings`
-# would have cut at, and the result is byte-identical (verified against the
-# old implementation over the real 294MB bundle: same 95 commands, same
-# descriptions) for ~1/40th of the work — 2.13s to 0.05s, because the old
-# form built a ~100MB str of every printable run before searching it.
+# would have cut at (~0.05s over the real ~300MB bundle).
+#
+# `name:` and `description:` need NOT be adjacent: embedded-skill defs
+# interleave other keys, e.g. `name:"fewer-permission-prompts",
+# requires:{workspace:!0},menuDescription:"…",description:"…"` — the
+# adjacent-only form silently missed every such skill (batch,
+# claude-in-chrome, debug, fewer-permission-prompts, update-config on
+# 2.1.251), so their popup rows fell back to the bare "Claude command"
+# label. Group 2 tolerates up to 4 simple intervening `key:value` pairs
+# (string / !0 / !1 / flat object / number), never another `name:"` — so
+# a match can't jump into the NEXT def's description. The one wrinkle:
+# npm package.json blobs are also `name:"x",version:"…",description:"…"`;
+# a `version:"` key in the intervening run marks a library, not a
+# command, and the caller skips it.
 _COMMAND_DEF = re.compile(
-    rb'name:"([a-z][a-z0-9-]*)",description:(?:"([ -!#-~]+)"|\'([ -&(-~]+)\')'
+    rb'name:"([a-z][a-z0-9-]*)"'
+    rb'((?:,(?!name:")[a-zA-Z_$]+:(?:"[ -!#-~]*"|\'[ -&(-~]*\'|!0|!1|\{[ -!#-~]*?\}|[0-9]+)){0,4}?)'
+    rb',description:(?:"([ -!#-~]+)"|\'([ -&(-~]+)\')'
 )
+_LIBRARY_DEF_KEY = re.compile(rb'\bversion:"')
 
 
 @functools.lru_cache(maxsize=1)
@@ -249,18 +262,23 @@ def _cli_command_descriptions() -> dict[str, str]:
             # without binutils, and a whole subprocess to do what one regex
             # pass does. No dependency, and it can't hang.
             with _mapped_bytes(real_path) as data:
-                # Group 2 = double-quoted body, group 3 = single-quoted.
+                # Group 2 = intervening keys, 3 = double-quoted body,
+                # 4 = single-quoted body.
                 for m in _COMMAND_DEF.finditer(data):
                     name = m.group(1).decode("ascii")
                     # Skip non-command entries (CLI args, system tools, etc.)
                     if name.startswith("--") or name in ("command", "count", "duration", "definition"):
+                        continue
+                    # An embedded package.json (`name`,`version`,`description`)
+                    # is a bundled npm library, never a slash command.
+                    if _LIBRARY_DEF_KEY.search(m.group(2)):
                         continue
                     # Keep first match for duplicates (real command defs
                     # appear before library defs). Checked before the decode
                     # work rather than after it.
                     if name in descriptions:
                         continue
-                    raw = m.group(2) if m.group(2) is not None else m.group(3)
+                    raw = m.group(3) if m.group(3) is not None else m.group(4)
                     # Decode unicode escapes like &ndash;
                     desc = raw.decode("ascii").encode("utf-8").decode(
                         "unicode_escape", errors="replace"
