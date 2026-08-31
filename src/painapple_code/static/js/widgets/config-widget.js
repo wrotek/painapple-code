@@ -230,7 +230,7 @@ function renderConfigPanel(container, context) {
                     <path d="M2 17l10 5 10-5"/>
                     <path d="M2 12l10 5 10-5"/>
                 </svg>
-                ${S.settings.sections.engines}
+                ${S.settings.sections.providers}
             </button>
             <button class="config-tab ${state.activeTab === 'system' ? 'active' : ''}" data-tab="system">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -501,14 +501,14 @@ function renderConfigPanel(container, context) {
                  setupModelsTab; nothing here is hardcoded per engine. -->
             <div class="config-section" data-section="models" ${state.activeTab !== 'models' ? 'hidden' : ''}>
                 <div class="system-section">
-                    <h3 class="system-section-title">${S.settings.sections.engines}</h3>
+                    <h3 class="system-section-title">${S.settings.sections.providers}</h3>
                     <div class="engines-list" id="engines-list">
                         <!-- populated by setupModelsTab -->
                     </div>
-                    <p class="config-hint" id="engines-hint">${S.settings.hints.engines_hint}</p>
+                    <p class="config-hint" id="engines-hint">${S.settings.hints.providers_hint}</p>
                 </div>
                 <div class="system-section">
-                    <h3 class="system-section-title">${S.settings.sections.engine_settings}</h3>
+                    <h3 class="system-section-title">${S.settings.sections.provider_settings}</h3>
                     <div class="engine-subtabs" id="engine-subtabs">
                         <!-- one sub-tab per enabled engine, populated by setupModelsTab -->
                     </div>

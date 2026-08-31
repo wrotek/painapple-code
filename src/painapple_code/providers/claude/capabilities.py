@@ -42,7 +42,7 @@ class _CapabilitiesMixin:
 
     def binary_not_found_hint(self) -> str:
         return ("Make sure the Claude Code CLI is installed and 'claude' is on "
-                "the server's PATH, or set the full path in Settings → Engines. "
+                "the server's PATH, or set the full path in Settings → Providers. "
                 "Install with: curl -fsSL https://claude.ai/install.sh | bash")
 
     def summary_model_editable(self) -> bool:

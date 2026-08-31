@@ -59,7 +59,7 @@ function engineAuthorLabel(session) {
         || PROVIDERS_INFO?.default || '';
     const label = shortEngineLabel(engineInfo(name)?.display_name)
         || name.split(/[-_]/)[0];
-    return (label || S.engine.assistant_fallback).toLowerCase();
+    return (label || S.provider.assistant_fallback).toLowerCase();
 }
 
 /** Engines the picker offers (Settings → Engines toggles; default always on). */
@@ -220,8 +220,8 @@ export class StatusBar {
                 this.els.statusEngine.classList.add('clickable');
                 this.els.statusEngine.classList.toggle('pending', !session.storeId);
                 this.els.statusEngine.setAttribute('data-tooltip', session.storeId
-                    ? `${engine.display_name} — ${S.engine.chip_tooltip}`
-                    : S.engine.chip_tooltip_pending);
+                    ? `${engine.display_name} — ${S.provider.chip_tooltip}`
+                    : S.provider.chip_tooltip_pending);
             } else {
                 this.els.statusEngine.textContent = '';
                 this.els.statusEngine.classList.remove('clickable', 'pending');
@@ -250,7 +250,7 @@ export class StatusBar {
                         ? `${parts[0]}-${parts[1]}.${parts[2]}`
                         : parts.slice(0, 3).join('-');
                 } else {
-                    label = S.models.engine_default_label;
+                    label = S.models.provider_default_label;
                 }
                 this.els.statusModel.textContent = label;
                 this.els.statusModel.classList.add('clickable');
@@ -939,8 +939,8 @@ export class StatusBar {
         // Three states: pre-connect tab (choice rides the create connect),
         // bound-but-empty (switchable in place until the first turn), locked
         // (picking another engine opens a fresh tab on it).
-        const note = locked ? `<div class="engine-popup-note">${S.engine.fixed_note}</div>`
-            : bound ? `<div class="engine-popup-note">${S.engine.switchable_note}</div>`
+        const note = locked ? `<div class="engine-popup-note">${S.provider.fixed_note}</div>`
+            : bound ? `<div class="engine-popup-note">${S.provider.switchable_note}</div>`
             : '';
 
         // Offer only Settings-enabled engines, plus this session's own engine
@@ -956,15 +956,15 @@ export class StatusBar {
             if (!p.available) cls.push('unavailable');
             const desc = !p.available
                 ? (p.unavailable_reason || '')
-                : (isSelected && bound) ? S.engine.this_session
-                : isDefault ? S.engine.default_badge
+                : (isSelected && bound) ? S.provider.this_session
+                : isDefault ? S.provider.default_badge
                 : (p.description || '');
             return `<div class="${cls.join(' ')}" data-engine="${p.name}">
                 <span class="model-option-label">${p.display_name}</span>
                 <span class="model-option-desc">${desc}</span>
             </div>`;
         }).join('') + `<div class="model-popup-footer">
-            <button class="engine-set-default" data-engine="${effective}"${PROVIDERS_INFO.default_pinned_by_flag ? ` disabled data-tooltip="${S.engine.pinned_by_flag}"` : ''}>${S.engine.set_default}</button>
+            <button class="engine-set-default" data-engine="${effective}"${PROVIDERS_INFO.default_pinned_by_flag ? ` disabled data-tooltip="${S.provider.pinned_by_flag}"` : ''}>${S.provider.set_default}</button>
         </div>`;
 
         popup.addEventListener('click', (e) => {
@@ -1003,8 +1003,8 @@ export class StatusBar {
         if (!p || !session) { this._closeEnginePopup(); return; }
 
         if (!p.available) {
-            showToast(S.engine.unavailable_toast
-                .replace('{engine}', p.display_name)
+            showToast(S.provider.unavailable_toast
+                .replace('{provider}', p.display_name)
                 .replace('{reason}', p.unavailable_reason || ''));
             return;  // keep the popup open — the row is informational
         }
@@ -1016,7 +1016,7 @@ export class StatusBar {
             // connect (?provider=) once a project is picked.
             session.pendingProvider = name;
             this._afterEngineChange(session);
-            showToast(S.engine.pending_toast.replace('{engine}', p.display_name));
+            showToast(S.provider.pending_toast.replace('{provider}', p.display_name));
             return;
         }
 
@@ -1041,7 +1041,7 @@ export class StatusBar {
                     // preferred_model the new engine's catalog doesn't offer
                     // is cleared) — re-pull model state so the chip agrees.
                     this.setSession(session.storeId);
-                    showToast(S.engine.switch_toast.replace('{engine}', p.display_name));
+                    showToast(S.provider.switch_toast.replace('{provider}', p.display_name));
                     return;
                 }
                 if (resp.status !== 409) {
@@ -1072,7 +1072,7 @@ export class StatusBar {
                 created.connect();
             }
             this._afterEngineChange(created);
-            showToast(S.engine.new_tab_toast.replace('{engine}', p.display_name));
+            showToast(S.provider.new_tab_toast.replace('{provider}', p.display_name));
         }
     }
 

@@ -61,7 +61,7 @@ class _ErrorsMixin:
 
     def binary_not_found_hint(self) -> str:
         return ("Install the Codex CLI (`npm i -g @openai/codex`) or point the "
-                "CLI path at it in Settings → Engines (`codex_path` config key).")
+                "CLI path at it in Settings → Providers (`codex_path` config key).")
 
     @property
     def normal_termination_codes(self) -> frozenset:

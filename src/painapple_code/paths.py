@@ -698,7 +698,7 @@ def save_models_config(config: dict) -> None:
     header = (
         "# models.yaml - Available Claude models (single source of truth)\n"
         "# Server serves this via GET /api/app/models\n"
-        "# Edit via Settings → Engines (Claude tab), or by hand (both work).\n\n"
+        "# Edit via Settings → Providers, or by hand (both work).\n\n"
     )
     body = yaml.safe_dump(config, sort_keys=False, allow_unicode=True)
     yaml_path.write_text(header + body, encoding="utf-8")

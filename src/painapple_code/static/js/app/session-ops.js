@@ -83,8 +83,8 @@ export const sessionOpsMethods = {
         // Engines without fork (capabilities.fork=false, e.g. ephemeral codex
         // exec) fail friendly here; the server 409s as the backstop.
         if (this.activeSession.providerCaps?.fork === false) {
-            this.activeSession.addSystemLog(S.engine.fork_unsupported.replace(
-                '{engine}', this.activeSession.providerDisplayName || this.activeSession.provider), 'error');
+            this.activeSession.addSystemLog(S.provider.fork_unsupported.replace(
+                '{provider}', this.activeSession.providerDisplayName || this.activeSession.provider), 'error');
             return;
         }
 

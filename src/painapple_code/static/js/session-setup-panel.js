@@ -112,10 +112,10 @@ class SessionSetupPanel {
         ].filter(Boolean).join('');
 
         this.el.innerHTML = `<div class="setup-panel-card">
-            <div class="setup-panel-title">${S.engine.setup.title}</div>
-            <div class="setup-panel-subtitle">${S.engine.setup.subtitle}</div>
+            <div class="setup-panel-title">${S.provider.setup.title}</div>
+            <div class="setup-panel-subtitle">${S.provider.setup.subtitle}</div>
             <div class="setup-panel-rows">${rows}</div>
-            <div class="setup-panel-hint">${S.engine.setup.lock_hint}</div>
+            <div class="setup-panel-hint">${S.provider.setup.lock_hint}</div>
         </div>`;
     }
 
@@ -151,7 +151,7 @@ class SessionSetupPanel {
             tooltip: p.available ? (p.description || '') : (p.unavailable_reason || ''),
             unavailable: !p.available,
         })).join('');
-        return this._row(S.engine.setup.engine_label, pills);
+        return this._row(S.provider.setup.provider_label, pills);
     }
 
     /** Model pills — the engine's OWN catalog (Claude: models.yaml; Codex:
@@ -175,7 +175,7 @@ class SessionSetupPanel {
             selected: current === m.id,
             tooltip: m.desc || '',
         }));
-        return this._row(S.engine.setup.model_label, pills.join(''));
+        return this._row(S.provider.setup.model_label, pills.join(''));
     }
 
     /** Permission pills — the active engine's own vocabulary (the manager
@@ -192,7 +192,7 @@ class SessionSetupPanel {
             dotColor: m.color || '',
             tooltip: m.desc || '',
         })).join('');
-        return this._row(S.engine.setup.permissions_label, pills);
+        return this._row(S.provider.setup.permissions_label, pills);
     }
 
     /** Effort pills — the engine's self-described scale, narrowed to the
@@ -206,14 +206,14 @@ class SessionSetupPanel {
         const efforts = (picked?.efforts?.length ? picked.efforts : engine?.efforts) || [];
         if (efforts.length < 2) return '';
         const current = window.effortSettings?.currentLevel || null;
-        const labels = S.engine.setup.effort_labels || {};
+        const labels = S.provider.setup.effort_labels || {};
         const pills = efforts.map(v => this._pill({
             kind: 'effort',
             value: v,
             label: labels[v] || v,
             selected: current === v,
         })).join('');
-        return this._row(S.engine.setup.effort_label, pills);
+        return this._row(S.provider.setup.effort_label, pills);
     }
 
     /** Account pills — token profiles, only when the engine has selectable
@@ -226,7 +226,7 @@ class SessionSetupPanel {
         const pills = [this._pill({
             kind: 'account',
             value: '',
-            label: S.engine.setup.no_token,
+            label: S.provider.setup.no_token,
             selected: !current,
         })].concat(tp.profiles.map(p => this._pill({
             kind: 'account',
@@ -234,7 +234,7 @@ class SessionSetupPanel {
             label: p.name,
             selected: current === p.name,
         }))).join('');
-        return this._row(S.engine.setup.account_label, pills);
+        return this._row(S.provider.setup.account_label, pills);
     }
 
     // ─── Actions — all delegate to the existing managers ───────────

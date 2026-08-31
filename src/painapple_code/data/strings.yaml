@@ -73,7 +73,7 @@ status:
   working_directory: "Working directory: {cwd}"
   session_ended: "Session ended: {reason}"
   permission_mode: "Permission mode: {mode}"
-  permission_mode_live: "Permission mode: {mode} — applied to the running engine"
+  permission_mode_live: "Permission mode: {mode} — applied to the running provider"
   permission_mode_next_turn: "Permission mode: {mode} — applies from the next message"
   forked: "Forked session: {id}"
   forked_compacting: "Forked session: {id} (compacting)"
@@ -890,11 +890,11 @@ settings:
     # Terminal tab
     terminal_clipboard: "Clipboard"
     terminal_floating: "Floating Window"
-    # Engines tab (internally data-tab="models")
-    engines: "Engines"
-    engine_defaults: "New Session Defaults"
-    engine_settings: "Engine Settings"
-    engine_models: "Models"
+    # Providers tab (internally data-tab="models")
+    providers: "Providers"
+    provider_defaults: "New Session Defaults"
+    provider_settings: "Provider Settings"
+    provider_models: "Models"
     models_background: "Auto-journal Model"
     # System tab
     sessions: "Sessions"
@@ -1035,7 +1035,7 @@ settings:
     token_profile: "Default Token Profile"
     token_profile_desc: "OAuth token for Claude CLI subprocess auth"
     default_model: "Default Model"
-    default_model_desc: "Model for new sessions on the default engine"
+    default_model_desc: "Model for new sessions on the default provider"
     session_list_limit: "Session List Limit"
     session_list_limit_desc: "Max sessions to load in welcome/search (10-500)"
     api_retry_max: "API Auto-Retry"
@@ -1086,33 +1086,33 @@ settings:
     widget_sizes_desc: "Default size for floating widgets. Double-click title bar to restore."
     terminal_size_desc: "Default size when the terminal opens as a floating window. Double-click its title bar to restore this size."
     floating_desc: "Opacity of FAB and chat navigator when inactive."
-    engines_hint: "Engines offered when starting a session. Disabling one hides it from the picker — sessions already running on it keep working."
-    engines_default_locked: "Default engine for new sessions — always available"
-    engines_make_default: "Make default"
-    engines_default_pinned: "The --default-provider server flag pins the default engine — changes apply after a restart without the flag."
-    engines_prompt_in_argv: "Prompts are passed on the command line, so other accounts on this machine can read them from the process list while a turn runs. Fine on a machine only you use."
-    engine_path_hint: "Command or absolute path for this engine's CLI. Leave empty to use \"{binary}\" from PATH."
-    engine_path_save: "Save"
-    engine_path_reset: "Reset"
-    engine_path_missing: "CLI not found"
-    engine_models_readonly: "Model definitions come from the engine's own CLI. Use the toggles to choose which are listed in pickers."
-    engine_models_empty: "No models reported yet — run this engine's CLI once to populate its catalog."
-    engine_model_toggle_title: "Show or hide this model in pickers"
-    engine_auth_checking: "Checking login…"
-    engine_auth_logged_in: "Logged in"
-    engine_auth_not_logged_in: "Not logged in"
-    engine_auth_unknown: "Login status unknown"
-    engine_auth_login_button: "Log in"
-    engine_auth_login_tab: "Login"
-    engine_default_model_label: "Default model"
-    engine_default_effort_label: "Default effort"
-    engine_default_profile_label: "Account"
-    engine_defaults_hint: "Used when a new session starts on this engine — every engine keeps its own defaults. Override per-session via the status-bar chips."
-    engine_journal_hint: "Model for this engine's auto-journal fork — runs after each turn to write journal summaries, tags and decisions. Clear to use the engine's default."
+    providers_hint: "Providers offered when starting a session. Disabling one hides it from the picker — sessions already running on it keep working."
+    providers_default_locked: "Default provider for new sessions — always available"
+    providers_make_default: "Make default"
+    providers_default_pinned: "The --default-provider server flag pins the default provider — changes apply after a restart without the flag."
+    providers_prompt_in_argv: "Prompts are passed on the command line, so other accounts on this machine can read them from the process list while a turn runs. Fine on a machine only you use."
+    provider_path_hint: "Command or absolute path for this provider's CLI. Leave empty to use \"{binary}\" from PATH."
+    provider_path_save: "Save"
+    provider_path_reset: "Reset"
+    provider_path_missing: "CLI not found"
+    provider_models_readonly: "Model definitions come from the provider's own CLI. Use the toggles to choose which are listed in pickers."
+    provider_models_empty: "No models reported yet — run this provider's CLI once to populate its catalog."
+    provider_model_toggle_title: "Show or hide this model in pickers"
+    provider_auth_checking: "Checking login…"
+    provider_auth_logged_in: "Logged in"
+    provider_auth_not_logged_in: "Not logged in"
+    provider_auth_unknown: "Login status unknown"
+    provider_auth_login_button: "Log in"
+    provider_auth_login_tab: "Login"
+    provider_default_model_label: "Default model"
+    provider_default_effort_label: "Default effort"
+    provider_default_profile_label: "Account"
+    provider_defaults_hint: "Used when a new session starts on this provider — every provider keeps its own defaults. Override per-session via the status-bar chips."
+    provider_journal_hint: "Model for this provider's auto-journal fork — runs after each turn to write journal summaries, tags and decisions. Clear to use the provider's default."
     thinking_hint: "Default thinking budget when creating new sessions. Can be changed per-session via the sparkle button."
     token_hint: "Generate with <code>claude setup-token</code>, save to <code>~/.config/painapple-code/tokens/&lt;name&gt;</code> (filename becomes the profile name). Can be overridden per-session."
-    model_hint: "Preselects the model for new sessions on the default engine. Can be overridden per-session via the model chip in the status bar."
-    model_default_option: "Engine default"
+    model_hint: "Preselects the model for new sessions on the default provider. Can be overridden per-session via the model chip in the status bar."
+    model_default_option: "Provider default"
     models_list_hint: "Models offered in pickers (model chip, session setup, Default Model). Toggles hide a model without deleting it; edits save to models.yaml on the server."
     models_summary_hint: "Powers the Auto-journal — runs after each turn to enrich journal commits with summaries, tags, decisions, findings. Also used for context compaction forks. Not shown in the model selector."
     models_summary_link: "Open Auto-journal panel →"
@@ -1659,8 +1659,8 @@ retry:
 # ============================================================
 auth:
   error_role: "auth required"
-  error_generic: "Failed to authenticate. Your {engine} login has expired or is invalid."
-  login_button: "Log in to {engine}"
+  error_generic: "Failed to authenticate. Your {provider} login has expired or is invalid."
+  login_button: "Log in to {provider}"
 
 # ============================================================
 # Tool renderer (code block UI)
@@ -1809,43 +1809,43 @@ connection:
   connecting_click: "Connecting… tap to retry"
 
 # ============================================================
-# Engine (AI provider) picker — status-bar chip + popup.
-# Engine names/descriptions come from the server registry
+# Provider (AI backend) picker — status-bar chip + popup.
+# Provider names/descriptions come from the server registry
 # (GET /api/providers); only the framing strings live here.
 # ============================================================
-engine:
-  # Message author for assistant bubbles when no engine is known at all
+provider:
+  # Message author for assistant bubbles when no provider is known at all
   # (registry unreachable AND the session carries no provider id).
   assistant_fallback: "assistant"
-  chip_tooltip: "AI engine for this session"
-  chip_tooltip_pending: "AI engine for this tab — choose before starting"
-  # Row descriptions (engine self-description is used when none applies)
+  chip_tooltip: "AI provider for this session"
+  chip_tooltip_pending: "AI provider for this tab — choose before starting"
+  # Row descriptions (provider self-description is used when none applies)
   this_session: "this session"
   default_badge: "default for new sessions"
   opens_new_tab: "opens a new tab"
   # Popup header notes per state
-  fixed_note: "Engine locked after the first turn — picking another opens a new tab"
-  switchable_note: "Engine can still change — locks on the first message"
+  fixed_note: "Provider locked after the first turn — picking another opens a new tab"
+  switchable_note: "Provider can still change — locks on the first message"
   set_default: "Set as default"
   pinned_by_flag: "Pinned by the --default-provider server flag"
-  unavailable_toast: "{engine} unavailable: {reason}"
-  pending_toast: "This tab will start on {engine}"
-  switch_toast: "Session engine: {engine}"
-  new_tab_toast: "New tab on {engine}"
-  fork_unsupported: "{engine} can't fork sessions"
+  unavailable_toast: "{provider} unavailable: {reason}"
+  pending_toast: "This tab will start on {provider}"
+  switch_toast: "Session provider: {provider}"
+  new_tab_toast: "New tab on {provider}"
+  fork_unsupported: "{provider} can't fork sessions"
   # Session setup panel — friendly selectors shown in the empty chat area
   # of a fresh session (nothing sent yet). Rows self-populate from the
-  # engine registry / managers; only the chrome strings live here.
+  # provider registry / managers; only the chrome strings live here.
   setup:
     title: "New session"
     subtitle: "Pick how this session runs — everything here is one tap, and available later from the status bar."
-    engine_label: "Engine"
+    provider_label: "Provider"
     model_label: "Model"
     permissions_label: "Permissions"
     effort_label: "Effort"
     account_label: "Account"
     no_token: "No token"
-    lock_hint: "Engine locks on the first message — everything else can change anytime."
+    lock_hint: "Provider locks on the first message — everything else can change anytime."
     effort_labels:
       minimal: "Minimal"
       low: "Low"
@@ -1856,8 +1856,8 @@ engine:
       ultra: "Ultra"
 
 # ============================================================
-# Effort chip + popup. Metadata for every level any engine can speak
-# — each engine's popup lists only its own vocabulary (per-engine
+# Effort chip + popup. Metadata for every level any provider can speak
+# — each provider's popup lists only its own vocabulary (per-provider
 # registry efforts, narrowed to the picked model's range when the
 # model self-describes one). A level missing here still renders,
 # falling back to its raw name.
@@ -1905,14 +1905,14 @@ effort:
 
 # ============================================================
 # Model chip / popup / setup-panel model row. The model LISTS come
-# from each engine's registry entry (Claude: models.yaml, Codex: the
+# from each provider's registry entry (Claude: models.yaml, Codex: the
 # CLI's own cache); only the framing strings live here.
 # ============================================================
 models:
-  # Shown when the engine runs its own configured model (no pick made
-  # and the app can't name the engine's default)
-  engine_default_label: "Default"
-  engine_default_desc: "Whatever this engine is configured to use"
+  # Shown when the provider runs its own configured model (no pick made
+  # and the app can't name the provider's default)
+  provider_default_label: "Default"
+  provider_default_desc: "Whatever this provider is configured to use"
   global_default_badge: "global default"
   set_default_button: "Set as default"
 
@@ -2116,7 +2116,7 @@ permission_card:
   waited: "waited {elapsed}"
   # Deny guidance echoed on the answered card ({feedback} = what the user typed)
   deny_feedback_quote: "“{feedback}”"
-  # "Always allow" options — one row per engine suggestion on the ask.
+  # "Always allow" options — one row per provider suggestion on the ask.
   # {detail} is the rule/directory/mode; {scope} one of the scope_* strings.
   suggestion_add_rules: "Always allow {detail} {scope}"
   suggestion_add_directories: "Allow access to {detail} {scope}"

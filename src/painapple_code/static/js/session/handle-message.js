@@ -336,11 +336,11 @@ export const wsHandlerMethods = {
                 this._setActivity({ active: false });
                 this.updateTab();
                 this.addSystemLog(`Auth error: ${msg.message || '401'}`, 'error');
-                const engine = msg.engine || 'Claude';
+                const providerLabel = msg.provider_label || 'Claude';
                 this.addMessage({
                     role: 'auth_error',
-                    content: msg.message || S.auth.error_generic.replace('{engine}', engine),
-                    engine,
+                    content: msg.message || S.auth.error_generic.replace('{provider}', providerLabel),
+                    providerLabel,
                     loginCommand: msg.login_command || null,
                     source: 'server',
                 });

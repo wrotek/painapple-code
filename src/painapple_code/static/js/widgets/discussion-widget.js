@@ -929,8 +929,8 @@ export async function startThread(anchor, question) {
     // Discussion threads are forks — engines without fork can't host them.
     const active = window.app?.activeSession;
     if (active?.providerCaps?.fork === false) {
-        active.addSystemLog(S.engine.fork_unsupported.replace(
-            '{engine}', active.providerDisplayName || active.provider), 'error');
+        active.addSystemLog(S.provider.fork_unsupported.replace(
+            '{provider}', active.providerDisplayName || active.provider), 'error');
         return;
     }
 

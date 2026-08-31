@@ -520,7 +520,7 @@ async def set_session_provider(session_id: str, request: Request):
     if provider_is_locked(meta):
         raise HTTPException(
             status_code=409,
-            detail="Session already ran on its engine — provider is locked. Start a new session to switch.",
+            detail="Session already ran on its provider — the provider is locked. Start a new session to switch.",
         )
 
     SessionStore.update_metadata(session_id, provider=value)

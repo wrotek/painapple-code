@@ -3157,7 +3157,9 @@ export class ChatController {
      * survives session switches and page reloads.
      */
     _renderAuthError(msg) {
-        const engine = msg.engine || 'Claude';
+        // `engine` fallback: auth_error messages persisted before the
+        // Engines→Providers rename still carry the old field name.
+        const providerLabel = msg.providerLabel || msg.engine || 'Claude';
         const div = document.createElement('div');
         div.className = 'message error auth-error';
         div.id = `msg-${msg.id}`;
@@ -3180,7 +3182,7 @@ export class ChatController {
                         <polyline points="10 17 15 12 10 7"/>
                         <line x1="15" y1="12" x2="3" y2="12"/>
                     </svg>
-                    ${escapeHtml(S.auth.login_button.replace('{engine}', engine))}
+                    ${escapeHtml(S.auth.login_button.replace('{provider}', providerLabel))}
                 </button>
             </div>
         `;

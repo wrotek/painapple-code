@@ -2031,14 +2031,14 @@ class AgentManager:
         # Family label ("Claude"/"Codex"): login identity is per CLI binary,
         # which driver pairs share via models_key — registry-driven, no
         # provider-name literals.
-        engine = (p.models_key or p.name or "claude").capitalize()
+        provider_label = (p.models_key or p.name or "claude").capitalize()
         frame = {
             "type": "auth_error",
             "status": status,
-            "message": message or (f"Failed to authenticate. Your {engine} "
+            "message": message or (f"Failed to authenticate. Your {provider_label} "
                                    f"login has expired or is invalid."),
             "provider": p.name,
-            "engine": engine,
+            "provider_label": provider_label,
         }
         if p.auth_login_args:
             config = paths.load_global_config()

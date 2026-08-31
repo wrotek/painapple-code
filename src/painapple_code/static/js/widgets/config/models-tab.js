@@ -142,8 +142,8 @@ function renderAll(container) {
     renderEnginePanel(container);
     const hint = container.querySelector('#engines-hint');
     if (hint) {
-        hint.textContent = S.settings.hints.engines_hint
-            + (_tab.pinned ? ' ' + S.settings.hints.engines_default_pinned : '');
+        hint.textContent = S.settings.hints.providers_hint
+            + (_tab.pinned ? ' ' + S.settings.hints.providers_default_pinned : '');
     }
 }
 
@@ -176,20 +176,20 @@ function renderEnginesList(listEl) {
     listEl.innerHTML = _tab.providers.map(p => {
         const isDefault = p.name === _tab.defaultEngine;
         const enabled = p.enabled !== false;
-        const tag = isDefault ? `<span class="engine-row-tag">${S.engine.default_badge}</span>` : '';
+        const tag = isDefault ? `<span class="engine-row-tag">${S.provider.default_badge}</span>` : '';
         const desc = p.available
             ? (p.description || '')
             : (p.unavailable_reason || '');
         // "Make default" on the other rows — hidden while a server flag
         // pins the default, and on engines that aren't usable anyway.
         const makeDefault = (!isDefault && !_tab.pinned && p.available)
-            ? `<button type="button" class="engine-row-make-default" data-engine="${p.name}">${S.settings.hints.engines_make_default}</button>`
+            ? `<button type="button" class="engine-row-make-default" data-engine="${p.name}">${S.settings.hints.providers_make_default}</button>`
             : '';
         // Engines self-declare traits worth knowing BEFORE the toggle. Driven
         // off the capability, never off a provider name, so a drop-in engine
         // with the same shape gets the same warning for free.
         const note = p.capabilities?.prompt_in_argv
-            ? `<span class="engine-row-note">${escapeHtml(S.settings.hints.engines_prompt_in_argv)}</span>`
+            ? `<span class="engine-row-note">${escapeHtml(S.settings.hints.providers_prompt_in_argv)}</span>`
             : '';
         return `<div class="engine-row${p.available ? '' : ' unavailable'}">
             <label class="engine-row-label">
@@ -200,7 +200,7 @@ function renderEnginesList(listEl) {
             ${makeDefault}
             <input type="checkbox" class="engine-row-toggle" data-engine="${p.name}"
                    ${enabled ? 'checked' : ''} ${isDefault ? 'disabled' : ''}
-                   ${isDefault ? `data-tooltip="${S.settings.hints.engines_default_locked}"` : ''}>
+                   ${isDefault ? `data-tooltip="${S.settings.hints.providers_default_locked}"` : ''}>
         </div>`;
     }).join('');
 }
@@ -377,7 +377,7 @@ function renderEngineSubtabs(tabsEl) {
     if (!tabsEl) return;
     tabsEl.innerHTML = enabledProviders().map(p => {
         const tag = p.name === _tab.defaultEngine
-            ? `<span class="engine-row-tag">${S.engine.default_badge}</span>` : '';
+            ? `<span class="engine-row-tag">${S.provider.default_badge}</span>` : '';
         const active = p.name === _tab.activeEngine ? ' active' : '';
         return `<button type="button" class="engine-subtab${active}" data-engine="${p.name}">
             ${escapeHtml(p.display_name)}${tag}
@@ -419,15 +419,15 @@ function renderEnginePanel(container) {
             <input type="text" class="system-text-input engine-path-input"
                    placeholder="${escapeHtml(p.default_binary || '')}"
                    spellcheck="false" autocomplete="off">
-            <button type="button" class="system-save-btn engine-path-save">${S.settings.hints.engine_path_save}</button>
-            <button type="button" class="system-reset-btn engine-path-reset" disabled>${S.settings.hints.engine_path_reset}</button>
+            <button type="button" class="system-save-btn engine-path-save">${S.settings.hints.provider_path_save}</button>
+            <button type="button" class="system-reset-btn engine-path-reset" disabled>${S.settings.hints.provider_path_reset}</button>
         </div>
-        <p class="config-hint">${S.settings.hints.engine_path_hint.replace('{binary}', escapeHtml(p.default_binary || ''))}</p>` : '';
+        <p class="config-hint">${S.settings.hints.provider_path_hint.replace('{binary}', escapeHtml(p.default_binary || ''))}</p>` : '';
     const authBlock = `
         <div class="engine-auth" data-role="auth">
             <span class="engine-auth-dot checking"></span>
-            <span class="engine-auth-text">${S.settings.hints.engine_auth_checking}</span>
-            <button type="button" class="system-save-btn engine-login-btn" hidden>${S.settings.hints.engine_auth_login_button}</button>
+            <span class="engine-auth-text">${S.settings.hints.provider_auth_checking}</span>
+            <button type="button" class="system-save-btn engine-login-btn" hidden>${S.settings.hints.provider_auth_login_button}</button>
         </div>`;
     const modelsFooter = p.models_editable ? `
         <div class="models-add-row">
@@ -442,23 +442,23 @@ function renderEnginePanel(container) {
         </div>
         <p class="config-hint">${S.settings.hints.models_list_hint}</p>
         <button type="button" class="system-reset-btn models-reset-btn">${S.settings.hints.models_reset_button}</button>` : `
-        <p class="config-hint">${S.settings.hints.engine_models_readonly}</p>`;
+        <p class="config-hint">${S.settings.hints.provider_models_readonly}</p>`;
     // New-session defaults — vocab comes from the registry (efforts,
     // accounts); stored values arrive via loadEngineDefaults.
     const effortOptions = (p.efforts || []).map(lvl =>
-        `<option value="${escapeHtml(lvl)}">${escapeHtml(S.engine.setup.effort_labels?.[lvl] || lvl)}</option>`).join('');
+        `<option value="${escapeHtml(lvl)}">${escapeHtml(S.provider.setup.effort_labels?.[lvl] || lvl)}</option>`).join('');
     const accountOptions = (p.accounts || []).map(a =>
         `<option value="${escapeHtml(a.id)}">${escapeHtml(a.label || a.id)}</option>`).join('');
     const defaultsBlock = `
-        <h4 class="engine-card-subtitle">${S.settings.sections.engine_defaults}</h4>
+        <h4 class="engine-card-subtitle">${S.settings.sections.provider_defaults}</h4>
         <div class="engine-defaults" data-role="defaults">
             <div class="engine-defaults-row">
-                <span class="engine-defaults-label">${S.settings.hints.engine_default_model_label}</span>
+                <span class="engine-defaults-label">${S.settings.hints.provider_default_model_label}</span>
                 <select class="system-select engine-default-model"></select>
             </div>
             ${(p.efforts || []).length ? `
             <div class="engine-defaults-row">
-                <span class="engine-defaults-label">${S.settings.hints.engine_default_effort_label}</span>
+                <span class="engine-defaults-label">${S.settings.hints.provider_default_effort_label}</span>
                 <select class="system-select engine-default-effort">
                     <option value="">${S.settings.hints.model_default_option}</option>
                     ${effortOptions}
@@ -466,25 +466,25 @@ function renderEnginePanel(container) {
             </div>` : ''}
             ${(p.accounts || []).length > 1 ? `
             <div class="engine-defaults-row">
-                <span class="engine-defaults-label">${S.settings.hints.engine_default_profile_label}</span>
+                <span class="engine-defaults-label">${S.settings.hints.provider_default_profile_label}</span>
                 <select class="system-select engine-default-profile">
                     ${accountOptions}
                 </select>
             </div>` : ''}
         </div>
-        <p class="config-hint">${S.settings.hints.engine_defaults_hint}</p>`;
+        <p class="config-hint">${S.settings.hints.provider_defaults_hint}</p>`;
     const journalBlock = `
         <div class="engine-journal" data-role="journal">
             <h4 class="engine-card-subtitle">${S.settings.sections.models_background}</h4>
             <input type="text" class="system-text-input engine-journal-input"
                    spellcheck="false" autocomplete="off">
-            <p class="config-hint">${S.settings.hints.engine_journal_hint}</p>
+            <p class="config-hint">${S.settings.hints.provider_journal_hint}</p>
         </div>`;
     root.innerHTML = `
         ${unavailable}
         ${pathBlock}
         ${authBlock}
-        <h4 class="engine-card-subtitle">${S.settings.sections.engine_models}</h4>
+        <h4 class="engine-card-subtitle">${S.settings.sections.provider_models}</h4>
         <div class="models-list" data-role="models"></div>
         ${modelsFooter}
         ${defaultsBlock}
@@ -518,7 +518,7 @@ function applyEnginePathInfo(root, data) {
     const resetBtn = root.querySelector('.engine-path-reset');
     if (input && document.activeElement !== input) input.value = data.path || '';
     if (versionEl) {
-        const ver = data.version || S.settings.hints.engine_path_missing;
+        const ver = data.version || S.settings.hints.provider_path_missing;
         versionEl.textContent = data.resolved ? `${ver} · ${data.resolved}` : ver;
         versionEl.classList.toggle('unavailable', !data.version);
     }
@@ -652,7 +652,7 @@ function renderPanelModels(container, p) {
     if (!listEl) return;
     const catalog = panelCatalog(p);
     if (!catalog.length) {
-        listEl.innerHTML = `<div class="models-empty">${S.settings.hints.engine_models_empty}</div>`;
+        listEl.innerHTML = `<div class="models-empty">${S.settings.hints.provider_models_empty}</div>`;
         return;
     }
     const ro = p.models_editable ? '' : ' readonly';
@@ -660,7 +660,7 @@ function renderPanelModels(container, p) {
         <div class="models-row${m.enabled ? '' : ' model-off'}">
             <input type="checkbox" class="models-row-toggle"
                    data-id="${escapeHtml(m.id)}" ${m.enabled ? 'checked' : ''}
-                   title="${escapeHtml(S.settings.hints.engine_model_toggle_title)}">
+                   title="${escapeHtml(S.settings.hints.provider_model_toggle_title)}">
             <input type="text" class="system-text-input models-row-input"
                    data-id="${escapeHtml(m.id)}" data-field="id"${ro}
                    value="${escapeHtml(m.id)}" title="${escapeHtml(S.settings.hints.models_id_title)}">
@@ -773,7 +773,7 @@ function wireEnginePanel(container) {
             // lands; reopening Settings re-probes and shows the green row.
             WidgetManager.close('config');
             window.app?.openTerminalWidgetTab({
-                title: S.settings.hints.engine_auth_login_tab,
+                title: S.settings.hints.provider_auth_login_tab,
                 icon: 'terminal',
                 initialCommand: loginBtn.dataset.command + '\n',
             });
