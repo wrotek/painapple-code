@@ -35,14 +35,14 @@ Your overrides are pushed to the server, so they follow you across browsers and 
 
 Configures the radial FAB menu (see below): FAB visibility (Always / Mobile / Disabled), behavior options (context-aware action swapping, tooltips, press-drag-release selection, haptic feedback on mobile), which action sits in each slot, and preset switching.
 
-### Engines
+### Providers
 
-Everything about the [AI engines](engines.md) — Claude and Codex — lives here:
+Everything about the [AI providers](providers.md) — Claude and Codex — lives here:
 
-- **Engines list** — enable/disable each engine and pick the default for new sessions (**Make default**).
-- **One sub-tab per enabled engine** — CLI path and detected version, login status with an in-app **Log in** flow, the engine's model catalog (per-model show/hide; Claude's is fully editable), its **New Session Defaults** (model, effort, account), and its auto-journal summarizer model.
+- **Providers list** — enable/disable each provider and pick the default for new sessions (**Make default**).
+- **One sub-tab per enabled provider** — CLI path and detected version, login status with an in-app **Log in** flow, the provider's model catalog (per-model show/hide; Claude's is fully editable), its **New Session Defaults** (model, effort, account), and its auto-journal summarizer model.
 
-Full walkthrough: [AI engines → Settings → Engines](engines.md#settings-engines).
+Full walkthrough: [AI providers → Settings → Providers](providers.md#settings-providers).
 
 ### System
 
@@ -81,7 +81,7 @@ Handy for pinning one terminal or file preview across a set of related sessions.
 
 Some customization is stored server-side, so it follows you to any browser or device that logs into the same server; the rest is per-browser `localStorage`.
 
-**Server-side:** shortcut overrides, quick-action presets, everything on the Engines tab — which engines are enabled, which one is the default for new sessions, each engine's CLI path override, its per-model show/hide list, its editable model catalog (Claude only), its new-session defaults (model, effort, account) and its auto-journal summarizer model — per-project config (extra dirs, Shadow Git, commit sections), global Shadow Git defaults, global extra dirs, and [tab state](sessions.md). **Per-browser:** appearance settings (density, font scale, opacity, tool-block modes), input toggles, and the FAB position/slots.
+**Server-side:** shortcut overrides, quick-action presets, everything on the Providers tab — which providers are enabled, which one is the default for new sessions, each provider's CLI path override, its per-model show/hide list, its editable model catalog (Claude only), its new-session defaults (model, effort, account) and its auto-journal summarizer model — per-project config (extra dirs, Shadow Git, commit sections), global Shadow Git defaults, global extra dirs, and [tab state](sessions.md). **Per-browser:** appearance settings (density, font scale, opacity, tool-block modes), input toggles, and the FAB position/slots.
 
 ## Related
 

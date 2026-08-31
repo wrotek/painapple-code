@@ -7,8 +7,8 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 | Feature | What it does | Guide |
 |---|---|---|
 | Multi-session tabs | Several concurrent sessions in browser-style tabs; terminals and file previews can sit in the same tab strip | [Sessions & tabs](guides/sessions.md) |
-| AI engines | Pick Claude Code or OpenAI Codex per session — per-engine models, permission vocabularies, effort scales, defaults, and in-app CLI login. Codex support is experimental | [AI engines](guides/engines.md) |
-| Session setup panel | One-tap engine / model / permissions / effort / account pills on every fresh session, gone after the first message | [AI engines](guides/engines.md) |
+| AI providers | Pick Claude Code or OpenAI Codex per session — per-provider models, permission vocabularies, effort scales, defaults, and in-app CLI login. Codex support is experimental | [AI providers](guides/providers.md) |
+| Session setup panel | One-tap provider / model / permissions / effort / account pills on every fresh session, gone after the first message | [AI providers](guides/providers.md) |
 | Streaming chat | Live-rendered markdown, collapsible tool and thinking blocks, syntax highlighting, per-block line-wrap toggle, clickable file references | [Sessions & tabs](guides/sessions.md) |
 | Per-turn summary bar | Context usage, token delta, files changed, tools used, duration, cost, and model after every turn | [Sessions & tabs](guides/sessions.md) |
 | Reconnect & resume | Claude keeps running when the tab disconnects; page refresh reattaches; resume any session in the CLI with `claude --resume` | [Sessions & tabs](guides/sessions.md) |

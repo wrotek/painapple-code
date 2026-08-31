@@ -6,11 +6,11 @@
 
 ## Permissions
 
-**pAInapple Code does not implement permissions. Claude Code does.** The default engine drives Claude through the official **Agent SDK**, and what the app contributes is a per-session way to pick one of [Claude Code's own permission modes](https://code.claude.com/docs/en/permission-modes#available-modes) and a place to answer the CLI's approval prompts. Your existing `settings.json` allow/deny rules apply exactly as they do in the terminal. Don't read the list below as a safety layer this project provides — read it as the mode you are handing to Claude Code.
+**pAInapple Code does not implement permissions. Claude Code does.** The default provider drives Claude through the official **Agent SDK**, and what the app contributes is a per-session way to pick one of [Claude Code's own permission modes](https://code.claude.com/docs/en/permission-modes#available-modes) and a place to answer the CLI's approval prompts. Your existing `settings.json` allow/deny rules apply exactly as they do in the terminal. Don't read the list below as a safety layer this project provides — read it as the mode you are handing to Claude Code.
 
 The default mode is **Ask**: reads run freely, but every edit and command pauses the turn on an approve/deny card in the chat — with a preview of the edit or command — until you decide. That's the safe out-of-the-box posture. The more permissive modes are opt-in, per session, and they're also where the app is most fun — which is exactly why the isolation advice below matters.
 
-The modes available on the default engine (set per session via the button next to the input):
+The modes available on the default provider (set per session via the button next to the input):
 
 | Mode | CLI mode | Behavior |
 |------|----------|----------|
@@ -21,7 +21,7 @@ The modes available on the default engine (set per session via the button next t
 | **Auto** | `auto` | Claude's AI classifier gates each tool call |
 | **YOLO** | `bypassPermissions` | Full access |
 
-Three caveats. First, the approval cards only protect you while you're the one clicking them — in **YOLO** and **Auto** nothing asks, and those are the modes that give Claude the most freedom. Second, the cards exist only on the Claude engine: Codex enforces its own sandbox tiers instead. Third — and this is the point of this whole section — the boundary that actually holds is the one *below* the agent: the OS user, the container, the VM. A permission mode is the agent cooperating, not a sandbox. See the [permissions guide](../guides/permissions-and-thinking.md) for the full story.
+Three caveats. First, the approval cards only protect you while you're the one clicking them — in **YOLO** and **Auto** nothing asks, and those are the modes that give Claude the most freedom. Second, the cards exist only on the Claude provider: Codex enforces its own sandbox tiers instead. Third — and this is the point of this whole section — the boundary that actually holds is the one *below* the agent: the OS user, the container, the VM. A permission mode is the agent cooperating, not a sandbox. See the [permissions guide](../guides/permissions-and-thinking.md) for the full story.
 
 ## Terminal
 

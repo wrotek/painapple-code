@@ -153,7 +153,7 @@ They land in `/data/npm-global`, on the persistent volume, owned by the unprivil
 | `PAINAPPLE_AGENT_CLIS` | Override the set: space-separated `binary=npm-spec` pairs. Default `claude=@anthropic-ai/claude-code@2 codex=@openai/codex@latest`. Drop one to skip it, or pin an exact version. |
 | `PAINAPPLE_AGENT_CLI_PREFIX` | Install location. Default `/data/npm-global`. |
 
-A CLI already on `PATH` is left alone, checked per binary — so a baked-in `claude` doesn't suppress the `codex` install. A failed install is **not** fatal: the server still starts and serves the UI, terminal, git panel and history; only prompting that engine fails, with an explanation in the container log.
+A CLI already on `PATH` is left alone, checked per binary — so a baked-in `claude` doesn't suppress the `codex` install. A failed install is **not** fatal: the server still starts and serves the UI, terminal, git panel and history; only prompting that provider fails, with an explanation in the container log.
 
 !!! tip "Air-gapped hosts"
     Bake the CLIs into a derived image — the already-on-`PATH` check then leaves them alone:

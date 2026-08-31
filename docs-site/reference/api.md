@@ -69,7 +69,7 @@ Not exhaustive — a map of where things live, with representative routes.
 | Chat | `ws://…/chat` | Main Claude WebSocket (see [protocol](#websocket-chat-protocol)) |
 | Terminal | `ws://…/ws/terminal` | PTY WebSocket; also `GET /api/terminals`, `DELETE /api/terminal/{id}`, `GET /api/active-sessions` |
 | Sessions | `/api/sessions`, `/api/session/{id}` | CRUD, `POST /api/session/{id}/fork`, `POST /api/session/{id}/stop` (interrupt the live turn), `PUT /api/session/{id}/permission-mode`, `PUT /api/session/{id}/provider`, `GET /api/session/{id}/threads` |
-| Engines | `/api/providers`, `/api/app/engine-*` | `GET /api/providers` (engine catalog + capabilities), `GET/PUT /api/app/engine-path/{name}`, `…/engine-auth/{name}`, `…/engine-models/{name}`, `…/engine-defaults/{name}`, `PUT /api/app/default-provider` |
+| Providers | `/api/providers`, `/api/app/provider-*` | `GET /api/providers` (provider catalog + capabilities), `GET/PUT /api/app/provider-path/{name}`, `…/provider-auth/{name}`, `…/provider-models/{name}`, `…/provider-defaults/{name}`, `PUT /api/app/default-provider` |
 | Logs | `/api/sessions/{id}/logs` | `…/logs/messages`, `…/logs/raw`, `…/logs/tools`, `GET /api/sessions/{id}/changes` |
 | Files | `/api/files`, `/api/file` | Directory listing (`GET /api/files?path=…`), `GET /api/file?path=…`, `POST /api/file/write` |
 | Search | `/api/search` | `GET /api/search?…` — project-wide content search (ripgrep, with a Python fallback) |
@@ -101,7 +101,7 @@ Connect to `ws://…/chat` with query parameters:
 |-------|---------|
 | `session` | Server-side session ID to join or resume an existing session |
 | `cwd` | Working directory (used when creating a new session) |
-| `provider` | [Engine](../guides/engines.md) to bind a **new** session to (`claude-sdk`, `codex-app-server`). Ignored once a session is bound |
+| `provider` | [Provider](../guides/providers.md) to bind a **new** session to (`claude-sdk`, `codex-app-server`). Ignored once a session is bound |
 
 Sessions are bound to session IDs, not connections — reconnecting to a running session resumes its output stream.
 
@@ -117,21 +117,21 @@ Sessions are bound to session IDs, not connections — reconnecting to a running
 | `permission_response` | `{"type": "permission_response", "request_id": "…", "behavior": "allow" or "deny", "updated_input": {…}}` — answers a `permission_request`. `updated_input` (optional) replaces the tool's arguments; `suggestion_index` (int, optional) picks an "always allow" rule from the request's `suggestions` |
 | `set_permission_mode` | `{"type": "set_permission_mode", "mode": "acceptEdits"}` — see below |
 
-**`stop` interrupts; it only kills on some engines.** On a provider with `live_controls` (`claude-sdk`, the default), the server aborts the turn over the control plane and **keeps the process warm** — the next message skips the respawn and `--resume` cost, and the aborted turn still emits its `result` frame, so cost and tokens are recorded. Line-protocol providers get the old path: `SIGINT`, then `SIGKILL` after 5s. A failed graceful interrupt falls through to `SIGINT` too, so a wedged engine never survives Stop.
+**`stop` interrupts; it only kills on some providers.** On a provider with `live_controls` (`claude-sdk`, the default), the server aborts the turn over the control plane and **keeps the process warm** — the next message skips the respawn and `--resume` cost, and the aborted turn still emits its `result` frame, so cost and tokens are recorded. Line-protocol providers get the old path: `SIGINT`, then `SIGKILL` after 5s. A failed graceful interrupt falls through to `SIGINT` too, so a wedged provider never survives Stop.
 
-**`set_permission_mode` applies live on `claude-sdk`.** The reply (`permission_mode_changed`) carries an `applied` field: `"live"` means the running engine switched in place, effective immediately even mid-turn; `"next_turn"` means the idle process will be respawned on your next message. Every other provider — and any nacked or timed-out control request — reports `next_turn`. One exception on `claude-sdk`: a process *launched* in `bypassPermissions` has no approval gate attached, so switching **out** of bypass always takes the respawn path.
+**`set_permission_mode` applies live on `claude-sdk`.** The reply (`permission_mode_changed`) carries an `applied` field: `"live"` means the running provider switched in place, effective immediately even mid-turn; `"next_turn"` means the idle process will be respawned on your next message. Every other provider — and any nacked or timed-out control request — reports `next_turn`. One exception on `claude-sdk`: a process *launched* in `bypassPermissions` has no approval gate attached, so switching **out** of bypass always takes the respawn path.
 
 ### Server → client
 
 | Type | Meaning |
 |------|---------|
-| `connected` | Handshake — `session_id`, `cwd`, `home`, `workspace`, `is_reconnect`, `agent_running`, `is_compacting`, plus the engine-identity block: `provider`, `provider_display_name`, `provider_caps` (the full capabilities object), `provider_locked` |
+| `connected` | Handshake — `session_id`, `cwd`, `home`, `workspace`, `is_reconnect`, `agent_running`, `is_compacting`, plus the provider-identity block: `provider`, `provider_display_name`, `provider_caps` (the full capabilities object), `provider_locked` |
 | `agent_message` | Wraps provider-neutral Claude-shaped JSON (`system` / `assistant` / `user` / `result`) in `data` |
 | `raw_output` | Unparsed subprocess output line |
 | `stderr` | Subprocess stderr / server error text |
 | `message_stored` | **Broadcast** to every attached client: `{message, line}`, the stored prompt. This is the frame clients render — `line` gives the stable sid `{session_id}:{line}` used for dedup |
 | `user_message_stored` | Sent **only to the socket that sent the prompt**: `{promptId, isFavorite}` (plus `verifiedFiles` when the prompt referenced files) — the favorite-button ack, not the render path |
-| `permission_request` | An interactive approve/deny ask, blocking the engine until you answer with `permission_response`. Carries `request_id`, `tool_name`, the tool input, optional `suggestions`, and `replay: true` when re-sent to a reconnecting client |
+| `permission_request` | An interactive approve/deny ask, blocking the provider until you answer with `permission_response`. Carries `request_id`, `tool_name`, the tool input, optional `suggestions`, and `replay: true` when re-sent to a reconnecting client |
 | `permission_resolved` | **Broadcast** when any client answers: `{request_id, behavior, ok}`. `ok: false` means the request expired (process restarted) — peer tabs retire the card either way |
 | `stopped` | Turn interrupted after a `stop` request |
 | `session_cleared` | Session reset after `clear_session` |
@@ -141,7 +141,7 @@ Sessions are bound to session IDs, not connections — reconnecting to a running
 | `error` | Anything else that went wrong |
 | `pong` | Reply to `ping` |
 
-`provider_locked` reports whether the session's engine can still be switched — it locks permanently after the first turn. `connected` is also where a reconnecting client picks state back up: any permission ask the engine is still blocked on is replayed immediately after the handshake.
+`provider_locked` reports whether the session's provider can still be switched — it locks permanently after the first turn. `connected` is also where a reconnecting client picks state back up: any permission ask the provider is still blocked on is replayed immediately after the handshake.
 
 ## Terminal WebSocket
 

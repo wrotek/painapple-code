@@ -80,7 +80,7 @@ nav:
       - First run & login: getting-started/first-run.md
   - Guides:
       - Sessions & tabs: guides/sessions.md
-      - AI engines (Claude & Codex): guides/engines.md
+      - AI providers (Claude & Codex): guides/providers.md
       - Welcome screen: guides/welcome-screen.md
       - Writing prompts & commands: guides/input-and-commands.md
       - Permission modes & thinking: guides/permissions-and-thinking.md

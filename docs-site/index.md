@@ -1,6 +1,6 @@
 # pAInapple Code
 
-A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server **runs on your own machine** and drives Claude Code through the **official Agent SDK**, using **your own Claude subscription**. [OpenAI Codex CLI](guides/engines.md) support is experimental.
+A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server **runs on your own machine** and drives Claude Code through the **official Agent SDK**, using **your own Claude subscription**. [OpenAI Codex CLI](guides/providers.md) support is experimental.
 Inspired by [code-server](https://github.com/coder/code-server).
 
 Thanks to the [**Auto Journal**](guides/shadow-git.md), you can easily **pull up the full history of any topic or file** you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. **It's not just for you:** the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
@@ -19,7 +19,7 @@ The **server** runs natively on Linux, macOS, and Windows 10/11 — no WSL requi
 
 ## What it is — and what it isn't
 
-**It is** a thin wrapper around Claude Code. Every prompt streams through the official **Agent SDK** (the classic `claude -p` line protocol is available as an alternate engine), and sessions you create here can be resumed in the regular CLI with `claude --resume <id>`.
+**It is** a thin wrapper around Claude Code. Every prompt streams through the official **Agent SDK** (the classic `claude -p` line protocol is available as an alternate provider), and sessions you create here can be resumed in the regular CLI with `claude --resume <id>`.
 
 **It is not** an AI agent of its own. It never modifies Claude's system prompt, tool policy, or behavior — no injected planning steps, no hidden instructions, no parallelized work. What it *does* add to a prompt is the context **you** attached: the output of `!bang` commands you ran, paths of files you uploaded, and snippets from the comments stash are prepended as plain text. The one other exception is the optional `shadow-git-helper` agent, which knows how to query the Shadow Git history.
 
@@ -38,7 +38,7 @@ The **server** runs natively on Linux, macOS, and Windows 10/11 — no WSL requi
 
 - **[Shadow Git auto-journal](guides/shadow-git.md)** — pull up the full history of any topic or file you've worked on: every turn is summarized by a fast model into git + DuckDB. Not a backup — a searchable record of what was done and why.
 - **[Multi-session tabs](guides/sessions.md)** — several concurrent sessions, browser-style tabs, sessions survive page refresh and network drops.
-- **[AI engines](guides/engines.md)** — Claude Code by default, experimental OpenAI Codex support when you want it, chosen per session — each with its own models, permission modes, and effort scale.
+- **[AI providers](guides/providers.md)** — Claude Code by default, experimental OpenAI Codex support when you want it, chosen per session — each with its own models, permission modes, and effort scale.
 - **[Embedded terminal](guides/terminal.md)** — a real PTY with xterm.js, persistent across refresh, with a mobile keyboard extension bar.
 - **[Comments stash & discussions](guides/stash-and-discussions.md)** — annotate any paragraph of a response and attach it to your next prompt, or fork a side-thread about it.
 - **[Cost analytics & prompt history](guides/analytics-and-history.md)** — spend breakdowns per model/tool/session, and full-text search over every prompt you ever sent.

@@ -4,7 +4,7 @@ Everything you can type into the message input that isn't a plain prompt: built-
 
 ## Built-in slash commands
 
-The web client intercepts these instead of sending them as a plain prompt. Most are pure client actions, but four of them do end up sending text to the engine: `/compact` forwards the literal `/compact [instructions]` string, `/fork-compact` forwards it into the newly forked session, `/plan <text>` sends your text as a normal (plan-mode) prompt, and `/btw <question>` sends the question into a forked discussion thread. The rest never reach the engine at all.
+The web client intercepts these instead of sending them as a plain prompt. Most are pure client actions, but four of them do end up sending text to the provider: `/compact` forwards the literal `/compact [instructions]` string, `/fork-compact` forwards it into the newly forked session, `/plan <text>` sends your text as a normal (plan-mode) prompt, and `/btw <question>` sends the question into a forked discussion thread. The rest never reach the provider at all.
 
 | Command | Description |
 |---------|-------------|
@@ -17,10 +17,10 @@ The web client intercepts these instead of sending them as a plain prompt. Most 
 | `/clone [text]` | Clone the session (same project, fresh chat); add text to send it immediately |
 | `/plan [text]` | Enter plan mode — explore and design before coding (see [input modes](#input-modes)) |
 | `/btw [question]` | Side question — fork a quick discussion thread without selecting text |
-| `/login` | Sign in to the **session's engine** — opens an interactive terminal |
+| `/login` | Sign in to the **session's provider** — opens an interactive terminal |
 | `/logout` | Sign out of Anthropic — opens an interactive terminal |
 
-`/login` is engine-aware: it asks the registry for the active engine's own `login_command`, so on a Codex session it runs `codex login --device-auth`, and it only falls back to `claude auth login` when no engine is resolved. `/logout` is **not** — it always runs `claude auth logout`. Both need the embedded terminal, so on a server with no PTY backend (Windows without `pywinpty`) they show a toast telling you to run the command in your own console instead.
+`/login` is provider-aware: it asks the registry for the active provider's own `login_command`, so on a Codex session it runs `codex login --device-auth`, and it only falls back to `claude auth login` when no provider is resolved. `/logout` is **not** — it always runs `claude auth logout`. Both need the embedded terminal, so on a server with no PTY backend (Windows without `pywinpty`) they show a toast telling you to run the command in your own console instead.
 
 ## Resolution order
 

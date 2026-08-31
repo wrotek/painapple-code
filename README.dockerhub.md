@@ -1,6 +1,6 @@
 # pAInapple Code
 
-A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/) as a second engine (experimental).
+A self-hosted web UI for [Claude Code](https://github.com/anthropics/claude-code) sessions — a Python server that runs the CLI as a subprocess and serves a vanilla-JS PWA on top. Inspired by [code-server](https://github.com/coder/code-server). It can also drive the [OpenAI Codex CLI](https://painapple.ai/guides/providers/) as a second provider (experimental).
 
 Thanks to the [**Auto Journal**](https://painapple.ai/guides/shadow-git/), you can easily pull up the full history of any topic or file you've already worked on. After each turn finishes, the session is forked in the background to a fast model (Haiku by default) that summarizes the turn — and the summary is stored in a local DuckDB and in the project's shadow git, as the commit message over everything that changed during the turn. It's not just for you: the optional `shadow-git-helper` agent gives Claude the same access, digging through past turns to brief the session with full historical context.
 
@@ -159,7 +159,7 @@ docker buildx imagetools inspect wrotek/painapple-code:latest
 
 ## What it is, and what it isn't
 
-**It is** a thin wrapper around Claude Code — every prompt streams through the official CLI/Agent SDK, and any session started here can be resumed in the plain CLI with `claude --resume <id>`. **It never modifies Claude's system prompt, tool policy, or behavior** — no injected planning steps, no hidden instructions. What it does add to a prompt is the context you attached: the output of `!bang` commands you ran, paths of files you uploaded, and snippets from the comments stash are prepended as plain text. The same wrapper can drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/), selected per session, resumable with `codex exec resume <id>` — the Codex path is **newer and has had less testing** than the Claude path.
+**It is** a thin wrapper around Claude Code — every prompt streams through the official CLI/Agent SDK, and any session started here can be resumed in the plain CLI with `claude --resume <id>`. **It never modifies Claude's system prompt, tool policy, or behavior** — no injected planning steps, no hidden instructions. What it does add to a prompt is the context you attached: the output of `!bang` commands you ran, paths of files you uploaded, and snippets from the comments stash are prepended as plain text. The same wrapper can drive the [OpenAI Codex CLI](https://painapple.ai/guides/providers/), selected per session, resumable with `codex exec resume <id>` — the Codex path is **newer and has had less testing** than the Claude path.
 
 **It is not** a hosted service. You run it, on your hardware, with your own Claude account.
 

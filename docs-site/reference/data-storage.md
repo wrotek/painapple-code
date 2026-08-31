@@ -123,13 +123,13 @@ Uninstalling the package removes neither directory — `pip uninstall` leaves `~
 
 ## Resuming sessions in the plain CLI
 
-Sessions created through pAInapple Code are regular sessions of whatever [engine](../guides/engines.md) ran them — nothing proprietary is layered on top. The provider session ID is stored in each session's `meta.json` (`provider_session_id`), and you can pick any conversation up from a terminal.
+Sessions created through pAInapple Code are regular sessions of whatever [provider](../guides/providers.md) ran them — nothing proprietary is layered on top. The provider session ID is stored in each session's `meta.json` (`provider_session_id`), and you can pick any conversation up from a terminal.
 
-**The resume command follows the session's own engine.** Each provider self-describes its template, so a Codex session is not resumable with `claude`:
+**The resume command follows the session's own provider.** Each provider self-describes its template, so a Codex session is not resumable with `claude`:
 
 ```bash
-claude -r <session-id>              # Claude engines (claude-sdk, claude)
-codex exec resume <session-id>      # Codex engine (codex-app-server)
+claude -r <session-id>              # Claude providers (claude-sdk, claude)
+codex exec resume <session-id>      # Codex provider (codex-app-server)
 ```
 
-The in-app **Continue in CLI** quick action copies the right one for the session you're looking at, so you don't have to remember which engine it was bound to.
+The in-app **Continue in CLI** quick action copies the right one for the session you're looking at, so you don't have to remember which provider it was bound to.

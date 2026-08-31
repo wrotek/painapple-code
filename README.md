@@ -1,6 +1,6 @@
 # pAInapple Code
 
-A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server **runs on your own machine** and drives Claude Code through the **official Agent SDK**, using **your own Claude subscription**. [OpenAI Codex CLI](https://painapple.ai/guides/engines/) support is experimental.
+A self-hosted web client for [Claude Code](https://github.com/anthropics/claude-code), installable as a PWA. The server **runs on your own machine** and drives Claude Code through the **official Agent SDK**, using **your own Claude subscription**. [OpenAI Codex CLI](https://painapple.ai/guides/providers/) support is experimental.
 Inspired by [code-server](https://github.com/coder/code-server).
 
 [**Auto Journal**](#auto-journal-shadow-git): after every turn, a background fork to a fast model (Haiku by default) summarizes it into a local DuckDB and a shadow-git commit — so the **full history of any topic or file stays searchable**, by you *and* by future Claude sessions.
@@ -13,7 +13,7 @@ Right now it's a PWA, but **desktop and mobile apps are in development**.
 
 ## What it is, and what it isn't
 
-**It is** a thin wrapper around Claude Code — every prompt streams through the official CLI/Agent SDK, and any session started here can be resumed in the plain CLI with `claude --resume <id>`. **It never modifies Claude's system prompt, tool policy, or behavior** — no injected planning steps, no hidden instructions. What it does add to a prompt is the context you attached: the output of `!bang` commands you ran, paths of files you uploaded, and snippets from the comments stash are prepended as plain text. The same wrapper can drive the [OpenAI Codex CLI](https://painapple.ai/guides/engines/), selected per session, resumable with `codex exec resume <id>` — the Codex path is **newer and has had less testing** than the Claude path.
+**It is** a thin wrapper around Claude Code — every prompt streams through the official CLI/Agent SDK, and any session started here can be resumed in the plain CLI with `claude --resume <id>`. **It never modifies Claude's system prompt, tool policy, or behavior** — no injected planning steps, no hidden instructions. What it does add to a prompt is the context you attached: the output of `!bang` commands you ran, paths of files you uploaded, and snippets from the comments stash are prepended as plain text. The same wrapper can drive the [OpenAI Codex CLI](https://painapple.ai/guides/providers/), selected per session, resumable with `codex exec resume <id>` — the Codex path is **newer and has had less testing** than the Claude path.
 
 **It is not** a hosted service. You run it, on your hardware, with your own Claude account.
 
@@ -88,7 +88,7 @@ Search **every prompt you've ever sent**, across all sessions and projects, with
 - **Server:** Linux, macOS, or Windows 11 (Windows 10 is untested, but will probably work)
 - **Direct install:** Python 3.12+ and the [Claude Code CLI](https://github.com/anthropics/claude-code), installed and authenticated. (The Docker image ships Python and Node, and installs the agent CLIs itself on first start.)
 - **Git** on `PATH` — the auto-journal records every turn as a shadow-git commit, and the Git panel shells out to it. **Without git the server still runs, but journals nothing.** (Windows: [Git for Windows](https://git-scm.com/download/win).)
-- **Optional:** Docker or Podman for the sandboxed `--in-docker` mode and named container instances; the [OpenAI Codex CLI](https://github.com/openai/codex) for the Codex engine.
+- **Optional:** Docker or Podman for the sandboxed `--in-docker` mode and named container instances; the [OpenAI Codex CLI](https://github.com/openai/codex) for the Codex provider.
 - **Client:** any modern browser with network access to the server.
 
 ## Quick start
@@ -159,7 +159,7 @@ In container mode the image is pulled automatically on the first run (`painapple
 - **GitHub Codespaces / Dev Containers** — one line in `devcontainer.json` boots every Codespace with pAInapple Code installed, started, and port-forwarded → [Dev Container Feature](https://painapple.ai/getting-started/install-devcontainer/)
 - **From source** — `git clone`, `venv/bin/pip install -e .`, run with `venv/bin/painapple` → [source install](https://painapple.ai/getting-started/install-pip/#from-a-source-checkout)
 
-**Full documentation** — configuration, engines, every feature, and the CLI/API reference — lives at **[painapple.ai](https://painapple.ai/)**.
+**Full documentation** — configuration, providers, every feature, and the CLI/API reference — lives at **[painapple.ai](https://painapple.ai/)**.
 
 ## Authentication
 
@@ -188,7 +188,7 @@ The most common flags:
 | `--workspace` | `.` | Workspace root — the directory holding your projects. You pick the project in-app from the welcome screen (`--cwd` is an alias) |
 | `--instance-name`, `--accent` | — | Label + accent color to distinguish multiple instances |
 | `--tls` | `auto` | Self-signed TLS, auto-enabled on non-loopback binds |
-| `--default-provider` | `claude-sdk` | Default [AI engine](https://painapple.ai/guides/engines/) for new sessions — Claude Code (SDK or classic line protocol) or OpenAI Codex |
+| `--default-provider` | `claude-sdk` | Default [AI provider](https://painapple.ai/guides/providers/) for new sessions — Claude Code (SDK or classic line protocol) or OpenAI Codex |
 | `--profile` | — | Run a named profile — several independent deployments (host or docker mode) under one user |
 | `--in-docker` | off | Run the same invocation in a container instead (prebuilt image, cwd mounted) |
 
@@ -232,7 +232,7 @@ This is an MVP — there are tradeoffs.
 2. **Windowing system** — works, but doesn't support multiple instances of the same widget and could use a rethink.
 3. **Code editor** — currently a notepad with syntax highlighting. The plan is a review-driven workflow rather than a VSCode-grade editor; the markdown inline editor is the exception and works well for plan/doc tweaks.
 4. **GUI for OS-level features** (git widget, file explorer) — exists, but I prefer the embedded terminal for `grep`/`sed`/`find`/`du`, so these widgets have not been a priority.
-5. **Codex engine** — functional, but much newer than the Claude path and not yet as thoroughly tested.
+5. **Codex provider** — functional, but much newer than the Claude path and not yet as thoroughly tested.
 
 ## License
 

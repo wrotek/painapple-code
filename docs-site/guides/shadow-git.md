@@ -16,7 +16,7 @@ A few properties worth internalizing:
 
 ## Rich commits: the Haiku auto-journal
 
-On top of the raw commits sits the second layer: **rich commits**. After each turn, the server forks a background summarizer (Haiku by default; the model is configurable per [engine](engines.md) in **Settings → Engines** — the fork runs on the session's own engine, so Codex sessions self-summarize with a Codex model) that reads the **whole turn, not just the diff** — with the running "journey" context of previous turn summaries — and writes a structured commit message: a one-line summary, tags, plus sections like *work done*, *investigation*, *findings*, *decisions*, *problems solved*, *verification*, and *learnings*. You can customize which sections are generated per project.
+On top of the raw commits sits the second layer: **rich commits**. After each turn, the server forks a background summarizer (Haiku by default; the model is configurable per [provider](providers.md) in **Settings → Providers** — the fork runs on the session's own provider, so Codex sessions self-summarize with a Codex model) that reads the **whole turn, not just the diff** — with the running "journey" context of previous turn summaries — and writes a structured commit message: a one-line summary, tags, plus sections like *work done*, *investigation*, *findings*, *decisions*, *problems solved*, *verification*, and *learnings*. You can customize which sections are generated per project.
 
 Everything is parsed and stored in a local DuckDB alongside the git data, so it's queryable: every turn's prompt, cost, tokens, duration, model, files touched, tools used, tags, and all the generated sections.
 
