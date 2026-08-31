@@ -456,6 +456,28 @@ def test_build_run_argv_pins_no_project_for_parent_git_mount(tmp_path):
     assert "--no-project" not in argv
 
 
+def test_image_staleness_detection():
+    from painapple_code.cli.deploy import container as c
+
+    assert c._release_tuple("1.0.0rc1") == (1, 0, 0)
+    assert c._release_tuple("v1.0.3") == (1, 0, 3)
+    assert c._release_tuple("1.0.4.dev2+g7d32669b") == (1, 0, 4)
+    assert c._release_tuple("") is None
+    assert c._release_tuple("garbage") is None
+
+    # Confident older-release comparison warns...
+    assert c._image_is_stale("1.0.0rc1", cli="1.0.3") is True
+    assert c._image_is_stale("1.0.3", cli="1.0.4.dev2+gabc") is True
+    # ...an rc image under a released CLI of the same release does too.
+    assert c._image_is_stale("1.0.0rc1", cli="1.0.0") is True
+    # Current or newer image, and anything unparseable, stays quiet —
+    # an unlabeled image must not cry wolf on every single start.
+    assert c._image_is_stale("1.0.3", cli="1.0.3") is False
+    assert c._image_is_stale("1.0.4", cli="1.0.3") is False
+    assert c._image_is_stale("", cli="1.0.3") is False
+    assert c._image_is_stale("garbage", cli="1.0.3") is False
+
+
 def test_build_run_argv_detached_and_podman_selinux(tmp_path):
     from painapple_code.cli.deploy.container import build_run_argv
     cfg = _sample_settings(tmp_path)

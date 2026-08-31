@@ -14,6 +14,7 @@ import threading
 import time
 from pathlib import Path
 
+from painapple_code import __version__
 from painapple_code.cli.netinfo import detect_local_ips
 from painapple_code.cli.ui import (
     BOLD, DIM, GREEN, RESET, die, err, info, ok, print_credentials, say, warn,
@@ -134,6 +135,50 @@ def print_bootstrap_url(cfg, pw, profile=None, raw_tty=False, token=None):
     out.append(f"{DIM}    Reveal again later with:  {hint('password', profile)}{RESET}")
     sys.stdout.write(nl.join(out) + nl)
     sys.stdout.flush()
+
+
+# ──── image version ──────────────────────────────────────────────────────
+
+def _release_tuple(version):
+    """(major, minor, patch) from a version string, pre/dev/local suffixes
+    dropped — "1.0.0rc1" → (1, 0, 0). None when it can't be parsed."""
+    if not version:
+        return None
+    parts = []
+    for chunk in version.lstrip("vV").split("+")[0].split(".")[:3]:
+        digits = ""
+        for ch in chunk:
+            if not ch.isdigit():
+                break
+            digits += ch
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts) if len(parts) == 3 else None
+
+
+def _is_prerelease(version):
+    core = (version or "").lstrip("vV").split("+")[0]
+    return any(marker in core for marker in ("rc", "a", "b", "dev"))
+
+
+def _image_is_stale(img_version, cli=None):
+    """Is the local image an older build than this CLI?
+
+    Only a CONFIDENT comparison warns — an unparseable or unlabeled
+    version stays quiet rather than crying wolf on every start. Equal
+    releases still count as stale when the image is a pre-release and
+    the CLI is not (an rc image under a released CLI). ``cli`` overrides
+    the running version (tests).
+    """
+    cli_version = cli or __version__
+    img, cli_rel = _release_tuple(img_version), _release_tuple(cli_version)
+    if img is None or cli_rel is None:
+        return False
+    if img < cli_rel:
+        return True
+    return (img == cli_rel and _is_prerelease(img_version)
+            and not _is_prerelease(cli_version))
 
 
 # ──── pull ────────────────────────────────────────────────────────────────
@@ -574,6 +619,20 @@ def run_container(cfg, detach, profile=None):
     say(f"  Config    : {DIM}{cfg.config_volume}{RESET} ({'bind' if cfg.config_is_bind() else 'volume'}) → /home/app/.config/painapple-code")
     say(f"  Listen on : {DIM}{cfg.listen_host}:{cfg.port}{RESET} → container :8765 "
         f"{DIM}(host bind — {listen_scope(cfg)}){RESET}")
+    # Name the image's version, always — the same reason `pull` does it.
+    # `run` uses whatever image is already local and never re-pulls, so a
+    # box that pulled once during the rc series keeps booting that build
+    # forever while the host CLI reports a current version. Unlabeled
+    # (pre-label) images say so rather than printing nothing.
+    img_version = rt.label(cfg.image, "org.opencontainers.image.version")
+    say(f"  Image     : {DIM}{cfg.image}{RESET}"
+        + (f"  {DIM}(version {img_version}){RESET}" if img_version
+           else f"  {DIM}(version unknown — predates the label){RESET}"))
+    if _image_is_stale(img_version):
+        warn(f"The local image is {img_version or 'older than this CLI'} but "
+             f"this CLI is {__version__} — flags and endpoints added since "
+             f"then will be missing inside the container. Refresh it with: "
+             f"{hint('pull', profile)}")
     if cfg.instance_name:
         say(f"  Instance  : {DIM}{cfg.instance_name}{RESET}")
     if cfg.accent:
