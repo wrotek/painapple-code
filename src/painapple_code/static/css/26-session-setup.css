@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════
    SESSION SETUP PANEL
-   Friendly engine/model/permissions/effort/account pills shown in the
+   Friendly provider/model/permissions/effort/account pills shown in the
    empty chat area of a fresh session (project picked, nothing sent).
    Overlays #messages-container; hides itself on the first message.
    ═══════════════════════════════════════════════════════════════════ */
@@ -114,7 +114,7 @@
 }
 
 /* Permission-mode dot on a setup pill — the mode's own self-described
-   color (engines carry no dot; they're identified by name alone). */
+   color (providers carry no dot; they're identified by name alone). */
 .setup-pill .pv-dot {
     display: inline-block;
     width: 7px;

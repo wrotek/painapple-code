@@ -64,8 +64,8 @@ class ClaudeProvider(
 
 
 # Deliberately NOT registered (no PROVIDERS export): the line-protocol driver
-# was superseded by claude-sdk — same engine, same wire format, plus the SDK
-# control plane — and removed from the engine registry. This class stays as the
+# was superseded by claude-sdk — same provider, same wire format, plus the SDK
+# control plane — and removed from the provider registry. This class stays as the
 # base `ClaudeSdkProvider` subclasses (all mixins above are live code under the
 # SDK driver). Sessions persisted with provider="claude" resolve to claude-sdk
 # via the legacy-alias map in providers/__init__.py `get_provider()`.

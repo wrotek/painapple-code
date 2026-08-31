@@ -988,7 +988,7 @@ async def login_page(request: Request):
     }
     # A launcher (painapple-docker.sh, docker compose) can inject the exact
     # reveal command via PAINAPPLE_REVEAL_CMD — it knows the host-side container
-    # name, storage flags and engine that this in-container page cannot. Shown
+    # name, storage flags and provider that this in-container page cannot. Shown
     # verbatim when set; the page otherwise falls back to a per-env guess.
     reveal_cmd = os.environ.get("PAINAPPLE_REVEAL_CMD", "").strip()
     if reveal_cmd:
@@ -2019,7 +2019,7 @@ def main(argv=None):
     if args.default_provider:
         from painapple_code.providers import provider_names, _LEGACY_ALIASES
         if args.default_provider in _LEGACY_ALIASES:
-            # Removed engines: keep old service units / scripts booting, loudly.
+            # Removed providers: keep old service units / scripts booting, loudly.
             successor = _LEGACY_ALIASES[args.default_provider]
             print(f"Warning: provider {args.default_provider!r} was removed; "
                   f"using its successor {successor!r}")

@@ -30,11 +30,11 @@ def effective_default_provider(app):
 
 
 def provider_enabled_map(app) -> dict:
-    """Which engines the picker offers: ``{provider_name: bool}``.
+    """Which providers the picker offers: ``{provider_name: bool}``.
 
-    Per-engine resolution: `providers_enabled` config override if present,
+    Per-provider resolution: `providers_enabled` config override if present,
     else the provider's self-described `default_enabled`. The effective
-    default engine is always on — new sessions land on it, so hiding it
+    default provider is always on — new sessions land on it, so hiding it
     would strand the picker. This gates only UI listing; explicit selection
     (``?provider=``, PUT) and already-bound sessions ignore it.
     """
@@ -49,15 +49,15 @@ def provider_enabled_map(app) -> dict:
 
 def bind_permission_level(stored_level, provider):
     """Permission level to stamp when a session BINDS to `provider` (create
-    with an explicit engine, or an in-place switch) — or None to leave the
+    with an explicit provider, or an in-place switch) — or None to leave the
     meta alone.
 
     The effective level (session's stored one, else the app-wide default)
-    survives when the new engine speaks it. A cross-vocabulary value (e.g.
+    survives when the new provider speaks it. A cross-vocabulary value (e.g.
     Claude's ``dontAsk`` landing on a Codex session) is re-anchored to the
-    engine's own default: launch would otherwise apply a silent back-compat
+    provider's own default: launch would otherwise apply a silent back-compat
     mapping the UI can't label, leaving the permission chip showing a mode
-    the engine doesn't have. Meta, UI, and launch must agree at bind time.
+    the provider doesn't have. Meta, UI, and launch must agree at bind time.
     """
     from painapple_code.providers import DEFAULT_PROVIDER, get_provider
     if provider is None:
@@ -75,16 +75,16 @@ def bind_permission_level(stored_level, provider):
 
 def preferred_model_survives(stored_model, provider) -> bool:
     """Whether a session's stored ``preferred_model`` still means something
-    after binding to `provider` (in-place engine switch) — False = clear it.
+    after binding to `provider` (in-place provider switch) — False = clear it.
 
-    A model pick only makes sense to the engine whose catalog offered it: a
+    A model pick only makes sense to the provider whose catalog offered it: a
     Claude id pinned on a session switching to Codex would be silently
     dropped at launch (Codex forwards only its own ids) while the model chip
     keeps labeling the stale pick — and the reverse would hand Claude an id
-    its API rejects. Clearing resets the session to the new engine's own
-    default. An engine with an EMPTY catalog (the app doesn't manage its
+    its API rejects. Clearing resets the session to the new provider's own
+    default. A provider with an EMPTY catalog (the app doesn't manage its
     models) keeps the stored value — its launch path decides what to
-    forward. Prefix match, same as the UI: engine-reported ids carry date
+    forward. Prefix match, same as the UI: provider-reported ids carry date
     suffixes ("claude-opus-4-6-20260105" is catalog id "claude-opus-4-6").
 
     Membership is checked against `enabled_models()` — a model the user hid
@@ -102,8 +102,8 @@ def preferred_model_survives(stored_model, provider) -> bool:
 
 
 def provider_is_locked(meta: dict) -> bool:
-    """A session's engine is frozen once it has run a turn — the conversation
-    lives in that engine's on-disk format (its provider_session_id means
-    nothing to another engine), so the provider is only switchable while the
+    """A session's provider is frozen once it has run a turn — the conversation
+    lives in that provider's on-disk format (its provider_session_id means
+    nothing to another provider), so the provider is only switchable while the
     session is still empty (no turns, no upstream session id)."""
     return bool(meta.get("message_count", 0)) or bool(meta.get("provider_session_id"))

@@ -920,9 +920,9 @@
     color: var(--text-secondary);
 }
 
-/* ── Engine (provider) chip + picker — mirrors the model popup ── */
+/* ── Provider (provider) chip + picker — mirrors the model popup ── */
 
-#status-bar #status-engine.clickable {
+#status-bar #status-provider.clickable {
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -933,45 +933,45 @@
     color: var(--text-secondary);
 }
 
-.engine-popup .model-option-label {
+.provider-popup .model-option-label {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-5);
 }
 
-#status-bar #status-engine.clickable:hover {
+#status-bar #status-provider.clickable:hover {
     background: var(--bg-tertiary);
     color: var(--text-primary);
 }
 
 /* Tab not yet bound — choice still open, hint that it's actionable */
-#status-bar #status-engine.pending {
+#status-bar #status-provider.pending {
     color: var(--accent);
     font-style: italic;
 }
 
-.engine-popup {
+.provider-popup {
     min-width: 240px;
     max-width: 340px;
 }
 
-/* Engine rows stack label over the (longer) self-description */
-.engine-popup .engine-option {
+/* Provider rows stack label over the (longer) self-description */
+.provider-popup .provider-option {
     flex-direction: column;
     align-items: flex-start;
     gap: 1px;
 }
 
-.engine-popup .engine-option.unavailable {
+.provider-popup .provider-option.unavailable {
     opacity: 0.45;
     cursor: default;
 }
 
-.engine-popup .engine-option.unavailable:hover {
+.provider-popup .provider-option.unavailable:hover {
     background: none;
 }
 
-.engine-popup-note {
+.provider-popup-note {
     font-size: 10px;
     color: var(--text-muted);
     padding: var(--sp-4) var(--sp-10) var(--sp-6);
@@ -980,7 +980,7 @@
     max-width: 260px;
 }
 
-.engine-set-default {
+.provider-set-default {
     width: 100%;
     background: none;
     border: none;
@@ -993,12 +993,12 @@
     transition: background 0.1s, color 0.1s;
 }
 
-.engine-set-default:hover:not(:disabled) {
+.provider-set-default:hover:not(:disabled) {
     background: var(--bg-tertiary);
     color: var(--text-secondary);
 }
 
-.engine-set-default:disabled {
+.provider-set-default:disabled {
     opacity: 0.5;
     cursor: default;
 }
@@ -2004,8 +2004,8 @@
     gap: var(--sp-4);
 }
 
-/* Level-based colors (minimal→ultra: the union across engine vocabularies —
-   each engine's popup only offers its own subset) */
+/* Level-based colors (minimal→ultra: the union across provider vocabularies —
+   each provider's popup only offers its own subset) */
 .effort-btn[data-level="minimal"] {
     color: var(--text-muted);
     opacity: 0.45;

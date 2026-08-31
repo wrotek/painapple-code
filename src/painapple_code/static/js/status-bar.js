@@ -12,7 +12,7 @@ let MODELS = [];
 let SUMMARY_MODEL_ID = '';
 let _modelsLoaded = false;
 
-// Engine registry loaded from server (GET /api/providers):
+// Provider registry loaded from server (GET /api/providers):
 // { providers: [describe()...], default: name, default_pinned_by_flag: bool }
 let PROVIDERS_INFO = null;
 let _providersLoaded = false;
@@ -28,50 +28,50 @@ async function ensureProvidersLoaded() {
     } catch (e) { /* silent — chip stays hidden */ }
 }
 
-/** Call when the default engine changes so the next popup re-fetches. */
+/** Call when the default provider changes so the next popup re-fetches. */
 function invalidateProvidersCache() {
     _providersLoaded = false;
     PROVIDERS_INFO = null;
 }
 
-/** Look up one engine's registry entry by name. */
-function engineInfo(name) {
+/** Look up one provider's registry entry by name. */
+function providerInfo(name) {
     return PROVIDERS_INFO?.providers?.find(p => p.name === name) || null;
 }
 
 /** Compact chip label: "Claude Code (SDK)" → "Claude", "Codex CLI" → "Codex". */
-function shortEngineLabel(displayName) {
+function shortProviderLabel(displayName) {
     return (displayName || '').split(/[\s(]/)[0] || displayName || '';
 }
 
 /**
- * Author label for a session's assistant messages — the engine's OWN short
+ * Author label for a session's assistant messages — the provider's OWN short
  * name, lowercased ("claude", "codex"), never a hardcoded vendor. A session's
- * engine locks on its first turn, so one label holds for the whole transcript.
+ * provider locks on its first turn, so one label holds for the whole transcript.
  *
  * The provider id's first segment is the fallback (`codex-app-server` →
  * "codex"), so history rendered before the registry fetch lands still paints
  * the right author instead of flashing "claude" — same first-paint rule the
  * status-bar managers follow.
  */
-function engineAuthorLabel(session) {
+function providerAuthorLabel(session) {
     const name = session?.provider || session?.pendingProvider
         || PROVIDERS_INFO?.default || '';
-    const label = shortEngineLabel(engineInfo(name)?.display_name)
+    const label = shortProviderLabel(providerInfo(name)?.display_name)
         || name.split(/[-_]/)[0];
     return (label || S.provider.assistant_fallback).toLowerCase();
 }
 
-/** Engines the picker offers (Settings → Engines toggles; default always on). */
-function enabledEngines() {
+/** Providers the picker offers (Settings → Providers toggles; default always on). */
+function enabledProviders() {
     return (PROVIDERS_INFO?.providers || []).filter(p => p.enabled !== false);
 }
 
-/** The model list `engine` draws from: its self-described catalog (registry
+/** The model list `provider` draws from: its self-described catalog (registry
  * `models` — Claude mirrors models.yaml, Codex reads the CLI's own cache),
  * falling back to the app-managed list while the registry hasn't loaded. */
-function engineCatalog(engine) {
-    return (engine?.models?.length ? engine.models : MODELS) || [];
+function providerCatalog(provider) {
+    return (provider?.models?.length ? provider.models : MODELS) || [];
 }
 
 async function ensureModelsLoaded() {
@@ -118,7 +118,7 @@ function getSummaryModelLabel() {
 
 /** Exported for config-widget and other consumers */
 export { MODELS, ensureModelsLoaded, invalidateModelsCache, formatModelLabel, getSummaryModelLabel };
-export { PROVIDERS_INFO, ensureProvidersLoaded, invalidateProvidersCache, engineInfo, shortEngineLabel, engineAuthorLabel, enabledEngines, engineCatalog };
+export { PROVIDERS_INFO, ensureProvidersLoaded, invalidateProvidersCache, providerInfo, shortProviderLabel, providerAuthorLabel, enabledProviders, providerCatalog };
 
 /**
  * StatusBar - Manage status display
@@ -145,12 +145,12 @@ export class StatusBar {
         // State
         this.isTyping = false;
         this.currentModel = null;       // preferred_model for active session
-        this.globalDefaultModel = null; // active ENGINE's default model
+        this.globalDefaultModel = null; // active PROVIDER's default model
         this.currentSessionId = null;
-        // Per-engine default-model cache (keyed by models_key) — lets a tab
-        // switch seed the right engine's default synchronously instead of
-        // leaving the previous engine's value up until the confirm fetch.
-        this._defaultModelByEngine = {};
+        // Per-provider default-model cache (keyed by models_key) — lets a tab
+        // switch seed the right provider's default synchronously instead of
+        // leaving the previous provider's value up until the confirm fetch.
+        this._defaultModelByProvider = {};
         this._modelPopup = null;
         this._modelPopupOpen = false;
     }
@@ -203,43 +203,43 @@ export class StatusBar {
             }
         }
 
-        // Engine chip — which AI engine this session runs on (bound) or will
+        // Provider chip — which AI provider this session runs on (bound) or will
         // run on (pendingProvider / box default for a not-yet-created tab).
-        // Hidden until the registry loads or when only one engine exists.
-        const engineName = (session.storeId ? session.provider : session.pendingProvider)
+        // Hidden until the registry loads or when only one provider exists.
+        const providerName = (session.storeId ? session.provider : session.pendingProvider)
             || PROVIDERS_INFO?.default || null;
-        const engine = engineInfo(engineName);
-        // Chip is pointless with a single choosable engine — unless this
-        // session happens to run on something else (e.g. an engine since
+        const provider = providerInfo(providerName);
+        // Chip is pointless with a single choosable provider — unless this
+        // session happens to run on something else (e.g. a provider since
         // disabled in Settings), where it's exactly the information needed.
-        const multiEngine = enabledEngines().length > 1
-            || (!!engineName && !!PROVIDERS_INFO && engineName !== PROVIDERS_INFO.default);
-        if (this.els.statusEngine) {
-            if (engine && multiEngine) {
-                this.els.statusEngine.textContent = shortEngineLabel(engine.display_name);
-                this.els.statusEngine.classList.add('clickable');
-                this.els.statusEngine.classList.toggle('pending', !session.storeId);
-                this.els.statusEngine.setAttribute('data-tooltip', session.storeId
-                    ? `${engine.display_name} — ${S.provider.chip_tooltip}`
+        const multiProvider = enabledProviders().length > 1
+            || (!!providerName && !!PROVIDERS_INFO && providerName !== PROVIDERS_INFO.default);
+        if (this.els.statusProvider) {
+            if (provider && multiProvider) {
+                this.els.statusProvider.textContent = shortProviderLabel(provider.display_name);
+                this.els.statusProvider.classList.add('clickable');
+                this.els.statusProvider.classList.toggle('pending', !session.storeId);
+                this.els.statusProvider.setAttribute('data-tooltip', session.storeId
+                    ? `${provider.display_name} — ${S.provider.chip_tooltip}`
                     : S.provider.chip_tooltip_pending);
             } else {
-                this.els.statusEngine.textContent = '';
-                this.els.statusEngine.classList.remove('clickable', 'pending');
-                this.els.statusEngine.removeAttribute('data-tooltip');
+                this.els.statusProvider.textContent = '';
+                this.els.statusProvider.classList.remove('clickable', 'pending');
+                this.els.statusProvider.removeAttribute('data-tooltip');
             }
         }
 
-        // Engines that declare NO catalog (the app doesn't manage their
+        // Providers that declare NO catalog (the app doesn't manage their
         // models at all) hide the model chip entirely.
-        const engineHidesModel = !!engine && (engine.models || []).length === 0;
+        const providerHidesModel = !!provider && (provider.models || []).length === 0;
 
-        // Model name (shortened) — the effective pick on this engine's own
-        // catalog, the engine-reported actual, or "Default" when the engine
+        // Model name (shortened) — the effective pick on this provider's own
+        // catalog, the provider-reported actual, or "Default" when the provider
         // runs its own configured model (e.g. a fresh Codex session).
         if (this.els.statusModel) {
-            const catalog = engineCatalog(engine);
-            const displayId = this.effectiveModelId(engine, session);
-            if (!engineHidesModel && (displayId || (engine?.models || []).length)) {
+            const catalog = providerCatalog(provider);
+            const displayId = this.effectiveModelId(provider, session);
+            if (!providerHidesModel && (displayId || (provider?.models || []).length)) {
                 let label;
                 const known = displayId ? catalog.find(m => displayId.startsWith(m.id)) : null;
                 if (known) {
@@ -260,7 +260,7 @@ export class StatusBar {
             }
         }
 
-        // Cost — hidden for tokens-only engines (no USD accounting); the
+        // Cost — hidden for tokens-only providers (no USD accounting); the
         // token meter still shows usage for them.
         if (this.els.statusCost) {
             const tokensOnly = session.providerCaps?.cumulative_cost === false;
@@ -452,16 +452,16 @@ export class StatusBar {
     async setSession(sessionId) {
         this.currentSessionId = sessionId;
 
-        // Synchronous seed — a tab switch must paint THIS session's engine
-        // state immediately (session pref cache + per-engine default cache);
+        // Synchronous seed — a tab switch must paint THIS session's provider
+        // state immediately (session pref cache + per-provider default cache);
         // the fetches below only confirm. Never leave the previous session's
         // values up while awaiting, or the chip/setup-panel flash the old
-        // engine's model until the network round-trip lands.
+        // provider's model until the network round-trip lands.
         const sess = this.getSession();
-        const seedEngineName = (sess ? (sess.provider || sess.pendingProvider) : null)
+        const seedProviderName = (sess ? (sess.provider || sess.pendingProvider) : null)
             || PROVIDERS_INFO?.default || null;
-        const seedKey = engineInfo(seedEngineName)?.models_key || seedEngineName;
-        this.globalDefaultModel = (seedKey && this._defaultModelByEngine[seedKey]) || null;
+        const seedKey = providerInfo(seedProviderName)?.models_key || seedProviderName;
+        this.globalDefaultModel = (seedKey && this._defaultModelByProvider[seedKey]) || null;
         this.currentModel = sess?.preferredModel || this.globalDefaultModel;
         this.updateStatus();
 
@@ -472,19 +472,19 @@ export class StatusBar {
         if (this.currentSessionId !== sessionId) return;
 
         if (!sessionId) {
-            // Unbound tab — confirm the engine's configured default (scoped
-            // endpoint when the tab's engine is known, legacy default-engine
+            // Unbound tab — confirm the provider's configured default (scoped
+            // endpoint when the tab's provider is known, legacy default-provider
             // endpoint otherwise).
             try {
-                const url = seedEngineName
-                    ? `${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(seedEngineName)}`
+                const url = seedProviderName
+                    ? `${CONFIG.API_BASE}/api/app/provider-defaults/${encodeURIComponent(seedProviderName)}`
                     : `${CONFIG.API_BASE}/api/app/default-model`;
                 const gr = await fetch(url);
                 if (this.currentSessionId !== sessionId) return;
                 if (gr.ok) {
                     const gd = await gr.json();
                     this.globalDefaultModel = gd.default_model || null;
-                    if (seedKey) this._defaultModelByEngine[seedKey] = this.globalDefaultModel;
+                    if (seedKey) this._defaultModelByProvider[seedKey] = this.globalDefaultModel;
                 }
             } catch (e) { /* silent */ }
             this.currentModel = this.globalDefaultModel;
@@ -496,16 +496,16 @@ export class StatusBar {
             if (this.currentSessionId !== sessionId) return;
             if (resp.ok) {
                 const data = await resp.json();
-                // global_default is the SESSION ENGINE's configured default
-                // (null when that engine has none — e.g. codex running its
+                // global_default is the SESSION PROVIDER's configured default
+                // (null when that provider has none — e.g. codex running its
                 // own config.toml model, rendered as the "Default" row).
                 this.globalDefaultModel = data.global_default || null;
-                if (seedKey) this._defaultModelByEngine[seedKey] = this.globalDefaultModel;
+                if (seedKey) this._defaultModelByProvider[seedKey] = this.globalDefaultModel;
                 this.currentModel = data.preferred_model || null;
                 if (sess) sess.preferredModel = data.preferred_model || null;
             } else {
                 // Session not yet registered server-side (common right after a page
-                // load / reconcile). Fall back to the engine default rather
+                // load / reconcile). Fall back to the provider default rather
                 // than leaving currentModel null — a null lets the status chip show the
                 // stale last-run model (session.model) instead of the real default.
                 this.currentModel = this.globalDefaultModel;
@@ -561,25 +561,25 @@ export class StatusBar {
             });
         }
 
-        // Engine selector — click on status-engine to open the picker
-        if (this.els.statusEngine) {
-            this.els.statusEngine.addEventListener('click', (e) => {
+        // Provider selector — click on status-provider to open the picker
+        if (this.els.statusProvider) {
+            this.els.statusProvider.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this._toggleEnginePopup();
+                this._toggleProviderPopup();
             });
         }
 
-        // Close model/engine popups on outside click / Escape
+        // Close model/provider popups on outside click / Escape
         document.addEventListener('click', (e) => {
             if (this._modelPopupOpen && this._modelPopup && !this._modelPopup.contains(e.target)) {
                 this._closeModelPopup();
             }
-            if (this._enginePopupOpen && this._enginePopup && !this._enginePopup.contains(e.target)) {
-                this._closeEnginePopup();
+            if (this._providerPopupOpen && this._providerPopup && !this._providerPopup.contains(e.target)) {
+                this._closeProviderPopup();
             }
         });
 
-        // Warm the engine registry so the chip appears on first paint.
+        // Warm the provider registry so the chip appears on first paint.
         ensureProvidersLoaded().then(() => this.updateStatus());
 
         // Token display hover handler - show popover on mouseenter
@@ -795,28 +795,28 @@ export class StatusBar {
     // Model Selector Popup
     // ─────────────────────────────────────────────────────────────────
 
-    /** Effective model id for the active session on `engine`, or null when
-     * the engine's own configured default applies (which the app can't name).
+    /** Effective model id for the active session on `provider`, or null when
+     * the provider's own configured default applies (which the app can't name).
      * The user-pick chain (per-session pick → global default) is filtered to
-     * ids the engine actually offers — a pick made under another engine must
-     * not label this one — while the engine-REPORTED actual (`session.model`)
+     * ids the provider actually offers — a pick made under another provider must
+     * not label this one — while the provider-REPORTED actual (`session.model`)
      * is always trusted. Prefix match: reported ids carry date suffixes. */
-    effectiveModelId(engine, session) {
-        const catalog = engineCatalog(engine);
+    effectiveModelId(provider, session) {
+        const catalog = providerCatalog(provider);
         const inCat = id => !!id && catalog.some(m => id.startsWith(m.id));
         if (inCat(this.currentModel)) return this.currentModel;
         if (session?.model) return session.model;
         if (inCat(this.globalDefaultModel)) return this.globalDefaultModel;
         // The app always presents a concrete default — fall back to the
-        // engine's top catalog model rather than the ambiguous "Default".
+        // provider's top catalog model rather than the ambiguous "Default".
         // The server resolves the same top-of-enabled default; this just
         // covers the pre-fetch transient (globalDefaultModel not loaded yet).
         return catalog[0]?.id || null;
     }
 
-    /** The active session's engine registry entry (bound, pending, or the
+    /** The active session's provider registry entry (bound, pending, or the
      * box default) — what the model chip/popup should describe. */
-    _activeEngine() {
+    _activeProvider() {
         const session = this.getSession();
         // provider wins once known; a bound tab whose provider hasn't been
         // echoed yet still resolves to the user's pick (pendingProvider).
@@ -824,7 +824,7 @@ export class StatusBar {
             ? ((session.provider || session.pendingProvider)
                 || PROVIDERS_INFO?.default)
             : PROVIDERS_INFO?.default;
-        return engineInfo(name);
+        return providerInfo(name);
     }
 
     _toggleModelPopup() {
@@ -839,10 +839,10 @@ export class StatusBar {
         await Promise.all([ensureModelsLoaded(), ensureProvidersLoaded()]);
         this._closeModelPopup();
 
-        // The popup lists the ACTIVE ENGINE's own catalog — Claude sessions
+        // The popup lists the ACTIVE PROVIDER's own catalog — Claude sessions
         // get the models.yaml list, Codex sessions get the Codex CLI's.
-        const engine = this._activeEngine();
-        const catalog = engineCatalog(engine);
+        const provider = this._activeProvider();
+        const catalog = providerCatalog(provider);
         if (!catalog.length) return;
 
         const popup = document.createElement('div');
@@ -850,8 +850,8 @@ export class StatusBar {
         this._modelPopup = popup;
         this._modelPopupOpen = true;
 
-        // The row in effect: the per-session pick if this engine offers it,
-        // else the engine's default. (No engine-reported actual here — the
+        // The row in effect: the per-session pick if this provider offers it,
+        // else the provider's default. (No provider-reported actual here — the
         // popup is about the USER's pick.) The default always resolves to a
         // concrete catalog model — the server falls back to the top model, and
         // catalog[0] covers the pre-fetch transient — so there is no "Default"
@@ -872,8 +872,8 @@ export class StatusBar {
             </div>`;
         });
 
-        // "Set as default" writes THIS ENGINE's new-session default model
-        // (defaults are per-engine) — offered on every engine's popup.
+        // "Set as default" writes THIS PROVIDER's new-session default model
+        // (defaults are per-provider) — offered on every provider's popup.
         popup.innerHTML = rows.join('') + `<div class="model-popup-footer">
             <button class="model-set-default" data-model-id="${effectiveModel || ''}">${S.models.set_default_button}</button>
         </div>`;
@@ -882,7 +882,7 @@ export class StatusBar {
             const opt = e.target.closest('.model-option');
             if (opt) { this._selectModel(opt.dataset.modelId); return; }
             const def = e.target.closest('.model-set-default');
-            if (def) this._saveToGlobal(def.dataset.modelId, engine?.name);
+            if (def) this._saveToGlobal(def.dataset.modelId, provider?.name);
         });
 
         // Position above the status-model element
@@ -903,47 +903,47 @@ export class StatusBar {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // Engine (provider) Picker Popup
+    // Provider (provider) Picker Popup
     // ─────────────────────────────────────────────────────────────────
 
-    _toggleEnginePopup(anchorEl) {
-        if (this._enginePopupOpen) {
-            this._closeEnginePopup();
+    _toggleProviderPopup(anchorEl) {
+        if (this._providerPopupOpen) {
+            this._closeProviderPopup();
         } else {
-            this._openEnginePopup(anchorEl);
+            this._openProviderPopup(anchorEl);
         }
     }
 
-    /** Engine locked = the session has run a turn on it (server-reported at
+    /** Provider locked = the session has run a turn on it (server-reported at
      * connect; a providerSessionId appearing mid-session is the live signal). */
-    _engineLocked(session) {
+    _providerLocked(session) {
         return !!session?.storeId && (session.providerLocked || !!session.providerSessionId);
     }
 
-    async _openEnginePopup(anchorEl) {
+    async _openProviderPopup(anchorEl) {
         await ensureProvidersLoaded();
         if (!PROVIDERS_INFO?.providers?.length) return;
         this._closeModelPopup();
-        this._closeEnginePopup();
+        this._closeProviderPopup();
 
         const session = this.getSession();
         const bound = session?.storeId ? (session.provider || PROVIDERS_INFO.default) : null;
-        const locked = this._engineLocked(session);
+        const locked = this._providerLocked(session);
         const effective = bound || session?.pendingProvider || PROVIDERS_INFO.default;
 
         const popup = document.createElement('div');
-        popup.className = 'model-popup engine-popup';
-        this._enginePopup = popup;
-        this._enginePopupOpen = true;
+        popup.className = 'model-popup provider-popup';
+        this._providerPopup = popup;
+        this._providerPopupOpen = true;
 
         // Three states: pre-connect tab (choice rides the create connect),
         // bound-but-empty (switchable in place until the first turn), locked
-        // (picking another engine opens a fresh tab on it).
-        const note = locked ? `<div class="engine-popup-note">${S.provider.fixed_note}</div>`
-            : bound ? `<div class="engine-popup-note">${S.provider.switchable_note}</div>`
+        // (picking another provider opens a fresh tab on it).
+        const note = locked ? `<div class="provider-popup-note">${S.provider.fixed_note}</div>`
+            : bound ? `<div class="provider-popup-note">${S.provider.switchable_note}</div>`
             : '';
 
-        // Offer only Settings-enabled engines, plus this session's own engine
+        // Offer only Settings-enabled providers, plus this session's own provider
         // if it has since been disabled (the selected row must always exist).
         const offered = PROVIDERS_INFO.providers.filter(
             p => p.enabled !== false || p.name === effective);
@@ -951,7 +951,7 @@ export class StatusBar {
         popup.innerHTML = note + offered.map(p => {
             const isSelected = p.name === effective;
             const isDefault = p.name === PROVIDERS_INFO.default;
-            const cls = ['model-option', 'engine-option'];
+            const cls = ['model-option', 'provider-option'];
             if (isSelected) cls.push('selected');
             if (!p.available) cls.push('unavailable');
             const desc = !p.available
@@ -959,25 +959,25 @@ export class StatusBar {
                 : (isSelected && bound) ? S.provider.this_session
                 : isDefault ? S.provider.default_badge
                 : (p.description || '');
-            return `<div class="${cls.join(' ')}" data-engine="${p.name}">
+            return `<div class="${cls.join(' ')}" data-provider="${p.name}">
                 <span class="model-option-label">${p.display_name}</span>
                 <span class="model-option-desc">${desc}</span>
             </div>`;
         }).join('') + `<div class="model-popup-footer">
-            <button class="engine-set-default" data-engine="${effective}"${PROVIDERS_INFO.default_pinned_by_flag ? ` disabled data-tooltip="${S.provider.pinned_by_flag}"` : ''}>${S.provider.set_default}</button>
+            <button class="provider-set-default" data-provider="${effective}"${PROVIDERS_INFO.default_pinned_by_flag ? ` disabled data-tooltip="${S.provider.pinned_by_flag}"` : ''}>${S.provider.set_default}</button>
         </div>`;
 
         popup.addEventListener('click', (e) => {
-            const opt = e.target.closest('.engine-option');
-            if (opt) { this._selectEngine(opt.dataset.engine); return; }
-            const def = e.target.closest('.engine-set-default');
-            if (def && !def.disabled) this._saveEngineDefault(def.dataset.engine);
+            const opt = e.target.closest('.provider-option');
+            if (opt) { this._selectProvider(opt.dataset.provider); return; }
+            const def = e.target.closest('.provider-set-default');
+            if (def && !def.disabled) this._saveProviderDefault(def.dataset.provider);
         });
 
         document.body.appendChild(popup);
         // Anchor to whichever chip opened it: above a bottom chip (status
         // bar), below a top chip (connection bar).
-        const anchor = anchorEl || this.els.statusEngine;
+        const anchor = anchorEl || this.els.statusProvider;
         const rect = anchor.getBoundingClientRect();
         popup.style.left = `${rect.left}px`;
         if (rect.top < window.innerHeight / 2) {
@@ -989,18 +989,18 @@ export class StatusBar {
         requestAnimationFrame(() => popup.classList.add('open'));
     }
 
-    _closeEnginePopup() {
-        if (this._enginePopup) {
-            this._enginePopup.remove();
-            this._enginePopup = null;
+    _closeProviderPopup() {
+        if (this._providerPopup) {
+            this._providerPopup.remove();
+            this._providerPopup = null;
         }
-        this._enginePopupOpen = false;
+        this._providerPopupOpen = false;
     }
 
-    async _selectEngine(name) {
-        const p = engineInfo(name);
+    async _selectProvider(name) {
+        const p = providerInfo(name);
         const session = this.getSession();
-        if (!p || !session) { this._closeEnginePopup(); return; }
+        if (!p || !session) { this._closeProviderPopup(); return; }
 
         if (!p.available) {
             showToast(S.provider.unavailable_toast
@@ -1009,13 +1009,13 @@ export class StatusBar {
             return;  // keep the popup open — the row is informational
         }
 
-        this._closeEnginePopup();
+        this._closeProviderPopup();
 
         if (!session.storeId) {
             // Tab not created server-side yet — the choice rides the create
             // connect (?provider=) once a project is picked.
             session.pendingProvider = name;
-            this._afterEngineChange(session);
+            this._afterProviderChange(session);
             showToast(S.provider.pending_toast.replace('{provider}', p.display_name));
             return;
         }
@@ -1023,7 +1023,7 @@ export class StatusBar {
         const bound = session.provider || PROVIDERS_INFO.default;
         if (name === bound) return;  // already on it
 
-        if (!this._engineLocked(session)) {
+        if (!this._providerLocked(session)) {
             // Empty bound session — switch it in place (server 409s if a turn
             // raced us, in which case fall through to the new-tab path).
             try {
@@ -1036,26 +1036,26 @@ export class StatusBar {
                     session.provider = name;
                     session.providerDisplayName = p.display_name;
                     session.providerCaps = p.capabilities || null;
-                    this._afterEngineChange(session);
-                    // The server re-anchors cross-engine picks on bind (a
-                    // preferred_model the new engine's catalog doesn't offer
+                    this._afterProviderChange(session);
+                    // The server re-anchors cross-provider picks on bind (a
+                    // preferred_model the new provider's catalog doesn't offer
                     // is cleared) — re-pull model state so the chip agrees.
                     this.setSession(session.storeId);
                     showToast(S.provider.switch_toast.replace('{provider}', p.display_name));
                     return;
                 }
                 if (resp.status !== 409) {
-                    console.error('Engine switch failed:', resp.status);
+                    console.error('Provider switch failed:', resp.status);
                     return;
                 }
                 session.providerLocked = true;  // raced a turn — fall through
             } catch (e) {
-                console.error('Engine switch failed:', e);
+                console.error('Provider switch failed:', e);
                 return;
             }
         }
 
-        // Locked session → open a new tab pre-set to the picked engine.
+        // Locked session → open a new tab pre-set to the picked provider.
         // Inherit the project too and connect right away, so the switch is one
         // action — not "new tab, now go pick the folder again".
         const created = session.cwd
@@ -1071,15 +1071,15 @@ export class StatusBar {
                 window.app?.els?.connectionBar?.classList.remove('visible');
                 created.connect();
             }
-            this._afterEngineChange(created);
+            this._afterProviderChange(created);
             showToast(S.provider.new_tab_toast.replace('{provider}', p.display_name));
         }
     }
 
-    /** Shared refresh after any engine change: persist tabs, redraw the strip
-     * badge + status chips, and re-pull the per-engine vocabularies (each
-     * engine speaks its own permission modes / effort scale / accounts). */
-    _afterEngineChange(session) {
+    /** Shared refresh after any provider change: persist tabs, redraw the strip
+     * badge + status chips, and re-pull the per-provider vocabularies (each
+     * provider speaks its own permission modes / effort scale / accounts). */
+    _afterProviderChange(session) {
         window.app?.sessionManager?.saveSessions?.();
         window.app?.renderTabs?.();
         this.updateStatus();
@@ -1092,9 +1092,9 @@ export class StatusBar {
         }
     }
 
-    async _saveEngineDefault(name) {
+    async _saveProviderDefault(name) {
         if (!name) return;
-        this._closeEnginePopup();
+        this._closeProviderPopup();
         try {
             const resp = await fetch(`${CONFIG.API_BASE}/api/app/default-provider`, {
                 method: 'PUT',
@@ -1106,7 +1106,7 @@ export class StatusBar {
                 this.updateStatus();
             }
         } catch (e) {
-            console.error('Failed to save default engine:', e);
+            console.error('Failed to save default provider:', e);
         }
     }
 
@@ -1139,16 +1139,16 @@ export class StatusBar {
         }
     }
 
-    async _saveToGlobal(modelId, engineName) {
+    async _saveToGlobal(modelId, providerName) {
         if (!modelId) return;
         this.globalDefaultModel = modelId;
         this._closeModelPopup();
         try {
-            // Defaults are per-engine — write THIS engine's entry.
-            const name = engineName || this._activeEngine()?.name || PROVIDERS_INFO?.default;
-            const key = engineInfo(name)?.models_key || name;
-            if (key) this._defaultModelByEngine[key] = modelId;
-            await fetch(`${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(name)}`, {
+            // Defaults are per-provider — write THIS provider's entry.
+            const name = providerName || this._activeProvider()?.name || PROVIDERS_INFO?.default;
+            const key = providerInfo(name)?.models_key || name;
+            if (key) this._defaultModelByProvider[key] = modelId;
+            await fetch(`${CONFIG.API_BASE}/api/app/provider-defaults/${encodeURIComponent(name)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ default_model: modelId }),

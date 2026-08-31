@@ -144,7 +144,7 @@ async def get_project_sessions(path: str, limit: int = 15):
                 "total_cost": s.get("total_cost", 0),
                 "last_activity": s.get("last_activity", ""),
                 "model": s.get("model"),
-                "provider": s.get("provider"),  # None = default engine (claude-sdk)
+                "provider": s.get("provider"),  # None = default provider (claude-sdk)
             }
             for s in active
         ],

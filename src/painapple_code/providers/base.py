@@ -86,8 +86,8 @@ class Capabilities:
     # inferred: `persistent_process=False` happens to imply it today, but the two
     # are independent (a long-lived process can still take its first prompt in
     # argv, and an ephemeral one can read stdin). Surfaced through `describe()`
-    # so Settings → Engines can warn at the point of choice; see SECURITY.md
-    # "Prompts reach `ps` on the `codex` engine".
+    # so Settings → Providers can warn at the point of choice; see SECURITY.md
+    # "Prompts reach `ps` on the `codex` provider".
     prompt_in_argv: bool = False
 
 
@@ -159,21 +159,21 @@ class SummaryForkPlan:
 
 @dataclass(frozen=True)
 class PluginBackend:
-    """How to drive an engine's plugin-manager CLI for the plugins browser.
+    """How to drive a provider's plugin-manager CLI for the plugins browser.
 
     Both Claude (`claude plugins …`) and Codex (`codex plugin …`) expose a
     ``list --json`` returning ``{installed, available}`` and install/uninstall
-    verbs, so the route stays generic and only the verbs/paths differ. Engines
+    verbs, so the route stays generic and only the verbs/paths differ. Providers
     without an enable/disable concept leave those ``None`` (the UI hides the
     toggle). ``marketplace_root`` is the on-disk dir used for the component
-    inventory; ``None`` skips inventory for that engine.
+    inventory; ``None`` skips inventory for that provider.
     """
     binary: str
     list_installed_args: list             # args yielding {installed, available} for installed only
     list_all_args: list                   # same but including the marketplace catalog
     install_verb: list                    # e.g. ["plugins","install"] / ["plugin","add"]
     uninstall_verb: list
-    enable_verb: Optional[list] = None    # None → engine has no enable/disable
+    enable_verb: Optional[list] = None    # None → provider has no enable/disable
     disable_verb: Optional[list] = None
     marketplace_root: Optional[object] = None  # Path for component inventory; None → skip
 
@@ -192,36 +192,36 @@ class Provider(ABC):
 
     name: str = "base"
     display_name: str = "Base"
-    # One-line, user-facing "what is this engine" for the picker row. Each
-    # provider self-describes (nothing is hardcoded per engine in the UI).
+    # One-line, user-facing "what is this provider" for the picker row. Each
+    # provider self-describes (nothing is hardcoded per provider in the UI).
     description: str = ""
-    # Whether this engine is offered in the picker out of the box. The user
-    # flips engines on/off in Settings (`providers_enabled` config overrides);
+    # Whether this provider is offered in the picker out of the box. The user
+    # flips providers on/off in Settings (`providers_enabled` config overrides);
     # this is only the pre-override default, self-described so nothing is
-    # hardcoded per engine elsewhere. Defaults True so a drop-in third-party
-    # provider shows up without extra steps; in-tree "same engine, plainer
+    # hardcoded per provider elsewhere. Defaults True so a drop-in third-party
+    # provider shows up without extra steps; in-tree "same provider, plainer
     # driver" variants (claude CLI, codex exec) ship False to keep the picker
-    # down to one entry per engine. Disabled ≠ unavailable: existing sessions
-    # bound to a disabled engine keep working, and explicit API selection
+    # down to one entry per provider. Disabled ≠ unavailable: existing sessions
+    # bound to a disabled provider keep working, and explicit API selection
     # (?provider=, PUT) still accepts it — this gates only the UI listing.
     default_enabled: bool = True
     # Global-config key holding a user override for `binary()` (e.g.
     # "claude_path"), and the bare command it falls back to when unset.
-    # Drives the generic Settings "CLI path" row + /api/app/engine-path
-    # endpoint; None → this engine has no path setting (row hidden).
-    # Same-engine driver variants share one key (both Claude drivers run the
-    # same binary), so the setting edits the engine, not the driver.
+    # Drives the generic Settings "CLI path" row + /api/app/provider-path
+    # endpoint; None → this provider has no path setting (row hidden).
+    # Same-provider driver variants share one key (both Claude drivers run the
+    # same binary), so the setting edits the provider, not the driver.
     path_config_key: Optional[str] = None
     default_binary: str = ""
     # Copy-paste CLI hint for the "Continue in CLI" quick action: a shell
     # command template that resumes a session by id ("{id}" placeholder). Self-
-    # described so the client never hardcodes an engine's resume verb (Claude
+    # described so the client never hardcodes a provider's resume verb (Claude
     # "claude -r {id}", Codex "codex exec resume {id}"). None → the action is
-    # hidden for this engine.
+    # hidden for this provider.
     cli_resume_template: Optional[str] = None
-    # Whether the app owns this engine's model catalog (Settings shows an
+    # Whether the app owns this provider's model catalog (Settings shows an
     # editor writing models.yaml). False → `models()` is read-only, sourced
-    # from the engine's own tooling (e.g. Codex's models_cache.json), and
+    # from the provider's own tooling (e.g. Codex's models_cache.json), and
     # Settings renders the definitions without edit affordances (per-model
     # show/hide toggles still apply — see `enabled_models()`).
     models_editable: bool = False
@@ -232,9 +232,9 @@ class Provider(ABC):
     # both. None → this provider's own name (a drop-in provider gets its own
     # namespace with no extra steps).
     models_key: Optional[str] = None
-    # CLI login surface (Settings → Engines auth row). `auth_status_args` are
+    # CLI login surface (Settings → Providers auth row). `auth_status_args` are
     # appended to the resolved binary for a fast non-interactive login-status
-    # probe (drives GET /api/app/engine-auth/{name}); None → the engine
+    # probe (drives GET /api/app/provider-auth/{name}); None → the provider
     # shows no login row. `auth_login_args` is the CLI's own interactive
     # login flow — the client runs it in a PTY terminal tab, so pick a
     # variant whose prompts survive a remote box (device-code flows beat
@@ -242,14 +242,14 @@ class Provider(ABC):
     auth_status_args: Optional[list] = None
     auth_login_args: Optional[list] = None
     # Auto-journal (rich-commit summary) model. The journal fork always runs
-    # on the session's OWN engine — only the engine that owns a conversation
-    # can fork it — so the summarizer model is inherently a per-engine
+    # on the session's OWN provider — only the provider that owns a conversation
+    # can fork it — so the summarizer model is inherently a per-provider
     # setting. Providers storing the override in the global config set the
     # key here (driver pairs share one, like `path_config_key`); providers
     # with their own storage override the get/set methods instead (Claude →
     # models.yaml `summary_model`). Neither → no journal-model knob in
     # Settings. `summary_model_placeholder` names what an EMPTY override
-    # means for this engine (e.g. Codex inherits the session's model).
+    # means for this provider (e.g. Codex inherits the session's model).
     summary_model_config_key: Optional[str] = None
     summary_model_placeholder: str = ""
     capabilities: Capabilities = Capabilities()
@@ -342,7 +342,7 @@ class Provider(ABC):
         """Extract the CLI's session id from a *native* (pre-translation)
         event, or None when this event doesn't carry one.
 
-        Every engine names this differently (Claude: `session_id` on each
+        Every provider names this differently (Claude: `session_id` on each
         stream-json line; Codex: `thread_id` on `thread.started`), so there is
         no neutral default — each provider reads its own wire.
         """
@@ -386,7 +386,7 @@ class Provider(ABC):
         limit · resets 5pm", "hit your session limit", …).
 
         The session layer checks this against MORE than the result string,
-        because engines don't deliver limits uniformly: the Claude CLI can
+        because providers don't deliver limits uniformly: the Claude CLI can
         surface one as a synthetic assistant bubble in a turn whose result is
         `is_error:false` (e.g. a /compact continuation), or in a compaction
         settle frame's `compact_error`. When True the turn is marked
@@ -492,7 +492,7 @@ class Provider(ABC):
     ) -> Optional[dict]:
         """Synthesize a context-window snapshot from a finished turn's result.
 
-        For engines with no `/context` command (`context_command=False`) that
+        For providers with no `/context` command (`context_command=False`) that
         nonetheless report per-turn token usage, the session layer calls this
         right after a turn instead of `fetch_context` — deriving the meter from
         the turn's own usage costs no extra subprocess. Returns the same shape
@@ -504,7 +504,7 @@ class Provider(ABC):
         """
         return None
 
-    # --- selection metadata (drives the engine picker UI) -----------------
+    # --- selection metadata (drives the provider picker UI) -----------------
 
     def is_available(self) -> tuple[bool, Optional[str]]:
         """Whether this provider's CLI is installed and usable.
@@ -552,7 +552,7 @@ class Provider(ABC):
     def models(self) -> list[dict]:
         """In-app selectable models for this provider: ``{id, label, desc}``.
 
-        Empty = the app doesn't manage this engine's model (e.g. Codex uses the
+        Empty = the app doesn't manage this provider's model (e.g. Codex uses the
         model configured by `codex login`), and the UI hides the model chip.
 
         This is the FULL catalog (definitions). What pickers actually offer is
@@ -561,7 +561,7 @@ class Provider(ABC):
         return []
 
     def disabled_model_ids(self) -> set:
-        """Model ids the user hid for this engine (Settings → Engines toggles).
+        """Model ids the user hid for this provider (Settings → Providers toggles).
 
         Read from the global config's ``models_disabled`` map under this
         provider's `models_key` namespace. May contain ids not in the current
@@ -576,11 +576,11 @@ class Provider(ABC):
         return {x for x in ids if isinstance(x, str) and x}
 
     def summary_model_editable(self) -> bool:
-        """Whether Settings shows an auto-journal model knob for this engine."""
+        """Whether Settings shows an auto-journal model knob for this provider."""
         return bool(self.summary_model_config_key)
 
     def get_summary_model_override(self) -> Optional[str]:
-        """The configured journal-model override; None/empty = engine default
+        """The configured journal-model override; None/empty = provider default
         (for Codex that means the summary fork inherits the thread's model)."""
         if not self.summary_model_config_key:
             return None
@@ -616,7 +616,7 @@ class Provider(ABC):
         return [m for m in self.models() if m.get("id") not in disabled]
 
     def effort_levels(self) -> list[str]:
-        """Effort levels this engine meaningfully distinguishes, low→high.
+        """Effort levels this provider meaningfully distinguishes, low→high.
 
         Empty when `capabilities.effort` is False. Claude exposes the full
         low→max scale; Codex caps at high, so it lists only what changes the
@@ -626,14 +626,14 @@ class Provider(ABC):
 
     @abstractmethod
     def permission_modes(self) -> list[dict]:
-        """Permission options for this engine: ``{value, label, desc, color}``.
+        """Permission options for this provider: ``{value, label, desc, color}``.
 
         ``value`` is this provider's OWN native vocabulary, stored verbatim on
         the session and passed through at launch (e.g. Codex →
         read-only/workspace-write/danger-full-access). ``color`` lets the UI
         render the tier without knowing the provider's scheme. Every provider
         must self-describe its modes — there is no shared fallback vocabulary
-        (the permission endpoints and the engine picker read this list, and
+        (the permission endpoints and the provider picker read this list, and
         `valid_permission_values()` unions it across providers).
         """
 
@@ -647,14 +647,14 @@ class Provider(ABC):
     # --- customization surfaces (skills / agents browsers) ----------------
 
     def skill_roots(self, cwd: str) -> list[dict]:
-        """Editable skill-search roots for this engine, highest-priority first.
+        """Editable skill-search roots for this provider, highest-priority first.
 
         Each entry is ``{"scope": str, "dir": Path}`` for a directory holding
         folder-form skills (``<name>/SKILL.md`` — the open Agent Skills format
-        every engine shares). The generic skills route walks them in order; the
+        every provider shares). The generic skills route walks them in order; the
         first entry for a given scope is also where a new skill of that scope is
-        created. An engine may list several dirs under one scope (e.g. a
-        preferred location plus a legacy one). Empty → no skills for this engine.
+        created. A provider may list several dirs under one scope (e.g. a
+        preferred location plus a legacy one). Empty → no skills for this provider.
         """
         return []
 
@@ -662,7 +662,7 @@ class Provider(ABC):
         """Read-only plugin-provided skill roots: ``[{"label": str, "dir": Path}]``.
 
         Each ``dir`` holds folder-form skills like `skill_roots`, sourced from
-        this engine's installed plugins/marketplaces (so the provider owns the
+        this provider's installed plugins/marketplaces (so the provider owns the
         marketplace layout). Empty → no plugin skills surfaced.
         """
         return []
@@ -676,12 +676,12 @@ class Provider(ABC):
         with YAML frontmatter) or ``"toml"`` (Codex's ``<name>.toml``). The route
         normalizes both into the same ``{frontmatter, body}`` the widget renders.
         ``writable=False`` makes the browser show those agents read-only (no
-        create/edit/delete). Empty → no agents for this engine.
+        create/edit/delete). Empty → no agents for this provider.
         """
         return []
 
     def plugin_backend(self) -> Optional["PluginBackend"]:
-        """How to drive this engine's plugin-manager CLI, or None if it has no
+        """How to drive this provider's plugin-manager CLI, or None if it has no
         plugin system. The plugins route uses this instead of assuming Claude."""
         return None
 

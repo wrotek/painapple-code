@@ -156,7 +156,7 @@ async def _amain(args: argparse.Namespace) -> int:
             # "Always allow": the client picked one of the CLI's own permission
             # suggestions (addRules / addDirectories / setMode). Hand the
             # original PermissionUpdate object back and the CLI applies it —
-            # rule persistence is entirely engine-side, nothing reimplemented.
+            # rule persistence is entirely provider-side, nothing reimplemented.
             updated_permissions = None
             idx = resp.get("suggestion_index")
             if isinstance(idx, int) and 0 <= idx < len(suggestions):

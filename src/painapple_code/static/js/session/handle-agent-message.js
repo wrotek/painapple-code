@@ -130,7 +130,7 @@ export const agentStreamMethods = {
             // CLI reports its effective permissionMode in status frames on
             // transitions — plan enter/exit AND live set_permission_mode
             // switches (SDK control plane). Adopt it verbatim like the init
-            // handler does: the engine is the authority. (The old code
+            // handler does: the provider is the authority. (The old code
             // collapsed everything non-plan to null, clobbering live mode
             // switches right after the WS reply had set them correctly.)
             if (data.permissionMode !== undefined) {

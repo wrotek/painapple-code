@@ -41,7 +41,7 @@ class _CapabilitiesMixin:
 
     # --- binary / availability -------------------------------------------
 
-    # Settings "CLI path" row + generic engine-path endpoint (shared by both
+    # Settings "CLI path" row + generic provider-path endpoint (shared by both
     # Codex drivers — same binary). Model definitions stay read-only in
     # Settings — the Codex CLI owns them (models_cache.json) — but per-model
     # show/hide toggles apply, namespaced under the shared "codex" key so
@@ -142,19 +142,19 @@ class _CapabilitiesMixin:
         model. Surfacing that file — rather than a hardcoded list — keeps the
         picker in lockstep with whatever this Codex install actually offers.
         Missing/malformed cache (codex installed but never run) → empty
-        catalog, and the UI shows only the engine-default option.
+        catalog, and the UI shows only the provider-default option.
 
         The launch paths guard on this: exec passes ``-m`` only for ids listed
         here; the app-server forwards any non-Claude id (so an explicit pick
         still works even while the cache is absent). With a catalog present the
-        app OWNS the default — `paths.engine_default_model` resolves the
+        app OWNS the default — `paths.provider_default_model` resolves the
         top (priority-first) listed model and the launch forwards it, so a
         fresh session runs a concrete model rather than deferring to the CLI's
         own config. Only an ABSENT catalog (no cache) falls back to
         `codex login` / config.toml (and the picker/chip hide entirely).
 
         Each entry carries ``efforts`` — the model's OWN reasoning-effort
-        range — so pickers can narrow the engine-level union to the selected
+        range — so pickers can narrow the provider-level union to the selected
         model (launch clamps to the same list via effort_for_model).
         """
         return [
@@ -177,7 +177,7 @@ class _CapabilitiesMixin:
 
         ``models_cache.json`` self-describes ``supported_reasoning_levels``
         per model (the 5.6 family reaches xhigh/max/ultra; older models stop
-        at xhigh). The engine-level vocabulary is the ordered union across
+        at xhigh). The provider-level vocabulary is the ordered union across
         the listed catalog — the offering is wide, and ``effort_for_model``
         clamps at launch to what the *target* model actually supports.
         Missing cache → the classic triad every codex model speaks.

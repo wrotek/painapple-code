@@ -278,8 +278,8 @@ export const serverLoadingMethods = {
                 session.totalCost = meta.total_cost || 0;
                 session.model = meta.model;
                 session.providerSessionId = meta.provider_session_id;
-                // Engine identity + pref caches from meta — first paint is
-                // engine-correct without waiting for the WS connect.
+                // Provider identity + pref caches from meta — first paint is
+                // provider-correct without waiting for the WS connect.
                 session.provider = meta.provider || session.provider;
                 session.preferredModel = meta.preferred_model ?? session.preferredModel;
                 session.effortLevel = meta.effort_level || session.effortLevel;

@@ -1093,17 +1093,17 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Engines tab — engines list (which AI engines the picker offers)
+   Providers tab — providers list (which AI providers the picker offers)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.engines-list {
+.providers-list {
     display: flex;
     flex-direction: column;
     gap: var(--sp-6);
     margin-bottom: var(--sp-8);
 }
 
-.engine-row {
+.provider-row {
     display: flex;
     align-items: center;
     gap: var(--sp-12);
@@ -1113,12 +1113,12 @@
     border-radius: var(--radius-sm);
 }
 
-.engine-row.unavailable .engine-row-name,
-.engine-row.unavailable .engine-row-desc {
+.provider-row.unavailable .provider-row-name,
+.provider-row.unavailable .provider-row-desc {
     opacity: 0.55;
 }
 
-.engine-row-label {
+.provider-row-label {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1126,7 +1126,7 @@
     min-width: 0;
 }
 
-.engine-row-name {
+.provider-row-name {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-6);
@@ -1134,7 +1134,7 @@
     color: var(--text-primary);
 }
 
-.engine-row-tag {
+.provider-row-tag {
     font-size: var(--font-size-xs);
     color: var(--text-muted);
     border: 1px solid var(--border-primary);
@@ -1142,16 +1142,16 @@
     padding: 0 var(--sp-4);
 }
 
-.engine-row-desc {
+.provider-row-desc {
     font-size: var(--font-size-xs);
     color: var(--text-muted);
 }
 
-/* Engine trait worth knowing before the toggle (e.g. prompts in argv).
+/* Provider trait worth knowing before the toggle (e.g. prompts in argv).
    Muted-warning, not alarm: these are documented, accepted properties of a
-   working engine, not faults. Left rule instead of an icon so it reads as an
+   working provider, not faults. Left rule instead of an icon so it reads as an
    aside rather than an error, and stays legible with no color perception. */
-.engine-row-note {
+.provider-row-note {
     font-size: var(--font-size-xs);
     color: var(--text-secondary);
     border-left: 2px solid var(--warning);
@@ -1160,16 +1160,16 @@
     line-height: 1.4;
 }
 
-.engine-row-toggle {
+.provider-row-toggle {
     flex: none;
 }
 
-.engine-row-toggle:disabled {
+.provider-row-toggle:disabled {
     opacity: 0.5;
 }
 
 /* "Make default" ghost button on non-default rows */
-.engine-row-make-default {
+.provider-row-make-default {
     flex: none;
     padding: var(--sp-3) var(--sp-8);
     background: transparent;
@@ -1182,23 +1182,23 @@
     transition: border-color 0.12s ease, color 0.12s ease;
 }
 
-.engine-row-make-default:hover {
+.provider-row-make-default:hover {
     border-color: var(--accent);
     color: var(--text-primary);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Engines tab — engine sub-tabs + unified panel (CLI path + model catalog)
+   Providers tab — provider sub-tabs + unified panel (CLI path + model catalog)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.engine-subtabs {
+.provider-subtabs {
     display: flex;
     flex-wrap: wrap;
     gap: var(--sp-6);
     margin-bottom: var(--sp-12);
 }
 
-.engine-subtab {
+.provider-subtab {
     display: inline-flex;
     align-items: center;
     gap: var(--sp-6);
@@ -1212,19 +1212,19 @@
     transition: border-color 0.12s ease, color 0.12s ease, background 0.12s ease;
 }
 
-.engine-subtab:hover {
+.provider-subtab:hover {
     color: var(--text-primary);
     border-color: var(--border-secondary, var(--border-primary));
 }
 
-.engine-subtab.active {
+.provider-subtab.active {
     color: var(--text-primary);
     border-color: var(--accent);
     background: var(--bg-secondary);
 }
 
 /* Version / resolved-path probe line (also carries PUT errors) */
-.engine-card-status {
+.provider-card-status {
     margin: 0 0 var(--sp-8);
     font-size: var(--font-size-sm);
     color: var(--text-muted);
@@ -1233,23 +1233,23 @@
     min-height: 1.2em;
 }
 
-.engine-card-status.unavailable {
+.provider-card-status.unavailable {
     color: var(--color-warning, #f59e0b);
     font-family: inherit;
 }
 
-.engine-path-row {
+.provider-path-row {
     display: flex;
     gap: var(--sp-8);
     align-items: center;
 }
 
-.engine-path-row .system-text-input {
+.provider-path-row .system-text-input {
     flex: 1;
     min-width: 0;
 }
 
-.engine-card-subtitle {
+.provider-card-subtitle {
     margin: var(--sp-16) 0 var(--sp-8);
     font-size: var(--font-size-sm);
     font-weight: 600;
@@ -1257,7 +1257,7 @@
 }
 
 /* CLI login status row — dot + detail + terminal-handoff login button */
-.engine-auth {
+.provider-auth {
     display: flex;
     align-items: center;
     gap: var(--sp-8);
@@ -1265,7 +1265,7 @@
     min-height: 24px;
 }
 
-.engine-auth-dot {
+.provider-auth-dot {
     flex: none;
     width: 8px;
     height: 8px;
@@ -1273,19 +1273,19 @@
     background: var(--text-muted);
 }
 
-.engine-auth-dot.ok { background: var(--success); }
-.engine-auth-dot.err { background: var(--error); }
+.provider-auth-dot.ok { background: var(--success); }
+.provider-auth-dot.err { background: var(--error); }
 
-.engine-auth-dot.checking {
-    animation: engine-auth-pulse 1.2s ease-in-out infinite;
+.provider-auth-dot.checking {
+    animation: provider-auth-pulse 1.2s ease-in-out infinite;
 }
 
-@keyframes engine-auth-pulse {
+@keyframes provider-auth-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
 }
 
-.engine-auth-text {
+.provider-auth-text {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
     min-width: 0;
@@ -1294,51 +1294,51 @@
     white-space: nowrap;
 }
 
-.engine-login-btn {
+.provider-login-btn {
     flex: none;
     margin-left: var(--sp-4);
 }
 
-/* Per-engine new-session defaults (model / effort / account) */
-.engine-defaults {
+/* Per-provider new-session defaults (model / effort / account) */
+.provider-defaults {
     display: flex;
     flex-direction: column;
     gap: var(--sp-6);
 }
 
-.engine-defaults-row {
+.provider-defaults-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--sp-8);
 }
 
-.engine-defaults-label {
+.provider-defaults-label {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);
 }
 
-.engine-defaults-row .system-select {
+.provider-defaults-row .system-select {
     min-width: 220px;
 }
 
-/* Per-engine auto-journal model */
-.engine-journal-input {
+/* Per-provider auto-journal model */
+.provider-journal-input {
     max-width: 320px;
 }
 
 @media (max-width: 600px) {
-    .engine-defaults-row {
+    .provider-defaults-row {
         flex-direction: column;
         align-items: stretch;
     }
-    .engine-defaults-row .system-select {
+    .provider-defaults-row .system-select {
         min-width: 0;
     }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Engines tab — model list (one row shape for every engine)
+   Providers tab — model list (one row shape for every provider)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .models-list {
@@ -1349,7 +1349,7 @@
 }
 
 /* toggle | id | label | description | delete (delete cell empty when the
-   engine's CLI owns the definitions — the columns stay identical) */
+   provider's CLI owns the definitions — the columns stay identical) */
 .models-row {
     display: grid;
     grid-template-columns: 16px 200px 130px 1fr 28px;

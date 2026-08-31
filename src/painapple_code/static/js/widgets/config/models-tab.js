@@ -1,25 +1,25 @@
 /**
- * Engines tab — everything provider-centric in Settings.
+ * Providers tab — everything provider-centric in Settings.
  *
  * Renders from the registry (`GET /api/providers`) and per-key server
- * config endpoints; nothing is hardcoded per engine, so a drop-in
+ * config endpoints; nothing is hardcoded per provider, so a drop-in
  * provider gets its own row + sub-tab automatically. Layout:
  *
- *   1. Engines list — enable/disable toggles + "Make default"
+ *   1. Providers list — enable/disable toggles + "Make default"
  *      (`providers-enabled` / `default-provider` config keys).
- *   2. Engine Settings — one SUB-TAB per enabled engine selecting a
+ *   2. Provider Settings — one SUB-TAB per enabled provider selecting a
  *      single unified panel: CLI path override (generic
- *      `/api/app/engine-path/{name}` with a live version probe), a
- *      CLI login-status row (`/api/app/engine-auth/{name}` with a
- *      terminal-tab Log in handoff), the engine's model catalog — every
+ *      `/api/app/provider-path/{name}` with a live version probe), a
+ *      CLI login-status row (`/api/app/provider-auth/{name}` with a
+ *      terminal-tab Log in handoff), the provider's model catalog — every
  *      row the same shape: a show/hide toggle
- *      (`/api/app/engine-models/{name}`, persisted per shared
+ *      (`/api/app/provider-models/{name}`, persisted per shared
  *      `models_key` so driver variants agree) and id/label/desc fields,
  *      editable when the app owns the catalog (`models_editable`,
- *      models.yaml via `/api/app/models`), readonly when the engine's
+ *      models.yaml via `/api/app/models`), readonly when the provider's
  *      own CLI manages the definitions (e.g. Codex's models_cache.json) —
- *      then the engine's NEW SESSION DEFAULTS (model / effort / account,
- *      `/api/app/engine-defaults/{name}` → per-engine config maps
+ *      then the provider's NEW SESSION DEFAULTS (model / effort / account,
+ *      `/api/app/provider-defaults/{name}` → per-provider config maps
  *      keyed by `models_key`, legacy flat keys migrate on first write)
  *      and its AUTO-JOURNAL model (same endpoint; Claude stores it in
  *      models.yaml, Codex in `codex_summary_model`, empty = inherit the
@@ -38,21 +38,21 @@ import { WidgetManager } from '../../widget-system/index.js';
 
 let _tab = {
     providers: [],        // /api/providers rows (describe() + enabled flag)
-    defaultEngine: null,  // effective default engine name
+    defaultProvider: null,  // effective default provider name
     pinned: false,        // --default-provider flag pins the default
-    selectable: [],       // models.yaml catalog (editable engines share it)
+    selectable: [],       // models.yaml catalog (editable providers share it)
     summary_model: '',    // models.yaml summary_model (rides the models PUT)
-    activeEngine: null,   // which engine sub-tab is selected
-    engineModels: {},     // models_key → full catalog defs [{id,label,desc}]
+    activeProvider: null,   // which provider sub-tab is selected
+    providerModels: {},     // models_key → full catalog defs [{id,label,desc}]
     disabledByKey: {},    // models_key → Set(hidden ids, incl. stale extras)
-    engineDefaults: {},   // provider name → /api/app/engine-defaults payload
+    providerDefaults: {},   // provider name → /api/app/provider-defaults payload
 };
 
 export function setupModelsTab(container) {
-    if (!container.querySelector('#engine-panel')) return;
-    wireEnginesList(container);
-    wireEngineSubtabs(container);
-    wireEnginePanel(container);
+    if (!container.querySelector('#provider-panel')) return;
+    wireProvidersList(container);
+    wireProviderSubtabs(container);
+    wireProviderPanel(container);
     wireAutoJournalLink(container);
     loadAll(container);
 }
@@ -70,16 +70,16 @@ async function loadAll(container) {
         _adoptProviders(prov);
         _tab.selectable = models.selectable || [];
         _tab.summary_model = models.summary_model || '';
-        await loadEngineModelsState();
+        await loadProviderModelsState();
         renderAll(container);
     } catch (e) {
-        console.error('Failed to load engines tab:', e);
+        console.error('Failed to load providers tab:', e);
     }
 }
 
 function _adoptProviders(prov) {
     _tab.providers = prov.providers || [];
-    _tab.defaultEngine = prov.default;
+    _tab.defaultProvider = prov.default;
     _tab.pinned = !!prov.default_pinned_by_flag;
 }
 
@@ -92,32 +92,32 @@ function providerByName(name) {
 }
 
 function activeProvider() {
-    return providerByName(_tab.activeEngine);
+    return providerByName(_tab.activeProvider);
 }
 
-/** Full catalog + hidden set for every enabled engine, keyed by the
+/** Full catalog + hidden set for every enabled provider, keyed by the
  *  shared `models_key` (driver variants surface one catalog). Cheap
  *  GETs — no subprocess probe — so we just refetch on every reload. */
-async function loadEngineModelsState() {
+async function loadProviderModelsState() {
     const byKey = new Map();  // models_key → a provider name that serves it
     for (const p of enabledProviders()) {
         if (!byKey.has(p.models_key)) byKey.set(p.models_key, p.name);
     }
     await Promise.all([...byKey.entries()].map(async ([key, name]) => {
         try {
-            const resp = await fetch(`/api/app/engine-models/${encodeURIComponent(name)}`);
+            const resp = await fetch(`/api/app/provider-models/${encodeURIComponent(name)}`);
             if (!resp.ok) return;
             const data = await resp.json();
-            _adoptEngineModels(key, data);
+            _adoptProviderModels(key, data);
         } catch (e) {
-            console.error('Failed to load engine models:', e);
+            console.error('Failed to load provider models:', e);
         }
     }));
 }
 
-function _adoptEngineModels(key, data) {
+function _adoptProviderModels(key, data) {
     // Store pure definitions; visibility lives in disabledByKey (one truth).
-    _tab.engineModels[key] = (data.models || []).map(
+    _tab.providerModels[key] = (data.models || []).map(
         ({ id, label, desc }) => ({ id, label, desc }));
     _tab.disabledByKey[key] = new Set(data.disabled || []);
 }
@@ -128,7 +128,7 @@ async function reloadProviders(container) {
     try {
         const prov = await fetch('/api/providers').then(r => r.json());
         _adoptProviders(prov);
-        await loadEngineModelsState();
+        await loadProviderModelsState();
         renderAll(container);
     } catch (e) {
         console.error('Failed to reload providers:', e);
@@ -136,11 +136,11 @@ async function reloadProviders(container) {
 }
 
 function renderAll(container) {
-    _tab.activeEngine = resolveActiveEngine();
-    renderEnginesList(container.querySelector('#engines-list'));
-    renderEngineSubtabs(container.querySelector('#engine-subtabs'));
-    renderEnginePanel(container);
-    const hint = container.querySelector('#engines-hint');
+    _tab.activeProvider = resolveActiveProvider();
+    renderProvidersList(container.querySelector('#providers-list'));
+    renderProviderSubtabs(container.querySelector('#provider-subtabs'));
+    renderProviderPanel(container);
+    const hint = container.querySelector('#providers-hint');
     if (hint) {
         hint.textContent = S.settings.hints.providers_hint
             + (_tab.pinned ? ' ' + S.settings.hints.providers_default_pinned : '');
@@ -148,11 +148,11 @@ function renderAll(container) {
 }
 
 /** Keep the selected sub-tab across re-renders; fall back to the default
- *  engine (always enabled) when the selection was toggled off. */
-function resolveActiveEngine() {
+ *  provider (always enabled) when the selection was toggled off. */
+function resolveActiveProvider() {
     const enabled = enabledProviders();
-    if (enabled.some(p => p.name === _tab.activeEngine)) return _tab.activeEngine;
-    if (enabled.some(p => p.name === _tab.defaultEngine)) return _tab.defaultEngine;
+    if (enabled.some(p => p.name === _tab.activeProvider)) return _tab.activeProvider;
+    if (enabled.some(p => p.name === _tab.defaultProvider)) return _tab.defaultProvider;
     return enabled[0]?.name || null;
 }
 
@@ -168,52 +168,52 @@ async function refreshPickerRegistry() {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Engines list — picker toggles + default-engine selection
+// Providers list — picker toggles + default-provider selection
 // ─────────────────────────────────────────────────────────────────────
 
-function renderEnginesList(listEl) {
+function renderProvidersList(listEl) {
     if (!listEl) return;
     listEl.innerHTML = _tab.providers.map(p => {
-        const isDefault = p.name === _tab.defaultEngine;
+        const isDefault = p.name === _tab.defaultProvider;
         const enabled = p.enabled !== false;
-        const tag = isDefault ? `<span class="engine-row-tag">${S.provider.default_badge}</span>` : '';
+        const tag = isDefault ? `<span class="provider-row-tag">${S.provider.default_badge}</span>` : '';
         const desc = p.available
             ? (p.description || '')
             : (p.unavailable_reason || '');
         // "Make default" on the other rows — hidden while a server flag
-        // pins the default, and on engines that aren't usable anyway.
+        // pins the default, and on providers that aren't usable anyway.
         const makeDefault = (!isDefault && !_tab.pinned && p.available)
-            ? `<button type="button" class="engine-row-make-default" data-engine="${p.name}">${S.settings.hints.providers_make_default}</button>`
+            ? `<button type="button" class="provider-row-make-default" data-provider="${p.name}">${S.settings.hints.providers_make_default}</button>`
             : '';
-        // Engines self-declare traits worth knowing BEFORE the toggle. Driven
-        // off the capability, never off a provider name, so a drop-in engine
+        // Providers self-declare traits worth knowing BEFORE the toggle. Driven
+        // off the capability, never off a provider name, so a drop-in provider
         // with the same shape gets the same warning for free.
         const note = p.capabilities?.prompt_in_argv
-            ? `<span class="engine-row-note">${escapeHtml(S.settings.hints.providers_prompt_in_argv)}</span>`
+            ? `<span class="provider-row-note">${escapeHtml(S.settings.hints.providers_prompt_in_argv)}</span>`
             : '';
-        return `<div class="engine-row${p.available ? '' : ' unavailable'}">
-            <label class="engine-row-label">
-                <span class="engine-row-name">${escapeHtml(p.display_name)}${tag}</span>
-                <span class="engine-row-desc">${escapeHtml(desc)}</span>
+        return `<div class="provider-row${p.available ? '' : ' unavailable'}">
+            <label class="provider-row-label">
+                <span class="provider-row-name">${escapeHtml(p.display_name)}${tag}</span>
+                <span class="provider-row-desc">${escapeHtml(desc)}</span>
                 ${note}
             </label>
             ${makeDefault}
-            <input type="checkbox" class="engine-row-toggle" data-engine="${p.name}"
+            <input type="checkbox" class="provider-row-toggle" data-provider="${p.name}"
                    ${enabled ? 'checked' : ''} ${isDefault ? 'disabled' : ''}
                    ${isDefault ? `data-tooltip="${S.settings.hints.providers_default_locked}"` : ''}>
         </div>`;
     }).join('');
 }
 
-function wireEnginesList(container) {
-    const listEl = container.querySelector('#engines-list');
+function wireProvidersList(container) {
+    const listEl = container.querySelector('#providers-list');
     if (!listEl) return;
 
     // Picker visibility toggles (enabled set drives which sub-tabs render)
     listEl.addEventListener('change', async (e) => {
-        const toggle = e.target.closest('.engine-row-toggle');
+        const toggle = e.target.closest('.provider-row-toggle');
         if (!toggle || toggle.disabled) return;
-        const name = toggle.dataset.engine;
+        const name = toggle.dataset.provider;
         const enabled = toggle.checked;
         try {
             const resp = await fetch('/api/app/providers-enabled', {
@@ -231,20 +231,20 @@ function wireEnginesList(container) {
             await refreshPickerRegistry();
         } catch (err) {
             toggle.checked = !enabled;
-            console.error('Failed to toggle engine:', err);
+            console.error('Failed to toggle provider:', err);
         }
     });
 
-    // "Make default" — the default engine new sessions land on
+    // "Make default" — the default provider new sessions land on
     listEl.addEventListener('click', async (e) => {
-        const btn = e.target.closest('.engine-row-make-default');
+        const btn = e.target.closest('.provider-row-make-default');
         if (!btn) return;
         btn.disabled = true;
         try {
             const resp = await fetch('/api/app/default-provider', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ default_provider: btn.dataset.engine }),
+                body: JSON.stringify({ default_provider: btn.dataset.provider }),
             });
             if (!resp.ok) {
                 const err = await resp.json().catch(() => ({}));
@@ -252,45 +252,45 @@ function wireEnginesList(container) {
                 return;
             }
             // Default flips: badge moves, old default's toggle unlocks, the
-            // default-model select switches to the new engine's catalog.
+            // default-model select switches to the new provider's catalog.
             await reloadProviders(container);
             await refreshPickerRegistry();
         } catch (err) {
-            console.error('Failed to set default engine:', err);
+            console.error('Failed to set default provider:', err);
         }
     });
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Default model — the DEFAULT engine's own catalog
+// Default model — the DEFAULT provider's own catalog
 // ─────────────────────────────────────────────────────────────────────
 
-/** What an engine currently OFFERS: its catalog minus hidden models.
- *  Editable engines read the local models.yaml working copy so mid-edit
- *  rows appear without a refetch; others read the engine-models cache
+/** What a provider currently OFFERS: its catalog minus hidden models.
+ *  Editable providers read the local models.yaml working copy so mid-edit
+ *  rows appear without a refetch; others read the provider-models cache
  *  (`p.models` from /api/providers is the pre-toggle snapshot fallback). */
 function effectiveCatalog(p) {
     if (!p) return [];
     const dis = _tab.disabledByKey[p.models_key] || new Set();
     const base = p.models_editable
         ? _tab.selectable
-        : (_tab.engineModels[p.models_key] || p.models || []);
+        : (_tab.providerModels[p.models_key] || p.models || []);
     return base.filter(m => !dis.has(m.id));
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Per-engine new-session defaults + auto-journal model (engine panel)
+// Per-provider new-session defaults + auto-journal model (provider panel)
 // ─────────────────────────────────────────────────────────────────────
 
 /** Rebuild the active panel's default-model options from the (possibly just
  *  edited) catalog, keeping the stored selection via prefix-match. */
 function renderPanelDefaultModelOptions(container, p) {
-    const select = container.querySelector('#engine-panel .engine-default-model');
+    const select = container.querySelector('#provider-panel .provider-default-model');
     if (!select || !p) return;
     const catalog = effectiveCatalog(p);
-    // The app always defines a concrete default when the engine has a catalog
-    // (the server falls back to the top model), so no "Engine default"
-    // placeholder. Only an engine with NO catalog (e.g. Codex with no models
+    // The app always defines a concrete default when the provider has a catalog
+    // (the server falls back to the top model), so no "Provider default"
+    // placeholder. Only a provider with NO catalog (e.g. Codex with no models
     // cache) keeps it — the sole option, meaning "the CLI's own config".
     select.innerHTML = catalog.length ? '' :
         `<option value="">${escapeHtml(S.settings.hints.model_default_option)}</option>`;
@@ -303,43 +303,43 @@ function renderPanelDefaultModelOptions(container, p) {
     // Stored value may be a dated variant of a listed id — prefix-match like
     // the chip. The server resolves a concrete in-catalog default, so this
     // always hits; fall back to the top model rather than an empty select.
-    const stored = _tab.engineDefaults[p.name]?.default_model || '';
+    const stored = _tab.providerDefaults[p.name]?.default_model || '';
     const hit = catalog.find(m => m.id === stored)
         || catalog.find(m => stored && stored.startsWith(m.id));
     select.value = hit ? hit.id : (catalog[0]?.id || '');
 }
 
-async function loadEngineDefaults(root, container, name) {
+async function loadProviderDefaults(root, container, name) {
     try {
-        const resp = await fetch(`/api/app/engine-defaults/${encodeURIComponent(name)}`);
+        const resp = await fetch(`/api/app/provider-defaults/${encodeURIComponent(name)}`);
         if (!resp.ok) return;
-        if (root.dataset.engine !== name) return;   // stale — panel switched
-        _tab.engineDefaults[name] = await resp.json();
-        applyEngineDefaults(root, container, providerByName(name));
+        if (root.dataset.provider !== name) return;   // stale — panel switched
+        _tab.providerDefaults[name] = await resp.json();
+        applyProviderDefaults(root, container, providerByName(name));
     } catch (e) {
-        console.error('Failed to load engine defaults:', e);
+        console.error('Failed to load provider defaults:', e);
     }
 }
 
-function applyEngineDefaults(root, container, p) {
-    const data = p && _tab.engineDefaults[p.name];
+function applyProviderDefaults(root, container, p) {
+    const data = p && _tab.providerDefaults[p.name];
     if (!data) return;
     renderPanelDefaultModelOptions(container, p);
-    const effortSel = root.querySelector('.engine-default-effort');
+    const effortSel = root.querySelector('.provider-default-effort');
     if (effortSel) effortSel.value = data.default_effort || '';
-    const profileSel = root.querySelector('.engine-default-profile');
+    const profileSel = root.querySelector('.provider-default-profile');
     if (profileSel) profileSel.value = data.token_profile || '';
     const journal = root.querySelector('[data-role="journal"]');
     if (journal) {
         if (!data.summary_supported) {
             journal.remove();
         } else {
-            const input = journal.querySelector('.engine-journal-input');
+            const input = journal.querySelector('.provider-journal-input');
             if (input && document.activeElement !== input) {
                 input.value = data.summary_model || '';
                 input.placeholder = data.summary_placeholder || '';
             }
-            // Keep the models.yaml PUT body in sync — the app-owned engine's
+            // Keep the models.yaml PUT body in sync — the app-owned provider's
             // journal model rides that payload too.
             if (p.models_editable && data.summary_model) {
                 _tab.summary_model = data.summary_model;
@@ -348,86 +348,86 @@ function applyEngineDefaults(root, container, p) {
     }
 }
 
-/** PUT a subset of the active engine's defaults and adopt the response. */
-async function saveEngineDefaults(container, p, patch) {
-    const root = container.querySelector('#engine-panel');
+/** PUT a subset of the active provider's defaults and adopt the response. */
+async function saveProviderDefaults(container, p, patch) {
+    const root = container.querySelector('#provider-panel');
     try {
-        const resp = await fetch(`/api/app/engine-defaults/${encodeURIComponent(p.name)}`, {
+        const resp = await fetch(`/api/app/provider-defaults/${encodeURIComponent(p.name)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(patch),
         });
         if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || resp.status);
-        _tab.engineDefaults[p.name] = await resp.json();
-        if (root?.dataset.engine === p.name) applyEngineDefaults(root, container, p);
+        _tab.providerDefaults[p.name] = await resp.json();
+        if (root?.dataset.provider === p.name) applyProviderDefaults(root, container, p);
         // The chip's "default" state may have changed for open sessions.
         const sb = window.app?.statusBar;
         if (sb?.currentSessionId) sb.setSession(sb.currentSessionId);
     } catch (err) {
         showToast(`Save failed: ${err.message || err}`);
-        if (root?.dataset.engine === p.name) applyEngineDefaults(root, container, p);
+        if (root?.dataset.provider === p.name) applyProviderDefaults(root, container, p);
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Engine sub-tabs — pick which engine the unified panel edits
+// Provider sub-tabs — pick which provider the unified panel edits
 // ─────────────────────────────────────────────────────────────────────
 
-function renderEngineSubtabs(tabsEl) {
+function renderProviderSubtabs(tabsEl) {
     if (!tabsEl) return;
     tabsEl.innerHTML = enabledProviders().map(p => {
-        const tag = p.name === _tab.defaultEngine
-            ? `<span class="engine-row-tag">${S.provider.default_badge}</span>` : '';
-        const active = p.name === _tab.activeEngine ? ' active' : '';
-        return `<button type="button" class="engine-subtab${active}" data-engine="${p.name}">
+        const tag = p.name === _tab.defaultProvider
+            ? `<span class="provider-row-tag">${S.provider.default_badge}</span>` : '';
+        const active = p.name === _tab.activeProvider ? ' active' : '';
+        return `<button type="button" class="provider-subtab${active}" data-provider="${p.name}">
             ${escapeHtml(p.display_name)}${tag}
         </button>`;
     }).join('');
 }
 
-function wireEngineSubtabs(container) {
-    const tabsEl = container.querySelector('#engine-subtabs');
+function wireProviderSubtabs(container) {
+    const tabsEl = container.querySelector('#provider-subtabs');
     if (!tabsEl) return;
     tabsEl.addEventListener('click', (e) => {
-        const btn = e.target.closest('.engine-subtab');
-        if (!btn || btn.dataset.engine === _tab.activeEngine) return;
-        _tab.activeEngine = btn.dataset.engine;
-        renderEngineSubtabs(tabsEl);
-        renderEnginePanel(container);
+        const btn = e.target.closest('.provider-subtab');
+        if (!btn || btn.dataset.provider === _tab.activeProvider) return;
+        _tab.activeProvider = btn.dataset.provider;
+        renderProviderSubtabs(tabsEl);
+        renderProviderPanel(container);
     });
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Engine panel — CLI path + model catalog (ONE layout for every engine)
+// Provider panel — CLI path + model catalog (ONE layout for every provider)
 // ─────────────────────────────────────────────────────────────────────
 
-function renderEnginePanel(container) {
-    const root = container.querySelector('#engine-panel');
+function renderProviderPanel(container) {
+    const root = container.querySelector('#provider-panel');
     if (!root) return;
     const p = activeProvider();
     if (!p) {
-        root.dataset.engine = '';
+        root.dataset.provider = '';
         root.innerHTML = '';
         return;
     }
-    root.dataset.engine = p.name;
+    root.dataset.provider = p.name;
     const unavailable = !p.available
-        ? `<p class="engine-card-status unavailable">${escapeHtml(p.unavailable_reason || '')}</p>` : '';
+        ? `<p class="provider-card-status unavailable">${escapeHtml(p.unavailable_reason || '')}</p>` : '';
     const pathBlock = p.path_configurable ? `
-        <p class="engine-card-status" data-role="version"></p>
-        <div class="engine-path-row">
-            <input type="text" class="system-text-input engine-path-input"
+        <p class="provider-card-status" data-role="version"></p>
+        <div class="provider-path-row">
+            <input type="text" class="system-text-input provider-path-input"
                    placeholder="${escapeHtml(p.default_binary || '')}"
                    spellcheck="false" autocomplete="off">
-            <button type="button" class="system-save-btn engine-path-save">${S.settings.hints.provider_path_save}</button>
-            <button type="button" class="system-reset-btn engine-path-reset" disabled>${S.settings.hints.provider_path_reset}</button>
+            <button type="button" class="system-save-btn provider-path-save">${S.settings.hints.provider_path_save}</button>
+            <button type="button" class="system-reset-btn provider-path-reset" disabled>${S.settings.hints.provider_path_reset}</button>
         </div>
         <p class="config-hint">${S.settings.hints.provider_path_hint.replace('{binary}', escapeHtml(p.default_binary || ''))}</p>` : '';
     const authBlock = `
-        <div class="engine-auth" data-role="auth">
-            <span class="engine-auth-dot checking"></span>
-            <span class="engine-auth-text">${S.settings.hints.provider_auth_checking}</span>
-            <button type="button" class="system-save-btn engine-login-btn" hidden>${S.settings.hints.provider_auth_login_button}</button>
+        <div class="provider-auth" data-role="auth">
+            <span class="provider-auth-dot checking"></span>
+            <span class="provider-auth-text">${S.settings.hints.provider_auth_checking}</span>
+            <button type="button" class="system-save-btn provider-login-btn" hidden>${S.settings.hints.provider_auth_login_button}</button>
         </div>`;
     const modelsFooter = p.models_editable ? `
         <div class="models-add-row">
@@ -444,39 +444,39 @@ function renderEnginePanel(container) {
         <button type="button" class="system-reset-btn models-reset-btn">${S.settings.hints.models_reset_button}</button>` : `
         <p class="config-hint">${S.settings.hints.provider_models_readonly}</p>`;
     // New-session defaults — vocab comes from the registry (efforts,
-    // accounts); stored values arrive via loadEngineDefaults.
+    // accounts); stored values arrive via loadProviderDefaults.
     const effortOptions = (p.efforts || []).map(lvl =>
         `<option value="${escapeHtml(lvl)}">${escapeHtml(S.provider.setup.effort_labels?.[lvl] || lvl)}</option>`).join('');
     const accountOptions = (p.accounts || []).map(a =>
         `<option value="${escapeHtml(a.id)}">${escapeHtml(a.label || a.id)}</option>`).join('');
     const defaultsBlock = `
-        <h4 class="engine-card-subtitle">${S.settings.sections.provider_defaults}</h4>
-        <div class="engine-defaults" data-role="defaults">
-            <div class="engine-defaults-row">
-                <span class="engine-defaults-label">${S.settings.hints.provider_default_model_label}</span>
-                <select class="system-select engine-default-model"></select>
+        <h4 class="provider-card-subtitle">${S.settings.sections.provider_defaults}</h4>
+        <div class="provider-defaults" data-role="defaults">
+            <div class="provider-defaults-row">
+                <span class="provider-defaults-label">${S.settings.hints.provider_default_model_label}</span>
+                <select class="system-select provider-default-model"></select>
             </div>
             ${(p.efforts || []).length ? `
-            <div class="engine-defaults-row">
-                <span class="engine-defaults-label">${S.settings.hints.provider_default_effort_label}</span>
-                <select class="system-select engine-default-effort">
+            <div class="provider-defaults-row">
+                <span class="provider-defaults-label">${S.settings.hints.provider_default_effort_label}</span>
+                <select class="system-select provider-default-effort">
                     <option value="">${S.settings.hints.model_default_option}</option>
                     ${effortOptions}
                 </select>
             </div>` : ''}
             ${(p.accounts || []).length > 1 ? `
-            <div class="engine-defaults-row">
-                <span class="engine-defaults-label">${S.settings.hints.provider_default_profile_label}</span>
-                <select class="system-select engine-default-profile">
+            <div class="provider-defaults-row">
+                <span class="provider-defaults-label">${S.settings.hints.provider_default_profile_label}</span>
+                <select class="system-select provider-default-profile">
                     ${accountOptions}
                 </select>
             </div>` : ''}
         </div>
         <p class="config-hint">${S.settings.hints.provider_defaults_hint}</p>`;
     const journalBlock = `
-        <div class="engine-journal" data-role="journal">
-            <h4 class="engine-card-subtitle">${S.settings.sections.models_background}</h4>
-            <input type="text" class="system-text-input engine-journal-input"
+        <div class="provider-journal" data-role="journal">
+            <h4 class="provider-card-subtitle">${S.settings.sections.models_background}</h4>
+            <input type="text" class="system-text-input provider-journal-input"
                    spellcheck="false" autocomplete="off">
             <p class="config-hint">${S.settings.hints.provider_journal_hint}</p>
         </div>`;
@@ -484,38 +484,38 @@ function renderEnginePanel(container) {
         ${unavailable}
         ${pathBlock}
         ${authBlock}
-        <h4 class="engine-card-subtitle">${S.settings.sections.provider_models}</h4>
+        <h4 class="provider-card-subtitle">${S.settings.sections.provider_models}</h4>
         <div class="models-list" data-role="models"></div>
         ${modelsFooter}
         ${defaultsBlock}
         ${journalBlock}`;
     renderPanelModels(container, p);
     renderPanelDefaultModelOptions(container, p);
-    if (p.path_configurable) loadEnginePath(root, p.name);
-    loadEngineAuth(root, p.name);
-    loadEngineDefaults(root, container, p.name);
+    if (p.path_configurable) loadProviderPath(root, p.name);
+    loadProviderAuth(root, p.name);
+    loadProviderDefaults(root, container, p.name);
 }
 
-// --- CLI path (generic /api/app/engine-path/{name}) -----------------
+// --- CLI path (generic /api/app/provider-path/{name}) -----------------
 
-async function loadEnginePath(root, name) {
+async function loadProviderPath(root, name) {
     try {
-        const resp = await fetch(`/api/app/engine-path/${encodeURIComponent(name)}`);
+        const resp = await fetch(`/api/app/provider-path/${encodeURIComponent(name)}`);
         if (!resp.ok) return;
         // The probe takes up to 5s — drop the reply if the user has
-        // switched the panel to another engine meanwhile.
-        if (root.dataset.engine !== name) return;
-        applyEnginePathInfo(root, await resp.json());
+        // switched the panel to another provider meanwhile.
+        if (root.dataset.provider !== name) return;
+        applyProviderPathInfo(root, await resp.json());
     } catch (e) {
-        console.error('Failed to load engine path:', e);
+        console.error('Failed to load provider path:', e);
     }
 }
 
-function applyEnginePathInfo(root, data) {
+function applyProviderPathInfo(root, data) {
     if (!data || data.configurable === false) return;
-    const input = root.querySelector('.engine-path-input');
+    const input = root.querySelector('.provider-path-input');
     const versionEl = root.querySelector('[data-role="version"]');
-    const resetBtn = root.querySelector('.engine-path-reset');
+    const resetBtn = root.querySelector('.provider-path-reset');
     if (input && document.activeElement !== input) input.value = data.path || '';
     if (versionEl) {
         const ver = data.version || S.settings.hints.provider_path_missing;
@@ -525,13 +525,13 @@ function applyEnginePathInfo(root, data) {
     if (resetBtn) resetBtn.disabled = !data.path;
 }
 
-async function saveEnginePath(container, root, path) {
-    const name = root.dataset.engine;
-    const saveBtn = root.querySelector('.engine-path-save');
+async function saveProviderPath(container, root, path) {
+    const name = root.dataset.provider;
+    const saveBtn = root.querySelector('.provider-path-save');
     const versionEl = root.querySelector('[data-role="version"]');
     try {
         if (saveBtn) saveBtn.disabled = true;
-        const resp = await fetch(`/api/app/engine-path/${encodeURIComponent(name)}`, {
+        const resp = await fetch(`/api/app/provider-path/${encodeURIComponent(name)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: path || null }),
@@ -544,54 +544,54 @@ async function saveEnginePath(container, root, path) {
             }
             return;
         }
-        if (root.dataset.engine === name) {
-            applyEnginePathInfo(root, await resp.json());
+        if (root.dataset.provider === name) {
+            applyProviderPathInfo(root, await resp.json());
         }
         // A path change can flip availability — refresh rows/panel + picker.
         await reloadProviders(container);
         await refreshPickerRegistry();
     } catch (e) {
-        console.error('Failed to save engine path:', e);
+        console.error('Failed to save provider path:', e);
     } finally {
         if (saveBtn) saveBtn.disabled = false;
     }
 }
 
-// --- CLI login status (generic /api/app/engine-auth/{name}) ----------
+// --- CLI login status (generic /api/app/provider-auth/{name}) ----------
 
-async function loadEngineAuth(root, name) {
+async function loadProviderAuth(root, name) {
     try {
-        const resp = await fetch(`/api/app/engine-auth/${encodeURIComponent(name)}`);
+        const resp = await fetch(`/api/app/provider-auth/${encodeURIComponent(name)}`);
         if (!resp.ok) return;
         // The probe shells out to the CLI — drop the reply if the user has
-        // switched the panel to another engine meanwhile.
-        if (root.dataset.engine !== name) return;
-        applyEngineAuthInfo(root, await resp.json());
+        // switched the panel to another provider meanwhile.
+        if (root.dataset.provider !== name) return;
+        applyProviderAuthInfo(root, await resp.json());
     } catch (e) {
-        console.error('Failed to load engine auth:', e);
+        console.error('Failed to load provider auth:', e);
     }
 }
 
-function applyEngineAuthInfo(root, data) {
+function applyProviderAuthInfo(root, data) {
     const row = root.querySelector('[data-role="auth"]');
     if (!row) return;
-    // Provider describes no auth probe (drop-in engines) → no login row.
+    // Provider describes no auth probe (drop-in providers) → no login row.
     if (!data || data.supported === false) { row.remove(); return; }
-    const dot = row.querySelector('.engine-auth-dot');
-    const text = row.querySelector('.engine-auth-text');
-    const btn = row.querySelector('.engine-login-btn');
+    const dot = row.querySelector('.provider-auth-dot');
+    const text = row.querySelector('.provider-auth-text');
+    const btn = row.querySelector('.provider-login-btn');
     const H = S.settings.hints;
     dot?.classList.remove('checking', 'ok', 'err');
     if (data.logged_in === true) {
         dot?.classList.add('ok');
         text.textContent = data.detail
-            ? `${H.engine_auth_logged_in} — ${data.detail}` : H.engine_auth_logged_in;
+            ? `${H.provider_auth_logged_in} — ${data.detail}` : H.provider_auth_logged_in;
     } else if (data.logged_in === false) {
         dot?.classList.add('err');
         text.textContent = data.detail
-            ? `${H.engine_auth_not_logged_in} — ${data.detail}` : H.engine_auth_not_logged_in;
+            ? `${H.provider_auth_not_logged_in} — ${data.detail}` : H.provider_auth_not_logged_in;
     } else {
-        text.textContent = H.engine_auth_unknown;
+        text.textContent = H.provider_auth_unknown;
     }
     // Offer the CLI's own login flow whenever one exists and we aren't
     // verifiably logged in (unknown state may still be fixable by a login).
@@ -610,21 +610,21 @@ function startAuthPoll(root, name) {
     let ticks = 0;
     authPollTimer = setInterval(async () => {
         // Give up after ~5 min, or when the user switched this STILL-OPEN
-        // panel to a different engine. A detached panel (Settings closed for
+        // panel to a different provider. A detached panel (Settings closed for
         // the login handoff) keeps polling — the login completing still needs
         // to refresh the picker registry; we just skip the dead DOM update.
-        const switchedAway = root.isConnected && root.dataset.engine !== name;
+        const switchedAway = root.isConnected && root.dataset.provider !== name;
         if (switchedAway || ++ticks > 60) {
             clearInterval(authPollTimer);
             authPollTimer = null;
             return;
         }
         try {
-            const resp = await fetch(`/api/app/engine-auth/${encodeURIComponent(name)}`);
+            const resp = await fetch(`/api/app/provider-auth/${encodeURIComponent(name)}`);
             if (!resp.ok) return;
             const data = await resp.json();
-            if (root.isConnected && root.dataset.engine === name) {
-                applyEngineAuthInfo(root, data);
+            if (root.isConnected && root.dataset.provider === name) {
+                applyProviderAuthInfo(root, data);
             }
             if (data.logged_in === true) {
                 clearInterval(authPollTimer);
@@ -643,12 +643,12 @@ function panelCatalog(p) {
     const dis = _tab.disabledByKey[p.models_key] || new Set();
     const base = p.models_editable
         ? _tab.selectable
-        : (_tab.engineModels[p.models_key] || []);
+        : (_tab.providerModels[p.models_key] || []);
     return base.map(m => ({ ...m, enabled: !dis.has(m.id) }));
 }
 
 function renderPanelModels(container, p) {
-    const listEl = container.querySelector('#engine-panel [data-role="models"]');
+    const listEl = container.querySelector('#provider-panel [data-role="models"]');
     if (!listEl) return;
     const catalog = panelCatalog(p);
     if (!catalog.length) {
@@ -684,7 +684,7 @@ function rerenderEditableModels(container) {
     renderPanelDefaultModelOptions(container, p);
 }
 
-/** Persist the hidden set for the active engine's `models_key`. */
+/** Persist the hidden set for the active provider's `models_key`. */
 async function saveModelVisibility(container, p, toggleEl) {
     const key = p.models_key;
     const set = _tab.disabledByKey[key] || (_tab.disabledByKey[key] = new Set());
@@ -694,13 +694,13 @@ async function saveModelVisibility(container, p, toggleEl) {
     toggleEl.closest('.models-row')?.classList.toggle('model-off', !toggleEl.checked);
     renderPanelDefaultModelOptions(container, p);
     try {
-        const resp = await fetch(`/api/app/engine-models/${encodeURIComponent(p.name)}`, {
+        const resp = await fetch(`/api/app/provider-models/${encodeURIComponent(p.name)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ disabled: [...set] }),
         });
         if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || resp.status);
-        _adoptEngineModels(key, await resp.json());
+        _adoptProviderModels(key, await resp.json());
         await refreshPickerRegistry();
     } catch (err) {
         // Revert the optimistic flip
@@ -712,8 +712,8 @@ async function saveModelVisibility(container, p, toggleEl) {
     }
 }
 
-function wireEnginePanel(container) {
-    const root = container.querySelector('#engine-panel');
+function wireProviderPanel(container) {
+    const root = container.querySelector('#provider-panel');
     if (!root) return;
 
     // Two-click arm/commit instead of confirm(): window.confirm() silently
@@ -730,42 +730,42 @@ function wireEnginePanel(container) {
         });
     };
 
-    // Model visibility toggles + per-engine session-default selects
+    // Model visibility toggles + per-provider session-default selects
     root.addEventListener('change', async (e) => {
         const p = activeProvider();
         if (!p) return;
         const toggle = e.target.closest('.models-row-toggle');
         if (toggle) { await saveModelVisibility(container, p, toggle); return; }
-        if (e.target.matches?.('.engine-default-model')) {
-            await saveEngineDefaults(container, p, { default_model: e.target.value || null });
-        } else if (e.target.matches?.('.engine-default-effort')) {
-            await saveEngineDefaults(container, p, { default_effort: e.target.value || null });
-        } else if (e.target.matches?.('.engine-default-profile')) {
-            await saveEngineDefaults(container, p, { token_profile: e.target.value || null });
+        if (e.target.matches?.('.provider-default-model')) {
+            await saveProviderDefaults(container, p, { default_model: e.target.value || null });
+        } else if (e.target.matches?.('.provider-default-effort')) {
+            await saveProviderDefaults(container, p, { default_effort: e.target.value || null });
+        } else if (e.target.matches?.('.provider-default-profile')) {
+            await saveProviderDefaults(container, p, { token_profile: e.target.value || null });
         }
     });
 
     root.addEventListener('click', async (e) => {
         // CLI path save/reset
-        if (e.target.closest('.engine-path-save')) {
-            const input = root.querySelector('.engine-path-input');
-            await saveEnginePath(container, root, input?.value.trim());
+        if (e.target.closest('.provider-path-save')) {
+            const input = root.querySelector('.provider-path-input');
+            await saveProviderPath(container, root, input?.value.trim());
             return;
         }
-        if (e.target.closest('.engine-path-reset')) {
-            const input = root.querySelector('.engine-path-input');
+        if (e.target.closest('.provider-path-reset')) {
+            const input = root.querySelector('.provider-path-input');
             if (input) input.value = '';
-            await saveEnginePath(container, root, null);
+            await saveProviderPath(container, root, null);
             return;
         }
 
         // Log in — hand off to the CLI's own interactive flow in a PTY
         // terminal tab (device-code / OAuth prompts work as designed there),
         // then poll status so the row flips green when the flow completes.
-        const loginBtn = e.target.closest('.engine-login-btn');
+        const loginBtn = e.target.closest('.provider-login-btn');
         if (loginBtn) {
             if (!loginBtn.dataset.command) return;
-            const engine = root.dataset.engine;
+            const provider = root.dataset.provider;
             // Close this (modal) Settings pane first — otherwise the login PTY
             // tab opens *behind* the overlay and the user can't reach the
             // device-code / OAuth prompt. The status poll (below) survives the
@@ -777,7 +777,7 @@ function wireEnginePanel(container) {
                 icon: 'terminal',
                 initialCommand: loginBtn.dataset.command + '\n',
             });
-            startAuthPoll(root, engine);
+            startAuthPoll(root, provider);
             return;
         }
 
@@ -847,13 +847,13 @@ function wireEnginePanel(container) {
                 _tab.selectable = data.selectable || [];
                 _tab.summary_model = data.summary_model || '';
                 // models.yaml reset also resets the journal model — reflect
-                // it in the active panel (the editable engine's journal
+                // it in the active panel (the editable provider's journal
                 // input mirrors models.yaml summary_model).
                 const p = activeProvider();
                 if (p?.models_editable) {
-                    const cached = _tab.engineDefaults[p.name];
+                    const cached = _tab.providerDefaults[p.name];
                     if (cached) cached.summary_model = _tab.summary_model;
-                    const journalInput = root.querySelector('.engine-journal-input');
+                    const journalInput = root.querySelector('.provider-journal-input');
                     if (journalInput) journalInput.value = _tab.summary_model;
                 }
                 rerenderEditableModels(container);
@@ -868,13 +868,13 @@ function wireEnginePanel(container) {
 
     // Auto-journal model — save on blur when changed
     root.addEventListener('blur', async (e) => {
-        if (!e.target.matches?.('.engine-journal-input')) return;
+        if (!e.target.matches?.('.provider-journal-input')) return;
         const p = activeProvider();
         if (!p) return;
-        const stored = _tab.engineDefaults[p.name]?.summary_model || '';
+        const stored = _tab.providerDefaults[p.name]?.summary_model || '';
         const value = e.target.value.trim();
         if (value === stored) return;
-        await saveEngineDefaults(container, p, { summary_model: value || null });
+        await saveProviderDefaults(container, p, { summary_model: value || null });
     }, true);
 
     // Inline edits on editable model rows (id rename needs fixups)
@@ -889,7 +889,7 @@ function wireEnginePanel(container) {
         if (model[field] === newValue) return;
 
         // Renaming the ID (identity key) needs validation + reference fixups:
-        // it's referenced by every row's data-id and possibly by the engine's
+        // it's referenced by every row's data-id and possibly by the provider's
         // configured default model.
         if (field === 'id') {
             if (!newValue) {                         // don't allow empty — revert
@@ -902,12 +902,12 @@ function wireEnginePanel(container) {
                 return;
             }
             const p = activeProvider();
-            const wasDefault = p && _tab.engineDefaults[p.name]?.default_model === oldId;
+            const wasDefault = p && _tab.providerDefaults[p.name]?.default_model === oldId;
             model.id = newValue;
             rerenderEditableModels(container);       // refresh data-id everywhere
             await saveModelsConfig();
             if (wasDefault) {
-                await saveEngineDefaults(container, p, { default_model: newValue });
+                await saveProviderDefaults(container, p, { default_model: newValue });
             }
             return;
         }
@@ -923,10 +923,10 @@ function wireEnginePanel(container) {
     // (the blur handler above persists it).
     root.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter') return;
-        if (e.target.matches?.('.engine-path-input')) {
+        if (e.target.matches?.('.provider-path-input')) {
             e.preventDefault();
-            saveEnginePath(container, root, e.target.value.trim());
-        } else if (e.target.matches?.('.engine-journal-input')) {
+            saveProviderPath(container, root, e.target.value.trim());
+        } else if (e.target.matches?.('.provider-journal-input')) {
             e.preventDefault();
             e.target.blur();
         }
@@ -934,8 +934,8 @@ function wireEnginePanel(container) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Auto-journal panel cross-link (the journal MODEL is per-engine now —
-// see the engine panel's journal block)
+// Auto-journal panel cross-link (the journal MODEL is per-provider now —
+// see the provider panel's journal block)
 // ─────────────────────────────────────────────────────────────────────
 
 function wireAutoJournalLink(container) {

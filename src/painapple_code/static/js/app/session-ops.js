@@ -80,7 +80,7 @@ export const sessionOpsMethods = {
             this.activeSession?.addSystemLog(S.errors.cannot_fork, 'error');
             return;
         }
-        // Engines without fork (capabilities.fork=false, e.g. ephemeral codex
+        // Providers without fork (capabilities.fork=false, e.g. ephemeral codex
         // exec) fail friendly here; the server 409s as the backstop.
         if (this.activeSession.providerCaps?.fork === false) {
             this.activeSession.addSystemLog(S.provider.fork_unsupported.replace(
@@ -249,9 +249,9 @@ export const sessionOpsMethods = {
         }
 
         const sourceName = this.activeSession?.name || 'Session';
-        // Clone runs on the source session's engine (bound provider, or the
+        // Clone runs on the source session's provider (bound provider, or the
         // pending pick on a not-yet-bound tab) — rides the create WS URL.
-        const sourceEngine = this.activeSession?.provider || this.activeSession?.pendingProvider || null;
+        const sourceProvider = this.activeSession?.provider || this.activeSession?.pendingProvider || null;
 
         // Create new session with same CWD
         const clonedSession = this.sessionManager.create({
@@ -260,7 +260,7 @@ export const sessionOpsMethods = {
         });
 
         if (clonedSession) {
-            if (sourceEngine) clonedSession.pendingProvider = sourceEngine;
+            if (sourceProvider) clonedSession.pendingProvider = sourceProvider;
             this.activeSession?.addSystemLog(`Cloned to new session with same project`, 'info');
             this.switchToSession(clonedSession);
 

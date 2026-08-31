@@ -62,11 +62,11 @@ export const wsHandlerMethods = {
                         console.warn('Failed to refresh agents for cwd:', e)
                     );
                 }
-                // Adopt the session's engine identity + capabilities. The
+                // Adopt the session's provider identity + capabilities. The
                 // server is authoritative — an unknown picker choice degrades
-                // to the default engine, so this reflects what actually bound.
+                // to the default provider, so this reflects what actually bound.
                 if (msg.provider) {
-                    const engineChanged = this.provider !== msg.provider;
+                    const providerChanged = this.provider !== msg.provider;
                     this.provider = msg.provider;
                     this.providerDisplayName = msg.provider_display_name || msg.provider;
                     this.providerCaps = msg.provider_caps || null;
@@ -74,9 +74,9 @@ export const wsHandlerMethods = {
                     this.pendingProvider = null;  // choice landed (or was overridden)
                     if (this.isActive) {
                         app.updateStatus();
-                        // Each engine speaks its own permission vocabulary —
+                        // Each provider speaks its own permission vocabulary —
                         // refresh the popup when the binding (first) arrives.
-                        if (engineChanged && window.permissionSettings) {
+                        if (providerChanged && window.permissionSettings) {
                             window.permissionSettings.setSession(msg.session_id || this.storeId || null);
                         }
                     }
@@ -328,10 +328,10 @@ export const wsHandlerMethods = {
                 break;
 
             case 'auth_error': {
-                // The engine CLI returned an auth failure (expired token /
+                // The provider CLI returned an auth failure (expired token /
                 // invalid key / 401). Stop the spinner and surface a clickable
-                // affordance that drops the user into the engine's own login
-                // terminal (frame carries engine label + login_command).
+                // affordance that drops the user into the provider's own login
+                // terminal (frame carries provider label + login_command).
                 this.isAgentRunning = false;
                 this._setActivity({ active: false });
                 this.updateTab();
@@ -519,7 +519,7 @@ export const wsHandlerMethods = {
             case 'permission_mode_changed': {
                 this.permissionMode = msg.mode;
                 // `applied` tells the truth about when the mode takes effect:
-                // 'live' = the running engine switched in place (SDK provider),
+                // 'live' = the running provider switched in place (SDK provider),
                 // 'next_turn' = picked up by the respawn on the next message.
                 const modeStr = msg.applied === 'live' ? S.status.permission_mode_live
                     : msg.applied === 'next_turn' ? S.status.permission_mode_next_turn

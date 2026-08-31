@@ -496,24 +496,24 @@ function renderConfigPanel(container, context) {
                 ${renderQuickActionsTab()}
             </div>
 
-            <!-- Engines tab (internally data-tab="models") — everything
+            <!-- Providers tab (internally data-tab="models") — everything
                  provider-centric renders dynamically from the registry via
-                 setupModelsTab; nothing here is hardcoded per engine. -->
+                 setupModelsTab; nothing here is hardcoded per provider. -->
             <div class="config-section" data-section="models" ${state.activeTab !== 'models' ? 'hidden' : ''}>
                 <div class="system-section">
                     <h3 class="system-section-title">${S.settings.sections.providers}</h3>
-                    <div class="engines-list" id="engines-list">
+                    <div class="providers-list" id="providers-list">
                         <!-- populated by setupModelsTab -->
                     </div>
-                    <p class="config-hint" id="engines-hint">${S.settings.hints.providers_hint}</p>
+                    <p class="config-hint" id="providers-hint">${S.settings.hints.providers_hint}</p>
                 </div>
                 <div class="system-section">
                     <h3 class="system-section-title">${S.settings.sections.provider_settings}</h3>
-                    <div class="engine-subtabs" id="engine-subtabs">
-                        <!-- one sub-tab per enabled engine, populated by setupModelsTab -->
+                    <div class="provider-subtabs" id="provider-subtabs">
+                        <!-- one sub-tab per enabled provider, populated by setupModelsTab -->
                     </div>
-                    <div class="engine-panel" id="engine-panel">
-                        <!-- the selected engine's CLI path, login, catalog, defaults, journal -->
+                    <div class="provider-panel" id="provider-panel">
+                        <!-- the selected provider's CLI path, login, catalog, defaults, journal -->
                     </div>
                     <p class="config-hint">${S.settings.hints.models_summary_hint}</p>
                     <button type="button" class="config-action-btn" id="open-auto-journal-from-models">${S.settings.hints.models_summary_link}</button>
@@ -976,7 +976,7 @@ function attachConfigEventHandlers(container) {
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (!data) return;
-                // The default engine self-describes its modes (e.g. claude-sdk
+                // The default provider self-describes its modes (e.g. claude-sdk
                 // adds "Ask"); rebuild the options from that vocabulary.
                 if (Array.isArray(data.modes) && data.modes.length) {
                     permSelect.innerHTML = data.modes.map(m =>
@@ -1104,7 +1104,7 @@ function attachConfigEventHandlers(container) {
         });
     }
 
-    // Engines tab (list, sub-tabs, per-engine panel incl. session defaults)
+    // Providers tab (list, sub-tabs, per-provider panel incl. session defaults)
     setupModelsTab(container);
 
     // API retry max controls

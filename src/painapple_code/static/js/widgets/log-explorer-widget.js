@@ -20,7 +20,7 @@ import { WidgetManager, WidgetBus, ICONS } from '../widget-system/index.js';
 import { isThinkingKeywordsHighlightingEnabled } from './config-widget.js';
 import { renderJsonTree } from '../preview/json-tree.js';
 import { copyToClipboard, showToast } from '../context-menu.js';
-import { engineAuthorLabel } from '../status-bar.js';
+import { providerAuthorLabel } from '../status-bar.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Icons (specific to log explorer)
@@ -763,16 +763,16 @@ function appendMessages(messages) {
     }
 }
 
-// Label for assistant rows: the session's own ENGINE ("Codex"), title-cased
+// Label for assistant rows: the session's own PROVIDER ("Codex"), title-cased
 // to match the other role labels. A session the manager doesn't know (a
-// historical ID opened directly) has no engine to read, so it keeps the
+// historical ID opened directly) has no provider to read, so it keeps the
 // static strings.yaml label rather than guessing the box default.
 function assistantLabel() {
     const id = getState().sessionId || WidgetManager.currentSessionId;
     const session = (window.app?.sessionManager?.sessions || [])
         .find(s => s.id === id || s.storeId === id);
     if (!session) return ROLE_CONFIG.assistant.label;
-    const label = engineAuthorLabel(session);
+    const label = providerAuthorLabel(session);
     return escapeHtml(label.charAt(0).toUpperCase() + label.slice(1));
 }
 

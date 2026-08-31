@@ -28,7 +28,7 @@ import { copyToClipboard, showToast } from './context-menu.js';
 import { OpenDialog } from './open-dialog.js';
 import S from './strings.js';
 import { debug } from './config.js';
-import { engineInfo } from './status-bar.js';
+import { providerInfo } from './status-bar.js';
 import { formatLiteralChord } from './shortcuts.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,7 +232,7 @@ QuickActionsRegistry.register('fork-session', {
     description: S.quick_actions_registry.actions.fork_session.desc,
     category: S.quick_actions_registry.categories.sessions,
     execute: () => getApp()?.forkSession?.(),
-    // Hidden for engines that can't branch a conversation (capabilities.fork=false)
+    // Hidden for providers that can't branch a conversation (capabilities.fork=false)
     isEnabled: () => getApp()?.activeSession?.messages?.length > 0
         && getApp()?.activeSession?.providerCaps?.fork !== false,
 });
@@ -257,10 +257,10 @@ QuickActionsRegistry.register('continue-in-cli', {
     execute: async () => {
         const session = getApp()?.activeSession;
         if (!session?.providerSessionId) return;
-        // Engine-self-described resume command (Claude "claude -r {id}", Codex
-        // "codex exec resume {id}") — never hardcode an engine's resume verb.
-        const engine = engineInfo(session.provider || session.pendingProvider);
-        const tmpl = engine?.cli_resume_template || 'claude -r {id}';
+        // Provider-self-described resume command (Claude "claude -r {id}", Codex
+        // "codex exec resume {id}") — never hardcode a provider's resume verb.
+        const provider = providerInfo(session.provider || session.pendingProvider);
+        const tmpl = provider?.cli_resume_template || 'claude -r {id}';
         const cmd = tmpl.replace('{id}', session.providerSessionId);
         if (await copyToClipboard(cmd)) {
             const shown = tmpl.replace('{id}', session.providerSessionId.slice(0, 8) + '…');

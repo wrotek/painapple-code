@@ -57,7 +57,7 @@ def detect_environment() -> str:
     - Codespaces / dev containers / Kubernetes match first via their definitive
       env vars (they *are* containers; the probes below would swallow them).
     - Then, only inside our image, /.dockerenv vs /run/.containerenv pick the
-      engine. They're written at *runtime*, so they distinguish docker from
+      provider. They're written at *runtime*, so they distinguish docker from
       podman even though the same image runs on both — a baked ENV cannot.
       Neither present (an exotic runtime) falls back to a generic 'container'.
     - A foreign container without our marker reports 'local' on purpose: the
@@ -707,16 +707,16 @@ def save_models_config(config: dict) -> None:
     _models_mtime = 0.0
 
 
-# ─── Per-engine new-session defaults ──────────────────────────────────────────
+# ─── Per-provider new-session defaults ──────────────────────────────────────────
 #
 # Session defaults are per ENGINE: each map is keyed by the provider's
 # `models_key` namespace (driver pairs share — same convention as
 # `models_disabled`). The flat legacy keys (`default_model`, `default_effort`,
 # `default_token_profile`) remain as read fallbacks for configs written before
-# the split; the engine-defaults PUT migrates them into the maps on first
+# the split; the provider-defaults PUT migrates them into the maps on first
 # write and drops them.
 
-def _engine_scoped_default(map_key: str, legacy_key: str, provider):
+def _provider_scoped_default(map_key: str, legacy_key: str, provider):
     cfg = load_global_config()
     scoped_map = cfg.get(map_key)
     ns = getattr(provider, "models_key", None) or provider.name
@@ -727,50 +727,50 @@ def _engine_scoped_default(map_key: str, legacy_key: str, provider):
     return legacy if isinstance(legacy, str) and legacy else None
 
 
-def engine_default_model(provider):
-    """The engine's default new-session model — always CONCRETE when the
-    engine has a catalog.
+def provider_default_model(provider):
+    """The provider's default new-session model — always CONCRETE when the
+    provider has a catalog.
 
-    Resolution: per-engine map → legacy app-wide flat → **the engine's top
+    Resolution: per-provider map → legacy app-wide flat → **the provider's top
     enabled catalog model** (priority-first). The app owns the default; we no
-    longer defer to the engine's own CLI config (the "Default" placeholder is
-    gone). A configured value the engine can't serve — a legacy Claude flat
+    longer defer to the provider's own CLI config (the "Default" placeholder is
+    gone). A configured value the provider can't serve — a legacy Claude flat
     key read by Codex, or a Settings-hidden id — is treated as unset and
-    falls through to the top catalog model, so every engine with a catalog
+    falls through to the top catalog model, so every provider with a catalog
     presents a real, in-catalog default.
 
     Membership is prefix-matched against `enabled_models()` (same as
     `preferred_model_survives`; catalog ids are the short canonical form,
-    stored ids may carry date suffixes). Returns None only for an engine with
+    stored ids may carry date suffixes). Returns None only for a provider with
     NO catalog and no configured value — then the launch path lets the CLI
     use its own configured model (e.g. Codex with no models cache)."""
-    value = _engine_scoped_default("default_models", "default_model", provider)
+    value = _provider_scoped_default("default_models", "default_model", provider)
     enabled_ids = [m.get("id") for m in provider.enabled_models() if m.get("id")]
     if not enabled_ids:
         # No catalog to validate against — trust the value; launch decides.
         return value or None
     if value and any(value.startswith(mid) for mid in enabled_ids):
         return value
-    # Unset / foreign / hidden → the engine's top (highest-priority) model.
+    # Unset / foreign / hidden → the provider's top (highest-priority) model.
     return enabled_ids[0]
 
 
-def engine_default_effort(provider):
-    """The engine's configured default effort, gated to its own vocabulary —
-    a legacy `max` must not leak into an engine that caps at `high`."""
-    value = _engine_scoped_default("default_efforts", "default_effort", provider)
+def provider_default_effort(provider):
+    """The provider's configured default effort, gated to its own vocabulary —
+    a legacy `max` must not leak into a provider that caps at `high`."""
+    value = _provider_scoped_default("default_efforts", "default_effort", provider)
     levels = provider.effort_levels() or []
     if value and levels and value not in levels:
         return None
     return value
 
 
-def engine_default_token_profile(provider):
-    """The engine's configured default account/token profile. None for
-    engines without selectable accounts (profiles are meaningless there)."""
+def provider_default_token_profile(provider):
+    """The provider's configured default account/token profile. None for
+    providers without selectable accounts (profiles are meaningless there)."""
     if not provider.accounts():
         return None
-    return _engine_scoped_default(
+    return _provider_scoped_default(
         "default_token_profiles", "default_token_profile", provider)
 
 

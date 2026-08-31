@@ -235,7 +235,7 @@
     white-space: nowrap;
 }
 
-/* "Always allow" rows — one per engine rule suggestion, below Allow/Deny */
+/* "Always allow" rows — one per provider rule suggestion, below Allow/Deny */
 .permission-suggestions {
     display: flex;
     flex-direction: column;

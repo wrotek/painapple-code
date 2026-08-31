@@ -7,7 +7,7 @@
  * Permission levels are stored PER SESSION, allowing different modes
  * for different conversations.
  *
- * The mode list itself is engine vocabulary: each provider self-describes
+ * The mode list itself is provider vocabulary: each provider self-describes
  * its modes (value/label/desc/color), delivered alongside the permission
  * endpoints (`GET /api/session/{id}/permission-mode`,
  * `GET /api/app/default-permissions`). The strings.yaml level table is
@@ -17,10 +17,10 @@
 
 import { CONFIG } from './config.js';
 import S from './strings.js';
-// Engine registry lookup (status-bar owns the /api/providers cache; it does
+// Provider registry lookup (status-bar owns the /api/providers cache; it does
 // not import this module, so no cycle). Used to seed the mode vocabulary
 // synchronously on tab switch — the fetches below only confirm.
-import { engineInfo } from './status-bar.js';
+import { providerInfo } from './status-bar.js';
 
 // Pre-fetch fallback modes from strings.yaml (shape matches the provider's
 // permission_modes() dicts). Replaced by server-delivered lists on load.
@@ -38,8 +38,8 @@ class PermissionSettingsManager {
         this.currentLevel = 'dontAsk';   // mode value from this.modes
         this.currentSessionId = null;
         this.globalDefault = 'dontAsk';  // Default for normal chat
-        this.modes = FALLBACK_MODES;        // active session's engine modes
-        this.defaultModes = FALLBACK_MODES; // effective default engine's modes
+        this.modes = FALLBACK_MODES;        // active session's provider modes
+        this.defaultModes = FALLBACK_MODES; // effective default provider's modes
     }
 
     /**
@@ -96,7 +96,7 @@ class PermissionSettingsManager {
 
     /**
      * Look up a mode by value in the active list (fallback: strings.yaml set,
-     * so a level persisted under another engine still labels the button).
+     * so a level persisted under another provider still labels the button).
      */
     _modeInfo(value) {
         return this.modes.find(m => m.value === value)
@@ -105,7 +105,7 @@ class PermissionSettingsManager {
     }
 
     /**
-     * Adopt a server-delivered mode list (the session engine's own vocabulary)
+     * Adopt a server-delivered mode list (the session provider's own vocabulary)
      * and re-render the popup if it changed.
      */
     _applyModes(modes) {
@@ -143,9 +143,9 @@ class PermissionSettingsManager {
     }
 
     /**
-     * Synchronous seed on session switch: adopt the session engine's mode
+     * Synchronous seed on session switch: adopt the session provider's mode
      * vocabulary from the registry and the session's cached/pending level, so
-     * the first paint after a tab switch is engine-correct. The server fetch
+     * the first paint after a tab switch is provider-correct. The server fetch
      * in setSession() then merely confirms (and refreshes the caches).
      */
     _seedFromSession(opts = {}) {
@@ -155,7 +155,7 @@ class PermissionSettingsManager {
                 ? opts.pendingProvider
                 : session?.pendingProvider)
             || null;
-        const eng = engName ? engineInfo(engName) : null;
+        const eng = engName ? providerInfo(engName) : null;
         if (eng?.permission_modes?.length) {
             this._applyModes(eng.permission_modes);
         } else if (!engName) {
@@ -178,8 +178,8 @@ class PermissionSettingsManager {
         this._seedFromSession(opts);
 
         if (!sessionId) {
-            // Unconnected session — show the modes of the engine it WILL run
-            // on: the tab's picked engine (pendingProvider) if any, else the
+            // Unconnected session — show the modes of the provider it WILL run
+            // on: the tab's picked provider (pendingProvider) if any, else the
             // box default. Restore any pending choice stashed on the session
             // object, or fall back to global default.
             const session = window.app?.activeSession;
@@ -196,14 +196,14 @@ class PermissionSettingsManager {
                         if (Array.isArray(data.modes) && data.modes.length) {
                             this._applyModes(data.modes);
                         }
-                        // A stashed choice only survives if this engine speaks it.
+                        // A stashed choice only survives if this provider speaks it.
                         this.currentLevel = this._modeInfo(session?.pendingPermission)
                             ? session.pendingPermission
                             : (this._modeInfo(data.default_level) ? data.default_level : this.currentLevel);
                         this.updateButtonState();
                         return;
                     }
-                } catch (err) { /* fall through to default-engine modes */ }
+                } catch (err) { /* fall through to default-provider modes */ }
                 if (this.currentSessionId !== sessionId) return;
             }
             this._applyModes(this.defaultModes);
@@ -223,8 +223,8 @@ class PermissionSettingsManager {
                 // A brand-new session has no stored per-session level yet. Fall
                 // back to the global default (e.g. YOLO) rather than a hardcoded
                 // 'dontAsk', which would silently override it after first send.
-                // A global default this engine doesn't speak (cross-provider)
-                // falls through to the engine's own default.
+                // A global default this provider doesn't speak (cross-provider)
+                // falls through to the provider's own default.
                 this.currentLevel = this._modeInfo(data.permission_level)
                     ? data.permission_level
                     : (this._modeInfo(this.globalDefault)
@@ -318,7 +318,7 @@ class PermissionSettingsManager {
 
         // If there's a WebSocket connection, send permission mode change.
         // On live-controls providers (claude-sdk) the server applies it to
-        // the running engine immediately — even mid-turn; elsewhere it takes
+        // the running provider immediately — even mid-turn; elsewhere it takes
         // effect on the next message via the lazy respawn. The reply's
         // `applied` field says which one happened.
         const session = window.app?.activeSession;
@@ -393,10 +393,10 @@ class PermissionSettingsManager {
             || this._modeInfo('bypassPermissions')
             || this.modes[0];
         this.btn.dataset.level = this.currentLevel;
-        // Inline color so engine-specific modes need no per-mode CSS rule
+        // Inline color so provider-specific modes need no per-mode CSS rule
         this.btn.style.color = info.color || '';
         // strings.yaml carries hand-written tooltips for the common modes;
-        // engine-specific extras fall back to the template.
+        // provider-specific extras fall back to the template.
         const tooltip = S.permissions.levels[this.currentLevel]?.tooltip
             || S.permissions.tooltip_template
                 .replace('{label}', info.label)

@@ -134,7 +134,7 @@ def _load_entry_point_providers(found: dict[str, Provider]) -> None:
     ``painapple_code.providers`` entry-point group into ``found``.
 
     Runs after the in-tree scan, so first-wins means a third-party package can
-    *add* an engine but never shadow a built-in name (e.g. ``claude``). A
+    *add* a provider but never shadow a built-in name (e.g. ``claude``). A
     failing entry point is logged and skipped — a broken plugin can't take down
     the registry.
     """
@@ -156,7 +156,7 @@ def _load_entry_point_providers(found: dict[str, Provider]) -> None:
 
 def _ordered(found: dict[str, Provider]) -> dict[str, Provider]:
     """Deterministic picker order: the default first, then alphabetical — so the
-    engine list is stable regardless of filesystem/import order."""
+    provider list is stable regardless of filesystem/import order."""
     names = sorted(found, key=lambda n: (n != DEFAULT_PROVIDER, n))
     return {n: found[n] for n in names}
 
@@ -166,12 +166,12 @@ def _ordered(found: dict[str, Provider]) -> dict[str, Provider]:
 _PROVIDERS: dict[str, Provider] = _discover_providers()
 
 
-# Removed engines → their successor in the SAME family. Sessions persist the
+# Removed providers → their successor in the SAME family. Sessions persist the
 # provider name in meta.json/DuckDB forever, so the plain CLI drivers that were
 # deregistered (claude line-protocol → claude-sdk, wire-identical; codex exec →
 # codex-app-server, same $CODEX_HOME rollout store and thread ids) must resolve
 # to their sibling — NOT fall through to the global default, which would send
-# an old codex-bound session to a Claude engine holding a Codex thread id.
+# an old codex-bound session to a Claude provider holding a Codex thread id.
 _LEGACY_ALIASES = {
     "claude": "claude-sdk",
     "codex": "codex-app-server",
@@ -181,7 +181,7 @@ _LEGACY_ALIASES = {
 def get_provider(name: str | None = None) -> Provider:
     """Resolve a provider by name, falling back to the default (Claude).
 
-    Legacy names of removed engines resolve to their same-family successor
+    Legacy names of removed providers resolve to their same-family successor
     (see `_LEGACY_ALIASES`); a third-party provider that registers one of
     those names wins over the alias. Other unknown names fall back to the
     default provider with no error so a stale or typo'd persisted `provider`
@@ -211,7 +211,7 @@ def all_providers() -> list[Provider]:
 def valid_permission_values() -> set[str]:
     """Every permission value any provider accepts — the union of every
     provider's registered ``permission_modes()`` (Claude included; it's just
-    another provider). No engine is special-cased.
+    another provider). No provider is special-cased.
 
     The permission endpoints validate against this so each provider's own
     vocabulary (Claude's plan/dontAsk/…, Codex's read-only/workspace-write/…) is

@@ -23,7 +23,7 @@ import {
 } from '../welcome.js';
 import { SessionContainerPool, useContainerPool } from '../session-container-pool.js';
 import { showToast } from '../context-menu.js';
-import { engineAuthorLabel } from '../status-bar.js';
+import { providerAuthorLabel } from '../status-bar.js';
 import S from '../strings.js';
 import { basename, isAbsolutePath, joinPath } from '../path-utils.js';
 import { renderStashRefs } from '../stash-refs-view.js';
@@ -460,14 +460,14 @@ export class ChatController {
 
     /**
      * Author shown in a bubble's header. Every role but `assistant` names
-     * itself; the assistant is the session's ENGINE ("claude", "codex", …),
+     * itself; the assistant is the session's PROVIDER ("claude", "codex", …),
      * so a Codex transcript never claims to be authored by Claude. Shared by
      * the live path (renderMessage) and the re-render/lazy-load path
      * (createMessageElement) so both agree after a reload.
      */
     _authorLabel(msg) {
         return msg.role === 'assistant'
-            ? escapeHtml(engineAuthorLabel(this.ctx.session))
+            ? escapeHtml(providerAuthorLabel(this.ctx.session))
             : msg.role;
     }
 
@@ -3149,17 +3149,17 @@ export class ChatController {
      * @returns {HTMLElement} The approval card element
      */
     /**
-     * Auth-error affordance — the engine CLI returned 401 / expired token.
-     * Renders the reason plus a one-click button into the engine's own login
+     * Auth-error affordance — the provider CLI returned 401 / expired token.
+     * Renders the reason plus a one-click button into the provider's own login
      * PTY (`claude auth login` / `codex login --device-auth`, carried on the
-     * message as `loginCommand`; label from `engine`). Shared by renderMessage
+     * message as `loginCommand`; label from `provider`). Shared by renderMessage
      * (live) and createMessageElement (re-render/lazy-load) so the button
      * survives session switches and page reloads.
      */
     _renderAuthError(msg) {
-        // `engine` fallback: auth_error messages persisted before the
-        // Engines→Providers rename still carry the old field name.
-        const providerLabel = msg.providerLabel || msg.engine || 'Claude';
+        // `provider` fallback: auth_error messages persisted before the
+        // Providers→Providers rename still carry the old field name.
+        const providerLabel = msg.providerLabel || msg.provider || 'Claude';
         const div = document.createElement('div');
         div.className = 'message error auth-error';
         div.id = `msg-${msg.id}`;
@@ -3353,8 +3353,8 @@ export class ChatController {
                     ${feedbackHtml}
                 </div>`;
         } else {
-            // "Always allow" rows — one per engine rule-suggestion on the ask.
-            // Answering with a row allows the call AND has the engine persist
+            // "Always allow" rows — one per provider rule-suggestion on the ask.
+            // Answering with a row allows the call AND has the provider persist
             // that rule (addRules / addDirectories / setMode), like the CLI's
             // "yes, don't ask again" options.
             const sugRows = (Array.isArray(msg.suggestions) ? msg.suggestions : [])
@@ -3527,7 +3527,7 @@ export class ChatController {
     }
 
     /**
-     * Human label for one engine permission-rule suggestion. Unknown types
+     * Human label for one provider permission-rule suggestion. Unknown types
      * return null and are not rendered (we never offer what we can't explain).
      */
     _permissionSuggestionLabel(s) {

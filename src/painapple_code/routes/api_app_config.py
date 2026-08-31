@@ -3,7 +3,7 @@ App Config API Routes - app-wide settings.
 
 These endpoints manage:
 - Quick Action Presets (~/.painapple-code/presets/*.json)
-- Engine CLI binary paths (per-provider, self-described config keys)
+- Provider CLI binary paths (per-provider, self-described config keys)
 - Max thinking tokens
 - API auto-retry max
 - Default permission levels
@@ -62,7 +62,7 @@ async def delete_preset(preset_id: str):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Engine CLI paths (per-provider binary override, self-described key)
+# Provider CLI paths (per-provider binary override, self-described key)
 # ═══════════════════════════════════════════════════════════════════
 
 def _provider_or_404(name: str):
@@ -72,11 +72,11 @@ def _provider_or_404(name: str):
     return get_provider(name)
 
 
-async def _engine_path_payload(p) -> dict:
-    """Current binary override + resolution/version probe for one engine.
+async def _provider_path_payload(p) -> dict:
+    """Current binary override + resolution/version probe for one provider.
 
     ``path`` is the raw config value (None = unset → ``default_binary`` from
-    PATH). Same-engine driver variants share a config key (both providers
+    PATH). Same-provider driver variants share a config key (both providers
     self-describe the same one), so the payload is identical across them.
     """
     if not p.path_config_key:
@@ -116,16 +116,16 @@ async def _engine_path_payload(p) -> dict:
     }
 
 
-@router.get("/api/app/engine-path/{provider_name}")
-async def get_engine_path(provider_name: str):
-    """Configured CLI binary for one engine (provider self-describes the
-    config key — nothing per-engine is hardcoded here)."""
-    return await _engine_path_payload(_provider_or_404(provider_name))
+@router.get("/api/app/provider-path/{provider_name}")
+async def get_provider_path(provider_name: str):
+    """Configured CLI binary for one provider (provider self-describes the
+    config key — nothing per-provider is hardcoded here)."""
+    return await _provider_path_payload(_provider_or_404(provider_name))
 
 
-@router.put("/api/app/engine-path/{provider_name}")
-async def set_engine_path(provider_name: str, request: Request):
-    """Set (or clear with null/empty) an engine's CLI binary path.
+@router.put("/api/app/provider-path/{provider_name}")
+async def set_provider_path(provider_name: str, request: Request):
+    """Set (or clear with null/empty) a provider's CLI binary path.
 
     Explicit paths must exist and be files; clearing always succeeds (falls
     back to ``default_binary`` on PATH — availability just reflects reality,
@@ -153,17 +153,17 @@ async def set_engine_path(provider_name: str, request: Request):
         config[p.path_config_key] = new_path
 
     paths.save_global_config(config)
-    logger.info(f"Engine path for {p.name} ({p.path_config_key}) updated to: {new_path or '(default)'}")
+    logger.info(f"Provider path for {p.name} ({p.path_config_key}) updated to: {new_path or '(default)'}")
 
-    return await _engine_path_payload(p)
+    return await _provider_path_payload(p)
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Engine model visibility (per-model show/hide, self-described namespace)
+# Provider model visibility (per-model show/hide, self-described namespace)
 # ═══════════════════════════════════════════════════════════════════
 
-def _engine_models_payload(p) -> dict:
-    """One engine's FULL catalog with per-model `enabled` flags merged in.
+def _provider_models_payload(p) -> dict:
+    """One provider's FULL catalog with per-model `enabled` flags merged in.
 
     Settings needs the unfiltered list (hidden models render with their
     toggle off) — unlike /api/providers, which serves `enabled_models()`
@@ -183,15 +183,15 @@ def _engine_models_payload(p) -> dict:
     }
 
 
-@router.get("/api/app/engine-models/{provider_name}")
-async def get_engine_models(provider_name: str):
-    """Full model catalog + visibility flags for one engine."""
-    return _engine_models_payload(_provider_or_404(provider_name))
+@router.get("/api/app/provider-models/{provider_name}")
+async def get_provider_models(provider_name: str):
+    """Full model catalog + visibility flags for one provider."""
+    return _provider_models_payload(_provider_or_404(provider_name))
 
 
-@router.put("/api/app/engine-models/{provider_name}")
-async def set_engine_models(provider_name: str, request: Request):
-    """Replace the hidden-model set for one engine: ``{disabled: [ids]}``.
+@router.put("/api/app/provider-models/{provider_name}")
+async def set_provider_models(provider_name: str, request: Request):
+    """Replace the hidden-model set for one provider: ``{disabled: [ids]}``.
 
     Stored under the provider's `models_key` namespace, so driver variants
     sharing a catalog (claude/claude-sdk, codex/codex-app-server) share the
@@ -222,16 +222,16 @@ async def set_engine_models(provider_name: str, request: Request):
     paths.save_global_config(config)
     logger.info(f"Hidden models for {key}: {cleaned or '(none)'}")
 
-    return _engine_models_payload(p)
+    return _provider_models_payload(p)
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Engine CLI auth (login-status probe, self-described commands)
+# Provider CLI auth (login-status probe, self-described commands)
 # ═══════════════════════════════════════════════════════════════════
 
-@router.get("/api/app/engine-auth/{provider_name}")
-async def get_engine_auth(provider_name: str):
-    """Login status for one engine's CLI (Settings → Engines auth row).
+@router.get("/api/app/provider-auth/{provider_name}")
+async def get_provider_auth(provider_name: str):
+    """Login status for one provider's CLI (Settings → Providers auth row).
 
     Runs the provider's self-described `auth_status_args` probe against the
     configured binary and returns its parsed verdict plus `login_command` —
@@ -283,15 +283,15 @@ async def get_engine_auth(provider_name: str):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Engine session defaults (per-engine model / effort / account / journal)
+# Provider session defaults (per-provider model / effort / account / journal)
 # ═══════════════════════════════════════════════════════════════════
 #
 # Maps in the global config keyed by the provider's `models_key` namespace
 # (driver pairs share, same as `models_disabled`):
 #   default_models / default_efforts / default_token_profiles
 # The flat legacy keys survive as read fallbacks; the first PUT folds them
-# into map entries for every engine that can speak the value, then drops
-# them — so clearing a per-engine default actually sticks.
+# into map entries for every provider that can speak the value, then drops
+# them — so clearing a per-provider default actually sticks.
 
 _DEFAULTS_FIELDS = [
     # (request/response field, config map key, legacy flat key)
@@ -301,8 +301,8 @@ _DEFAULTS_FIELDS = [
 ]
 
 
-def _engine_speaks_default(p, field: str, value: str) -> bool:
-    """Whether an engine can hold `value` as its default for `field`."""
+def _provider_speaks_default(p, field: str, value: str) -> bool:
+    """Whether a provider can hold `value` as its default for `field`."""
     if field == "default_model":
         return any(
             value.startswith(m["id"])
@@ -316,11 +316,11 @@ def _engine_speaks_default(p, field: str, value: str) -> bool:
 
 
 def _migrate_legacy_default(config: dict, field: str, map_key: str, legacy_key: str) -> None:
-    """Fold a legacy flat default into per-engine map entries, then drop it.
+    """Fold a legacy flat default into per-provider map entries, then drop it.
 
-    Seeds every engine namespace that can speak the value and has no
+    Seeds every provider namespace that can speak the value and has no
     explicit entry — behavior is unchanged the moment the flat key
-    disappears, and per-engine clears stop resurrecting it."""
+    disappears, and per-provider clears stop resurrecting it."""
     legacy = config.get(legacy_key)
     if not isinstance(legacy, str) or not legacy:
         config.pop(legacy_key, None)
@@ -334,20 +334,20 @@ def _migrate_legacy_default(config: dict, field: str, map_key: str, legacy_key: 
         if ns in seen:
             continue
         seen.add(ns)
-        if ns not in overrides and _engine_speaks_default(p, field, legacy):
+        if ns not in overrides and _provider_speaks_default(p, field, legacy):
             overrides[ns] = legacy
     if overrides:
         config[map_key] = overrides
     config.pop(legacy_key, None)
 
 
-def _engine_defaults_payload(p) -> dict:
+def _provider_defaults_payload(p) -> dict:
     return {
         "provider": p.name,
         "models_key": p.models_key or p.name,
-        "default_model": paths.engine_default_model(p),
-        "default_effort": paths.engine_default_effort(p),
-        "token_profile": paths.engine_default_token_profile(p),
+        "default_model": paths.provider_default_model(p),
+        "default_effort": paths.provider_default_effort(p),
+        "token_profile": paths.provider_default_token_profile(p),
         "efforts": p.effort_levels(),
         "accounts": p.accounts(),
         "summary_supported": p.summary_model_editable(),
@@ -357,19 +357,19 @@ def _engine_defaults_payload(p) -> dict:
     }
 
 
-@router.get("/api/app/engine-defaults/{provider_name}")
-async def get_engine_defaults(provider_name: str):
-    """One engine's new-session defaults + auto-journal model."""
-    return _engine_defaults_payload(_provider_or_404(provider_name))
+@router.get("/api/app/provider-defaults/{provider_name}")
+async def get_provider_defaults(provider_name: str):
+    """One provider's new-session defaults + auto-journal model."""
+    return _provider_defaults_payload(_provider_or_404(provider_name))
 
 
-@router.put("/api/app/engine-defaults/{provider_name}")
-async def set_engine_defaults(provider_name: str, request: Request):
-    """Set any subset of one engine's defaults.
+@router.put("/api/app/provider-defaults/{provider_name}")
+async def set_provider_defaults(provider_name: str, request: Request):
+    """Set any subset of one provider's defaults.
 
     Body: ``{default_model?, default_effort?, token_profile?, summary_model?}``
-    — null/empty clears a key (model/effort/profile fall back to the engine's
-    own default; the journal override falls back per engine: Codex inherits
+    — null/empty clears a key (model/effort/profile fall back to the provider's
+    own default; the journal override falls back per provider: Codex inherits
     the session model, Claude resets to the shipped summary model).
     """
     p = _provider_or_404(provider_name)
@@ -415,7 +415,7 @@ async def set_engine_defaults(provider_name: str, request: Request):
 
     if maps_changed:
         paths.save_global_config(config)
-        logger.info(f"Engine defaults for {ns} updated")
+        logger.info(f"Provider defaults for {ns} updated")
 
     # After the config save — the provider setter re-reads/writes its own
     # store (global config for Codex, models.yaml for Claude).
@@ -428,9 +428,9 @@ async def set_engine_defaults(provider_name: str, request: Request):
                 status_code=400,
                 detail=f"{p.display_name} has no journal-model setting")
         p.set_summary_model_override(raw)
-        logger.info(f"Journal model for {p.name} set to: {(raw or '').strip() or '(engine default)'}")
+        logger.info(f"Journal model for {p.name} set to: {(raw or '').strip() or '(provider default)'}")
 
-    return _engine_defaults_payload(p)
+    return _provider_defaults_payload(p)
 
 
 @router.get("/api/app/max-thinking-tokens")
@@ -580,13 +580,13 @@ async def set_sigint_on_ask(request: Request):
 @router.get("/api/app/default-permissions")
 async def get_default_permissions(request: Request, provider: str = None):
     """Get the global default permission level, plus the mode vocabulary of the
-    engine new sessions run on (the effective default provider — the
+    provider new sessions run on (the effective default provider — the
     --default-provider flag / `default_provider` config key, not always Claude).
 
-    `provider` overrides which engine's vocabulary is returned — the picker
-    uses it so a pre-connect tab that chose a different engine shows that
-    engine's modes, not the box default's. The stored global level only
-    applies when it's valid in the resolved engine's own vocabulary (a Claude
+    `provider` overrides which provider's vocabulary is returned — the picker
+    uses it so a pre-connect tab that chose a different provider shows that
+    provider's modes, not the box default's. The stored global level only
+    applies when it's valid in the resolved provider's own vocabulary (a Claude
     `acceptEdits` default means nothing to Codex's sandbox tiers)."""
     from painapple_code.providers import get_provider, provider_names
     from painapple_code.routes.dependencies import effective_default_provider
@@ -611,7 +611,7 @@ async def set_default_permissions(request: Request):
     body = await request.json()
     value = body.get("permission_level")
 
-    # The global default feeds the effective default engine's sessions, so
+    # The global default feeds the effective default provider's sessions, so
     # validate against that provider's own modes (not a hardcoded set) and
     # treat its own default as the "unset" sentinel.
     from painapple_code.routes.dependencies import effective_default_provider
@@ -638,13 +638,13 @@ async def set_default_permissions(request: Request):
 
 @router.get("/api/app/token-profiles")
 async def get_token_profiles(request: Request):
-    """List available token profiles and the default engine's default."""
+    """List available token profiles and the default provider's default."""
     from painapple_code.routes.dependencies import effective_default_provider
     from painapple_code.utils.token_profiles import list_profiles
     profiles = list_profiles()
     # Legacy shape; the default shown is the DEFAULT ENGINE's configured
-    # profile (per-engine `default_token_profiles` map, flat key fallback).
-    default = paths.engine_default_token_profile(
+    # profile (per-provider `default_token_profiles` map, flat key fallback).
+    default = paths.provider_default_token_profile(
         effective_default_provider(request.app))
     return {
         "profiles": profiles,
@@ -742,12 +742,12 @@ async def reset_models():
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Default Provider (engine for new sessions)
+# Default Provider (provider for new sessions)
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get("/api/app/default-provider")
 async def get_default_provider(request: Request):
-    """The engine NEW sessions get when the picker isn't touched.
+    """The provider NEW sessions get when the picker isn't touched.
 
     `effective` is the resolved answer (--default-provider flag →
     `default_provider` config key → registry default). `configured` is the
@@ -791,15 +791,15 @@ async def set_default_provider(request: Request):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# Providers enabled (which engines the picker offers)
+# Providers enabled (which providers the picker offers)
 # ═══════════════════════════════════════════════════════════════════
 
 @router.get("/api/app/providers-enabled")
 async def get_providers_enabled(request: Request):
-    """Per-engine picker visibility.
+    """Per-provider picker visibility.
 
     `effective` is what the picker uses ({name: bool}; config override →
-    provider's own `default_enabled`, with the default engine forced on).
+    provider's own `default_enabled`, with the default provider forced on).
     `configured` is the raw `providers_enabled` config map (only names the
     user has explicitly toggled)."""
     from painapple_code.routes.dependencies import provider_enabled_map
@@ -812,12 +812,12 @@ async def get_providers_enabled(request: Request):
 
 @router.put("/api/app/providers-enabled")
 async def set_provider_enabled(request: Request):
-    """Toggle one engine in/out of the picker: `{provider, enabled}`.
+    """Toggle one provider in/out of the picker: `{provider, enabled}`.
 
     `enabled: null` clears the override (back to the provider's own
     `default_enabled`). Disabling affects only the picker listing — bound
     sessions and explicit API selection keep working; the effective default
-    engine reads back enabled regardless."""
+    provider reads back enabled regardless."""
     from painapple_code.providers import provider_names
     body = await request.json()
     name = body.get("provider")
@@ -851,13 +851,13 @@ async def set_provider_enabled(request: Request):
 async def get_default_model(request: Request):
     """Legacy wrapper: the DEFAULT ENGINE's configured new-session model.
 
-    Storage moved to the per-engine `default_models` map (see
-    engine-defaults); this endpoint stays for old callers and reads/writes
-    through the default engine's entry.
+    Storage moved to the per-provider `default_models` map (see
+    provider-defaults); this endpoint stays for old callers and reads/writes
+    through the default provider's entry.
     """
     from painapple_code.routes.dependencies import effective_default_provider
     p = effective_default_provider(request.app)
-    return {"default_model": paths.engine_default_model(p)}
+    return {"default_model": paths.provider_default_model(p)}
 
 
 @router.put("/api/app/default-model")
@@ -899,13 +899,13 @@ DEFAULT_EFFORT = "high"
 async def get_default_effort(request: Request):
     """Legacy wrapper: the DEFAULT ENGINE's configured default effort.
 
-    Storage moved to the per-engine `default_efforts` map (see
-    engine-defaults); this stays for old callers (effort popup fallback).
+    Storage moved to the per-provider `default_efforts` map (see
+    provider-defaults); this stays for old callers (effort popup fallback).
     """
     from painapple_code.routes.dependencies import effective_default_provider
     p = effective_default_provider(request.app)
     return {
-        "default_effort": paths.engine_default_effort(p) or DEFAULT_EFFORT,
+        "default_effort": paths.provider_default_effort(p) or DEFAULT_EFFORT,
         "valid_levels": p.effort_levels() or sorted(VALID_EFFORT_LEVELS),
         "default": DEFAULT_EFFORT,
     }

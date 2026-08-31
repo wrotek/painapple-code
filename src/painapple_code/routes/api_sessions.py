@@ -43,8 +43,8 @@ async def list_sessions():
 async def create_session(request: Request, cwd: str, name: str = None, provider: str = None):
     """Create a new session.
 
-    `provider` picks the engine for this session (recorded in meta, permanent —
-    the session's provider_session_id only means anything to that engine).
+    `provider` picks the provider for this session (recorded in meta, permanent —
+    the session's provider_session_id only means anything to that provider).
     Unknown names 400 — REST callers asked for it explicitly, so failing loud
     beats a silent claude-sdk fallback. Omitted → the same effective default a
     WS-created session gets (--default-provider flag / `default_provider`
@@ -66,8 +66,8 @@ async def create_session(request: Request, cwd: str, name: str = None, provider:
         SessionStore.update_metadata(session_data["id"], provider=provider_name)
         session_data["provider"] = provider_name
         # Bind-time permission anchoring — same contract as the WS create
-        # path: a global default level this engine doesn't speak is replaced
-        # by the engine's own default so meta, UI, and launch agree.
+        # path: a global default level this provider doesn't speak is replaced
+        # by the provider's own default so meta, UI, and launch agree.
         from painapple_code.routes.dependencies import bind_permission_level
         anchored = bind_permission_level(None, get_provider(provider_name))
         if anchored:
@@ -111,7 +111,7 @@ async def stop_session(session_id: str):
     REST twin of the WebSocket `stop` message (`_handle_stop` in ws_chat.py),
     for surfaces that hold no socket to the session — the Active Sessions
     widget lists every live session but is attached to none of them. Same
-    engine-aware path (`interrupt_agent`): JSON-RPC turn/interrupt or SDK
+    provider-aware path (`interrupt_agent`): JSON-RPC turn/interrupt or SDK
     control-plane where the provider supports it (process stays warm), SIGINT
     otherwise. Precedent: f513748a gave worktrees a stop endpoint after its
     widget's stop button was found calling DELETE — the same bug shape this
@@ -236,7 +236,7 @@ async def set_session_thinking_tokens(session_id: str, request: Request):
 
 def _get_default_permission_level() -> str:
     """Get the default permission level from config, falling back to the default
-    provider's own default (no hardcoded engine vocabulary)."""
+    provider's own default (no hardcoded provider vocabulary)."""
     from painapple_code.providers import get_provider, DEFAULT_PROVIDER
     config = paths.load_global_config()
     return config.get("default_permission_level") or get_provider(DEFAULT_PROVIDER).default_permission_mode()
@@ -245,7 +245,7 @@ def _get_default_permission_level() -> str:
 @router.get("/api/session/{session_id}/permission-mode")
 async def get_session_permission_mode(session_id: str, request: Request):
     """Get the permission mode for a specific session, plus the mode vocabulary
-    of the engine that session runs on (drives the client's permission picker —
+    of the provider that session runs on (drives the client's permission picker —
     each provider self-describes its modes, e.g. claude-sdk adds "Ask")."""
     meta = SessionStore.load_meta(session_id)
     if not meta:
@@ -302,7 +302,7 @@ async def get_session_token_profile(session_id: str):
     from painapple_code.providers import get_provider
     session_profile = meta.get("token_profile")
     # The default shown/used is the SESSION ENGINE's configured profile.
-    global_default = paths.engine_default_token_profile(
+    global_default = paths.provider_default_token_profile(
         get_provider(meta.get("provider")))
 
     return {
@@ -362,7 +362,7 @@ async def get_session_model(session_id: str):
     session_model = meta.get("preferred_model")
     # The default shown by the chip is the SESSION ENGINE's configured model
     # (models_key-scoped map, legacy flat key as fallback).
-    global_default = paths.engine_default_model(
+    global_default = paths.provider_default_model(
         get_provider(meta.get("provider")))
 
     return {
@@ -417,7 +417,7 @@ async def get_session_effort(session_id: str):
     from painapple_code.providers import get_provider
     session_effort = meta.get("effort_level")
     # The default is the SESSION ENGINE's configured effort (vocab-gated).
-    global_default = paths.engine_default_effort(
+    global_default = paths.provider_default_effort(
         get_provider(meta.get("provider"))) or "high"
 
     return {
@@ -471,10 +471,10 @@ async def set_session_effort(session_id: str, request: Request):
 
 @router.get("/api/session/{session_id}/provider")
 async def get_session_provider(session_id: str, request: Request):
-    """This session's engine + whether it can still be changed.
+    """This session's provider + whether it can still be changed.
 
     `locked` flips permanently once the session has run a turn (or holds an
-    upstream provider_session_id) — the conversation lives in that engine's
+    upstream provider_session_id) — the conversation lives in that provider's
     own on-disk format and can't transfer."""
     from painapple_code.providers import get_provider
     from painapple_code.routes.dependencies import effective_default_provider, provider_is_locked
@@ -483,9 +483,9 @@ async def get_session_provider(session_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Session not found")
     configured = meta.get("provider")
     if configured:
-        # Canonicalize legacy names of removed engines (claude → claude-sdk,
-        # codex → codex-app-server) so the client's engine chip/picker — which
-        # only knows registered engines — always gets a resolvable name.
+        # Canonicalize legacy names of removed providers (claude → claude-sdk,
+        # codex → codex-app-server) so the client's provider chip/picker — which
+        # only knows registered providers — always gets a resolvable name.
         configured = get_provider(configured).name
     default_name = effective_default_provider(request.app).name
     return {
@@ -498,11 +498,11 @@ async def get_session_provider(session_id: str, request: Request):
 
 @router.put("/api/session/{session_id}/provider")
 async def set_session_provider(session_id: str, request: Request):
-    """Switch an EMPTY session to another engine (409 once locked).
+    """Switch an EMPTY session to another provider (409 once locked).
 
     Also hot-swaps a live in-memory session: the provider object and its cost
     state are replaced in place, and an idle warm process (spawned for the old
-    engine) is stopped so the next message launches on the new one."""
+    provider) is stopped so the next message launches on the new one."""
     from painapple_code.providers import get_provider, provider_names
     from painapple_code.routes.dependencies import provider_is_locked
     meta = SessionStore.load_meta(session_id)
@@ -525,11 +525,11 @@ async def set_session_provider(session_id: str, request: Request):
 
     SessionStore.update_metadata(session_id, provider=value)
 
-    # Re-anchor the permission level to the new engine's vocabulary: a level
-    # from the old engine (Claude's dontAsk on a switch to Codex, a sandbox
+    # Re-anchor the permission level to the new provider's vocabulary: a level
+    # from the old provider (Claude's dontAsk on a switch to Codex, a sandbox
     # tier on the way back) would launch through a silent back-compat mapping
-    # the UI can't label. Stamping the new engine's own default keeps meta,
-    # UI, and launch agreeing. A level both engines speak survives.
+    # the UI can't label. Stamping the new provider's own default keeps meta,
+    # UI, and launch agreeing. A level both providers speak survives.
     from painapple_code.routes.dependencies import (
         bind_permission_level,
         preferred_model_survives,
@@ -540,9 +540,9 @@ async def set_session_provider(session_id: str, request: Request):
         SessionStore.update_metadata(session_id, permission_level=anchored)
 
     # Same contract for the model pick: a preferred_model from the old
-    # engine's catalog (a Claude id on a switch to Codex, a gpt id on the way
-    # back) is cleared so the session falls back to the new engine's own
-    # default instead of launching a model the engine drops or rejects.
+    # provider's catalog (a Claude id on a switch to Codex, a gpt id on the way
+    # back) is cleared so the session falls back to the new provider's own
+    # default instead of launching a model the provider drops or rejects.
     model_cleared = not preferred_model_survives(
         meta.get("preferred_model"), get_provider(value))
     if model_cleared:
@@ -555,7 +555,7 @@ async def set_session_provider(session_id: str, request: Request):
             live_session.provider = get_provider(value)
             live_session._cost_state = live_session.provider.new_cost_state()
             # Mirror the anchoring into the in-memory overrides — they win
-            # over meta at launch, so a stale old-engine value here would
+            # over meta at launch, so a stale old-provider value here would
             # undo the re-stamp above.
             if anchored:
                 live_session.permission_mode = anchored
@@ -582,7 +582,7 @@ async def fork_session(session_id: str, comment_thread: bool = False, thread_anc
             detail="Cannot fork: source session has no Claude conversation"
         )
 
-    # Engines that can't branch a conversation (capabilities.fork=False, e.g.
+    # Providers that can't branch a conversation (capabilities.fork=False, e.g.
     # ephemeral `codex exec`) fail loud here rather than minting a fork meta
     # that would error on its first turn.
     from painapple_code.providers import get_provider
@@ -620,12 +620,12 @@ async def fork_session(session_id: str, comment_thread: bool = False, thread_anc
         source_token_profile = source_meta.get("token_profile")
         if source_token_profile:
             meta["token_profile"] = source_token_profile
-        # Inherit the source's engine + launch settings so the branch continues
+        # Inherit the source's provider + launch settings so the branch continues
         # on the same provider/model/effort/permissions rather than the app
         # defaults. `provider` is essential for correctness: without it the fork
-        # falls back to the default engine (Claude) and can't resume the source's
+        # falls back to the default provider (Claude) and can't resume the source's
         # thread — e.g. a Codex thread id handed to Claude resumes nothing and the
-        # turn errors. (Native forking only happens within one engine.)
+        # turn errors. (Native forking only happens within one provider.)
         for key in ("provider", "permission_mode", "model", "effort"):
             val = source_meta.get(key)
             if val is not None:

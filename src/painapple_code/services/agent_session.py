@@ -648,11 +648,11 @@ class AgentManager:
                     model_choice = meta["preferred_model"]
             if not model_choice:
                 from painapple_code.routes.dependencies import preferred_model_survives
-                # Per-engine default (models_key-scoped map, legacy flat key
+                # Per-provider default (models_key-scoped map, legacy flat key
                 # as fallback) — still catalog-gated: honor it only when this
-                # engine actually offers it (empty catalog = engine decides),
+                # provider actually offers it (empty catalog = provider decides),
                 # so a stale/hidden/foreign id never steers a launch.
-                model_choice = paths.engine_default_model(session.provider)
+                model_choice = paths.provider_default_model(session.provider)
                 if not preferred_model_survives(model_choice, session.provider):
                     model_choice = None
 
@@ -663,9 +663,9 @@ class AgentManager:
                 if meta and meta.get("effort_level"):
                     effort = meta["effort_level"]
             if not effort:
-                # Per-engine default effort, gated to the engine's own
+                # Per-provider default effort, gated to the provider's own
                 # vocabulary (a legacy `max` must not leak into Codex).
-                effort = paths.engine_default_effort(session.provider)
+                effort = paths.provider_default_effort(session.provider)
 
             # Permission mode resolution: in-memory override → session meta →
             # user's configured global default → provider's native default. The
@@ -1862,7 +1862,7 @@ class AgentManager:
 
         # Context meter / turn-summary bar. How we learn the window depends on the
         # provider: Claude forks a `/context` probe (a subprocess, so background);
-        # engines without that command (Codex) report per-turn usage, so we
+        # providers without that command (Codex) report per-turn usage, so we
         # synthesize the snapshot from this turn's result inline — no extra
         # process. Skip when rate-limited (pointless either way).
         if session.cwd and not rate_limited:
@@ -2017,10 +2017,10 @@ class AgentManager:
 
     @staticmethod
     def _auth_error_frame(session: AgentSession, status, message: Optional[str] = None) -> dict:
-        """Build the `auth_error` WS frame with engine identity attached.
+        """Build the `auth_error` WS frame with provider identity attached.
 
-        Carries the session's own engine label + the provider-declared login
-        command (same computation as GET /api/app/engine-auth) so the
+        Carries the session's own provider label + the provider-declared login
+        command (same computation as GET /api/app/provider-auth) so the
         client's re-login card says "Log in to Codex" and opens the right CLI
         — not a hardcoded `claude auth login`.
         """
@@ -2369,7 +2369,7 @@ class AgentManager:
         if data.get("message"):
             frame["message"] = str(data["message"])
         # "Always allow" — index into the request's `suggestions` list; the
-        # driver maps it back to the engine's own permission-rule update.
+        # driver maps it back to the provider's own permission-rule update.
         if isinstance(data.get("suggestion_index"), int):
             frame["suggestion_index"] = data["suggestion_index"]
         try:
@@ -2383,10 +2383,10 @@ class AgentManager:
         if session.store_id:
             SessionStore.log_raw(session.store_id, "in", payload, frame)
 
-        # Engine setMode suggestion ("Switch to acceptEdits mode (this
+        # Provider setMode suggestion ("Switch to acceptEdits mode (this
         # session)"): the CLI applies it internally, which used to desync the
         # server's mode state — and the UI permission button — from the
-        # engine. Mirror the change here. Note: a permission card can only
+        # provider. Mirror the change here. Note: a permission card can only
         # exist on a gate-attached (non-bypass-launched) process, so the
         # launch-time _launched_resolved_mode is left alone.
         if frame["behavior"] == "allow" and isinstance(frame.get("suggestion_index"), int):
@@ -2397,13 +2397,13 @@ class AgentManager:
                 new_mode = chosen["mode"]
                 # Same legacy collapse as the WS set_permission_mode handler.
                 session.permission_mode = new_mode if new_mode != "bypassPermissions" else None
-                # The engine already runs the new mode — don't let the lazy
+                # The provider already runs the new mode — don't let the lazy
                 # check burn a respawn on the next message.
                 session._launched_permission_mode = session.permission_mode
                 session._plan_sigint_armed = (new_mode == "plan")
                 if session.store_id:
                     SessionStore.update_metadata(session.store_id, permission_level=new_mode)
-                logger.info(f"Synced permission mode after engine setMode "
+                logger.info(f"Synced permission mode after provider setMode "
                             f"suggestion for {session.store_id}: {new_mode}")
                 await session.safe_send({
                     "type": "permission_mode_changed",
@@ -2664,9 +2664,9 @@ class AgentManager:
             if not effective_model:
                 from painapple_code import paths
                 from painapple_code.routes.dependencies import preferred_model_survives
-                effective_model = paths.engine_default_model(session.provider)
+                effective_model = paths.provider_default_model(session.provider)
                 # Same catalog gate as launch: a default from another
-                # engine's catalog must not steer this engine's probe.
+                # provider's catalog must not steer this provider's probe.
                 if not preferred_model_survives(effective_model, session.provider):
                     effective_model = None
 

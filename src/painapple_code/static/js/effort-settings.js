@@ -2,10 +2,10 @@
  * Effort Settings - Controls the agent's effort level (token spend / thoroughness)
  *
  * Manages the effort button near the input area that controls how much
- * effort the model puts into responses. The level VOCABULARY is per-engine
+ * effort the model puts into responses. The level VOCABULARY is per-provider
  * (each provider self-describes its scale via the registry; codex models
  * even self-describe per-model ranges) — the popup, cycle shortcuts and
- * labels all follow the active engine/model.
+ * labels all follow the active provider/model.
  *
  * Effort level is stored PER SESSION, with a global default fallback.
  */
@@ -13,7 +13,7 @@
 import { CONFIG } from './config.js';
 import S from './strings.js';
 
-// Fallback scale (claude's five) — used only before the engine registry
+// Fallback scale (claude's five) — used only before the provider registry
 // loads; the live vocabulary comes from _vocab().
 const FALLBACK_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
@@ -86,15 +86,15 @@ class EffortSettingsManager {
     /**
      * The ACTIVE effort vocabulary: the picked model's own range when it
      * declares one (codex models self-describe supported levels), else the
-     * engine's registry scale, else the classic five-level fallback.
+     * provider's registry scale, else the classic five-level fallback.
      */
     _vocab() {
         const sb = window.app?.statusBar;
-        const engine = sb?._activeEngine?.();
-        const models = engine?.models || [];
+        const provider = sb?._activeProvider?.();
+        const models = provider?.models || [];
         const pickedId = sb?.currentModel || sb?.globalDefaultModel;
         const picked = pickedId && models.find(m => pickedId.startsWith(m.id));
-        const list = (picked?.efforts?.length ? picked.efforts : engine?.efforts) || [];
+        const list = (picked?.efforts?.length ? picked.efforts : provider?.efforts) || [];
         return list.length ? list : FALLBACK_LEVELS;
     }
 
@@ -176,7 +176,7 @@ class EffortSettingsManager {
      * Open popup
      */
     open() {
-        // The vocabulary follows the active engine/model — refresh first.
+        // The vocabulary follows the active provider/model — refresh first.
         this._renderPopup();
 
         const btnRect = this.btn.getBoundingClientRect();
@@ -248,15 +248,15 @@ class EffortSettingsManager {
     }
 
     /**
-     * Persist the default effort. Defaults are per-engine — target the
-     * active session's engine when known, else the legacy endpoint
-     * (which writes the DEFAULT engine's entry).
+     * Persist the default effort. Defaults are per-provider — target the
+     * active session's provider when known, else the legacy endpoint
+     * (which writes the DEFAULT provider's entry).
      */
     async saveToGlobal(level) {
         const s = window.app?.activeSession;
-        const engine = s?.provider || s?.pendingProvider || null;
-        const url = engine
-            ? `${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(engine)}`
+        const provider = s?.provider || s?.pendingProvider || null;
+        const url = provider
+            ? `${CONFIG.API_BASE}/api/app/provider-defaults/${encodeURIComponent(provider)}`
             : `${CONFIG.API_BASE}/api/app/default-effort`;
         try {
             const response = await fetch(url, {
@@ -384,7 +384,7 @@ class EffortSettingsManager {
 
     /**
      * Cycle to next effort level (for keyboard shortcut) through the active
-     * engine/model's own vocabulary, wrapping past the top.
+     * provider/model's own vocabulary, wrapping past the top.
      */
     cycle() {
         const levels = this._vocab();

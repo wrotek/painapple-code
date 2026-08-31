@@ -79,7 +79,7 @@ export const initUiMethods = {
             confirmCancel: $('#confirm-cancel'),
             confirmCreate: $('#confirm-create'),
             statusConnection: $('#status-connection'),
-            statusEngine: $('#status-engine'),
+            statusProvider: $('#status-provider'),
             statusModel: $('#status-model'),
             statusBranch: $('#status-branch'),
             statusProject: $('#status-project'),
@@ -189,7 +189,7 @@ export const initUiMethods = {
         this.statusBar = new StatusBar(
             {
                 statusConnection: this.els.statusConnection,
-                statusEngine: this.els.statusEngine,
+                statusProvider: this.els.statusProvider,
                 statusModel: this.els.statusModel,
                 statusBranch: this.els.statusBranch,
                 statusProject: this.els.statusProject,

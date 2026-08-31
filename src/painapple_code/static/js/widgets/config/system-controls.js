@@ -5,8 +5,8 @@
  * Grouped here because the patterns are nearly identical (small `setupX`
  * function that wires inputs to API calls), but each panel is otherwise
  * unrelated to the others. None of them need shared state with the rest
- * of config-widget. (Engine CLI paths, per-engine session defaults, and
- * the auto-journal model live in the engine panel — config/models-tab.js.)
+ * of config-widget. (Provider CLI paths, per-provider session defaults, and
+ * the auto-journal model live in the provider panel — config/models-tab.js.)
  */
 
 // ═══════════════════════════════════════════════════════════════════════════

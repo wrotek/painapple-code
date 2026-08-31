@@ -3,19 +3,19 @@
  *
  * A fresh session (project picked, nothing sent yet) has a blank chat
  * window; this panel uses that space to surface the choices that matter
- * before the first message: engine, model, permissions, effort, account.
+ * before the first message: provider, model, permissions, effort, account.
  * Every row is a set of one-tap pills that delegate to the existing
- * managers (status-bar engine/model picker, permission-settings,
+ * managers (status-bar provider/model picker, permission-settings,
  * effort-settings, token-profile), so behavior is identical to the
  * status-bar chips — this is just a bigger, friendlier surface for them.
  *
- * Visibility: active session with a cwd, zero non-system messages, engine
- * not locked. Hides itself the moment the first message lands (the engine
+ * Visibility: active session with a cwd, zero non-system messages, provider
+ * not locked. Hides itself the moment the first message lands (the provider
  * locks then; everything else stays adjustable from the status bar).
  *
- * Rows self-populate from the engine registry (`GET /api/providers`) and
+ * Rows self-populate from the provider registry (`GET /api/providers`) and
  * the managers' server-loaded state — nothing here is hardcoded per
- * engine, and rows whose vocabulary is empty for the current engine
+ * provider, and rows whose vocabulary is empty for the current provider
  * (model catalog, efforts, accounts) disappear.
  */
 
@@ -23,8 +23,8 @@ import S from './strings.js';
 import { escapeHtml } from './utils.js';
 import {
     PROVIDERS_INFO,
-    engineInfo,
-    enabledEngines,
+    providerInfo,
+    enabledProviders,
     ensureProvidersLoaded,
     ensureModelsLoaded,
 } from './status-bar.js';
@@ -60,7 +60,7 @@ class SessionSetupPanel {
     // ─── Visibility ────────────────────────────────────────────────
 
     /** The panel belongs on a fresh session only: project picked, nothing
-     * sent, engine still switchable. */
+     * sent, provider still switchable. */
     _shouldShow() {
         const s = window.app?.activeSession;
         if (!s || !s.cwd) return false;
@@ -99,16 +99,16 @@ class SessionSetupPanel {
         // provider is authoritative once known (bound sessions); a bound tab
         // whose provider hasn't been echoed yet still paints the user's pick
         // (pendingProvider) rather than flashing the box default.
-        const engineName = s.provider || s.pendingProvider
+        const providerName = s.provider || s.pendingProvider
             || PROVIDERS_INFO?.default || null;
-        const engine = engineInfo(engineName);
+        const provider = providerInfo(providerName);
 
         const rows = [
-            this._engineRow(engineName),
-            this._modelRow(engine),
+            this._providerRow(providerName),
+            this._modelRow(provider),
             this._permissionsRow(),
-            this._effortRow(engine),
-            this._accountRow(engine),
+            this._effortRow(provider),
+            this._accountRow(provider),
         ].filter(Boolean).join('');
 
         this.el.innerHTML = `<div class="setup-panel-card">
@@ -136,15 +136,15 @@ class SessionSetupPanel {
         return `<button class="${cls.join(' ')}" data-kind="${kind}" data-value="${escapeHtml(value)}"${tip}>${dot}${escapeHtml(label)}</button>`;
     }
 
-    /** Engine pills: Settings-enabled engines (plus the session's own engine
+    /** Provider pills: Settings-enabled providers (plus the session's own provider
      * if since disabled). Hidden entirely when there's only one choice. */
-    _engineRow(currentName) {
-        const offered = enabledEngines();
-        const current = engineInfo(currentName);
+    _providerRow(currentName) {
+        const offered = enabledProviders();
+        const current = providerInfo(currentName);
         if (current && !offered.some(p => p.name === current.name)) offered.push(current);
         if (offered.length < 2) return '';
         const pills = offered.map(p => this._pill({
-            kind: 'engine',
+            kind: 'provider',
             value: p.name,
             label: p.display_name,
             selected: p.name === currentName,
@@ -154,14 +154,14 @@ class SessionSetupPanel {
         return this._row(S.provider.setup.provider_label, pills);
     }
 
-    /** Model pills — the engine's OWN catalog (Claude: models.yaml; Codex:
-     * the CLI's models cache). The engine's default always resolves to a
+    /** Model pills — the provider's OWN catalog (Claude: models.yaml; Codex:
+     * the CLI's models cache). The provider's default always resolves to a
      * concrete catalog model (the server falls back to the top model, and
      * catalog[0] covers the pre-fetch transient), so a real model is always
      * selected — no "Default" pill. */
-    _modelRow(engine) {
+    _modelRow(provider) {
         const sb = window.app?.statusBar;
-        const catalog = engine?.models || [];
+        const catalog = provider?.models || [];
         if (!catalog.length || !sb) return '';
         const inCat = id => !!id && catalog.some(m => id.startsWith(m.id));
         const pick = inCat(sb.currentModel) ? sb.currentModel : null;
@@ -178,8 +178,8 @@ class SessionSetupPanel {
         return this._row(S.provider.setup.model_label, pills.join(''));
     }
 
-    /** Permission pills — the active engine's own vocabulary (the manager
-     * already tracks it per-engine via setSession). */
+    /** Permission pills — the active provider's own vocabulary (the manager
+     * already tracks it per-provider via setSession). */
     _permissionsRow() {
         const pm = window.permissionSettings;
         const modes = pm?.modes || [];
@@ -195,15 +195,15 @@ class SessionSetupPanel {
         return this._row(S.provider.setup.permissions_label, pills);
     }
 
-    /** Effort pills — the engine's self-described scale, narrowed to the
+    /** Effort pills — the provider's self-described scale, narrowed to the
      * picked model's own range when the model declares one (codex models
      * self-describe supported levels). Empty → row hidden. */
-    _effortRow(engine) {
+    _effortRow(provider) {
         const sb = window.app?.statusBar;
-        const models = engine?.models || [];
+        const models = provider?.models || [];
         const pickedId = sb?.currentModel || sb?.globalDefaultModel;
         const picked = pickedId && models.find(m => pickedId.startsWith(m.id));
-        const efforts = (picked?.efforts?.length ? picked.efforts : engine?.efforts) || [];
+        const efforts = (picked?.efforts?.length ? picked.efforts : provider?.efforts) || [];
         if (efforts.length < 2) return '';
         const current = window.effortSettings?.currentLevel || null;
         const labels = S.provider.setup.effort_labels || {};
@@ -216,10 +216,10 @@ class SessionSetupPanel {
         return this._row(S.provider.setup.effort_label, pills);
     }
 
-    /** Account pills — token profiles, only when the engine has selectable
+    /** Account pills — token profiles, only when the provider has selectable
      * accounts beyond its ambient login and profiles actually exist. */
-    _accountRow(engine) {
-        if ((engine?.accounts || []).length < 2) return '';
+    _accountRow(provider) {
+        if ((provider?.accounts || []).length < 2) return '';
         const tp = window.tokenProfile;
         if (!tp || (tp.profiles || []).length === 0) return '';
         const current = tp.currentProfile || '';
@@ -242,8 +242,8 @@ class SessionSetupPanel {
     async _onPick(kind, value) {
         const sb = window.app?.statusBar;
         switch (kind) {
-            case 'engine':
-                await sb?._selectEngine?.(value);
+            case 'provider':
+                await sb?._selectProvider?.(value);
                 break;
             case 'model':
                 await sb?._selectModel?.(value);

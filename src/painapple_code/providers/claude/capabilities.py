@@ -20,8 +20,8 @@ class _CapabilitiesMixin:
 
     # --- binary -----------------------------------------------------------
 
-    # Settings "CLI path" row + generic engine-path endpoint (shared by both
-    # Claude drivers — same binary). The app also owns this engine's model
+    # Settings "CLI path" row + generic provider-path endpoint (shared by both
+    # Claude drivers — same binary). The app also owns this provider's model
     # catalog (models.yaml), so Settings renders it editable; per-model
     # show/hide prefs are namespaced under the shared "claude" key so both
     # drivers see the same curation.
@@ -104,7 +104,7 @@ class _CapabilitiesMixin:
         # Claude's native permission modes, in display order — fully self-described
         # here (value/label/desc/color), exactly like every other provider. No
         # Claude permission vocabulary lives anywhere else (strings.yaml, a
-        # constant, the frontend); the engine picker and chip read this list.
+        # constant, the frontend); the provider picker and chip read this list.
         return [
             {"value": "plan", "label": "Plan",
              "desc": "Read-only, explore & design", "color": "#8b5cf6"},

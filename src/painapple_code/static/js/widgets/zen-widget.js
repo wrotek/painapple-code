@@ -13,7 +13,7 @@
 import S from '../strings.js';
 import { escapeHtml } from '../utils.js';
 import { showToast } from '../context-menu.js';
-import { engineAuthorLabel } from '../status-bar.js';
+import { providerAuthorLabel } from '../status-bar.js';
 import { basename } from '../path-utils.js';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -700,7 +700,7 @@ function renderChat(container, session) {
 
             case 'assistant':
                 html += `<div class="zen-chat-msg zen-chat-assistant">
-                    <div class="zen-chat-role">${escapeHtml(engineAuthorLabel(session))}</div>
+                    <div class="zen-chat-role">${escapeHtml(providerAuthorLabel(session))}</div>
                     <div class="zen-chat-text">${formatZenMarkdown(block.text)}</div>
                 </div>`;
                 break;

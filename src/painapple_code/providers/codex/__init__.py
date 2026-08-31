@@ -3,11 +3,11 @@ Codex family — shared base mixins for the `codex-app-server` provider.
 
 This package used to define `CodexProvider`, the `codex exec --json` driver
 (one throwaway process per turn, prompt as a positional argv). It was removed
-from the engine registry — and its exec-only code (`launch.py`, the
+from the provider registry — and its exec-only code (`launch.py`, the
 rollout-copy summary fork) deleted — because `codex exec` accepts its prompt
 ONLY as a command-line argument: every turn's prompt was readable in `ps` /
 `/proc/<pid>/cmdline` by any local account for the life of the turn (see
-SECURITY.md, "Prompts reach `ps` on the `codex` engine", and the
+SECURITY.md, "Prompts reach `ps` on the `codex` provider", and the
 `Capabilities.prompt_in_argv` seam that disclosed it). The app-server driver
 speaks JSON-RPC over stdio and has no such leak, and had already superseded
 exec on every other axis (native fork, live interrupt, real context window).

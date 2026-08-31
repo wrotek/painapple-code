@@ -1,7 +1,7 @@
 """
 Claude Code via the Claude Agent SDK — SDK-backed provider.
 
-Same engine as `ClaudeProvider`, but the subprocess the server spawns is a
+Same provider as `ClaudeProvider`, but the subprocess the server spawns is a
 thin Python *driver* (`providers/claude_sdk/driver.py`) that runs
 `ClaudeSDKClient` in-process instead of exec'ing `claude -p` directly:
 
@@ -47,7 +47,7 @@ class ClaudeSdkProvider(ClaudeProvider):
     # line-protocol ClaudeProvider it subclasses is no longer registered at
     # all; it survives only as this class's base implementation.)
     default_enabled = True
-    # Same engine, same feature surface as Claude — plus the SDK's
+    # Same provider, same feature surface as Claude — plus the SDK's
     # can_use_tool permission round-trip (driver ⇄ server ⇄ client) and its
     # control plane (live permission-mode/model switches, warm-process
     # interrupt) via control_request/control_done frames on the same pipe.
@@ -79,7 +79,7 @@ class ClaudeSdkProvider(ClaudeProvider):
         return modes
 
     def default_permission_mode(self) -> str:
-        # Ask, not the base "dontAsk". The SDK engine can actually answer a
+        # Ask, not the base "dontAsk". The SDK provider can actually answer a
         # prompt (can_use_tool → permission card), so the sane out-of-the-box
         # default is manual-accept — reads flow, edits/commands surface a card —
         # rather than auto-denying. (On the line-protocol provider "default"

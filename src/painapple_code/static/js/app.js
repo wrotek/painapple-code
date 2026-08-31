@@ -60,7 +60,7 @@ import { effortSettings } from './effort-settings.js';
 import { permissionSettings } from './permission-settings.js';
 // Token profile - per-session OAuth token selector (account chip)
 import { tokenProfile } from './token-profile.js';
-// Session setup panel — engine/model/permissions/effort/account pills in
+// Session setup panel — provider/model/permissions/effort/account pills in
 // the empty chat area of a fresh session (self-initializing singleton)
 import { sessionSetupPanel } from './session-setup-panel.js';
 // Layout density switcher — popup opened from the left-rail density button
@@ -926,12 +926,12 @@ class App {
     }
 
     /**
-     * Open a terminal tab running the engine's interactive login flow.
+     * Open a terminal tab running the provider's interactive login flow.
      * Used by the `/login` slash command and the auth-error card — the in-app
      * `/login` is interactive-only, so we drop the user into a PTY where the
      * OAuth/device flow works as designed. `command` (from the auth_error
-     * frame's `login_command`) wins; otherwise the active session's engine is
-     * resolved via the registry (`/api/app/engine-auth`), falling back to
+     * frame's `login_command`) wins; otherwise the active session's provider is
+     * resolved via the registry (`/api/app/provider-auth`), falling back to
      * `claude auth login`.
      */
     async openLoginTerminal(command = null) {
@@ -943,10 +943,10 @@ class App {
         }
         try {
             if (!command) {
-                const engine = this.activeSession?.provider || this.activeSession?.pendingProvider;
-                if (engine) {
+                const provider = this.activeSession?.provider || this.activeSession?.pendingProvider;
+                if (provider) {
                     try {
-                        const resp = await fetch(`/api/app/engine-auth/${encodeURIComponent(engine)}`);
+                        const resp = await fetch(`/api/app/provider-auth/${encodeURIComponent(provider)}`);
                         if (resp.ok) command = (await resp.json()).login_command || null;
                     } catch { /* fall through to the claude default */ }
                 }

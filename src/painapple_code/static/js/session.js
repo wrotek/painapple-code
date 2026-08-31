@@ -93,7 +93,7 @@ export class Session {
         // Permission mode (e.g., 'plan', 'default', 'bypassPermissions')
         // Captured from Claude init message or set via /plan command
         this.permissionMode = options.permissionMode || null;
-        // Engine (provider) this session runs on — bound server-side at
+        // Provider (provider) this session runs on — bound server-side at
         // creation, authoritative value arrives on every `connected` frame.
         // pendingProvider is the picker choice for a tab that hasn't created
         // its server session yet; it rides the create WS URL (?provider=)
@@ -102,17 +102,17 @@ export class Session {
         this.providerDisplayName = options.providerDisplayName || null;
         this.providerCaps = options.providerCaps || null;
         this.pendingProvider = options.pendingProvider || null;
-        // Engine locks permanently once the session runs a turn (the
-        // conversation lives in that engine's format). Server-reported on
+        // Provider locks permanently once the session runs a turn (the
+        // conversation lives in that provider's format). Server-reported on
         // connect; providerSessionId doubles as the live post-turn signal.
         this.providerLocked = options.providerLocked || false;
         // Client-side caches of the per-session prefs the status-bar managers
         // fetch on switch. Seeded from persistence/meta and written back on
         // every fetch/pick, they let a tab switch paint the correct model /
         // permission / effort / account state synchronously — the manager
-        // fetches then merely confirm (kills the wrong-engine flash).
+        // fetches then merely confirm (kills the wrong-provider flash).
         this.preferredModel = options.preferredModel ?? null;   // model pin ('' ≡ null)
-        this.permissionLevel = options.permissionLevel || null; // engine-vocab mode value
+        this.permissionLevel = options.permissionLevel || null; // provider-vocab mode value
         this.effortLevel = options.effortLevel || null;
         this.tokenProfileName = options.tokenProfileName ?? null;
         // Sync state tracking (for background/foreground sync)
@@ -222,7 +222,7 @@ export class Session {
         } else if (this.cwd) {
             // New session - pass cwd for initial creation
             url += (url.includes('?') ? '&' : '?') + 'cwd=' + encodeURIComponent(this.cwd);
-            // Engine picker choice rides the create connect; the server
+            // Provider picker choice rides the create connect; the server
             // records it in meta and echoes it back on `connected`.
             if (this.pendingProvider) {
                 url += '&provider=' + encodeURIComponent(this.pendingProvider);
@@ -885,10 +885,10 @@ export class SessionManager {
                     storeId: s.storeId,
                     name: s.name,
                     cwd: s.cwd,
-                    // Engine identity rides along so a server-state rebuild
-                    // (iPadOS localStorage loss) repaints the right engine's
+                    // Provider identity rides along so a server-state rebuild
+                    // (iPadOS localStorage loss) repaints the right provider's
                     // vocabulary immediately instead of flashing the default
-                    // engine until the WS `connected` frame arrives.
+                    // provider until the WS `connected` frame arrives.
                     provider: s.provider || s.pendingProvider || undefined,
                     providerLocked: s.providerLocked || undefined,
                 }));
@@ -961,8 +961,8 @@ export class SessionManager {
                     name: srv.name || '',
                     cwd: srv.cwd || '',
                     wasConnected: true,
-                    // Engine identity persisted with the tab state — first
-                    // paint is engine-correct, reconfirmed on connect.
+                    // Provider identity persisted with the tab state — first
+                    // paint is provider-correct, reconfirmed on connect.
                     provider: srv.provider || null,
                     providerLocked: !!srv.providerLocked,
                 });

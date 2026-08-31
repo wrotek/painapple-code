@@ -244,12 +244,12 @@ class TokenProfileManager {
     }
 
     async _saveToGlobal(profileName) {
-        // Defaults are per-engine — target the active session's engine when
-        // known, else the legacy endpoint (writes the DEFAULT engine's entry).
+        // Defaults are per-provider — target the active session's provider when
+        // known, else the legacy endpoint (writes the DEFAULT provider's entry).
         const s = window.app?.activeSession;
-        const engine = s?.provider || s?.pendingProvider || null;
-        const url = engine
-            ? `${CONFIG.API_BASE}/api/app/engine-defaults/${encodeURIComponent(engine)}`
+        const provider = s?.provider || s?.pendingProvider || null;
+        const url = provider
+            ? `${CONFIG.API_BASE}/api/app/provider-defaults/${encodeURIComponent(provider)}`
             : `${CONFIG.API_BASE}/api/app/default-token-profile`;
         try {
             await fetch(url, {

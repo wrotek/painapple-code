@@ -926,7 +926,7 @@ export async function startThread(anchor, question) {
         window.app?.activeSession?.addSystemLog('Cannot start thread: session not fully connected', 'error');
         return;
     }
-    // Discussion threads are forks — engines without fork can't host them.
+    // Discussion threads are forks — providers without fork can't host them.
     const active = window.app?.activeSession;
     if (active?.providerCaps?.fork === false) {
         active.addSystemLog(S.provider.fork_unsupported.replace(

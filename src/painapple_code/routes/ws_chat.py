@@ -64,9 +64,9 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
     Query params:
     - cwd: Working directory for Claude (used when creating new session)
     - session: Server-side session ID (to join/resume existing session)
-    - provider: Engine for a NEW session (picker choice). Ignored on resume —
-      a session is bound to its engine at creation (its provider_session_id
-      only means anything to that engine). Unknown names fall back to the
+    - provider: Provider for a NEW session (picker choice). Ignored on resume —
+      a session is bound to its provider at creation (its provider_session_id
+      only means anything to that provider). Unknown names fall back to the
       default rather than failing the connect.
     """
     # Read the manager from app.state — `from server import agents` would grab
@@ -132,10 +132,10 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
         fork_from_session_id = None
         is_comment_thread = False  # New sessions are never comment threads
         token_profile = None  # Set via API before first message
-        # Engine selection, most specific wins: the client's picker choice
+        # Provider selection, most specific wins: the client's picker choice
         # (?provider= on this connect), then the box-wide default
         # (--default-provider flag / `default_provider` config key). The result
-        # is recorded in meta so the session stays on that engine across
+        # is recorded in meta so the session stays on that provider across
         # reconnects; when nothing is set, provider_name stays None and the
         # session falls back to DEFAULT_PROVIDER (claude-sdk) at spawn. An
         # unknown picker value degrades to the default flow instead of failing
@@ -152,7 +152,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
         if provider_name:
             store_data["provider"] = provider_name
             # Bind-time permission anchoring: when the app-wide default level
-            # isn't in this engine's vocabulary, stamp the engine's own
+            # isn't in this provider's vocabulary, stamp the provider's own
             # default so meta, UI, and launch agree from the first frame.
             from painapple_code.routes.dependencies import bind_permission_level
             anchored = bind_permission_level(None, get_provider(provider_name))
@@ -222,8 +222,8 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
             workspace_path = str(safe_resolve(agents.default_cwd))
         except Exception:
             workspace_path = agents.default_cwd
-        # The session's engine identity + capabilities ride the connected
-        # payload so the client can badge the tab and gate per-engine chrome
+        # The session's provider identity + capabilities ride the connected
+        # payload so the client can badge the tab and gate per-provider chrome
         # (model chip, fork/Discuss, USD cost, /context) without a second
         # round-trip. agent_session.provider is set at runtime-session
         # creation; the get_provider fallback covers the theoretical gap.
@@ -241,7 +241,7 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
             "provider": session_provider.name,
             "provider_display_name": session_provider.display_name,
             "provider_caps": asdict(session_provider.capabilities),
-            # Engine still switchable? Locks permanently after the first turn.
+            # Provider still switchable? Locks permanently after the first turn.
             "provider_locked": provider_is_locked(store_data or {}),
         }
         # Include turn start time so client can show accurate elapsed timer on reconnect
@@ -526,7 +526,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
     if msg_model != agent_session.preferred_model:
         agent_session.preferred_model = msg_model
         SessionStore.update_metadata(store_id, preferred_model=msg_model)
-        # Live apply (capabilities.live_controls): switch the warm engine's
+        # Live apply (capabilities.live_controls): switch the warm provider's
         # model in place (None = revert to the CLI/account default). Awaited
         # before send_to_agent below, so this very turn already runs on the
         # new model — and it works mid-turn too, where the old path silently
@@ -775,7 +775,7 @@ async def _handle_set_permission_mode(websocket, agent_session, store_id, data, 
 
     Records the desired mode and echoes it to the client (so the permission
     button updates immediately). Providers with `capabilities.live_controls`
-    (claude-sdk) get the mode applied to the *running* engine in place — even
+    (claude-sdk) get the mode applied to the *running* provider in place — even
     mid-turn — via a control frame; the reply carries `applied: "live"`. All
     other cases keep the lazy path: `_handle_user_message` respawns the idle
     process on the next message when the mode differs from what it launched
@@ -784,7 +784,7 @@ async def _handle_set_permission_mode(websocket, agent_session, store_id, data, 
     """
     mode = data.get("mode")  # a Claude mode, a provider-native mode (e.g. Codex
     # workspace-write), or None. Validated against the registry so the active
-    # session's engine vocabulary is accepted, not just Claude's.
+    # session's provider vocabulary is accepted, not just Claude's.
     from painapple_code.providers import valid_permission_values
     valid_modes = valid_permission_values() | {None}
     if mode not in valid_modes:
@@ -804,7 +804,7 @@ async def _handle_set_permission_mode(websocket, agent_session, store_id, data, 
     # trigger one stale after the user left plan mode for another mode).
     agent_session._plan_sigint_armed = (mode == "plan")
 
-    # Live apply (capabilities.live_controls): switch the running engine in
+    # Live apply (capabilities.live_controls): switch the running provider in
     # place — even mid-turn — instead of waiting for the lazy respawn. The
     # launched-mode bookkeeping is updated ONLY on ack, so a failed control
     # leaves the lazy check armed and the next message respawns exactly as

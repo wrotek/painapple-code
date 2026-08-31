@@ -144,7 +144,7 @@ export const persistenceMethods = {
             lastSyncTimestamp: this.lastSyncTimestamp,
             // Permission mode (plan, default, etc.)
             permissionMode: this.permissionMode || undefined,
-            // Engine identity (server-authoritative; re-confirmed on reconnect)
+            // Provider identity (server-authoritative; re-confirmed on reconnect)
             provider: this.provider || undefined,
             providerDisplayName: this.providerDisplayName || undefined,
             providerCaps: this.providerCaps || undefined,

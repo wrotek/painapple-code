@@ -280,7 +280,7 @@ export const interactiveMethods = {
             toolUseId: frame.tool_use_id || null,
             title: frame.title || null,
             description: frame.description || null,
-            // Engine "don't ask again" rule suggestions → "always allow" rows
+            // Provider "don't ask again" rule suggestions → "always allow" rows
             suggestions: Array.isArray(frame.suggestions) ? frame.suggestions : [],
             answered: false,
             decision: null,  // 'allow' | 'allow_always' | 'deny' | 'expired'
@@ -338,7 +338,7 @@ export const interactiveMethods = {
      * @param {string} behavior - 'allow' | 'deny'
      * @param {string} [feedback] - Optional deny guidance for the model
      * @param {number} [suggestionIndex] - "Always allow": index into the
-     *   request's suggestions; the engine applies that rule update itself.
+     *   request's suggestions; the provider applies that rule update itself.
      */
     sendPermissionResponse(msgId, behavior, feedback, suggestionIndex) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
