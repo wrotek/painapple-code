@@ -172,7 +172,7 @@ Full list on [GitHub](https://github.com/wrotek/painapple-code):
 - **Shadow Git auto-journal** — after each turn the session forks itself to a fast summarizer model (Haiku by default); its structured write-up becomes the commit message for a per-project shadow git repo holding that turn's file changes, and a queryable DuckDB row.
 - **Multi-session tabs**, real PTY terminal, cost analytics, prompt history search, comments stash, discussion threads.
 - **PWA** — installable on iPad / Android / desktop, offline fallback.
-- **Permission modes** per session: `Ask` (the default — every edit/command waits on an approval card), `Plan` (read-only), `Accept-Edits`, `Don't Ask`, `Auto` (Claude's AI classifier), `YOLO`.
+- **Permission modes** — Claude Code's own modes, picked per session instead of at startup, with its approval prompts rendered as in-chat cards: `Ask` (the default — every edit/command waits on a card), `Plan` (read-only), `Accept-Edits`, `Don't Ask`, `Auto` (Claude's AI classifier), `YOLO`.
 
 ## Source & support
 

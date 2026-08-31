@@ -25,7 +25,7 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 | Bang commands | `!git status` runs locally, shows as a tool block, and rides along as context for your next prompt | [Slash & bang commands](reference/commands.md) |
 | Draft autosave | In-progress messages persist per session across refreshes | [Writing prompts & commands](guides/input-and-commands.md) |
 | Uploads & annotation | Paste/drag images and files; draw markers, arrows, and text on screenshots before sending | [Images & annotation](guides/images-and-annotation.md) |
-| Permission modes | Plan / Ask / Don't Ask / Accept Edits / Auto / YOLO, per session — Codex sessions get sandbox tiers instead | [Permission modes & thinking](guides/permissions-and-thinking.md) |
+| Permission modes | Claude Code's own modes (Plan / Ask / Don't Ask / Accept Edits / Auto / YOLO) selectable per session, with its approval prompts rendered as in-chat cards — Codex sessions get Codex's sandbox tiers instead | [Permission modes & thinking](guides/permissions-and-thinking.md) |
 | Thinking & effort | Extended-thinking budgets and effort cycling, per session | [Permission modes & thinking](guides/permissions-and-thinking.md) |
 
 ## Tool widgets
