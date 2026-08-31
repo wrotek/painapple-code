@@ -36,7 +36,9 @@
 
 .autocomplete-item {
     display: flex;
-    align-items: center;
+    /* baseline, not center: the desc can wrap to 2 lines (see below) and
+       the command name should sit on the FIRST line, not float mid-row */
+    align-items: baseline;
     gap: var(--sp-8);
     padding: var(--sp-4) var(--sp-10);
     cursor: pointer;
@@ -70,10 +72,25 @@
 .autocomplete-desc {
     color: var(--text-secondary);
     font-size: var(--font-size-sm);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     min-width: 0;
+    /* Real CLI-skill descriptions run to ~250 chars: clamp to 2 lines so
+       most of the text is readable without the popup ballooning… */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.35;
+}
+
+/* …and un-clamp inline on hover / keyboard selection so the full text is
+   one gesture away. Deliberately NOT a data-tooltip: the tooltip layer is
+   nowrap (02-tooltips.css) and hidden on touch — inline expansion works
+   for trackpad hover, arrow-key browsing, and iPad alike. */
+.autocomplete-item:hover .autocomplete-desc,
+.autocomplete-item.selected .autocomplete-desc {
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
 }
 
 /* Send button */
