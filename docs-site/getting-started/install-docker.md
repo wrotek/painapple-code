@@ -44,7 +44,7 @@ docker run -d --name painapple-code \
 # Bootstrap URL — the container hides credentials from its own logs, so
 # read the derived API token from its config instead (?tkn= links never
 # carry the password):
-echo "http://localhost:8765/?tkn=$(docker exec painapple-code \
+echo "https://localhost:8765/?tkn=$(docker exec painapple-code \
     awk '/^api_token:/ {print $2}' /home/app/.config/painapple-code/config.yaml)"
 ```
 
@@ -84,7 +84,7 @@ To layer your own tooling on top of the base image:
 ./painapple-docker.sh build --dockerfile ~/my-project/Dockerfile
 ```
 
-Open `http://localhost:8765/` in a browser. The first run generates an auth password — the container keeps it out of `docker logs` (they persist), so reveal the bootstrap URL with `painapple password` (pip CLI) or the `docker exec … awk` one-liner above, and open it once; the cookie keeps you logged in. See [First run & login](first-run.md).
+Open `https://localhost:8765/` in a browser — the image's baked command binds `0.0.0.0` inside the container, so `--tls auto` resolves to **on** and it serves HTTPS with a self-signed certificate (accept the one-time browser warning). Append `python -m painapple_code --host 0.0.0.0 --port 8765 --workspace /workspace --tls off` after the image name if you'd rather have plain HTTP on a loopback publish — that's what `painapple --in-docker` does for you. The first run generates an auth password — the container keeps it out of `docker logs` (they persist), so reveal the bootstrap URL with `painapple password` (pip CLI) or the `docker exec … awk` one-liner above, and open it once; the cookie keeps you logged in. See [First run & login](first-run.md).
 
 ## Manual Compose / Podman (no wrapper)
 
