@@ -35,18 +35,29 @@ Docker and Podman are auto-detected (pick one — or a custom binary path — in
 ## Option B — raw `docker run` (one-liner, no clone needed)
 
 ```bash
+# Podman won't create a missing bind-mount source (Docker will) — make it first:
+mkdir -p "$HOME/.painapple-code/.claude"
+
 docker run -d --name painapple-code \
     -p 127.0.0.1:8765:8765 \
     -v "$PWD:/workspace" \
     -v "$HOME/.painapple-code/.claude:/home/app/.claude" \
     -v painapple-data:/data \
-    wrotek/painapple-code:latest
+    wrotek/painapple-code:latest \
+    python -m painapple_code --host 0.0.0.0 --port 8765 --workspace /workspace --tls off
 # Bootstrap URL — the container hides credentials from its own logs, so
 # read the derived API token from its config instead (?tkn= links never
 # carry the password):
-echo "https://localhost:8765/?tkn=$(docker exec painapple-code \
+echo "http://localhost:8765/?tkn=$(docker exec painapple-code \
     awk '/^api_token:/ {print $2}' /home/app/.config/painapple-code/config.yaml)"
 ```
+
+The trailing `python -m painapple_code …` line overrides the image's baked
+command to pass **`--tls off`** explicitly — the same thing `painapple
+--in-docker` does. Without it the server sees its own in-container `0.0.0.0`
+bind, resolves `--tls auto` to **on**, and serves HTTPS while the URL above
+says `http://`. Drop the `--tls off` (and use `https://`) if you publish on a
+non-loopback interface.
 
 **Image tags:**
 
@@ -84,7 +95,7 @@ To layer your own tooling on top of the base image:
 ./painapple-docker.sh build --dockerfile ~/my-project/Dockerfile
 ```
 
-Open `https://localhost:8765/` in a browser — the image's baked command binds `0.0.0.0` inside the container, so `--tls auto` resolves to **on** and it serves HTTPS with a self-signed certificate (accept the one-time browser warning). Append `python -m painapple_code --host 0.0.0.0 --port 8765 --workspace /workspace --tls off` after the image name if you'd rather have plain HTTP on a loopback publish — that's what `painapple --in-docker` does for you. The first run generates an auth password — the container keeps it out of `docker logs` (they persist), so reveal the bootstrap URL with `painapple password` (pip CLI) or the `docker exec … awk` one-liner above, and open it once; the cookie keeps you logged in. See [First run & login](first-run.md).
+Open `http://localhost:8765/` in a browser. The first run generates an auth password — the container keeps it out of `docker logs` (they persist), so reveal the bootstrap URL with `painapple password` (pip CLI) or the `docker exec … awk` one-liner above, and open it once; the cookie keeps you logged in. See [First run & login](first-run.md).
 
 ## Manual Compose / Podman (no wrapper)
 
