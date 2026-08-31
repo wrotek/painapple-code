@@ -37,18 +37,36 @@ def detect_local_ips():
     return results
 
 
+class BindFailure(str):
+    """Reason string from port_taken(). `bad_host` is True when the HOST is
+    the problem (unresolvable, or not an address on this machine —
+    EADDRNOTAVAIL) rather than the port being held by another process, so
+    callers can skip the "already in use" framing and the holder lookup."""
+    bad_host = False
+
+
+def _bind_failure(reason, bad_host=False):
+    out = BindFailure(reason)
+    out.bad_host = bad_host
+    return out
+
+
 def port_taken(host, port):
     """Reason string when `host:port` can't be bound, '' when it's free.
 
     A plain bind test — catches ANY holder, unlike a scan of painapple's
     own process table. Used by the server's own pre-flight and by
     `painapple start` so the failure is reported before a detached child
-    inherits it. Unresolvable host counts as taken (with the reason)."""
+    inherits it. Non-empty returns are BindFailure: `bad_host` marks a
+    wrong bind address (unresolvable / not local) as opposed to a port
+    genuinely held by another process."""
+    import errno
     import socket
     try:
         infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
     except socket.gaierror as e:
-        return f"cannot resolve host {host!r} ({e})"
+        return _bind_failure(f"cannot resolve host {host!r} ({e})",
+                             bad_host=True)
     family, socktype, proto, _canon, sockaddr = infos[0]
     with socket.socket(family, socktype, proto) as sock:
         # SO_REUSEADDR means opposite things on the two platforms. On POSIX
@@ -65,7 +83,17 @@ def port_taken(host, port):
         try:
             sock.bind(sockaddr)
         except OSError as e:
-            return e.strerror or str(e)
+            msg = e.strerror or str(e)
+            # EADDRNOTAVAIL ("Cannot assign requested address") is not a
+            # port conflict — the IP isn't assigned to any interface here.
+            # Framing it as "already in use" sent users hunting for a
+            # holder that doesn't exist (winsock code on Windows differs).
+            if e.errno in (errno.EADDRNOTAVAIL,
+                           getattr(errno, "WSAEADDRNOTAVAIL", None)):
+                return _bind_failure(
+                    f"{msg} — {host!r} is not an address on this machine",
+                    bad_host=True)
+            return _bind_failure(msg)
     return ""
 
 

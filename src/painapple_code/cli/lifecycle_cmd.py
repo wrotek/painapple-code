@@ -283,6 +283,9 @@ def _start(target, extra):
     from painapple_code.cli.netinfo import port_holder, port_taken
     reason = port_taken(host, port)
     if reason:
+        if getattr(reason, "bad_host", False):
+            err(f"Cannot bind {host}:{port} — {reason}. Check the host address.")
+            return 1
         holder = port_holder(port)
         err(f"Port {port} on {host} is already in use — {reason}"
             + (f" (held by {holder})" if holder else ""))

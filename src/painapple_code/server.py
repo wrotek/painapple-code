@@ -1794,6 +1794,24 @@ def _preflight_port(host: str, port: int) -> None:
     if not reason:
         return
 
+    if getattr(reason, "bad_host", False):
+        # The HOST is wrong (unresolvable / not a local address), not the
+        # port — the "already in use" box below would send the user cycling
+        # through ports that were never the problem.
+        print(f"""
+╔══════════════════════════════════════════════════════════════╗
+║           pAInapple Code Server — cannot start
+╠══════════════════════════════════════════════════════════════╣
+║  Cannot bind {host}:{port} — the bind host is wrong.
+║  {reason}
+║
+║  Try:  {'painapple --host 0.0.0.0':<27} (listen on all interfaces)
+║        {'painapple --host 127.0.0.1':<27} (this machine only)
+╚══════════════════════════════════════════════════════════════╝
+""", file=sys.__stderr__ or sys.stdout)
+        logger.error(f"Cannot bind {host}:{port} — {reason}; not starting")
+        sys.exit(1)
+
     holder = port_holder(port)
     port_flag = f"painapple --port {port + 1}"
     print(f"""

@@ -533,6 +533,10 @@ def run_container(cfg, detach, profile=None):
     from painapple_code.cli.netinfo import port_holder, port_taken
     reason = port_taken(cfg.listen_host, cfg.port)
     if reason:
+        if getattr(reason, "bad_host", False):
+            err(f"Cannot bind {cfg.listen_host}:{cfg.port} — {reason}")
+            say(f"  {DIM}Fix the bind host:  {hint('setup', profile)}{RESET}")
+            return 1
         holder = port_holder(cfg.port)
         err(f"Port {cfg.port} on {cfg.listen_host} is already in use — {reason}"
             + (f" (held by {holder})" if holder else ""))
