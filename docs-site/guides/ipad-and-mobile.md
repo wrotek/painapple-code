@@ -8,7 +8,8 @@ Log into the web client from the device's browser first, then install:
 
 - **iOS / iPadOS** — in Safari, tap the share button and choose **Add to Home Screen**.
 - **Android** — Chrome offers **Install app** from the ⋮ menu (or an install banner).
-- **Desktop** — Chrome and Edge show an install icon in the address bar.
+- **macOS** — in Safari 17+, choose **File → Add to Dock**; Chrome and Edge show an install icon in the address bar.
+- **Windows / Linux** — Chrome and Edge show an install icon in the address bar (or **⋮ → Install**).
 
 Why bother, instead of a browser tab:
 

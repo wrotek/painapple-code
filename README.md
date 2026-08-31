@@ -146,7 +146,9 @@ Git for Windows is worth installing even if you use another git: the optional [h
 
 ### Then what?
 
-The console prints the **app URL with a login token embedded** — open it in any browser on the network, pick a project on the welcome screen, and you're in. Point a phone or tablet at the same URL and install it as a PWA.
+The console prints the **app URL with a login token embedded** — open it in a browser on that machine, pick a project on the welcome screen, and you're in. It's a full PWA, so you can install it as a standalone app: **macOS Safari** → File → *Add to Dock*, **Chrome / Edge** (Windows, Linux, macOS) → the install icon in the address bar.
+
+By default the server binds to `127.0.0.1`, so that URL only works on the machine it runs on. **Reaching it from a phone or tablet is optional and takes a bit more setup**: bind wider with `--host 0.0.0.0` (non-loopback binds auto-enable TLS with a self-signed certificate — you'll accept a one-time browser warning), or put a reverse proxy with a real domain and certificate in front, which is what iOS/iPadOS wants before it will install the PWA properly. Read the [security notes](https://painapple.ai/getting-started/security/) before exposing it beyond your own machine, and the [iPad & mobile guide](https://painapple.ai/guides/ipad-and-mobile/) for the full walkthrough.
 
 In container mode the image is pulled automatically on the first run (`painapple pull` re-fetches it to update or pin a release); state persists in named volumes and your projects are bind-mounted. Running it inside a single project works too, and `--workspace /path` serves any folder without `cd`-ing there.
 
