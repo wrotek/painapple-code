@@ -45,9 +45,11 @@ export const wsHandlerMethods = {
                     this.cwd = msg.cwd;
                     this.name = basename(this.cwd) || 'Session';
                     this.updateTab();
-                    // Fetch Claude commands for this project
-                    if (app.fetchAgentCommands) {
-                        app.fetchAgentCommands(msg.cwd);
+                    // Fetch Claude commands for this project (was a dead
+                    // `app.fetchAgentCommands` guard — no such method — so
+                    // this fetch silently never ran on the connected frame)
+                    if (app.fetchProjectCommands) {
+                        app.fetchProjectCommands(msg.cwd);
                     }
                     // Fetch git branch for status bar (if this is the active session)
                     if (this.isActive && app.fetchGitBranch) {
