@@ -582,7 +582,7 @@ def run_container(cfg, detach, profile=None):
     # inside the runtime with a message that never mentions painapple
     # ("pasta failed with exit code 1…") — and, being on stderr, it lands
     # out of order among our own lines. Check it ourselves, first.
-    from painapple_code.cli.netinfo import port_holder, port_taken
+    from painapple_code.cli.netinfo import first_free_port, port_holder, port_taken
     reason = port_taken(cfg.listen_host, cfg.port)
     if reason:
         if getattr(reason, "bad_host", False):
@@ -592,7 +592,24 @@ def run_container(cfg, detach, profile=None):
         holder = port_holder(cfg.port)
         err(f"Port {cfg.port} on {cfg.listen_host} is already in use — {reason}"
             + (f" (held by {holder})" if holder else ""))
-        say(f"  {DIM}Pick another port:  {hint('setup', profile)}{RESET}")
+        # Lead with the one-off retry, not the wizard: the user wants THIS
+        # launch to go, and `setup` rewrites global/profile defaults for
+        # every future start. A concrete free port beats "pick another".
+        #
+        # A named profile gets the whole command (self-contained). The
+        # ad-hoc sandbox gets the FLAG to append instead — printing
+        # `painapple --in-docker --port N` would quietly drop the rest of
+        # what the user typed (--project, --workspace, --accent …), and a
+        # copied hint that changes behavior is worse than no hint.
+        free = first_free_port(cfg.listen_host, cfg.port + 1)
+        port_arg = f"--port {free}" if free else "--port N"
+        if profile:
+            say(f"  {DIM}Retry on another port:  "
+                f"{hint('start', profile)} {port_arg}{RESET}")
+        else:
+            say(f"  {DIM}Retry on another port:  add {port_arg} to your "
+                f"command{RESET}")
+        say(f"  {DIM}Or change the saved default:  {hint('setup', profile)}{RESET}")
         return 1
 
     # Bind-mount dirs must exist so docker doesn't create them as root.

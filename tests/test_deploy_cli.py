@@ -456,6 +456,77 @@ def test_build_run_argv_pins_no_project_for_parent_git_mount(tmp_path):
     assert "--no-project" not in argv
 
 
+def test_first_free_port_skips_a_held_port():
+    import socket
+    from painapple_code.cli.netinfo import first_free_port, port_taken
+
+    with socket.socket() as held:
+        held.bind(("127.0.0.1", 0))
+        held.listen(1)
+        busy = held.getsockname()[1]
+        assert port_taken("127.0.0.1", busy)
+        free = first_free_port("127.0.0.1", busy)
+        assert free is not None and free != busy
+    # A bad bind host has no free port — no suggestion is possible.
+    assert first_free_port("10.255.255.1", 9000) is None
+
+
+class _PortFakeRuntime:
+    """Minimal runtime for the pre-flight port check path."""
+    name = "docker"
+
+    def __init__(self, cfg=None):
+        pass
+
+    def responds(self):
+        return True
+
+    def image_exists(self, image):
+        return True
+
+    def container_running(self, name):
+        return False
+
+    def container_exists(self, name):
+        return False
+
+    def label(self, image, key):
+        return "1.0.3"
+
+    def output(self, *a, **k):
+        return ""
+
+
+@pytest.mark.parametrize("profile,expected", [
+    (None, "add --port"),                    # ad-hoc: append the FLAG, since
+                                             # a full command would drop the
+                                             # user's other flags
+    ("work", "painapple start work --port"),  # profile: self-contained command
+])
+def test_busy_port_suggests_a_free_port(tmp_path, capsys, monkeypatch, profile, expected):
+    import socket
+    from painapple_code.cli.deploy import container as c
+
+    cfg = _sample_settings(tmp_path, profile=profile)
+    cfg.listen_host = "127.0.0.1"
+    with socket.socket() as held:
+        held.bind(("127.0.0.1", 0))
+        held.listen(1)
+        cfg.port = held.getsockname()[1]
+        monkeypatch.setattr(c, "Runtime", _PortFakeRuntime)
+        rc = c.run_container(cfg, detach=False, profile=profile)
+
+    assert rc == 1
+    out = capsys.readouterr()
+    text = out.out + out.err
+    assert "already in use" in text
+    assert expected in text
+    # A concrete free port, not a placeholder, and the wizard demoted to
+    # the second line rather than being the only way out.
+    assert "--port N" not in text
+    assert "painapple setup" in text
+
+
 def test_image_staleness_detection():
     from painapple_code.cli.deploy import container as c
 

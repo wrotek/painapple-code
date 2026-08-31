@@ -97,6 +97,19 @@ def port_taken(host, port):
     return ""
 
 
+def first_free_port(host, start, span=40):
+    """First bindable port at or above ``start``, or None if the whole
+    span is taken. Used to turn "port busy" into an actionable
+    "--port N" suggestion instead of sending the user to a wizard."""
+    for candidate in range(start, min(start + span, 65536)):
+        reason = port_taken(host, candidate)
+        if getattr(reason, "bad_host", False):
+            return None          # host is the problem — no port helps
+        if not reason:
+            return candidate
+    return None
+
+
 def _listener_pid(port):
     """PID of whatever holds the listening socket on `port`, or None.
     Never raises — every caller is decoration."""

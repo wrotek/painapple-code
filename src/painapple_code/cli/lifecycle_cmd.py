@@ -280,7 +280,7 @@ def _start(target, extra):
     # Bind test, not a scan of our own process table — a port held by
     # ANYTHING (another painapple, a stray dev server) must fail here,
     # loudly, rather than inside a detached child nobody is watching.
-    from painapple_code.cli.netinfo import port_holder, port_taken
+    from painapple_code.cli.netinfo import first_free_port, port_holder, port_taken
     reason = port_taken(host, port)
     if reason:
         if getattr(reason, "bad_host", False):
@@ -289,6 +289,16 @@ def _start(target, extra):
         holder = port_holder(port)
         err(f"Port {port} on {host} is already in use — {reason}"
             + (f" (held by {holder})" if holder else ""))
+        # Same actionable exit as the container path: a concrete free port
+        # to retry on, then the wizard for a permanent change.
+        free = first_free_port(host, port + 1)
+        port_arg = f"--port {free}" if free else "--port N"
+        label = target.get("label") or ""
+        name = label if label and label != "default" else ""
+        say(f"  {DIM}Retry on another port:  "
+            f"painapple start{f' {name}' if name else ''} {port_arg}{RESET}")
+        say(f"  {DIM}Or change the saved default:  "
+            f"painapple setup{f' {name}' if name else ''}{RESET}")
         return 1
 
     return _spawn_and_wait(
