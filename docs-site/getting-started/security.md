@@ -19,7 +19,7 @@ The permission modes on the default engine (configurable per session via the but
 | **Auto** | Claude's AI classifier gates each tool call |
 | **YOLO** | `bypassPermissions` — full access |
 
-Two caveats. First, the approval cards only protect you while you're the one clicking them — in **YOLO** and **Auto** nothing asks, and those are the modes that give Claude the most freedom. Second, the cards exist only on the default SDK engine: the classic line-protocol Claude engine runs headless (`claude -p`), where anything that would ask is auto-denied instead, and Codex engines use their own sandbox tiers. See the [permissions guide](../guides/permissions-and-thinking.md) for the full story, and the [Claude Code permission-modes docs](https://code.claude.com/docs/en/permission-modes#available-modes) for the underlying modes.
+Two caveats. First, the approval cards only protect you while you're the one clicking them — in **YOLO** and **Auto** nothing asks, and those are the modes that give Claude the most freedom. Second, the cards exist only on the Claude engine: Codex uses its own sandbox tiers instead. See the [permissions guide](../guides/permissions-and-thinking.md) for the full story, and the [Claude Code permission-modes docs](https://code.claude.com/docs/en/permission-modes#available-modes) for the underlying modes.
 
 ## Terminal
 

@@ -129,7 +129,7 @@ Sessions created through pAInapple Code are regular sessions of whatever [engine
 
 ```bash
 claude -r <session-id>              # Claude engines (claude-sdk, claude)
-codex exec resume <session-id>      # Codex engines (codex, codex-app-server)
+codex exec resume <session-id>      # Codex engine (codex-app-server)
 ```
 
 The in-app **Continue in CLI** quick action copies the right one for the session you're looking at, so you don't have to remember which engine it was bound to.

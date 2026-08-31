@@ -7,17 +7,15 @@ Every session runs on an **engine** — the AI CLI pAInapple Code drives under t
 
 ## The engines
 
-| Engine | What it is | Enabled by default |
-|--------|-----------|--------------------|
-| **Claude Code (SDK)** | Claude Code via the Agent SDK — interactive permission cards, live mode/model switching mid-turn. The default. | Yes |
-| **Codex (app-server)** | OpenAI Codex over its persistent app-server protocol — native forking, server-reported context window, graceful interrupt. | Yes |
-| **Claude Code** | The classic line-protocol driver (`claude -p`) — headless, no interactive cards. | No |
-| **Codex CLI** | Codex `exec` mode — one ephemeral process per turn. | No |
+| Engine | What it is |
+|--------|-----------|
+| **Claude Code** | Claude Code via the Agent SDK — interactive permission cards, live mode/model switching mid-turn. The default. |
+| **Codex** | OpenAI Codex over its persistent app-server protocol — native forking, server-reported context window, graceful interrupt. |
 
-The two "plain CLI" drivers exist mostly as fallbacks; the SDK and app-server engines are the recommended pair and the only ones offered out of the box. Enable or hide engines in **Settings → Engines**.
+Earlier releases also shipped two "plain CLI" fallback drivers (line-protocol `claude -p`, and Codex `exec` mode — one process per turn). Both were removed: the SDK and app-server drivers supersede them on every axis, and the Codex `exec` mode had a real downside — it could only take the prompt as a command-line argument, which made prompts readable in the process list by other accounts on the same machine. Sessions created on the old drivers keep working; they resume on the matching current engine automatically. Enable or hide engines in **Settings → Engines**.
 
 !!! note "What Codex needs"
-    The Codex engines require the [Codex CLI](https://github.com/openai/codex) (`@openai/codex`) installed on the *server* and logged in. An engine whose CLI is missing shows up greyed-out with a hint; a CLI that isn't logged in gets a **Log in** button right in Settings (see [below](#logging-in)). The Docker image doesn't bundle Codex, but it doesn't need to: the entrypoint installs it on first start alongside the Claude CLI, onto the `/data` volume. Override the set with `PAINAPPLE_AGENT_CLIS`, or skip it entirely with `PAINAPPLE_SKIP_AGENT_CLI=1`. See [container mode](../getting-started/install-docker.md).
+    The Codex engine requires the [Codex CLI](https://github.com/openai/codex) (`@openai/codex`) installed on the *server* and logged in. An engine whose CLI is missing shows up greyed-out with a hint; a CLI that isn't logged in gets a **Log in** button right in Settings (see [below](#logging-in)). The Docker image doesn't bundle Codex, but it doesn't need to: the entrypoint installs it on first start alongside the Claude CLI, onto the `/data` volume. Override the set with `PAINAPPLE_AGENT_CLIS`, or skip it entirely with `PAINAPPLE_SKIP_AGENT_CLI=1`. See [container mode](../getting-started/install-docker.md).
 
 ## Picking an engine per session
 
@@ -35,10 +33,9 @@ The **default engine** for new sessions is set with the **Make default** button 
 Each engine self-describes its capabilities, and the UI follows:
 
 - **Models** — the model picker shows the *active engine's* catalog. Claude's comes from the server's editable `models.yaml`; Codex's mirrors the Codex CLI's own model list (so it updates when Codex does). Per-engine default models are configured in Settings → Engines.
-- **Permission modes** — Claude engines speak Claude's modes (Plan / Ask / Don't Ask / Accept Edits / Auto / YOLO — see [Permission modes](permissions-and-thinking.md)); Codex engines map to Codex **sandbox tiers**: Read-only, Workspace write, and Full access.
+- **Permission modes** — the Claude engine speaks Claude's modes (Plan / Ask / Don't Ask / Accept Edits / Auto / YOLO — see [Permission modes](permissions-and-thinking.md)); the Codex engine maps to Codex **sandbox tiers**: Read-only, Workspace write, and Full access.
 - **Effort** — the effort gauge renders each engine's own scale. Claude has five levels (low → max); Codex levels come from its model catalog and can reach `xhigh` / `ultra` on recent models, with the picker narrowing to what the selected model supports.
 - **Cost** — Codex reports tokens only, no dollar figure, so the `$` cost readouts hide on Codex sessions and the turn bar shows token counts.
-- **Fork & discussions** — the Codex CLI (exec) engine can't fork a conversation, so Fork and [Discussion threads](stash-and-discussions.md) are disabled there; the app-server engine forks natively.
 - **Continue in the CLI** — the **Continue in CLI** quick action is engine-aware: a Claude session gives you `claude -r <id>`, a Codex session `codex exec resume <id>`.
 - **Auto-journal** — the [Shadow Git journal](shadow-git.md) fork always runs on the session's own engine (only the owner of a conversation can fork it), and each engine has its own journal-summarizer model setting.
 
@@ -48,7 +45,7 @@ Each engine self-describes its capabilities, and the UI follows:
 
 - **Engines list** — a toggle per engine (the default engine is forced on), and a **Make default** button on every other available engine. Disabling an engine hides it from pickers; sessions already bound to it keep working.
 - **One sub-tab per enabled engine**, all with the same layout:
-    - **CLI status** — the resolved binary path and live `--version`, plus a path-override field (the two Claude drivers share one path setting, the two Codex drivers another).
+    - **CLI status** — the resolved binary path and live `--version`, plus a path-override field per engine CLI.
     - <a id="logging-in"></a>**Login status** — whether the CLI is authenticated ("Logged in — email · plan" for Claude, exit status for Codex). When it isn't, a **Log in** button opens a terminal tab running the engine's login flow; the row polls and flips green when you finish. Codex uses device-code auth (`codex login --device-auth`) so the flow works even when the server is remote.
     - **Model catalog** — every model with a show/hide toggle (hidden models disappear from all pickers). Claude's catalog is fully editable (add/edit/delete, restore defaults); Codex's is read-only because the Codex CLI owns it.
     - **New Session Defaults** — that engine's default model, default effort (its own vocabulary), and default account/token profile where applicable.

@@ -1,18 +1,19 @@
 """
 OpenAI Codex provider over the **app-server** protocol (`codex app-server`).
 
-The sibling `codex` provider drives `codex exec --json` — one throwaway process
-*per turn*, prompt in argv, newline-JSON to stdout, exit. That's the
-lowest-common-denominator path; it's why that provider declares `fork=False`,
-`context_command=False`, no real model list, and a hardcoded context window.
+This is the ONLY registered Codex driver. Its predecessor drove
+`codex exec --json` — one throwaway process *per turn*, prompt in argv,
+newline-JSON to stdout, exit — and was removed (see `providers/codex/`'s
+docstring: the argv prompt was readable in `ps` by any local account, and this
+driver had superseded it on every other axis anyway). Its shared CLI-shaped
+mixins (capabilities/errors/canonical-event builders) live on in
+`providers/codex/`, inherited here.
 
-This provider instead speaks the **persistent JSON-RPC protocol** the official
-Codex IDE extension uses (`codex app-server --stdio`): one long-lived process
-serves many threads and turns, streaming events as JSON-RPC notifications. It
-unlocks native fork, a real (server-reported) context window, token deltas, and
-— later — interactive approvals, none of which `codex exec` can express. It is
-marked experimental in the CLI, so it ships *alongside* the stable `codex`
-provider rather than replacing it; users pick which they want.
+This provider speaks the **persistent JSON-RPC protocol** the official Codex
+IDE extension uses (`codex app-server --stdio`): one long-lived process serves
+many threads and turns, streaming events as JSON-RPC notifications. It unlocks
+native fork, a real (server-reported) context window, token deltas, and —
+later — interactive approvals, none of which `codex exec` could express.
 
 Because the wire is JSON-RPC rather than one-way lines, this provider sets
 `transport="jsonrpc"`: the session layer hands the spawned process to a
@@ -70,7 +71,9 @@ class CodexAppServerProvider(
     """
 
     name = "codex-app-server"
-    display_name = "Codex (app-server)"
+    # Just "Codex" — the exec driver this was once distinguished from is gone,
+    # so the parenthetical would only raise questions in the picker.
+    display_name = "Codex"
     description = "OpenAI Codex app-server — persistent JSON-RPC, native fork"
     capabilities = Capabilities(
         resume=True,

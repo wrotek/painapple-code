@@ -92,32 +92,29 @@ Impact is a resource leak on a machine the user already controls.
 than its own OS user. (This entry is about *tracking* only — for what a
 child process exposes while it runs, see the next item.)
 
-### Prompts reach `ps` on the `codex` engine
+### Prompts never reach `ps` (the `codex` exec engine was removed)
 
-`codex exec` accepts its prompt only as a command-line argument; it has no
-stdin protocol. On a session bound to the **`codex`** engine, each turn's
-prompt — and the background summary fork's prompt — is visible in `ps` and
-in `/proc/<pid>/cmdline`, which is world-readable on Linux, for as long as
-that turn runs. Prompts routinely carry source code, file paths, and
-whatever was pasted in.
+Historical: the `codex` exec engine (`codex exec --json`, off by default)
+accepted its prompt only as a command-line argument — no stdin protocol —
+so on a session bound to it, each turn's prompt and the background summary
+fork's prompt were visible in `ps` and in `/proc/<pid>/cmdline`
+(world-readable on Linux) for as long as the turn ran. The server could not
+route around it; the constraint was the CLI's argument interface.
 
-The server cannot route around this; the constraint is the CLI's argument
-interface. The other three engines pass prompts over stdio and are
-unaffected — including both engines enabled by default (`claude-sdk` and
-`codex-app-server`). `codex` is off by default and must be turned on
-explicitly in Settings → Engines.
+Resolved by **removing the engine** rather than accepting the risk: every
+registered engine passes prompts over stdio (`claude-sdk` via the SDK
+driver's stdin protocol, `codex-app-server` via JSON-RPC over stdio).
+Sessions persisted with the removed engine names resolve to their
+same-family successor (`codex` → `codex-app-server`, which reads the same
+`$CODEX_HOME` thread store; `claude` → the wire-identical `claude-sdk`).
 
-Accepted because reading it requires a second local account on the same
-host, which the deployment model above already tells you not to have. Note
-that commands you run yourself — the terminal, `!bang` commands,
-`/api/exec` — appear in `ps` like any shell command; the surprise here is
-specific to *prompts*, which a user has no reason to expect on a command
-line.
-
-**This stops being acceptable if** you enable `codex` on a machine with
-other accounts. Prefer `codex-app-server`, the default Codex engine, which
-keeps prompts off the command line. On Linux, mounting `/proc` with
-`hidepid=2` closes it for every process, not just this one.
+The `Capabilities.prompt_in_argv` seam survives: a drop-in third-party
+engine that takes prompts in argv must declare it and gets the
+Settings → Engines warning automatically
+(`test_no_registered_engine_puts_prompts_in_argv` keeps the shipped set
+clean). Note that commands you run yourself — the terminal, `!bang`
+commands, `/api/exec` — appear in `ps` like any shell command; only
+*prompts* are guaranteed off the command line.
 
 ### Windows support is smoke-tested only
 

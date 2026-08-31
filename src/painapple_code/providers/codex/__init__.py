@@ -1,87 +1,31 @@
 """
-OpenAI Codex CLI provider (`codex exec --json`).
+Codex family — shared base mixins for the `codex-app-server` provider.
 
-Unlike Claude (one persistent `claude -p` process streaming stream-json over
-stdin/stdout across many turns), Codex runs **one `codex exec` process per
-turn**: the prompt is a positional argv, the run emits newline-delimited JSON
-events to stdout, and the process exits when the turn ends. Continuation is a
-fresh `codex exec resume <thread_id> "<prompt>"`. So this provider declares
-`persistent_process=False` and the session layer drives a per-turn spawn loop.
+This package used to define `CodexProvider`, the `codex exec --json` driver
+(one throwaway process per turn, prompt as a positional argv). It was removed
+from the engine registry — and its exec-only code (`launch.py`, the
+rollout-copy summary fork) deleted — because `codex exec` accepts its prompt
+ONLY as a command-line argument: every turn's prompt was readable in `ps` /
+`/proc/<pid>/cmdline` by any local account for the life of the turn (see
+SECURITY.md, "Prompts reach `ps` on the `codex` engine", and the
+`Capabilities.prompt_in_argv` seam that disclosed it). The app-server driver
+speaks JSON-RPC over stdio and has no such leak, and had already superseded
+exec on every other axis (native fork, live interrupt, real context window).
 
-The adapter is assembled from focused mixins (this file is the combiner — see
-`session_store.py` / `shadow_git.py` for the same pattern in this codebase):
+What remains here is the CLI-shaped knowledge both drivers always shared —
+same binary, same `$CODEX_HOME` layout, same event vocabulary — inherited by
+`codex_app_server`:
 
-    capabilities.py  → _CapabilitiesMixin  binary, availability, effort/perm
-                                            vocabularies, skill/agent/plugin
-                                            roots, context metering
-    launch.py        → _LaunchMixin         build_command + image materialization
-    translate.py     → _TranslateMixin      Codex events → canonical Claude shape
-    summary.py       → _SummaryMixin         rich-commit summary fork (rollout copy)
+    capabilities.py  → _CapabilitiesMixin  binary, availability, models cache,
+                                            effort/perm vocabularies,
+                                            skill/agent/plugin roots
+    translate.py     → _TranslateMixin      canonical-event builders
+                                            (_assistant/_tool_use/…)
     errors.py        → _ErrorsMixin          stderr classification / retry policy
 
-Codex reports token counts but no per-turn USD cost, so result cost is left at 0
-(see the step-two plan: tokens-only, cost null). Token usage is per-turn already,
-so no cumulative→delta conversion is needed.
+No `PROVIDERS` export: the package scanner registers nothing from here.
+Sessions persisted with provider="codex" resolve to codex-app-server via the
+legacy-alias map in providers/__init__.py `get_provider()` — both drivers
+store threads in the same `$CODEX_HOME/sessions` rollouts, so an old exec
+session's thread id resumes natively under the app-server.
 """
-
-from __future__ import annotations
-
-from painapple_code.providers.base import Provider, Capabilities
-from painapple_code.providers.codex.capabilities import _CapabilitiesMixin
-from painapple_code.providers.codex.launch import _LaunchMixin
-from painapple_code.providers.codex.translate import _TranslateMixin
-from painapple_code.providers.codex.summary import _SummaryMixin
-from painapple_code.providers.codex.errors import _ErrorsMixin
-
-
-class CodexProvider(
-    _CapabilitiesMixin,
-    _LaunchMixin,
-    _TranslateMixin,
-    _SummaryMixin,
-    _ErrorsMixin,
-    Provider,
-):
-    """Adapter for the OpenAI Codex CLI (`codex exec --json`).
-
-    The behaviour lives in the mixins above; this class only carries the static
-    identity + capability flags and the MRO that composes them (mixins first, so
-    their overrides win over the `Provider` defaults, with `super()` calls — e.g.
-    `is_available` — still reaching the base implementation).
-    """
-
-    name = "codex"
-    display_name = "Codex CLI"
-    description = "OpenAI Codex CLI — one exec process per turn"
-    # Same engine as codex-app-server but the plainer per-turn exec driver
-    # (no native fork, no live interrupt) — kept out of the picker by default
-    # so Codex appears once. Flip it on in Settings → Engines.
-    default_enabled = False
-    capabilities = Capabilities(
-        resume=True,
-        fork=False,                # no --fork-session equivalent
-        permission_modes=True,
-        effort=True,
-        thinking_display=True,     # native `reasoning` items
-        context_command=False,     # no /context equivalent in exec mode
-        cumulative_cost=False,     # per-turn usage, and no USD figure at all
-        # The post-turn fork summarizes the turn with Codex itself (see
-        # summary.py / build_summary_fork). Codex has no `--fork-session`, and
-        # `codex exec resume` writes in place, so the fork copies the thread's
-        # rollout under a fresh id and resumes the copy — branching like Claude's
-        # --fork-session without polluting the user's real thread.
-        rich_commit_summaries=True,
-        persistent_process=False,  # one `codex exec` per turn
-        forward_plain_stderr=False,  # codex prints human progress to stderr
-        # `codex exec` has no stdin protocol — frame_input() raises to say so —
-        # so build_command appends the prompt as a positional arg. Nothing here
-        # can route around it; the sibling codex-app-server driver speaks stdio
-        # and is the engine to prefer on a shared host.
-        prompt_in_argv=True,
-    )
-
-
-# Registry contribution — see providers/claude.py for the convention. The
-# package scanner in providers/__init__.py discovers this exactly like a flat
-# module (pkgutil.iter_modules lists subpackages too).
-PROVIDERS = [CodexProvider()]

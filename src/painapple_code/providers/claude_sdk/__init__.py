@@ -39,10 +39,13 @@ class ClaudeSdkProvider(ClaudeProvider):
     """Claude Code driven through `claude-agent-sdk` in a driver subprocess."""
 
     name = "claude-sdk"
-    display_name = "Claude Code (SDK)"
+    # Just "Claude Code" — the line-protocol driver this was once
+    # distinguished from is no longer registered.
+    display_name = "Claude Code"
     description = "Anthropic Claude Code via the Agent SDK — live controls, ask-mode cards"
-    # The preferred Claude driver — in the picker out of the box (ClaudeProvider
-    # sets False to keep the plainer CLI variant hidden; undo that here).
+    # The Claude driver — in the picker out of the box. (The plainer
+    # line-protocol ClaudeProvider it subclasses is no longer registered at
+    # all; it survives only as this class's base implementation.)
     default_enabled = True
     # Same engine, same feature surface as Claude — plus the SDK's
     # can_use_tool permission round-trip (driver ⇄ server ⇄ client) and its

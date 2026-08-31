@@ -2017,7 +2017,13 @@ def main(argv=None):
     atexit.register(lambda: pid_file.unlink(missing_ok=True))
 
     if args.default_provider:
-        from painapple_code.providers import provider_names
+        from painapple_code.providers import provider_names, _LEGACY_ALIASES
+        if args.default_provider in _LEGACY_ALIASES:
+            # Removed engines: keep old service units / scripts booting, loudly.
+            successor = _LEGACY_ALIASES[args.default_provider]
+            print(f"Warning: provider {args.default_provider!r} was removed; "
+                  f"using its successor {successor!r}")
+            args.default_provider = successor
         if args.default_provider not in provider_names():
             parser.error(
                 f"unknown provider {args.default_provider!r} "

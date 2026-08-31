@@ -101,7 +101,7 @@ Connect to `ws://…/chat` with query parameters:
 |-------|---------|
 | `session` | Server-side session ID to join or resume an existing session |
 | `cwd` | Working directory (used when creating a new session) |
-| `provider` | [Engine](../guides/engines.md) to bind a **new** session to (`claude-sdk`, `claude`, `codex`, `codex-app-server`). Ignored once a session is bound |
+| `provider` | [Engine](../guides/engines.md) to bind a **new** session to (`claude-sdk`, `codex-app-server`). Ignored once a session is bound |
 
 Sessions are bound to session IDs, not connections — reconnecting to a running session resumes its output stream.
 

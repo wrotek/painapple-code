@@ -87,8 +87,13 @@ def test_registry_defaults_and_fallback():
     assert get_provider().name == DEFAULT_PROVIDER          # default
     assert get_provider(None).name == DEFAULT_PROVIDER
     assert get_provider("nonexistent").name == DEFAULT_PROVIDER  # unknown → fallback
-    for name in ("claude", "claude-sdk", "codex", "codex-app-server"):
+    for name in ("claude-sdk", "codex-app-server"):
         assert name in provider_names()
+    # The removed plain CLI drivers alias to their same-family successor —
+    # NOT the global default — so old bound sessions land on the right engine.
+    for legacy, successor in (("claude", "claude-sdk"), ("codex", "codex-app-server")):
+        assert legacy not in provider_names()
+        assert get_provider(legacy).name == successor
     # Default sorts first in the registry ordering.
     assert provider_names()[0] == DEFAULT_PROVIDER
 
@@ -112,17 +117,15 @@ def test_describe_carries_picker_metadata():
 def test_describe_capability_matrix_for_picker_gating():
     """The client gates fork/Discuss, model chip and USD cost off describe()."""
     from painapple_code.providers import get_provider
-    codex = get_provider("codex").describe()
     app_server = get_provider("codex-app-server").describe()
     claude_sdk = get_provider("claude-sdk").describe()
-    assert codex["capabilities"]["fork"] is False          # Discuss/fork hidden
-    assert app_server["capabilities"]["fork"] is True
+    assert app_server["capabilities"]["fork"] is True      # native thread/fork
     # Codex models come from the CLI's own cache — present on a box where
     # codex has run, absent otherwise; either way the shape must hold.
-    assert isinstance(codex["models"], list)
-    assert all(m.get("id") and m.get("label") for m in codex["models"])
+    assert isinstance(app_server["models"], list)
+    assert all(m.get("id") and m.get("label") for m in app_server["models"])
     assert claude_sdk["models"], "default engine should list models"
-    assert codex["capabilities"]["cumulative_cost"] is False  # USD hidden
+    assert app_server["capabilities"]["cumulative_cost"] is False  # USD hidden
 
 
 def test_provider_is_locked_predicate():
@@ -139,15 +142,15 @@ def test_provider_is_locked_predicate():
 
 
 def test_default_enabled_split():
-    """Out of the box the picker offers one entry per engine: the SDK-grade
-    drivers ship enabled, the plainer CLI variants defined-but-disabled."""
-    from painapple_code.providers import get_provider
+    """The picker offers exactly one entry per engine: the plain CLI drivers
+    (line-protocol claude, codex exec) were removed outright, so everything
+    registered ships enabled."""
+    from painapple_code.providers import all_providers, get_provider
     assert get_provider("claude-sdk").default_enabled is True
     assert get_provider("codex-app-server").default_enabled is True
-    assert get_provider("claude").default_enabled is False
-    assert get_provider("codex").default_enabled is False
+    assert all(p.default_enabled for p in all_providers())
     # describe() carries it so Settings can show "what Reset returns to"
-    assert get_provider("claude").describe()["default_enabled"] is False
+    assert get_provider("claude-sdk").describe()["default_enabled"] is True
 
 
 def test_bind_permission_level_anchoring():
@@ -263,30 +266,23 @@ def test_codex_effort_levels_from_models_cache(tmp_path, monkeypatch):
 
 
 def test_codex_launch_effort_clamped_per_model(tmp_path, monkeypatch):
-    """Both codex drivers wire effort through effort_for_model: the exec argv
-    and the app-server turn params carry the clamped value for the model that
-    will actually run (forwarded pick, else the conservative default range)."""
+    """The app-server turn params carry the effort clamped via effort_for_model
+    to the model that will actually run (forwarded pick, else the conservative
+    default range)."""
     from painapple_code.providers import get_provider
     monkeypatch.setenv("CODEX_HOME", str(tmp_path))
     _write_codex_efforts_cache(tmp_path)
 
-    exec_p = get_provider("codex")
-    cmd = exec_p.build_command(LaunchOptions(model="m-old", effort="max", prompt="hi"))
-    assert "-m" in cmd and "m-old" in cmd
-    assert "model_reasoning_effort=xhigh" in " ".join(cmd)
-    # No forwarded model → intersection range governs.
-    cmd = exec_p.build_command(LaunchOptions(effort="max", prompt="hi"))
-    assert "-m" not in cmd
-    assert "model_reasoning_effort=xhigh" in " ".join(cmd)
-    cmd = exec_p.build_command(LaunchOptions(model="m-new", effort="ultra", prompt="hi"))
-    assert "model_reasoning_effort=max" in " ".join(cmd)
-
     app_p = get_provider("codex-app-server")
+    params = app_p.turn_start_params(
+        LaunchOptions(model="m-old", effort="max"), "t1", [])
+    assert params["effort"] == "xhigh" and params["model"] == "m-old"
+    # No forwarded model → intersection range governs.
+    params = app_p.turn_start_params(LaunchOptions(effort="max"), "t1", [])
+    assert params["effort"] == "xhigh" and "model" not in params
     params = app_p.turn_start_params(
         LaunchOptions(model="m-new", effort="ultra"), "t1", [])
     assert params["effort"] == "max" and params["model"] == "m-new"
-    params = app_p.turn_start_params(LaunchOptions(effort="max"), "t1", [])
-    assert params["effort"] == "xhigh" and "model" not in params
 
 
 def test_describe_settings_surface():
@@ -294,20 +290,19 @@ def test_describe_settings_surface():
     which engines have an app-owned (editable) catalog, which have a
     configurable CLI path, and the bare command the path falls back to."""
     from painapple_code.providers import get_provider
-    for name in ("claude", "claude-sdk"):
-        d = get_provider(name).describe()
-        assert d["models_editable"] is True, name       # models.yaml editor
-        assert d["path_configurable"] is True, name
-        assert d["default_binary"] == "claude", name
-    for name in ("codex", "codex-app-server"):
-        d = get_provider(name).describe()
-        assert d["models_editable"] is False, name      # CLI-owned catalog
-        assert d["path_configurable"] is True, name
-        assert d["default_binary"] == "codex", name
-    # Same-engine driver variants share one config key (edit the engine,
-    # not the driver).
-    assert get_provider("claude").path_config_key == get_provider("claude-sdk").path_config_key
-    assert get_provider("codex").path_config_key == get_provider("codex-app-server").path_config_key
+    d = get_provider("claude-sdk").describe()
+    assert d["models_editable"] is True                 # models.yaml editor
+    assert d["path_configurable"] is True
+    assert d["default_binary"] == "claude"
+    d = get_provider("codex-app-server").describe()
+    assert d["models_editable"] is False                # CLI-owned catalog
+    assert d["path_configurable"] is True
+    assert d["default_binary"] == "codex"
+    # The registered driver shares its config key with the unregistered base
+    # class it inherits from (claude_path / codex_path survive removal of the
+    # plain drivers — user configs keep working).
+    from painapple_code.providers import ClaudeProvider
+    assert ClaudeProvider.path_config_key == get_provider("claude-sdk").path_config_key
 
 
 # ── Generic engine-path endpoint (provider self-describes the key) ──────
@@ -350,19 +345,19 @@ def test_engine_path_put_roundtrip(client, monkeypatch, tmp_path):
     fake.write_text("#!/bin/sh\n")
 
     # Explicit path → stored under the provider's own key
-    r = client.put("/api/app/engine-path/codex", json={"path": str(fake)})
+    r = client.put("/api/app/engine-path/codex-app-server", json={"path": str(fake)})
     assert r.status_code == 200
     assert store["codex_path"] == str(fake)
     assert r.json()["path"] == str(fake)
 
     # Nonexistent path → 400, config untouched
-    r = client.put("/api/app/engine-path/codex", json={"path": str(tmp_path / "nope")})
+    r = client.put("/api/app/engine-path/codex-app-server", json={"path": str(tmp_path / "nope")})
     assert r.status_code == 400
     assert store["codex_path"] == str(fake)
 
     # null (and the bare default binary name) clear the override — always
     # allowed, even if the CLI isn't installed (stale overrides removable)
-    r = client.put("/api/app/engine-path/codex", json={"path": None})
+    r = client.put("/api/app/engine-path/codex-app-server", json={"path": None})
     assert r.status_code == 200
     assert "codex_path" not in store
     assert r.json()["path"] is None
@@ -473,9 +468,8 @@ def test_engine_models_get(client, monkeypatch, tmp_path):
 
 
 def test_engine_models_put_roundtrip(client, monkeypatch):
-    """PUT replaces the hidden set under the shared models_key (the twin
-    driver reads the same curation); empty list clears the key; malformed
-    bodies → 400 with config untouched."""
+    """PUT replaces the hidden set under the models_key; empty list clears the
+    key; malformed bodies → 400 with config untouched."""
     from painapple_code.providers import get_provider
     store = {}
     _patch_config_store(monkeypatch, store)
@@ -486,8 +480,8 @@ def test_engine_models_put_roundtrip(client, monkeypatch):
     assert store["models_disabled"] == {"claude": [hide]}
     flags = {m["id"]: m["enabled"] for m in r.json()["models"]}
     assert flags[hide] is False
-    twin = client.get("/api/app/engine-models/claude").json()
-    assert twin["disabled"] == [hide]
+    again = client.get("/api/app/engine-models/claude-sdk").json()
+    assert again["disabled"] == [hide]
 
     for bad in ("gpt", [1], None):
         r = client.put("/api/app/engine-models/claude-sdk", json={"disabled": bad})
@@ -576,7 +570,7 @@ def test_engine_auth_endpoint(client, monkeypatch, tmp_path):
 
     # Broken binary → probe can't run → logged_in null, login still offered
     _patch_config_store(monkeypatch, {"claude_path": "/nope/claude"})
-    data = client.get("/api/app/engine-auth/claude").json()
+    data = client.get("/api/app/engine-auth/claude-sdk").json()
     assert data["supported"] is True
     assert data["logged_in"] is None
     assert data["login_command"] == "/nope/claude auth login"

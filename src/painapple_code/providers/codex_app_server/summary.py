@@ -17,9 +17,7 @@ conversation and returns the structured sections + token usage.
 
 On any failure it returns `(None, None)`: the turn still gets a basic shadow
 commit, just without AI sections — exactly like any other unavailable fork.
-Subclasses the exec summary mixin only to reuse `_strictify_schema` (the
-app-server's `outputSchema` runs in the same OpenAI strict mode as exec's
-`--output-schema`). Mixed into `CodexAppServerProvider`.
+Mixed into `CodexAppServerProvider`.
 """
 
 from __future__ import annotations
@@ -31,7 +29,6 @@ from typing import Optional
 
 from painapple_code import paths
 from painapple_code.providers.base import SummaryForkPlan
-from painapple_code.providers.codex.summary import _SummaryMixin as _CodexExecSummaryMixin
 
 logger = logging.getLogger("painapple_code")
 
@@ -43,8 +40,23 @@ _RPC_TIMEOUT = 60.0
 _TURN_TIMEOUT = 240.0
 
 
-class _SummaryMixin(_CodexExecSummaryMixin):
+class _SummaryMixin:
     """Native app-server rich-commit fork — ephemeral thread/fork + outputSchema."""
+
+    @staticmethod
+    def _strictify_schema(schema_json: str) -> str:
+        """Widen `required` to every property — the app-server's `outputSchema`
+        runs in OpenAI strict mode. The model emits empties for inapplicable
+        sections, which `structured_to_markdown` skips."""
+        try:
+            schema = json.loads(schema_json)
+        except json.JSONDecodeError:
+            return schema_json
+        props = schema.get("properties")
+        if isinstance(props, dict):
+            schema["required"] = list(props.keys())
+            schema["additionalProperties"] = False
+        return json.dumps(schema)
 
     def build_summary_fork(
         self,

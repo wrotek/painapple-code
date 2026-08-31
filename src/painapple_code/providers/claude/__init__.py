@@ -49,10 +49,6 @@ class ClaudeProvider(
     name = "claude"
     display_name = "Claude Code"
     description = "Anthropic Claude Code CLI — line-protocol driver"
-    # Same engine as claude-sdk but the plainer driver (no live controls, no
-    # ask-mode cards) — kept out of the picker by default so Claude appears
-    # once. Flip it on in Settings → Engines.
-    default_enabled = False
     capabilities = Capabilities(
         resume=True,
         fork=True,
@@ -67,8 +63,9 @@ class ClaudeProvider(
     )
 
 
-# Instances this module contributes to the registry. The package scanner
-# (providers/__init__.py) collects every module's PROVIDERS list, so adding a
-# provider is "drop a file that exports PROVIDERS" — no core edit. (A subpackage
-# is discovered exactly like a flat module.)
-PROVIDERS = [ClaudeProvider()]
+# Deliberately NOT registered (no PROVIDERS export): the line-protocol driver
+# was superseded by claude-sdk — same engine, same wire format, plus the SDK
+# control plane — and removed from the engine registry. This class stays as the
+# base `ClaudeSdkProvider` subclasses (all mixins above are live code under the
+# SDK driver). Sessions persisted with provider="claude" resolve to claude-sdk
+# via the legacy-alias map in providers/__init__.py `get_provider()`.

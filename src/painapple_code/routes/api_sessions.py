@@ -476,11 +476,17 @@ async def get_session_provider(session_id: str, request: Request):
     `locked` flips permanently once the session has run a turn (or holds an
     upstream provider_session_id) — the conversation lives in that engine's
     own on-disk format and can't transfer."""
+    from painapple_code.providers import get_provider
     from painapple_code.routes.dependencies import effective_default_provider, provider_is_locked
     meta = SessionStore.load_meta(session_id)
     if not meta:
         raise HTTPException(status_code=404, detail="Session not found")
     configured = meta.get("provider")
+    if configured:
+        # Canonicalize legacy names of removed engines (claude → claude-sdk,
+        # codex → codex-app-server) so the client's engine chip/picker — which
+        # only knows registered engines — always gets a resolvable name.
+        configured = get_provider(configured).name
     default_name = effective_default_provider(request.app).name
     return {
         "provider": configured or default_name,

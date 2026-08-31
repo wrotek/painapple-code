@@ -21,7 +21,7 @@ Adding a provider is drop-in — no edit to this file:
 Registry usage:
 
     from painapple_code.providers import get_provider
-    provider = get_provider("claude")          # default
+    provider = get_provider()                  # the default (claude-sdk)
     cmd = provider.build_command(LaunchOptions(model="claude-opus-5"))
 """
 
@@ -40,9 +40,10 @@ from painapple_code.providers.base import (
     StderrClass,
 )
 # Re-exported for callers that import adapter classes directly. The live
-# registry is built by discovery below, not from these names.
+# registry is built by discovery below, not from these names. ClaudeProvider is
+# unregistered (superseded by claude-sdk, which subclasses it) but stays
+# exported as the base class.
 from painapple_code.providers.claude import ClaudeProvider
-from painapple_code.providers.codex import CodexProvider
 from painapple_code.providers.codex_app_server import CodexAppServerProvider
 
 logger = logging.getLogger(__name__)
@@ -165,14 +166,31 @@ def _ordered(found: dict[str, Provider]) -> dict[str, Provider]:
 _PROVIDERS: dict[str, Provider] = _discover_providers()
 
 
+# Removed engines → their successor in the SAME family. Sessions persist the
+# provider name in meta.json/DuckDB forever, so the plain CLI drivers that were
+# deregistered (claude line-protocol → claude-sdk, wire-identical; codex exec →
+# codex-app-server, same $CODEX_HOME rollout store and thread ids) must resolve
+# to their sibling — NOT fall through to the global default, which would send
+# an old codex-bound session to a Claude engine holding a Codex thread id.
+_LEGACY_ALIASES = {
+    "claude": "claude-sdk",
+    "codex": "codex-app-server",
+}
+
+
 def get_provider(name: str | None = None) -> Provider:
     """Resolve a provider by name, falling back to the default (Claude).
 
-    Unknown names fall back to the default provider with no error so a stale or
-    typo'd persisted `provider` field can never wedge a session.
+    Legacy names of removed engines resolve to their same-family successor
+    (see `_LEGACY_ALIASES`); a third-party provider that registers one of
+    those names wins over the alias. Other unknown names fall back to the
+    default provider with no error so a stale or typo'd persisted `provider`
+    field can never wedge a session.
     """
     if not name:
         name = DEFAULT_PROVIDER
+    if name not in _PROVIDERS:
+        name = _LEGACY_ALIASES.get(name, name)
     return _PROVIDERS.get(name, _PROVIDERS[DEFAULT_PROVIDER])
 
 
@@ -214,7 +232,6 @@ __all__ = [
     "CostState",
     "StderrClass",
     "ClaudeProvider",
-    "CodexProvider",
     "CodexAppServerProvider",
     "DEFAULT_PROVIDER",
     "get_provider",
