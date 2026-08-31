@@ -94,6 +94,9 @@ function showImmediate(target) {
     const el = getTooltipEl();
     const wasVisible = el.classList.contains('visible');
     if (el.textContent !== text) el.textContent = text;
+    // Multiline opt-in (wrapping + max-width) — must be applied BEFORE
+    // positioning, since it changes the tooltip's own size.
+    el.classList.toggle('multiline', target.hasAttribute('data-tooltip-multiline'));
     positionTooltip(el, target);
 
     if (!wasVisible) {
@@ -183,6 +186,7 @@ export const TooltipManager = {
         hide();
         const doShow = () => {
             const el = getTooltipEl();
+            el.classList.remove('multiline'); // programmatic path is single-line
             el.textContent = text;
             el.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
             void el.offsetHeight;

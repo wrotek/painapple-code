@@ -34,3 +34,13 @@
 .tooltip-fixed.visible {
     opacity: 1;
 }
+
+/* Multiline mode — opted into per-target via data-tooltip-multiline
+   (tooltips.js toggles the class). For long text like full command
+   descriptions; default stays nowrap so short tooltips keep their
+   compact single-line shape. */
+.tooltip-fixed.multiline {
+    white-space: normal;
+    max-width: min(460px, 85vw);
+    line-height: 1.45;
+}

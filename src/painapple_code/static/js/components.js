@@ -1331,7 +1331,9 @@ export class AutocompleteUI {
             <div class="autocomplete-section">${sectionTitle}</div>
             ${this.items.map((item, i) => `
                 <div class="autocomplete-item ${i === this.selectedIndex ? 'selected' : ''}"
-                     data-index="${i}">
+                     data-index="${i}"${item.desc && item.desc.length > 120
+                         ? ` data-tooltip="${escapeAttr(item.desc)}" data-tooltip-multiline=""`
+                         : ''}>
                     <span class="autocomplete-cmd">${escapeHtml(item.cmd)}</span>
                     <span class="autocomplete-desc">${escapeHtml(item.desc)}</span>
                 </div>

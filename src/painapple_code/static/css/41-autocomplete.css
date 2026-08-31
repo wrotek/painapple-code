@@ -74,23 +74,16 @@
     font-size: var(--font-size-sm);
     min-width: 0;
     /* Real CLI-skill descriptions run to ~250 chars: clamp to 2 lines so
-       most of the text is readable without the popup ballooning… */
+       most of the text is readable without the popup ballooning. The
+       clamp is FIXED — rows never resize (an earlier hover-unclamp made
+       the list jump under the cursor). The full text rides on the row as
+       a multiline data-tooltip instead (set in components.js render). */
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     overflow: hidden;
     line-height: 1.35;
-}
-
-/* …and un-clamp inline on hover / keyboard selection so the full text is
-   one gesture away. Deliberately NOT a data-tooltip: the tooltip layer is
-   nowrap (02-tooltips.css) and hidden on touch — inline expansion works
-   for trackpad hover, arrow-key browsing, and iPad alike. */
-.autocomplete-item:hover .autocomplete-desc,
-.autocomplete-item.selected .autocomplete-desc {
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
 }
 
 /* Send button */
