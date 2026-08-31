@@ -60,6 +60,11 @@
     min-width: 64px;
     font-size: var(--font-size-sm);
     white-space: nowrap;
+    /* nowrap + shrinkable = the label overflows its own box and the desc
+       paints on top of it once descriptions got long (real CLI-skill
+       descs, 2026-08-31). The name always wins the space fight; the
+       ellipsized desc absorbs all shrink. */
+    flex-shrink: 0;
 }
 
 .autocomplete-desc {
