@@ -74,8 +74,16 @@ def step_network(cfg, back, n=1):
         warn(f"Server will be reachable on {cfg['host']} — anyone with the "
              "password can connect.")
 
-    port = ui.int_input("Port to bind", default=cfg.get("port") or 8765,
-                        lo=1, hi=65535)
+    # A profile the user has already configured keeps its own port. A NEW
+    # one defaults to the first FREE port at/above 8765 rather than 8765
+    # flat: the common reason to create a second deployment is that
+    # something already holds the default, and offering the taken port
+    # walks straight back into the collision that sent them here.
+    default_port = cfg.get("port")
+    if not default_port:
+        from painapple_code.cli.netinfo import first_free_port
+        default_port = first_free_port(cfg.get("host") or "127.0.0.1", 8765) or 8765
+    port = ui.int_input("Port to bind", default=default_port, lo=1, hi=65535)
     if port is BACK:
         return step_network(cfg, back, n)
     cfg["port"] = port
@@ -568,7 +576,11 @@ def _profile_setup(name):
         docker_only(lambda back: step_storage(cfg, back)),
     ]
 
-    # Warn about port collisions with other profiles (advisory only).
+    # Warn about port collisions (advisory only) — against other
+    # profiles AND against whatever is listening right now. The
+    # profile-only check missed the case that actually bites: the root
+    # deployment (or any unmanaged process) already holding the port,
+    # which is configured nowhere this loop can see.
     def _port_clash():
         for other in profiles.list_profiles():
             if other == name:
@@ -578,6 +590,14 @@ def _profile_setup(name):
                 warn(f"Port {cfg.get('port')} is also configured on profile "
                      f"'{other}' — they can't run at the same time.")
                 return
+        from painapple_code.cli.netinfo import port_holder, port_taken
+        host = cfg.get("host") or "127.0.0.1"
+        reason = port_taken(host, cfg.get("port"))
+        if reason and not getattr(reason, "bad_host", False):
+            holder = port_holder(cfg.get("port"))
+            warn(f"Port {cfg.get('port')} on {host} is in use right now"
+                 + (f" (held by {holder})" if holder else "")
+                 + " — this profile won't start until that frees up.")
 
     try:
         i = 0

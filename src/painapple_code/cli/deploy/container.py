@@ -137,6 +137,26 @@ def print_bootstrap_url(cfg, pw, profile=None, raw_tty=False, token=None):
     sys.stdout.flush()
 
 
+def suggest_profile_name(workspace):
+    """A profile name suggestion derived from the workspace dir, or ''.
+
+    Sanitized to profiles.valid_name()'s alphabet so the printed command
+    actually runs, and skipped when the name is already taken (a hint
+    that would reconfigure someone's existing deployment is worse than
+    no hint) or reserved ('default').
+    """
+    import re
+    from painapple_code.cli import profiles
+
+    base = Path(workspace or "").name.lower()
+    # Strip separators from BOTH ends, and again after truncation — a cut
+    # at 32 chars can leave a trailing dash of its own.
+    name = re.sub(r"[^a-z0-9._-]", "-", base).strip("-._")[:32].strip("-._")
+    if not name or not profiles.valid_name(name):
+        return ""
+    return "" if name in profiles.list_profiles() else name
+
+
 # ──── image version ──────────────────────────────────────────────────────
 
 def _release_tuple(version):
@@ -606,10 +626,22 @@ def run_container(cfg, detach, profile=None):
         if profile:
             say(f"  {DIM}Retry on another port:  "
                 f"{hint('start', profile)} {port_arg}{RESET}")
+            say(f"  {DIM}Or change the saved default:  "
+                f"{hint('setup', profile)}{RESET}")
         else:
             say(f"  {DIM}Retry on another port:  add {port_arg} to your "
                 f"command{RESET}")
-        say(f"  {DIM}Or change the saved default:  {hint('setup', profile)}{RESET}")
+            # A named profile is the right PERMANENT answer for a
+            # repeat launch that collides: it gets its own port,
+            # container, volumes and config. Unnamed `setup` would
+            # instead move the GLOBAL default under every future
+            # launch — rarely what someone juggling two instances wants,
+            # so it goes last.
+            suggested = suggest_profile_name(cfg.workspace)
+            say(f"  {DIM}Or save it as its own deployment:  "
+                f"painapple setup {suggested or 'NAME'}{RESET}")
+            say(f"  {DIM}Or change the global default:  "
+                f"{hint('setup', profile)}{RESET}")
         return 1
 
     # Bind-mount dirs must exist so docker doesn't create them as root.

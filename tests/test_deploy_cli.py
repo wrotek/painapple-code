@@ -527,6 +527,48 @@ def test_busy_port_suggests_a_free_port(tmp_path, capsys, monkeypatch, profile, 
     assert "painapple setup" in text
 
 
+def test_suggest_profile_name_sanitizes_and_avoids_collisions(tmp_path):
+    from painapple_code.cli.deploy.container import suggest_profile_name
+
+    assert suggest_profile_name("/Users/x/dev/slackware") == "slackware"
+    assert suggest_profile_name("/tmp/My Proj!") == "my-proj"      # sanitized
+    assert suggest_profile_name("/x/.hidden") == "hidden"          # no lead dot
+    assert len(suggest_profile_name("/x/" + "a" * 40)) == 32       # truncated
+    assert suggest_profile_name("/x/default") == ""               # reserved
+    assert suggest_profile_name("/x/---") == ""                   # nothing left
+    assert suggest_profile_name("") == ""
+    # An existing profile must never be suggested — the hint would
+    # reconfigure someone's live deployment.
+    profiles.save("slackware", "docker", {"port": 9000})
+    assert suggest_profile_name("/Users/x/dev/slackware") == ""
+
+
+def test_busy_port_offers_a_named_profile(tmp_path, capsys, monkeypatch):
+    """The ad-hoc sandbox's permanent fix is its OWN deployment, not a
+    global default — and the suggested name comes from the workspace."""
+    import socket
+    from painapple_code.cli.deploy import container as c
+
+    ws = tmp_path / "slackware"
+    ws.mkdir()
+    cfg = _sample_settings(tmp_path)
+    cfg.assign("WORKSPACE", str(ws))
+    cfg.listen_host = "127.0.0.1"
+    with socket.socket() as held:
+        held.bind(("127.0.0.1", 0))
+        held.listen(1)
+        cfg.port = held.getsockname()[1]
+        monkeypatch.setattr(c, "Runtime", _PortFakeRuntime)
+        assert c.run_container(cfg, detach=False, profile=None) == 1
+
+    text = "".join(capsys.readouterr())
+    assert "painapple setup slackware" in text
+    # Ordering matters: one-off retry, then own deployment, then global.
+    assert (text.index("add --port")
+            < text.index("painapple setup slackware")
+            < text.rindex("painapple setup"))
+
+
 def test_image_staleness_detection():
     from painapple_code.cli.deploy import container as c
 
