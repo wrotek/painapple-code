@@ -186,8 +186,8 @@ mid-transfer, rather than buffering then measuring.
 
 ## Supported versions
 
-This project is pre-1.0 (Beta). Security fixes land on the latest released
-version only; there are no long-term support branches yet.
+Security fixes land on the latest released version only; there are no
+long-term support branches.
 
 | Version | Supported |
 |---------|-----------|

@@ -188,7 +188,7 @@ The most common flags:
 | `--workspace` | `.` | Workspace root — the directory holding your projects. You pick the project in-app from the welcome screen (`--cwd` is an alias) |
 | `--instance-name`, `--accent` | — | Label + accent color to distinguish multiple instances |
 | `--tls` | `auto` | Self-signed TLS, auto-enabled on non-loopback binds |
-| `--default-provider` | `claude-sdk` | Default [AI provider](https://painapple.ai/guides/providers/) for new sessions — Claude Code (SDK or classic line protocol) or OpenAI Codex |
+| `--default-provider` | `claude-sdk` | Default [AI provider](https://painapple.ai/guides/providers/) for new sessions — Claude Code (Agent SDK) or OpenAI Codex |
 | `--profile` | — | Run a named profile — several independent deployments (host or docker mode) under one user |
 | `--in-docker` | off | Run the same invocation in a container instead (prebuilt image, cwd mounted) |
 

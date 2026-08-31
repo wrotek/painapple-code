@@ -19,7 +19,7 @@ The **server** runs natively on Linux, macOS, and Windows 10/11 — no WSL requi
 
 ## What it is — and what it isn't
 
-**It is** a thin wrapper around Claude Code. Every prompt streams through the official **Agent SDK** (the classic `claude -p` line protocol is available as an alternate provider), and sessions you create here can be resumed in the regular CLI with `claude --resume <id>`.
+**It is** a thin wrapper around Claude Code. Every prompt streams through the official **Agent SDK**, and sessions you create here can be resumed in the regular CLI with `claude --resume <id>`.
 
 **It is not** an AI agent of its own. It never modifies Claude's system prompt, tool policy, or behavior — no injected planning steps, no hidden instructions, no parallelized work. What it *does* add to a prompt is the context **you** attached: the output of `!bang` commands you ran, paths of files you uploaded, and snippets from the comments stash are prepended as plain text. The one other exception is the optional `shadow-git-helper` agent, which knows how to query the Shadow Git history.
 
