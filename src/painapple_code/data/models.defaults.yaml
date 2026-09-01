@@ -12,7 +12,7 @@ selectable:
 - id: claude-opus-4-8[1m]
   label: Opus 4.8 (1M)
   desc: Previous Opus tier (1M context)
-- id: claude-fable-5
-  label: Fable 5
+- id: claude-fable-5-1[1m]
+  label: Fable 5.1
   desc: Most capable, premium cost
 summary_model: claude-haiku-4-5
