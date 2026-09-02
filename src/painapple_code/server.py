@@ -2104,7 +2104,13 @@ def main(argv=None):
             _tls_unavailable(args.tls, args.host)
         tls_cert_path = Path(args.tls_cert).expanduser() if args.tls_cert else config_dir / "cert.pem"
         tls_key_path = Path(args.tls_key).expanduser() if args.tls_key else config_dir / "key.pem"
-        ensure_cert(tls_cert_path, tls_key_path)
+        # The bind address has to ride along: a cert whose SAN omits it is
+        # rejected outright by browsers, and in a PWA/WKWebView there is no
+        # interstitial to click through — fetches fail with an opaque
+        # "TypeError: Load failed" and nothing reaches the access log.
+        # An operator-supplied cert is never rewritten, only warned about.
+        ensure_cert(tls_cert_path, tls_key_path, host=args.host,
+                    managed=not (args.tls_cert or args.tls_key))
 
     scheme = "https" if use_tls else "http"
     ws_scheme = "wss" if use_tls else "ws"
