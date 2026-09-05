@@ -664,8 +664,14 @@ def test_provider_default_model_top_catalog_fallback(tmp_path, monkeypatch):
 
 
 def test_provider_defaults_get(client, monkeypatch):
+    # Derive the configured id from the live catalog rather than pinning a
+    # literal — models.yaml is user-editable and its ids get swapped
+    # (claude-fable-5 → claude-fable-5-1 did exactly that). Use the LAST
+    # enabled model so the assertion still distinguishes "legacy flat key
+    # honored" from "fell back to the top catalog model".
+    configured = [m["id"] for m in get_provider("claude-sdk").enabled_models()][-1]
     store = {
-        "default_model": "claude-fable-5",
+        "default_model": configured,
         "default_effort": "max",
         "default_efforts": {"codex": "medium"},
     }
@@ -673,7 +679,7 @@ def test_provider_defaults_get(client, monkeypatch):
 
     data = client.get("/api/app/provider-defaults/claude-sdk").json()
     assert data["models_key"] == "claude"
-    assert data["default_model"] == "claude-fable-5"
+    assert data["default_model"] == configured
     assert data["default_effort"] == "max"
     assert data["efforts"] == ["low", "medium", "high", "xhigh", "max"]
     assert data["summary_supported"] is True
