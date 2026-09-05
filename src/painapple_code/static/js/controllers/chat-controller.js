@@ -3739,7 +3739,7 @@ export class ChatController {
                                             data-value="${escapeHtml(opt.label)}"
                                             ${isAnswered ? 'disabled' : ''}>
                                         <span class="option-label">${escapeHtml(opt.label)}</span>
-                                        ${opt.description ? `<span class="option-desc">${escapeHtml(opt.description)}</span>` : ''}
+                                        ${opt.description ? `<span class="option-desc">${escapeHtml(opt.description)}</span><span class="option-desc-toggle" hidden>${escapeHtml(S.question_form.option_expand)}</span>` : ''}
                                     </button>
                                 `;
                             }).join('')}
@@ -4006,6 +4006,20 @@ export class ChatController {
         form.querySelectorAll('.question-option').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
+
+                // "Show more" lives inside the option button (a nested <button>
+                // would be invalid HTML), so intercept it here: expanding the
+                // description must never count as picking the option.
+                const descToggle = e.target.closest?.('.option-desc-toggle');
+                if (descToggle) {
+                    e.stopPropagation();
+                    const expanded = btn.classList.toggle('desc-expanded');
+                    descToggle.textContent = expanded
+                        ? S.question_form.option_collapse
+                        : S.question_form.option_expand;
+                    return;
+                }
+
                 const questionItem = btn.closest('.question-item');
                 const isMulti = questionItem.dataset.multi === 'true';
                 const value = btn.dataset.value;
@@ -4104,6 +4118,30 @@ export class ChatController {
                 const newTab = action === 'prev' ? msg.activeTab - 1 : msg.activeTab + 1;
                 this._switchWizardTab(container, msg, newTab);
             });
+        });
+
+        // Reveal "Show more" on the options the 2-line clamp actually cuts.
+        // Deferred a frame so the card has been laid out and heights are real.
+        requestAnimationFrame(() => this._refreshOptionDescOverflow(container));
+    }
+
+    /**
+     * Reveal the "Show more" toggle only on options whose description is
+     * actually clipped by the 2-line clamp. Options inside an inactive wizard
+     * tab measure 0 and are skipped — _switchWizardTab re-runs this on reveal.
+     */
+    _refreshOptionDescOverflow(root) {
+        if (!root) return;
+        root.querySelectorAll('.question-option').forEach(btn => {
+            const desc = btn.querySelector('.option-desc');
+            const toggle = btn.querySelector('.option-desc-toggle');
+            // Disabled (answered) cards can't dispatch clicks; CSS un-clamps
+            // the chosen option instead.
+            if (!desc || !toggle || btn.disabled) return;
+            // Already open — the clamp is off, so there is nothing to measure.
+            if (btn.classList.contains('desc-expanded')) return;
+            if (!desc.clientHeight) return;
+            toggle.hidden = desc.scrollHeight <= desc.clientHeight + 1;
         });
     }
 
@@ -4295,6 +4333,9 @@ export class ChatController {
         container.querySelectorAll('.question-entry').forEach((entry, idx) => {
             entry.classList.toggle('active', idx === newTab);
         });
+
+        // Options in this tab were unmeasurable while hidden — measure now.
+        this._refreshOptionDescOverflow(container);
 
         // Update navigation
         const prevBtn = container.querySelector('.wizard-nav-btn.prev');

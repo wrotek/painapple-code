@@ -2095,6 +2095,9 @@ question_form:
   status_skipped: "Skipped"
   comment_label: "Add a comment (optional)"
   comment_placeholder: "Anything else you want to tell Claude, regardless of the options above…"
+  # Shown on an option whose description is clamped to 2 lines (see 56-question-form.css)
+  option_expand: "Show more"
+  option_collapse: "Show less"
   edit_answer: "Edit"
   edit_hint: "Change your answer and resend it to Claude"
   cancel_edit: "Cancel"

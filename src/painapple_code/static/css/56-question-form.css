@@ -128,6 +128,39 @@
     overflow: hidden;
 }
 
+/* Show more / Show less — only revealed when the clamp actually cuts the text
+   (measured in _refreshOptionDescOverflow, chat-controller.js). */
+.question-option .option-desc-toggle {
+    margin-top: 1px;
+    font-size: var(--font-size-xs);
+    line-height: 1.3;
+    color: var(--accent-yellow, #f0a020);
+    opacity: 0.8;
+    cursor: pointer;
+}
+
+.question-option .option-desc-toggle[hidden] {
+    display: none;
+}
+
+.question-option .option-desc-toggle:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* Expanded by the toggle, or — on an answered card, where the button is
+   disabled and no click can ever reach the toggle — for the chosen option. */
+.question-option.desc-expanded .option-desc,
+.question-option:disabled.selected .option-desc {
+    display: block;
+    -webkit-line-clamp: none;
+    overflow: visible;
+}
+
+.question-option:disabled .option-desc-toggle {
+    display: none;
+}
+
 .question-option.selected .option-label {
     color: var(--accent-yellow, #f0a020);
 }
