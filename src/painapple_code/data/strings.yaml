@@ -2061,6 +2061,8 @@ turn_bar:
   badge_new: "new"
   badge_deleted: "deleted"
   badge_detected: "detected"
+  more_files: "+{count} more"
+  more_files_tooltip: "Show all {total} files"
   deleted_tooltip: "{path} — deleted this turn"
   detected_tooltip: "{path} — changed on disk this turn (not via a tool call)"
 

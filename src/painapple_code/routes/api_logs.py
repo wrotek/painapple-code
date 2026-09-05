@@ -468,12 +468,17 @@ def compute_session_changes(store, session_id: str) -> dict:
         modified can't be known after the fact: everything is 'modified'
         (deletes are 'deleted')."""
         command = (tool_input or {}).get('command') or ''
-        if not command or not cwd:
+        if not command or not cwd or not isinstance(command, str):
             return
-        ops = classify_bash_command(command, cwd)
+        try:
+            ops = classify_bash_command(command, cwd)
+        except Exception:  # heuristic parser — a bad command must not 500 the rescan
+            return
         if ops.is_empty:
             return
-        verified = verify_ops(ops, cwd, existed_before=ops.writes, failed=failed)
+        # No before-snapshot after the fact: treat every candidate as
+        # pre-existing so writes read as modified and deletes as real.
+        verified = verify_ops(ops, cwd, existed_before=ops.writes | ops.deletes, failed=failed)
         for rel in sorted(verified.modified | verified.deleted):
             file_path = str(Path(cwd) / rel)
             status = 'deleted' if rel in verified.deleted else 'modified'
@@ -657,9 +662,12 @@ def compute_session_read_files(store, session_id: str) -> dict:
     def process_tool(tool_name, tool_input, timestamp):
         if tool_name == 'Bash':
             command = (tool_input or {}).get('command') or ''
-            if not command or not cwd:
+            if not command or not cwd or not isinstance(command, str):
                 return
-            ops = classify_bash_command(command, cwd)
+            try:
+                ops = classify_bash_command(command, cwd)
+            except Exception:
+                return
             # Reads survive a failed command (the file was read before the
             # pipeline died); only current existence is checked.
             for rel in sorted(verify_ops(ops, cwd).reads):

@@ -25,11 +25,13 @@ injectable `isdir` used for `mv`/`cp` destination-directory semantics);
 result has landed, so a `sed -i` on a missing file or a failed command never
 records a phantom edit.
 
-Segmenting: the command is split on unquoted `;`, `&&`, `||`, `|`, `&`,
-newlines and parens (with `cd` tracked per segment and scoped to subshells),
-heredoc bodies are stripped first, and each segment is `shlex.split` in
-POSIX mode — so `sed 's|a|b|'`, `grep '>' file` and `"quoted > text"` do not
-fool the redirect scanner.
+Segmenting: a quote-aware pre-pass (`_preprocess`) drops comments,
+backslash-newline continuations, NULs and heredoc BODIES; the result is
+split on unquoted `;`, `&&`, `||`, `|`, `&`, newlines and parens (with `cd`
+tracked per segment and scoped to subshells), and each segment is
+`shlex.split` in POSIX mode — so `sed 's|a|b|'`, `grep '>' file`,
+`"quoted > text"` and `echo '<<EOF'` do not fool the redirect/heredoc
+scanners.
 """
 
 from __future__ import annotations
@@ -48,10 +50,19 @@ MAX_PATHS_PER_COMMAND = 50
 # timing wrappers). Stripped repeatedly until a real command word appears.
 _PREFIX_TOKENS = frozenset({
     "if", "then", "else", "elif", "do", "while", "until", "!", "{", "}",
-    "time", "sudo", "nohup", "env", "command", "builtin", "exec", "nice",
-})
+    "time", "sudo", "nohup", "command", "builtin", "exec",
+})  # `env`/`nice`/`timeout` take values — see _PREFIX_VALUE_OPTS
 # Segments that are pure control flow — nothing to classify.
 _SKIP_LEADERS = frozenset({"for", "case", "function", "done", "fi", "esac", "select", "in"})
+# Wrappers that take N leading values before the real command
+# (`timeout 30 cmd`, `nice -n 10 cmd`).
+_PREFIX_WITH_VALUES: dict[str, int] = {"timeout": 1, "ionice": 0, "caffeinate": 0}
+_PREFIX_VALUE_OPTS: dict[str, frozenset] = {
+    "nice": frozenset({"-n", "--adjustment"}),
+    "ionice": frozenset({"-c", "-n", "-p", "--class", "--classdata"}),
+    "timeout": frozenset({"-s", "--signal", "-k", "--kill-after"}),
+    "env": frozenset({"-u", "--unset", "-C", "--chdir", "-S", "--split-string"}),
+}
 
 _ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 # Redirect operators are tagged with this sentinel by the segment splitter
@@ -59,12 +70,18 @@ _ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 # quoted `'>'` (grep pattern) would otherwise be indistinguishable from a
 # real redirect afterwards. Only sentinel-marked operators are redirects.
 _REDIR_MARK = "\x00"
-_REDIR_OP_RE = re.compile(r"&>>|&>|>>|>\||>&|<&|<<<|<<|<|>")
+_REDIR_OP_RE = re.compile(r"&>>|&>|>>|>\||>&|<&|<<<|<<-|<<|<|>")
 # fd-aware redirect token: `>f`, `2>`, `>>`, `&>`, `2>&1`, `<f`, `<<EOF`, `<<<str`
 _REDIRECT_RE = re.compile(
-    r"^(?P<fd>\d*)" + _REDIR_MARK + r"(?P<op>&>>|&>|>>|>\||>&|<&|<<<|<<|<|>)(?P<target>.*)$"
+    r"^(?P<fd>\d*)" + _REDIR_MARK + r"(?P<op>&>>|&>|>>|>\||>&|<&|<<<|<<-|<<|<|>)(?P<target>.*)$"
 )
-_HEREDOC_RE = re.compile(r"<<-?\s*(?P<q>['\"]?)(?P<tag>[A-Za-z_][A-Za-z0-9_]*)(?P=q)")
+# Heredoc marker: `<<TAG`, `<<-TAG`, `<< 'TAG'`, `<<"TAG"`, `<<\TAG`. Bash
+# accepts nearly any word as the tag; quoted tags may hold spaces/dashes.
+_HEREDOC_RE = re.compile(
+    r"<<-?[ \t]*(?:(?P<q>['\"])(?P<qtag>[^'\"\n]+)(?P=q)|\\?(?P<tag>[A-Za-z0-9_][A-Za-z0-9_.\-]*))"
+)
+# Characters after which a `#` starts a comment (start of a word).
+_WORD_BREAKS = frozenset(" \t\n;|&(){}")
 _OPTION_RE = re.compile(r"^-")
 _UNSAFE_TOKEN_RE = re.compile(r"[$`*?\[{]")  # variables, substitutions, globs, brace expansion
 
@@ -90,6 +107,45 @@ _VALUE_OPTS: dict[str, frozenset] = {
     "rg": frozenset({"-e", "--regexp", "-f", "--file", "-m", "--max-count", "-A", "-B", "-C",
                      "-g", "--glob", "-t", "--type", "-T", "--type-not", "--color", "--max-depth"}),
     "sed": frozenset({"-e", "--expression", "-f", "--file", "-l", "--line-length"}),
+    "stat": frozenset({"-c", "--format", "--printf"}),
+    "fold": frozenset({"-w", "--width"}),
+    "column": frozenset({"-s", "-c", "-o", "-N", "-W", "-T", "-H", "-R", "-O",
+                         "--separator", "--output-separator", "--output-width",
+                         "--table-columns", "--table-columns-limit", "--table-wrap",
+                         "--table-hide", "--table-right", "--table-order", "--tree",
+                         "--tree-id", "--tree-parent"}),
+    "bat": frozenset({"-r", "--line-range", "-l", "--language", "-H", "--highlight-line",
+                      "--theme", "--style", "--tabs", "--wrap", "--pager", "-m", "--map-syntax",
+                      "--terminal-width", "--file-name"}),
+    "less": frozenset({"-b", "-h", "-j", "-k", "-o", "-O", "-p", "-P", "-t", "-T", "-x", "-y",
+                       "-z", "-#"}),
+    "od": frozenset({"-A", "-t", "-j", "-N", "-w", "-S", "--address-radix", "--format",
+                     "--skip-bytes", "--read-bytes", "--width", "--strings"}),
+    "xxd": frozenset({"-l", "-s", "-c", "-g", "-o", "-len", "-seek", "-cols", "-groupsize"}),
+    "hexdump": frozenset({"-n", "-s", "-e", "-f"}),
+    "strings": frozenset({"-n", "--bytes", "-t", "--radix", "-e", "--encoding", "-T", "--target"}),
+    "touch": frozenset({"-d", "--date", "-t", "-r", "--reference"}),
+    "patch": frozenset({"-i", "--input", "-o", "--output", "-d", "--directory", "-p", "--strip",
+                        "-D", "--ifdef", "-F", "--fuzz", "-r", "--reject-file", "-z", "--suffix",
+                        "-B", "--prefix", "-Y", "--basename-prefix"}),
+    "uniq": frozenset({"-f", "--skip-fields", "-s", "--skip-chars", "-w", "--check-chars",
+                       "--group", "--all-repeated"}),
+    "curl": frozenset({"-o", "--output", "-T", "--upload-file", "-H", "--header", "-d", "--data",
+                       "--data-raw", "--data-binary", "--data-urlencode", "--json", "-X",
+                       "--request", "-u", "--user", "-A", "--user-agent", "-e", "--referer",
+                       "-b", "--cookie", "-c", "--cookie-jar", "-F", "--form", "-m",
+                       "--max-time", "--connect-timeout", "--retry", "-w", "--write-out",
+                       "-K", "--config", "--cacert", "--cert", "--key", "-x", "--proxy",
+                       "--resolve", "--url", "-r", "--range", "-C", "--continue-at",
+                       "--dump-header", "-D", "--trace", "--trace-ascii", "--stderr"}),
+    "wget": frozenset({"-O", "--output-document", "-o", "--output-file", "-a", "--append-output",
+                       "-P", "--directory-prefix", "-T", "--timeout", "-t", "--tries",
+                       "-U", "--user-agent", "--header", "--post-data", "--post-file",
+                       "-i", "--input-file", "-B", "--base", "--limit-rate", "-w", "--wait",
+                       "--user", "--password", "--http-user", "--http-password", "-e",
+                       "--execute", "-l", "--level", "-A", "--accept", "-R", "--reject",
+                       "-D", "--domains", "-Q", "--quota", "--ca-certificate", "--certificate",
+                       "--private-key", "--referer", "--load-cookies", "--save-cookies"}),
     "awk": frozenset({"-F", "-v", "-f"}),
     "gawk": frozenset({"-F", "-v", "-f"}),
     "perl": frozenset({"-e", "-E", "-M", "-m", "-I"}),
@@ -97,11 +153,21 @@ _VALUE_OPTS: dict[str, frozenset] = {
     "tee": frozenset(),
     "mv": frozenset({"-t", "--target-directory", "-S", "--suffix"}),
     "cp": frozenset({"-t", "--target-directory", "-S", "--suffix"}),
-    "jq": frozenset({"--arg", "--argjson", "--slurpfile", "--rawfile", "-f", "--from-file", "--indent"}),
-    "yq": frozenset({"-o", "--output-format", "-p", "--input-format"}),
+    "jq": frozenset({"--arg", "--argjson", "--slurpfile", "--rawfile", "-f", "--from-file", "--indent",
+                     "-L", "--args", "--jsonargs"}),
+    "yq": frozenset({"-o", "--output-format", "-p", "--input-format", "--indent", "-I",
+                     "--front-matter", "--split-exp", "-s", "--expression", "--from-file"}),
     "dd": frozenset(),
 }
+# Options that consume TWO following values (`jq --arg name value`).
+_TWO_VALUE_OPTS: dict[str, frozenset] = {
+    "jq": frozenset({"--arg", "--argjson", "--slurpfile", "--rawfile"}),
+}
 _GREP_COMMANDS = frozenset({"grep", "egrep", "fgrep", "rg", "ag", "ack", "zgrep"})
+# Commands whose sub-command word (`yq eval …`) is not a file.
+_SUBCOMMAND_WORDS: dict[str, frozenset] = {
+    "yq": frozenset({"e", "eval", "ea", "eval-all"}),
+}
 
 
 @dataclass
@@ -127,32 +193,85 @@ class BashFileOps:
 # Preprocessing
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _strip_heredocs(command: str) -> str:
-    """Remove heredoc BODIES (`<<EOF … EOF`) so their contents are never
-    scanned for commands or paths. The `<<EOF` marker itself stays (it's
-    consumed as a redirect token later)."""
+def _preprocess(command: str) -> str:
+    """Quote-aware pre-pass. Removes, so nothing downstream can trip on them:
+
+    * NUL bytes (they would collide with the redirect sentinel),
+    * backslash-newline line continuations (bash joins the lines),
+    * comments (an unquoted `#` at the start of a word, to end of line),
+    * heredoc BODIES (`<<EOF … EOF`; the `<<EOF` marker itself stays and is
+      consumed as a redirect token later).
+
+    Quote state is tracked so `echo '<<EOF'`, `grep '#' f` and
+    `"quoted # text"` are left alone. Bash resolves heredoc bodies in order
+    of their markers, starting on the line after the one holding them —
+    two markers on one line queue two bodies."""
+    command = command.replace("\x00", "")
     out: list[str] = []
-    pos = 0
-    while True:
-        m = _HEREDOC_RE.search(command, pos)
-        if not m:
-            out.append(command[pos:])
-            break
-        tag = m.group("tag")
-        # Body starts on the line AFTER the one holding the marker.
-        line_end = command.find("\n", m.end())
-        if line_end == -1:
-            out.append(command[pos:])
-            break
-        out.append(command[pos:line_end])
-        # Find the terminator line (optionally tab-indented for <<-).
-        body_pos = line_end + 1
-        term_re = re.compile(r"^\t*" + re.escape(tag) + r"[ \t]*$", re.MULTILINE)
-        t = term_re.search(command, body_pos)
-        if not t:
-            # Unterminated heredoc: everything after is body.
-            break
-        pos = t.end()
+    pending_tags: list[str] = []
+    quote: Optional[str] = None
+    word_start = True
+    i, n = 0, len(command)
+    while i < n:
+        c = command[i]
+        if quote:
+            if c == "\\" and quote == '"' and i + 1 < n:
+                if command[i + 1] == "\n":
+                    i += 2  # continuation inside double quotes: dropped too
+                    continue
+                out.append(c)
+                out.append(command[i + 1])
+                i += 2
+                continue
+            out.append(c)
+            if c == quote:
+                quote = None
+            i += 1
+            continue
+        if c == "\\":
+            if i + 1 < n and command[i + 1] == "\n":
+                i += 2
+                continue
+            out.append(c)
+            if i + 1 < n:
+                out.append(command[i + 1])
+            i += 2
+            word_start = False
+            continue
+        if c in ("'", '"'):
+            quote = c
+            out.append(c)
+            i += 1
+            word_start = False
+            continue
+        if c == "#" and word_start:
+            j = command.find("\n", i)
+            i = n if j == -1 else j
+            continue
+        if c == "\n":
+            out.append(c)
+            i += 1
+            word_start = True
+            for tag in pending_tags:
+                term = re.compile(r"^\t*" + re.escape(tag) + r"[ \t]*$", re.MULTILINE)
+                t = term.search(command, i)
+                if not t:
+                    i = n  # unterminated: everything after is body
+                    break
+                i = t.end()
+            pending_tags = []
+            continue
+        if c == "<" and command.startswith("<<", i) and not command.startswith("<<<", i):
+            m = _HEREDOC_RE.match(command, i)
+            if m:
+                pending_tags.append(m.group("qtag") or m.group("tag"))
+                out.append(command[i:m.end()])
+                i = m.end()
+                word_start = False
+                continue
+        out.append(c)
+        word_start = c in _WORD_BREAKS
+        i += 1
     return "".join(out)
 
 
@@ -205,7 +324,16 @@ def _split_segments(command: str) -> list[str]:
             m = _REDIR_OP_RE.match(command, i)
             if m:
                 # Unquoted redirect operator — tag it so the tokenizer's
-                # output still carries "this was a real operator".
+                # output still carries "this was a real operator". An
+                # operator glued to a word (`echo hi>f`, `cat<f`) is its
+                # own token in bash unless the word is a bare fd number
+                # (`2>f`, `2>&1`) — split it off so the tokenizer sees it.
+                j = len(buf)
+                while j > 0 and buf[j - 1] not in (" ", "\t") and _REDIR_MARK not in buf[j - 1]:
+                    j -= 1
+                word = "".join(buf[j:])
+                if word and not word.isdigit():
+                    buf.append(" ")
                 buf.append(_REDIR_MARK + m.group(0))
                 i = m.end()
                 continue
@@ -291,6 +419,33 @@ class _Resolver:
             return None
         return rel_posix
 
+    def resolve_dir(self, token: str) -> Optional[str]:
+        """Like `resolve` but for a DIRECTORY operand: trailing slashes,
+        `.`, and the project root itself are legal. Returns "" for the root,
+        a relative posix path inside it, or None."""
+        if not token or _UNSAFE_TOKEN_RE.search(token) or token.startswith("-"):
+            return None
+        stripped = token.rstrip("/") or "/"
+        expanded = os.path.expanduser(stripped)
+        if os.path.isabs(expanded):
+            abs_path = os.path.normpath(expanded)
+        else:
+            if self.cwd is None:
+                return None
+            abs_path = os.path.normpath(os.path.join(self.cwd, expanded))
+        try:
+            rel = os.path.relpath(abs_path, self.root)
+        except ValueError:
+            return None
+        if rel == ".":
+            return ""
+        if rel == ".." or rel.startswith(".." + os.sep):
+            return None
+        rel_posix = Path(rel).as_posix()
+        if PurePosixPath(rel_posix).parts[0] == ".git":
+            return None
+        return rel_posix
+
     def abs_of(self, rel_posix: str) -> str:
         return os.path.join(self.root, *PurePosixPath(rel_posix).parts)
 
@@ -340,22 +495,33 @@ def _extract_redirects(tokens: list[str]) -> tuple[list[str], list[str], list[st
 
 
 def _positionals(cmd: str, args: list[str]) -> list[str]:
-    """Positional (non-option) args, honoring `--` and value-taking options."""
+    """Positional (non-option) args, honoring `--` and value-taking options.
+
+    After `--` every arg is a path — a leading dash is part of the name, so
+    it's re-anchored as `./-name` to survive the resolver's option guard."""
     value_opts = _VALUE_OPTS.get(cmd, frozenset())
+    two_value_opts = _TWO_VALUE_OPTS.get(cmd, frozenset())
+    subcommands = _SUBCOMMAND_WORDS.get(cmd, frozenset())
     out: list[str] = []
     i = 0
     end_of_opts = False
     while i < len(args):
         a = args[i]
         if end_of_opts:
-            out.append(a)
+            out.append("./" + a if a.startswith("-") and len(a) > 1 else a)
         elif a == "--":
             end_of_opts = True
         elif a.startswith("-") and len(a) > 1:
-            if a in value_opts:
+            if a in two_value_opts:
+                i += 2
+            elif a in value_opts:
                 i += 1  # skip the value
-            elif "=" not in a and cmd in ("sed", "perl", "awk", "gawk") and _short_opt_takes_value(cmd, a):
+            elif "=" not in a and _short_opt_takes_value(cmd, a):
                 i += 1
+        elif a.startswith("+") and cmd in ("less", "more", "bat", "tail", "head"):
+            pass  # `less +F`, `tail +5` — position/command flags, not files
+        elif not out and a in subcommands:
+            pass  # `yq eval '.a' f.yaml`
         else:
             out.append(a)
         i += 1
@@ -363,12 +529,16 @@ def _positionals(cmd: str, args: list[str]) -> list[str]:
 
 
 def _short_opt_takes_value(cmd: str, opt: str) -> bool:
-    """Clustered short options ending in a value-taker: sed `-ne` (no), `-e`
-    handled above; perl `-pe` ends in e → next token is the script."""
+    """Clustered short options ending in a value-taker: sed `-ne` → the next
+    token is the script; perl `-pe` likewise; awk `-vF`."""
+    if opt.startswith("--") or len(opt) < 3:
+        return False
     if cmd == "perl":
-        return opt[-1] in ("e", "E", "M", "m", "I") and not opt.startswith("--")
-    if cmd in ("awk", "gawk"):
-        return opt[-1] in ("F", "v", "f") and len(opt) > 2 and not opt.startswith("--")
+        return opt[-1] in ("e", "E", "M", "m", "I")
+    if cmd == "sed":
+        return opt[-1] in ("e", "f", "l")
+    if cmd in ("awk", "gawk", "mawk"):
+        return opt[-1] in ("F", "v", "f")
     return False
 
 
@@ -394,8 +564,23 @@ def _classify_segment(tokens: list[str], res: _Resolver, ops: BashFileOps,
     tokens, redir_writes, redir_reads = _extract_redirects(tokens)
 
     # Strip wrappers / env assignments
-    while tokens and (tokens[0] in _PREFIX_TOKENS or _ASSIGNMENT_RE.match(tokens[0])):
-        tokens = tokens[1:]
+    while tokens:
+        head = os.path.basename(tokens[0])
+        if head in _PREFIX_TOKENS or _ASSIGNMENT_RE.match(tokens[0]):
+            tokens = tokens[1:]
+            continue
+        if head in _PREFIX_WITH_VALUES or head in _PREFIX_VALUE_OPTS:
+            # `timeout [-s SIG] 30 cmd …`, `nice -n 10 cmd …`
+            vopts = _PREFIX_VALUE_OPTS.get(head, frozenset())
+            tokens = tokens[1:]
+            while tokens and tokens[0].startswith("-") and len(tokens[0]) > 1:
+                if tokens[0] in vopts:
+                    tokens = tokens[2:]
+                else:
+                    tokens = tokens[1:]
+            tokens = tokens[_PREFIX_WITH_VALUES.get(head, 0):]
+            continue
+        break
 
     def add(kind: str, raw: str):
         rel = res.resolve(raw)
@@ -424,7 +609,7 @@ def _classify_segment(tokens: list[str], res: _Resolver, ops: BashFileOps,
     if cmd == "sed":
         pos = _positionals(cmd, args)
         has_script_opt = any(a in ("-e", "--expression", "-f", "--file") or a.startswith("--expression=")
-                             for a in args) or any(
+                             or a.startswith("--file=") for a in args) or any(
             a.startswith("-") and not a.startswith("--") and a[-1] in ("e", "f") and len(a) > 2 for a in args)
         files = pos if has_script_opt else pos[1:]
         kind = "writes" if _has_inplace_flag(cmd, args) else "reads"
@@ -458,13 +643,63 @@ def _classify_segment(tokens: list[str], res: _Resolver, ops: BashFileOps,
             add("reads", f)
         return
 
+    if cmd == "sort":
+        # `sort -o OUT in…` / `sort in -o OUT` — the -o target is a write.
+        outs = [args[i + 1] for i, a in enumerate(args) if a == "-o" and i + 1 < len(args)]
+        outs += [a.split("=", 1)[1] for a in args if a.startswith("--output=")]
+        for f in _positionals(cmd, args):
+            add("reads", f)
+        for f in outs:
+            add("writes", f)
+        return
+    if cmd == "uniq":
+        pos = _positionals(cmd, args)
+        if pos:
+            add("reads", pos[0])
+        if len(pos) > 1:
+            add("writes", pos[1])  # uniq INPUT OUTPUT
+        return
+    if cmd == "yq" and any(a in ("-i", "--inplace") for a in args):
+        for f in _positionals(cmd, args)[1:]:
+            add("writes", f)
+        return
+
     if cmd in _READ_COMMANDS:
         skip = _READ_COMMANDS[cmd]
         for f in _positionals(cmd, args)[skip:]:
             add("reads", f)
         return
 
-    if cmd in ("tee", "touch", "sponge", "patch"):
+    if cmd in ("curl", "wget"):
+        out_opts = ("-o", "--output") if cmd == "curl" else ("-O", "--output-document")
+        in_opts = ("-T", "--upload-file") if cmd == "curl" else ("-i", "--input-file", "--post-file")
+        for i, a in enumerate(args):
+            nxt = args[i + 1] if i + 1 < len(args) else None
+            if a in out_opts and nxt:
+                add("writes", nxt)
+            elif a in in_opts and nxt:
+                add("reads", nxt)
+            elif a.startswith("--output=") or a.startswith("--output-document="):
+                add("writes", a.split("=", 1)[1])
+            elif cmd == "curl" and a in ("-d", "--data", "--data-binary", "--json") and nxt and nxt.startswith("@"):
+                add("reads", nxt[1:])
+        return
+
+    if cmd == "patch":
+        # patch [opts] [ORIGFILE [PATCHFILE]] — -i/-o values are input/output
+        pos = _positionals(cmd, args)
+        if pos:
+            add("writes", pos[0])
+        if len(pos) > 1:
+            add("reads", pos[1])
+        for i, a in enumerate(args):
+            nxt = args[i + 1] if i + 1 < len(args) else None
+            if a in ("-i", "--input") and nxt:
+                add("reads", nxt)
+            elif a in ("-o", "--output") and nxt:
+                add("writes", nxt)
+        return
+    if cmd in ("tee", "touch", "sponge"):
         for f in _positionals(cmd, args):
             add("writes", f)
         return
@@ -494,23 +729,25 @@ def _classify_segment(tokens: list[str], res: _Resolver, ops: BashFileOps,
         else:
             return
         dst_rel = res.resolve(dst)
-        dst_is_dir = dst.endswith("/") or (dst_rel is not None and isdir(res.abs_of(dst_rel))) \
-            or (dst_rel is None and target_dir is not None)
+        dst_dir_rel = res.resolve_dir(dst)  # "" when dst IS the project root
+        dst_is_dir = dst.endswith("/") or dst in (".", "..") or target_dir is not None \
+            or dst_dir_rel == "" \
+            or (dst_rel is not None and isdir(res.abs_of(dst_rel)))
         for s in srcs:
             src_rel = res.resolve(s)
-            if src_rel is None:
+            # A source outside the project (`cp ~/x.txt here.txt`) still
+            # lands an in-project destination; only the src bookkeeping is
+            # skipped.
+            if src_rel is not None:
+                (ops.deletes if cmd == "mv" else ops.reads).add(src_rel)
+            src_name = PurePosixPath(src_rel).name if src_rel else \
+                PurePosixPath(os.path.expanduser(s).replace(os.sep, "/").rstrip("/")).name
+            if _UNSAFE_TOKEN_RE.search(s) or not src_name or src_name in (".", ".."):
                 continue
-            if cmd == "mv":
-                ops.deletes.add(src_rel)
-            else:
-                ops.reads.add(src_rel)
             if dst_is_dir:
-                # mv a.txt dir/  → dir/a.txt
-                dst_dir_rel = res.resolve(dst.rstrip("/")) if dst.endswith("/") else dst_rel
+                # mv a.txt dir/  → dir/a.txt ; mv sub/a.txt . → a.txt
                 if dst_dir_rel is not None:
-                    ops.writes.add(str(PurePosixPath(dst_dir_rel) / PurePosixPath(src_rel).name))
-                elif dst.rstrip("/") in (".", ""):
-                    ops.writes.add(PurePosixPath(src_rel).name)
+                    ops.writes.add(str(PurePosixPath(dst_dir_rel) / src_name) if dst_dir_rel else src_name)
             elif dst_rel is not None:
                 ops.writes.add(dst_rel)
         return
@@ -541,10 +778,10 @@ def classify_bash_command(command: str, cwd: str, *,
             semantics (injectable for tests).
     """
     ops = BashFileOps()
-    if not command or not cwd:
+    if not command or not cwd or not isinstance(command, str) or not isinstance(cwd, str):
         return ops
     res = _Resolver(cwd)
-    for seg in _split_segments(_strip_heredocs(command)):
+    for seg in _split_segments(_preprocess(command)):
         if seg == "(":
             res.push()
             continue
@@ -556,10 +793,12 @@ def classify_bash_command(command: str, cwd: str, *,
             _classify_segment(tokens, res, ops, isdir)
         if len(ops.all_paths()) > MAX_PATHS_PER_COMMAND:
             break
-    # An in-place edit reads then writes — it's a write. A moved file is gone.
+    # An in-place edit reads then writes — it's a write; a read of a file
+    # the command removes is not a read. A path in BOTH writes and deletes
+    # (`rm f; touch f`, `mv a b && mv b a`) is left to `verify_ops`, which
+    # settles it by what's on disk afterwards.
     ops.reads -= ops.writes
     ops.reads -= ops.deletes
-    ops.writes -= ops.deletes
     _cap(ops)
     return ops
 
@@ -585,13 +824,22 @@ class VerifiedOps:
 
 
 def snapshot_existing(ops: BashFileOps, cwd: str) -> set[str]:
-    """Which of the candidate write paths already exist — taken BEFORE (or
-    as close as possible to) execution so a later `verify_ops` can tell a
-    created file from a modified one. Best-effort: if the frame arrives
-    after the command ran, a new file reads as pre-existing and is recorded
-    as 'modified', which is the safe direction."""
+    """Which of the candidate write AND delete paths exist as files — taken
+    BEFORE (or as close as possible to) execution so a later `verify_ops`
+    can tell a created file from a modified one, and a real delete from
+    `rm -f` of something that was never there. Best-effort: if the frame
+    arrives after the command ran, a new file reads as pre-existing and is
+    recorded as 'modified', and a delete is missed (the shadow commit's
+    staged diff still reports it as D) — both the safe direction."""
     root = Path(os.path.expanduser(cwd))
-    return {p for p in ops.writes if (root / p).is_file()}
+    return {p for p in ops.writes | ops.deletes if _is_file(root / p)}
+
+
+def _is_file(p: Path) -> bool:
+    try:
+        return p.is_file()
+    except (OSError, ValueError):
+        return False
 
 
 def verify_ops(ops: BashFileOps, cwd: str, *, existed_before: Iterable[str] = (),
@@ -602,18 +850,24 @@ def verify_ops(ops: BashFileOps, cwd: str, *, existed_before: Iterable[str] = ()
     `sed -i` on a missing file, a `tee` into a read-only dir, etc. Reads
     still count when the file exists (the command likely read it before
     failing later in a pipeline), which is what the quick switcher wants.
+
+    Final state on disk decides: a candidate that exists now is a write
+    (created unless it was in `existed_before`), a delete candidate counts
+    only when it existed before and is gone now — so `rm -f never-there`
+    records nothing, `rm f; touch f` is a modify, `touch f && rm f` nets
+    out, and a removed DIRECTORY is left to the staged diff (per-file).
     """
     root = Path(os.path.expanduser(cwd))
     before = set(existed_before)
     out = VerifiedOps()
     if not failed:
         for p in ops.writes:
-            if (root / p).is_file():
+            if _is_file(root / p):
                 (out.modified if p in before else out.created).add(p)
         for p in ops.deletes:
-            if not (root / p).exists():
+            if p in before and not (root / p).exists():
                 out.deleted.add(p)
     for p in ops.reads:
-        if (root / p).is_file():
+        if _is_file(root / p):
             out.reads.add(p)
     return out

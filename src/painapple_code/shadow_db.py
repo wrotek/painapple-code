@@ -774,7 +774,8 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
         by recency, then demotes read-only files); `kind` says which —
         'modified' when any turn changed the file, else 'read'.
         `touch_count` stays the EDIT count for backwards compatibility;
-        `read_count` and `last_edited_at` are separate.
+        `read_count` and `last_edited_at` are separate. A path whose most
+        recent change is 'deleted' is omitted — nothing on disk to open.
         """
         conditions = []
         params: list = []
@@ -801,6 +802,8 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
                 JOIN turns t ON tf.turn_id = t.id
                 WHERE {where}
                 GROUP BY tf.file_path
+                HAVING arg_max(tf.change_type, COALESCE(t.completed_at, t.started_at))
+                       IS DISTINCT FROM 'deleted'
                 ORDER BY last_touched_at DESC
                 LIMIT ?""",
             params + [limit],

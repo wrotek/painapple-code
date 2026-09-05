@@ -91,6 +91,9 @@ function bindTapHandler(element, handler) {
     });
 }
 
+/** Changed-file pills shown per turn before the "+N more" fold. */
+const MAX_VISIBLE_FILE_PILLS = 24;
+
 export class ChatController {
     constructor(ctx, thinkingController) {
         this.ctx = ctx;
@@ -1364,7 +1367,12 @@ export class ChatController {
 
         let html = '<div class="turn-files-row">';
         if (hasChanged) {
-            for (const filePath of changedFiles) {
+            // The staged-diff layer can surface far more files than a tool
+            // call ever would (a generator, `npm install`, a mass rename) —
+            // fold everything past the first MAX_VISIBLE_FILE_PILLS behind a
+            // "+N more" pill so one turn can't stretch the bar to a wall.
+            const overflow = changedFiles.length - MAX_VISIBLE_FILE_PILLS;
+            changedFiles.forEach((filePath, idx) => {
                 const fileName = basename(filePath);
                 const stats = fileActions[filePath] || {};
                 const adds = stats.adds || 0;
@@ -1376,8 +1384,12 @@ export class ChatController {
                 if (adds > 0) pillContent += `<span class="file-adds">+${adds}</span>`;
                 if (dels > 0) pillContent += `<span class="file-dels">-${dels}</span>`;
 
+                if (overflow > 1 && idx === MAX_VISIBLE_FILE_PILLS) {
+                    html += `<span class="turn-file-pill turn-files-more" data-tooltip="${escHtml(S.turn_bar.more_files_tooltip.replace('{total}', changedFiles.length))}">${escHtml(S.turn_bar.more_files.replace('{count}', overflow))}</span><span class="turn-files-overflow" hidden>`;
+                }
                 html += `<span class="turn-file-pill${kb.cls}" data-file-path="${escHtml(filePath)}"${kb.attrs} data-tooltip="${escHtml(kindTooltip(filePath, stats))}">${pillContent}</span>`;
-            }
+            });
+            if (overflow > 1) html += '</span>';
         }
         if (sessionChanged.length > 0) {
             if (hasChanged) html += '<span class="turn-files-sep"></span>';
@@ -1507,7 +1519,16 @@ export class ChatController {
                 img.closest('.turn-image-thumb')?.remove();
             }, { once: true });
         });
-        container.querySelectorAll('.turn-file-pill').forEach(pill => {
+        container.querySelectorAll('.turn-files-more').forEach(more => {
+            bindTapHandler(more, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const hidden = more.nextElementSibling;
+                if (hidden?.classList.contains('turn-files-overflow')) hidden.hidden = false;
+                more.remove();
+            });
+        });
+        container.querySelectorAll('.turn-file-pill:not(.turn-files-more)').forEach(pill => {
             const handleFileTap = async (e) => {
                 e.preventDefault();
                 e.stopPropagation();

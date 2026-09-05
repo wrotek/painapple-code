@@ -86,16 +86,21 @@ class TurnTracker:
     def add_modified_file(self, path: str, kind: str = "modified"):
         """Record a file modification.
 
-        `kind` precedence: "deleted" always wins (last state of the file);
-        a tool-attributed kind ("created"/"modified") replaces "detected";
-        otherwise the first recorded kind sticks (a Write-created file
-        that's later Edited stays "created").
+        `kind` describes the file's state at the END of the turn, so later
+        events override earlier ones where they contradict: "deleted"
+        replaces anything; a write after a delete (`rm f; touch f`, or a
+        Write recreating what Bash removed) is "modified" — the file
+        existed before the turn and exists after it; a tool-attributed kind
+        replaces "detected"; otherwise the first kind sticks (a
+        Write-created file that's later Edited stays "created").
         """
         self.modified_files.add(path)
         self.read_files.discard(path)
         prev = self.file_kinds.get(path)
         if kind == "deleted" or prev is None or prev == "detected":
             self.file_kinds[path] = kind
+        elif prev == "deleted":
+            self.file_kinds[path] = "modified"
 
     def add_read_file(self, path: str):
         """Record a file read (Read tool or a Bash read). No-op for files
@@ -108,12 +113,21 @@ class TurnTracker:
         turn (`status` is git's A/M/D). Attributed files keep their tool
         kind and only gain line stats; unattributed ones are added as
         "detected" (or "deleted" for D — a vanished file is a hard fact).
+
+        Git is the arbiter of EXISTENCE: an attributed "deleted" that git
+        still sees (A/M — something recreated it after the rm) becomes
+        "modified"; an attributed write that git reports D is "deleted".
         """
         self.detected_stats[path] = {
             "adds": adds, "dels": dels,
             "created": status == "A", "deleted": status == "D",
         }
         if path in self.modified_files:
+            prev = self.file_kinds.get(path)
+            if status == "D" and prev != "deleted":
+                self.file_kinds[path] = "deleted"
+            elif status in ("A", "M") and prev == "deleted":
+                self.file_kinds[path] = "created" if status == "A" else "modified"
             return
         self.add_modified_file(path, "deleted" if status == "D" else "detected")
 

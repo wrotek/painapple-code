@@ -651,6 +651,16 @@
 
 /* Git-detected change (no tool call credited): dashed border marks the
    weaker provenance; otherwise a normal changed-file pill. */
+/* "+N more" fold for turns with many changed files */
+.turn-file-pill.turn-files-more {
+    border-style: dashed;
+    opacity: 0.8;
+    cursor: pointer;
+}
+.turn-file-pill.turn-files-more:hover { opacity: 1; }
+.turn-files-overflow { display: contents; }
+.turn-files-overflow[hidden] { display: none; }
+
 .turn-file-pill.file-kind-detected {
     border-style: dashed;
 }

@@ -818,7 +818,11 @@ class ShadowGit(_SummaryMixin):
         # BEFORE anything reads modified_files: the prompt type
         # (file_changes vs tool_only), the frontmatter, the DB rows. Files a
         # tool was credited with keep their kind and only gain line stats.
-        staged = await self._staged_changes()
+        try:
+            staged = await self._staged_changes()
+        except Exception as e:  # never let attribution break the commit itself
+            logger.warning(f"Staged-diff attribution skipped: {e}")
+            staged = {}
         if staged:
             for rel_path, (status, adds, dels) in staged.items():
                 tracker.add_detected_file(rel_path, status, adds, dels)

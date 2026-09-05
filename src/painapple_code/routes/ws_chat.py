@@ -497,6 +497,9 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
                 # (An empty user_prompt is already a normal state here — an
                 # image-only send has produced one since long before stash.)
                 user_prompt=display_content,
+                # turn_number moves on finalize, so the turn being opened is
+                # the NEXT one (the column sat NULL on every row before this).
+                turn_number=agent_session.turn_number + 1,
                 has_images=len(images) > 0,
                 git_branch=git_branch,
                 git_repo_hash=paths.get_git_repo_hash(agent_session.cwd),
