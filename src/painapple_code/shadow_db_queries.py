@@ -37,9 +37,15 @@ class _QueriesMixin:
             "SELECT tag FROM tags WHERE turn_id = ?", [turn_id]
         )]
 
-        # Attach files
+        # Attach files. "files" = what Claude changed (every consumer reads it
+        # that way); reads are their own list.
         turn["files"] = [r[0] for r in self._fetch_all(
-            "SELECT file_path FROM turn_files WHERE turn_id = ?", [turn_id]
+            "SELECT file_path FROM turn_files WHERE turn_id = ? AND change_type IS DISTINCT FROM 'read'",
+            [turn_id]
+        )]
+        turn["read_files"] = [r[0] for r in self._fetch_all(
+            "SELECT file_path FROM turn_files WHERE turn_id = ? AND change_type = 'read'",
+            [turn_id]
         )]
 
         # Attach tools
@@ -200,12 +206,14 @@ class _QueriesMixin:
             params.append(tag)
         if file_path:
             conditions.append(
-                "EXISTS (SELECT 1 FROM turn_files tf WHERE tf.turn_id = t.id AND tf.file_path = ?)"
+                "EXISTS (SELECT 1 FROM turn_files tf WHERE tf.turn_id = t.id AND tf.file_path = ? "
+                "AND tf.change_type IS DISTINCT FROM 'read')"
             )
             params.append(file_path)
         if file_pattern:
             conditions.append(
-                "EXISTS (SELECT 1 FROM turn_files tf WHERE tf.turn_id = t.id AND tf.file_path ILIKE ?)"
+                "EXISTS (SELECT 1 FROM turn_files tf WHERE tf.turn_id = t.id AND tf.file_path ILIKE ? "
+                "AND tf.change_type IS DISTINCT FROM 'read')"
             )
             params.append(file_pattern)
         if since:
@@ -324,7 +332,8 @@ class _QueriesMixin:
         # Batch-fetch files
         if include_files:
             file_rows = self._fetch_all(
-                f"SELECT turn_id, file_path FROM turn_files WHERE turn_id IN ({id_placeholders})",
+                f"SELECT turn_id, file_path FROM turn_files WHERE turn_id IN ({id_placeholders}) "
+                f"AND change_type IS DISTINCT FROM 'read'",
                 turn_ids
             )
             files_by_turn: dict[str, list] = {}
@@ -475,7 +484,8 @@ class _QueriesMixin:
         # Batch-fetch files
         if include_files:
             file_rows = self._fetch_all(
-                f"SELECT turn_id, file_path FROM turn_files WHERE turn_id IN ({id_placeholders})",
+                f"SELECT turn_id, file_path FROM turn_files WHERE turn_id IN ({id_placeholders}) "
+                f"AND change_type IS DISTINCT FROM 'read'",
                 turn_ids
             )
             files_by_turn: dict[str, list] = {}

@@ -341,7 +341,9 @@ async def recent_files(
     """Files recently touched by Claude in this project, newest first.
 
     One of `cwd`, `project`, or `repo` is required. Returns a list sorted
-    by last-touched timestamp descending, with touch counts.
+    by last-touched timestamp descending. Each row carries `kind`
+    ('modified' if any turn changed the file, else 'read'), `touch_count`
+    (edit turns), `read_count`, `last_edited_at` and `last_touched_at`.
     """
     try:
         project_hash = project

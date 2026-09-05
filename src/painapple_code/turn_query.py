@@ -671,7 +671,7 @@ def _compile_relational(node: RelationalFilter, ctx: _CompileCtx) -> tuple[str, 
             pattern = f"%{value}%"  # bare filename
         return (
             "EXISTS (SELECT 1 FROM turn_files tf WHERE tf.turn_id = t.id "
-            "AND tf.file_path ILIKE ?)"
+            "AND tf.file_path ILIKE ? AND tf.change_type IS DISTINCT FROM 'read')"
         ), [pattern]
 
     if node.relation == "tool":

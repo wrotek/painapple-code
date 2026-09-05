@@ -473,6 +473,84 @@ class ShadowGit(_SummaryMixin):
     # Committing
     # ═══════════════════════════════════════════════════════════════════════
 
+    async def _complete_db_turn_uncommitted(self, tracker: TurnTracker, result_msg: Optional[dict]):
+        """Close the DuckDB turn when there is no shadow commit to hang it on
+        (shadow git disabled for the project, or nothing happened).
+
+        Before this existed, every turn in a shadow-git-disabled project
+        stayed `status='pending'` forever — no cost, no tools, no files —
+        because commit_turn returned before the only acomplete_turn call.
+        The tracker's file attribution (Edit/Write + Bash-classified) is
+        still recorded; only the git-detected layer needs the shadow repo.
+        """
+        if not tracker.db_turn_id:
+            return
+        try:
+            from painapple_code.shadow_db import get_shadow_db
+            db = get_shadow_db()
+            await db.acomplete_turn(
+                tracker.db_turn_id,
+                result_msg=result_msg,
+                modified_files=list(tracker.modified_files),
+                file_kinds=tracker.file_kinds,
+                read_files=tracker.get_read_files(),
+                tools_summary=tracker.get_tools_summary(),
+                main_thread_model=tracker.main_thread_model,
+            )
+        except Exception as e:
+            logger.warning(f"Shadow DB complete_turn (no shadow commit) failed: {e}")
+
+    # Cap on files merged from the staged diff into one turn. A runaway
+    # generator can stage thousands; past this the turn keeps the first N
+    # (sorted) and the rest still land in the commit, just unlisted.
+    MAX_DETECTED_FILES = 200
+
+    async def _staged_changes(self) -> dict[str, tuple[str, int, int]]:
+        """Staged changes vs HEAD as {path: (status, adds, dels)}.
+
+        `status` is git's A/M/D (renames are split into D + A via
+        --no-renames so paths map 1:1 to the tracker). Empty on an unborn
+        branch — the initial snapshot stages the whole tree and none of it
+        is this turn's work. Binary files report 0/0 line stats.
+        """
+        _, _, head_rc = await self._run(
+            ["rev-parse", "--verify", "--quiet", "HEAD"], check=False
+        )
+        if head_rc != 0:
+            return {}
+        out, _, rc = await self._run(
+            ["diff", "--cached", "--name-status", "--no-renames", "-z"], check=False
+        )
+        if rc != 0 or not out:
+            return {}
+        result: dict[str, tuple[str, int, int]] = {}
+        parts = out.split("\0")
+        i = 0
+        while i + 1 < len(parts):
+            status, path = parts[i], parts[i + 1]
+            i += 2
+            if status and path:
+                result[path] = (status[0], 0, 0)
+        if not result:
+            return {}
+        if len(result) > self.MAX_DETECTED_FILES:
+            logger.info(f"Staged diff has {len(result)} files; listing first {self.MAX_DETECTED_FILES}")
+            result = dict(sorted(result.items())[:self.MAX_DETECTED_FILES])
+
+        out, _, rc = await self._run(
+            ["diff", "--cached", "--numstat", "--no-renames", "-z"], check=False
+        )
+        if rc == 0 and out:
+            for entry in out.split("\0"):
+                fields = entry.split("\t", 2)
+                if len(fields) != 3 or fields[2] not in result:
+                    continue
+                adds = int(fields[0]) if fields[0].isdigit() else 0
+                dels = int(fields[1]) if fields[1].isdigit() else 0
+                status = result[fields[2]][0]
+                result[fields[2]] = (status, adds, dels)
+        return result
+
     async def _get_staged_diff_stats(self) -> str:
         """Get diff stats for staged changes like '+120 -45'."""
         stdout, _, _ = await self._run(["diff", "--cached", "--shortstat"], check=False)
@@ -668,6 +746,7 @@ class ShadowGit(_SummaryMixin):
         token_profile: Optional[str] = None,
         session_model: Optional[str] = None,
         provider=None,
+        on_files_detected=None,
     ) -> tuple[Optional[str], Optional[str]]:
         """
         Commit changes from a turn.
@@ -686,6 +765,9 @@ class ShadowGit(_SummaryMixin):
             session_model: Parent session's model ID (to inherit context tier)
             provider: The session's Provider (supplies the fork mechanism);
                 defaults to the Claude provider when omitted.
+            on_files_detected: Optional async callback invoked (before the
+                summary fork) when the staged diff surfaced changed files —
+                the tracker has been updated with them by then.
 
         Returns:
             Tuple of (commit_hash, session_title):
@@ -698,9 +780,11 @@ class ShadowGit(_SummaryMixin):
         # Check if shadow git is enabled
         if not self.is_enabled:
             logger.debug(f"Shadow git disabled for {self.project_path}")
+            await self._complete_db_turn_uncommitted(tracker, result_msg)
             return None, None
 
         if not tracker.has_activity:
+            await self._complete_db_turn_uncommitted(tracker, result_msg)
             return None, None  # Nothing happened this turn
 
         # Ensure repo exists
@@ -710,19 +794,6 @@ class ShadowGit(_SummaryMixin):
         # Sync exclude patterns so shipped DEFAULT_EXCLUDES updates reach
         # repos initialized before those patterns existed
         self._ensure_excludes()
-
-        has_file_changes = tracker.has_file_changes
-        modified_files = list(tracker.modified_files)
-
-        # Handle co-modification tracking for file changes
-        contributing_sessions = {session_id}
-        tracking_data = {}
-
-        if has_file_changes:
-            tracking_data = self._load_tracking()
-            for f in modified_files:
-                if f in tracking_data:
-                    contributing_sessions.update(tracking_data[f])
 
         # Get project's actual git hash and branch early (needed for branch switching and journey)
         project_git_hash = await self._get_project_git_hash()
@@ -740,6 +811,35 @@ class ShadowGit(_SummaryMixin):
         # Quarantine anything over the size cap (VM images, media dumps, …)
         # so huge binaries never bloat the shadow object store
         await self._quarantine_oversized()
+
+        # The staged diff is the ground truth for what changed on disk since
+        # the last shadow commit — Bash edits the classifier missed, scripts,
+        # generators, `npm install` side effects. Merge it into the tracker
+        # BEFORE anything reads modified_files: the prompt type
+        # (file_changes vs tool_only), the frontmatter, the DB rows. Files a
+        # tool was credited with keep their kind and only gain line stats.
+        staged = await self._staged_changes()
+        if staged:
+            for rel_path, (status, adds, dels) in staged.items():
+                tracker.add_detected_file(rel_path, status, adds, dels)
+            if on_files_detected:
+                try:
+                    await on_files_detected()
+                except Exception as e:
+                    logger.debug(f"on_files_detected callback failed: {e}")
+
+        has_file_changes = tracker.has_file_changes
+        modified_files = list(tracker.modified_files)
+
+        # Handle co-modification tracking for file changes
+        contributing_sessions = {session_id}
+        tracking_data = {}
+
+        if has_file_changes:
+            tracking_data = self._load_tracking()
+            for f in modified_files:
+                if f in tracking_data:
+                    contributing_sessions.update(tracking_data[f])
 
         # Build session prefix
         sessions_str = "+".join(sorted(s[:8] for s in contributing_sessions))
@@ -896,6 +996,8 @@ class ShadowGit(_SummaryMixin):
                         structured_data=structured_data,
                         summary_cost=summary_cost.cost if summary_cost else 0.0,
                         modified_files=modified_files,
+                        file_kinds=tracker.file_kinds,
+                        read_files=tracker.get_read_files(),
                         tools_summary=tracker.get_tools_summary(),
                         main_thread_model=tracker.main_thread_model,
                     )

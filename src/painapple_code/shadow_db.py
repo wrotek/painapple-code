@@ -416,6 +416,11 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
         summary_cost: float = 0.0,
         # Tracker data
         modified_files: Optional[list[str]] = None,
+        # path -> created|modified|deleted|detected (TurnTracker.file_kinds);
+        # missing entries default to 'modified'
+        file_kinds: Optional[dict[str, str]] = None,
+        # Files read but not modified → change_type='read' rows
+        read_files: Optional[list[str]] = None,
         tools_summary: Optional[dict[str, int]] = None,
         # Model behind the main chat thread, captured live during the turn
         # (TurnTracker.main_thread_model). Authoritative when present.
@@ -543,15 +548,21 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
         if structured_data:
             self._insert_structured_fields(turn_id, structured_data)
 
-        # Insert files
-        if modified_files:
-            for fp in modified_files:
-                self._execute(
-                    """INSERT INTO turn_files (id, turn_id, file_path, change_type)
-                       VALUES (nextval('seq_turn_files'), ?, ?, 'modified')
-                       ON CONFLICT (turn_id, file_path) DO NOTHING""",
-                    [turn_id, fp]
-                )
+        # Insert files. change_type ∈ created|modified|deleted|detected|read.
+        # Every query that means "files Claude changed" excludes 'read'
+        # (IS DISTINCT FROM 'read' — rows predating this column's use are
+        # NULL-safe 'modified').
+        kinds = file_kinds or {}
+        rows = [(fp, kinds.get(fp) or "modified") for fp in (modified_files or [])]
+        written = {fp for fp, _ in rows}
+        rows += [(fp, "read") for fp in (read_files or []) if fp not in written]
+        for fp, change_type in rows:
+            self._execute(
+                """INSERT INTO turn_files (id, turn_id, file_path, change_type)
+                   VALUES (nextval('seq_turn_files'), ?, ?, ?)
+                   ON CONFLICT (turn_id, file_path) DO NOTHING""",
+                [turn_id, fp, change_type]
+            )
 
         # Insert tools
         if tools_summary:
@@ -758,6 +769,12 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
 
         Aggregates `turn_files` joined to `turns`, returning one row per
         unique `file_path` with last-touched timestamp and touch count.
+
+        Both edits and reads count as "touched" (the quick switcher ranks
+        by recency, then demotes read-only files); `kind` says which —
+        'modified' when any turn changed the file, else 'read'.
+        `touch_count` stays the EDIT count for backwards compatibility;
+        `read_count` and `last_edited_at` are separate.
         """
         conditions = []
         params: list = []
@@ -773,7 +790,12 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
         where = " AND ".join(conditions)
         rows = self._fetch_all(
             f"""SELECT tf.file_path,
-                       COUNT(DISTINCT tf.turn_id) AS touch_count,
+                       COUNT(DISTINCT CASE WHEN tf.change_type IS DISTINCT FROM 'read'
+                                           THEN tf.turn_id END) AS edit_count,
+                       COUNT(DISTINCT CASE WHEN tf.change_type = 'read'
+                                           THEN tf.turn_id END) AS read_count,
+                       MAX(CASE WHEN tf.change_type IS DISTINCT FROM 'read'
+                                THEN COALESCE(t.completed_at, t.started_at) END) AS last_edited_at,
                        MAX(COALESCE(t.completed_at, t.started_at)) AS last_touched_at
                 FROM turn_files tf
                 JOIN turns t ON tf.turn_id = t.id
@@ -783,14 +805,18 @@ class ShadowDB(_SchemaMixin, _QueriesMixin, _PlansMixin):
                 LIMIT ?""",
             params + [limit],
         )
-        return [
-            {
+        out = []
+        for r in rows:
+            edits = int(r[1]) if r[1] is not None else 0
+            out.append({
                 "path": r[0],
-                "touch_count": int(r[1]) if r[1] is not None else 0,
-                "last_touched_at": str(r[2]) if r[2] is not None else None,
-            }
-            for r in rows
-        ]
+                "touch_count": edits,
+                "read_count": int(r[2]) if r[2] is not None else 0,
+                "kind": "modified" if edits > 0 else "read",
+                "last_edited_at": str(r[3]) if r[3] is not None else None,
+                "last_touched_at": str(r[4]) if r[4] is not None else None,
+            })
+        return out
 
     async def acomplete_turn(self, turn_id: str, **kwargs):
         """Async wrapper for complete_turn."""

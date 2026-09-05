@@ -628,6 +628,43 @@
     margin-left: var(--sp-2);
 }
 
+/* Deleted-file pill: struck-through name, red badge, no open affordance
+   (there is nothing to open — history still works via the context menu). */
+.turn-file-pill.file-kind-deleted {
+    background: rgba(248, 81, 73, 0.08);
+    border-color: rgba(248, 81, 73, 0.25);
+    color: var(--text-muted, #888);
+}
+.turn-file-pill.file-kind-deleted .file-name {
+    text-decoration: line-through;
+}
+.turn-file-pill .file-deleted {
+    font-size: 9px;
+    color: #f85149;
+    background: rgba(248, 81, 73, 0.15);
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-sm);
+    margin-left: var(--sp-6);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+/* Git-detected change (no tool call credited): dashed border marks the
+   weaker provenance; otherwise a normal changed-file pill. */
+.turn-file-pill.file-kind-detected {
+    border-style: dashed;
+}
+.turn-file-pill .file-detected {
+    font-size: 9px;
+    color: var(--text-muted, #888);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px var(--sp-5);
+    border-radius: var(--radius-sm);
+    margin-left: var(--sp-6);
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
 /* New file badge */
 .turn-file-pill .file-new {
     font-size: 9px;

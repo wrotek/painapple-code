@@ -125,6 +125,7 @@ class _PlansMixin:
                     SELECT COUNT(DISTINCT tf.file_path) FROM plan_turns pt
                     JOIN turn_files tf ON pt.turn_id = tf.turn_id
                     WHERE pt.plan_id = ? AND pt.role = 'implementation'
+                      AND tf.change_type IS DISTINCT FROM 'read'
                 ),
                 updated_at = ?
             WHERE id = ?
@@ -155,6 +156,7 @@ class _PlansMixin:
                 file_row = con.execute("""
                     SELECT file_path FROM turn_files
                     WHERE turn_id = ? AND file_path LIKE '%.claude/plans/%.md'
+                      AND change_type IS DISTINCT FROM 'read'
                     LIMIT 1
                 """, [turn_id]).fetchone()
                 plan_file = file_row[0] if file_row else None

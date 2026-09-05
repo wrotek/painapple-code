@@ -2,7 +2,15 @@
 Turn Tracker - Tracks tool usage and file modifications during a Claude turn.
 
 Each turn (user message → Claude response → result) is tracked for:
-- Files modified (from Edit/Write tools)
+- Files modified — from Edit/Write/NotebookEdit tools, from Bash commands
+  classified by utils/bash_file_ops (`sed -i`, heredoc redirects, `tee`,
+  `mv`, `rm`, …) and confirmed against the filesystem, and from the shadow
+  repo's own staged diff at commit time (anything else that touched the
+  tree: scripts, generators, `npm install` side effects). `file_kinds`
+  carries how each path was seen (created/modified/deleted/detected).
+- Files read — Read tool + Bash reads (`cat`, `head`, `grep … file`, …),
+  persisted as `change_type='read'` rows so the quick switcher can rank
+  recently-read files below recently-edited ones.
 - All tools used with input/output summaries
 
 Used by Shadow Git to generate comprehensive commit messages.
@@ -45,6 +53,17 @@ class TurnTracker:
         tracker.reset()
     """
     modified_files: set = field(default_factory=set)
+    # path -> "created" | "modified" | "deleted" | "detected". `detected` =
+    # found in the shadow repo's staged diff at commit time but not
+    # attributed to any tool call this turn (provenance is git, not a tool).
+    file_kinds: dict = field(default_factory=dict)
+    # Files read this turn (Read tool + Bash reads). Never overlaps
+    # modified_files — a read-then-edited file is a modification.
+    read_files: set = field(default_factory=set)
+    # path -> {"adds", "dels", "created", "deleted"} from `git diff --cached
+    # --numstat/--name-status` at commit time. Fills line stats for files
+    # written outside Edit/Write (a `sed -i` has no old/new strings to diff).
+    detected_stats: dict = field(default_factory=dict)
     tools_used: list = field(default_factory=list)
     turn_start: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     user_prompt: Optional[str] = None
@@ -64,9 +83,43 @@ class TurnTracker:
             output_summary=output_summary[:200]
         ))
 
-    def add_modified_file(self, path: str):
-        """Record a file modification (from Edit/Write)."""
+    def add_modified_file(self, path: str, kind: str = "modified"):
+        """Record a file modification.
+
+        `kind` precedence: "deleted" always wins (last state of the file);
+        a tool-attributed kind ("created"/"modified") replaces "detected";
+        otherwise the first recorded kind sticks (a Write-created file
+        that's later Edited stays "created").
+        """
         self.modified_files.add(path)
+        self.read_files.discard(path)
+        prev = self.file_kinds.get(path)
+        if kind == "deleted" or prev is None or prev == "detected":
+            self.file_kinds[path] = kind
+
+    def add_read_file(self, path: str):
+        """Record a file read (Read tool or a Bash read). No-op for files
+        already modified this turn."""
+        if path and path not in self.modified_files:
+            self.read_files.add(path)
+
+    def add_detected_file(self, path: str, status: str, adds: int = 0, dels: int = 0):
+        """Record a file the shadow repo's staged diff shows changed this
+        turn (`status` is git's A/M/D). Attributed files keep their tool
+        kind and only gain line stats; unattributed ones are added as
+        "detected" (or "deleted" for D — a vanished file is a hard fact).
+        """
+        self.detected_stats[path] = {
+            "adds": adds, "dels": dels,
+            "created": status == "A", "deleted": status == "D",
+        }
+        if path in self.modified_files:
+            return
+        self.add_modified_file(path, "deleted" if status == "D" else "detected")
+
+    def get_read_files(self) -> list:
+        """Files read but not modified this turn, sorted."""
+        return sorted(p for p in self.read_files if p not in self.modified_files)
 
     def set_prompt(self, prompt: str):
         """Set the user's prompt for this turn."""
@@ -75,6 +128,9 @@ class TurnTracker:
     def reset(self):
         """Clear for next turn."""
         self.modified_files = set()
+        self.file_kinds = {}
+        self.read_files = set()
+        self.detected_stats = {}
         self.tools_used = []
         self.turn_start = datetime.now(timezone.utc).isoformat()
         self.user_prompt = None
@@ -105,13 +161,19 @@ class TurnTracker:
         Returns dict of file paths to their stats:
         {
             "src/app.js": {"edits": 3, "adds": 25, "dels": 10},
-            "src/utils.js": {"edits": 1, "adds": 5, "dels": 0, "created": True}
+            "src/utils.js": {"edits": 1, "adds": 5, "dels": 0, "created": True},
+            "src/gone.js": {"edits": 0, "adds": 0, "dels": 12, "deleted": True},
+            "dist/x.js":   {"edits": 0, "adds": 40, "dels": 0, "detected": True}
         }
+
+        Edit/Write stats come from the tool inputs; every other modified
+        file (Bash writes, git-detected) gets its line counts from
+        `detected_stats` when the shadow commit has supplied them.
         """
         file_actions = {}
         for tool in self.tools_used:
             # File-modifying tools (Edit, Write) have file path as input_summary
-            if tool.name in ('Edit', 'Write'):
+            if tool.name in ('Edit', 'Write', 'NotebookEdit'):
                 path = tool.input_summary
                 if path not in file_actions:
                     file_actions[path] = {"edits": 0, "adds": 0, "dels": 0}
@@ -146,6 +208,23 @@ class TurnTracker:
                             file_actions[path]["adds"] += lines
                         except (ValueError, IndexError):
                             pass
+
+        # Files modified outside Edit/Write: Bash-classified writes/deletes and
+        # git-detected changes. Line stats only exist once the shadow commit
+        # has run numstat; before that the pill shows the name (and kind).
+        for path in self.modified_files:
+            kind = self.file_kinds.get(path, "modified")
+            entry = file_actions.setdefault(path, {"edits": 0, "adds": 0, "dels": 0})
+            stats = self.detected_stats.get(path)
+            if stats and entry["adds"] == 0 and entry["dels"] == 0:
+                entry["adds"] = stats["adds"]
+                entry["dels"] = stats["dels"]
+            if kind == "created" or (stats and stats.get("created")):
+                entry["created"] = True
+            if kind == "deleted" or (stats and stats.get("deleted")):
+                entry["deleted"] = True
+            if kind == "detected":
+                entry["detected"] = True
         return file_actions
 
     def get_read_images(self) -> list:
@@ -217,5 +296,22 @@ def summarize_write_output(file_path: str, content: str, existed: bool) -> tuple
     else:
         output_summary = f"created, {lines} lines"
     return input_summary, output_summary
+
+
+def summarize_bash_file_ops(created: set, modified: set, deleted: set, reads: set) -> str:
+    """Output summary for a Bash tool call that touched files, e.g.
+    "wrote src/a.py, src/b.py; deleted old.py" — replaces the bare
+    "running..." status so the rich-commit prompt sees what the command did."""
+    parts = []
+    written = sorted(created | modified)
+    if written:
+        parts.append("wrote " + ", ".join(written[:5]) + (f" +{len(written) - 5}" if len(written) > 5 else ""))
+    if deleted:
+        d = sorted(deleted)
+        parts.append("deleted " + ", ".join(d[:5]) + (f" +{len(d) - 5}" if len(d) > 5 else ""))
+    if reads and not written and not deleted:
+        r = sorted(reads)
+        parts.append("read " + ", ".join(r[:5]) + (f" +{len(r) - 5}" if len(r) > 5 else ""))
+    return "; ".join(parts) if parts else "ok"
 
 

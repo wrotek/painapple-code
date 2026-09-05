@@ -1263,6 +1263,43 @@ export class ChatController {
     }
 
     /** @private */
+    /**
+     * Late file attribution (`turn_files_update`): the shadow commit's staged
+     * diff surfaced files after the turn_summary went out. Rebuild ONLY the
+     * pills row of that turn's bar — partial (shimmer) and full context bars
+     * share the row markup — and re-arm its handlers + git dots.
+     * @param {Object} m - the turn's context message (already merged) or the wire frame
+     */
+    updateTurnFiles(m) {
+        const messageContainer = this._getActiveMessageContainer();
+        if (!messageContainer || !m?.turnNumber) return;
+        let bar = m.id ? messageContainer.querySelector(`#turn-summary-${CSS.escape(String(m.id))}`) : null;
+        if (!bar) {
+            // Turn numbers restart after compaction — take the newest bar.
+            const bars = messageContainer.querySelectorAll(`#turn-summary-T${m.turnNumber}`);
+            bar = bars.length ? bars[bars.length - 1] : null;
+        }
+        if (!bar) return;
+        const cwd = bar.dataset.cwd || m.cwd || window.app?.activeSession?.cwd || '';
+        const changedFiles = m.changedFiles || [];
+        const sessionFiles = this._getSessionFiles(changedFiles);
+        const html = this._buildFilesRowHtml(changedFiles, m.fileActions || {}, sessionFiles, m.readImages || [], cwd);
+        const old = bar.querySelector('.turn-files-row');
+        if (!html) {
+            old?.remove();
+            return;
+        }
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        const row = tmp.firstElementChild;
+        row.dataset.cwd = cwd;  // handlers resolve relative paths off the container
+        if (old) old.replaceWith(row);
+        else bar.querySelector('.turn-header-row')?.after(row);
+        this._attachFilePillHandlers(row);
+        this._attachCompactFileHandlers(row);
+        setTimeout(() => this._fetchGitStatusForTurn(bar), 0);
+    }
+
     _buildFilesRowHtml(changedFiles, fileActions, sessionFiles, readImages, cwd) {
         const escHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         const changedSet = new Set(changedFiles || []);
@@ -1300,6 +1337,31 @@ export class ChatController {
         const hasImages = turnImages.length > 0 || sessionImages.length > 0;
         if (!hasChanged && sessionChanged.length === 0 && !hasImages) return '';
 
+        // Kind badges + pill class. `deleted` (Bash rm/mv, git D) and
+        // `detected` (staged-diff only, no tool call credited) are new;
+        // `created` predates them. A deleted file is not openable.
+        const kindBits = (stats) => {
+            let badges = '';
+            let cls = '';
+            let attrs = '';
+            if (stats.deleted) {
+                badges += `<span class="file-deleted">${escHtml(S.turn_bar.badge_deleted)}</span>`;
+                cls += ' file-kind-deleted';
+                attrs += ' data-file-deleted="true"';
+            } else if (stats.created) {
+                badges += `<span class="file-new">${escHtml(S.turn_bar.badge_new)}</span>`;
+                attrs += ' data-file-created="true"';
+            }
+            if (stats.detected && !stats.deleted) {
+                badges += `<span class="file-detected">${escHtml(S.turn_bar.badge_detected)}</span>`;
+                cls += ' file-kind-detected';
+            }
+            return { badges, cls, attrs };
+        };
+        const kindTooltip = (fp, stats) => stats.deleted
+            ? S.turn_bar.deleted_tooltip.replace('{path}', fp)
+            : (stats.detected ? S.turn_bar.detected_tooltip.replace('{path}', fp) : fp);
+
         let html = '<div class="turn-files-row">';
         if (hasChanged) {
             for (const filePath of changedFiles) {
@@ -1307,26 +1369,27 @@ export class ChatController {
                 const stats = fileActions[filePath] || {};
                 const adds = stats.adds || 0;
                 const dels = stats.dels || 0;
-                const isNew = stats.created || false;
+                const kb = kindBits(stats);
 
                 let pillContent = `<span class="file-name">${escHtml(fileName)}</span>`;
-                if (isNew) pillContent += `<span class="file-new">new</span>`;
+                pillContent += kb.badges;
                 if (adds > 0) pillContent += `<span class="file-adds">+${adds}</span>`;
                 if (dels > 0) pillContent += `<span class="file-dels">-${dels}</span>`;
 
-                html += `<span class="turn-file-pill" data-file-path="${escHtml(filePath)}"${isNew ? ' data-file-created="true"' : ''} data-tooltip="${escHtml(filePath)}">${pillContent}</span>`;
+                html += `<span class="turn-file-pill${kb.cls}" data-file-path="${escHtml(filePath)}"${kb.attrs} data-tooltip="${escHtml(kindTooltip(filePath, stats))}">${pillContent}</span>`;
             }
         }
         if (sessionChanged.length > 0) {
             if (hasChanged) html += '<span class="turn-files-sep"></span>';
             for (const [fp, stats] of sessionChanged) {
                 const name = basename(fp);
+                const kb = kindBits(stats);
                 let pillContent = `<span class="file-name">${escHtml(name)}</span>`;
-                if (stats.created) pillContent += `<span class="file-new">new</span>`;
+                pillContent += kb.badges;
                 if (stats.adds > 0) pillContent += `<span class="file-adds">+${stats.adds}</span>`;
                 if (stats.dels > 0) pillContent += `<span class="file-dels">-${stats.dels}</span>`;
                 pillContent += `<span class="session-file-hide" data-hide-path="${escHtml(fp)}" data-tooltip="Hide">×</span>`;
-                html += `<span class="turn-file-pill session-compact-file" data-file-path="${escHtml(fp)}"${stats.created ? ' data-file-created="true"' : ''} data-tooltip="${escHtml(fp)}">${pillContent}</span>`;
+                html += `<span class="turn-file-pill session-compact-file${kb.cls}" data-file-path="${escHtml(fp)}"${kb.attrs} data-tooltip="${escHtml(kindTooltip(fp, stats))}">${pillContent}</span>`;
             }
         }
         if (hasImages) {
@@ -1387,13 +1450,17 @@ export class ChatController {
             if (msg.role !== 'context' || !msg.changedFiles) continue;
             for (const fp of msg.changedFiles) {
                 if (currentSet.has(fp)) continue;
-                if (!sessionFiles.has(fp)) sessionFiles.set(fp, { adds: 0, dels: 0, created: false });
+                if (!sessionFiles.has(fp)) sessionFiles.set(fp, { adds: 0, dels: 0, created: false, deleted: false, detected: false });
                 const entry = sessionFiles.get(fp);
                 const actions = msg.fileActions?.[fp];
                 if (actions) {
                     entry.adds += actions.adds || 0;
                     entry.dels += actions.dels || 0;
                     if (actions.created) entry.created = true;
+                    // Messages iterate oldest → newest: the last turn's state wins
+                    // for deleted (a re-created file is no longer deleted).
+                    entry.deleted = !!actions.deleted;
+                    if (actions.detected) entry.detected = true;
                 }
             }
         }
@@ -1450,6 +1517,7 @@ export class ChatController {
                 const filePath = pill.dataset.filePath;
                 const cwd = container.dataset.cwd;
                 if (!filePath) return;
+                if (pill.dataset.fileDeleted) return;  // nothing on disk to open
                 const fullPath = isAbsolutePath(filePath) ? filePath : (cwd ? joinPath(cwd, filePath) : filePath);
 
                 if ((e.metaKey || e.ctrlKey) && e.shiftKey) {

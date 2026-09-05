@@ -2056,6 +2056,13 @@ turn_bar:
   read_tooltip: "{path} — read this turn"
   read_session_tooltip: "{path} — read earlier this session"
   expand_hint: "click to expand"
+  # File pill badges. `detected` = the shadow repo's staged diff found the
+  # change but no tool call was credited with it (script, generator, …).
+  badge_new: "new"
+  badge_deleted: "deleted"
+  badge_detected: "detected"
+  deleted_tooltip: "{path} — deleted this turn"
+  detected_tooltip: "{path} — changed on disk this turn (not via a tool call)"
 
 # ============================================================
 # Grid Switcher (iPad-style session card grid)

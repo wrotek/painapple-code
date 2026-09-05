@@ -194,6 +194,8 @@ export const wsHandlerMethods = {
                         changedFiles: msg.changedFiles,
                         toolsSummary: msg.toolsSummary,
                         fileActions: msg.fileActions,
+                        fileKinds: msg.fileKinds,
+                        readFiles: msg.readFiles,
                         readImages: msg.readImages,
                         cwd: msg.cwd,
                         rateLimited: msg.rateLimited,
@@ -207,6 +209,43 @@ export const wsHandlerMethods = {
                     this.updateSyncTimestamp(turnMsg.timestamp);
                     app.sessionManager.saveSessions();
                     debug.log(`Turn summary T${msg.turnNumber}: ${msg.changedFiles?.length || 0} files, $${msg.costUsd || 0}`);
+                }
+                break;
+
+            case 'turn_files_update':
+                // Late file attribution from the shadow commit: the staged diff
+                // surfaced files no tool call was credited with (Bash edits the
+                // classifier missed, scripts, generators) and line stats for
+                // Bash-written ones. Merge into the turn's context message
+                // (partial or full) and refresh just the pills row.
+                if (msg.turnNumber) {
+                    let target = null;
+                    for (let i = this.messages.length - 1; i >= 0; i--) {
+                        const m = this.messages[i];
+                        if (m.role === 'context' && m.turnNumber === msg.turnNumber
+                                && (!msg.dbTurnId || !m.dbTurnId || m.dbTurnId === msg.dbTurnId)) {
+                            target = m;
+                            break;
+                        }
+                    }
+                    if (target) {
+                        target.changedFiles = msg.changedFiles;
+                        target.fileActions = msg.fileActions;
+                        target.fileKinds = msg.fileKinds;
+                        app.sessionManager.saveSessions();
+                    }
+                    if (this._pendingTurnSummary?.turnNumber === msg.turnNumber) {
+                        Object.assign(this._pendingTurnSummary, {
+                            changedFiles: msg.changedFiles, fileActions: msg.fileActions, fileKinds: msg.fileKinds,
+                        });
+                    }
+                    if (this.isActive) {
+                        app.chatCtrl.updateTurnFiles(target || msg);
+                    } else {
+                        const sessionId = this.id || this.storeId || this.sessionId;
+                        app.chatCtrl?.invalidateSession(sessionId);
+                    }
+                    debug.log(`Turn files update T${msg.turnNumber}: ${msg.changedFiles?.length || 0} files`);
                 }
                 break;
 
@@ -284,6 +323,8 @@ export const wsHandlerMethods = {
                             changedFiles: msg.changedFiles,
                             toolsSummary: msg.toolsSummary,
                             fileActions: msg.fileActions,
+                            fileKinds: msg.fileKinds,
+                            readFiles: msg.readFiles,
                             readImages: msg.readImages,
                             cwd: msg.cwd,
                             model: msg.model,

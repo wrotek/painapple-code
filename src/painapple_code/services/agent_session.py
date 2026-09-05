@@ -30,8 +30,9 @@ from starlette.websockets import WebSocketState
 from painapple_code.session_store import SessionStore
 from painapple_code.shadow_git import ShadowGit, CostInfo, get_shadow_git
 from painapple_code.turn_tracker import (
-    TurnTracker, summarize_edit_output, summarize_write_output,
+    TurnTracker, summarize_bash_file_ops, summarize_edit_output, summarize_write_output,
 )
+from painapple_code.utils.bash_file_ops import classify_bash_command, snapshot_existing, verify_ops
 from painapple_code.utils.agent_cli import read_line_unlimited
 from painapple_code.utils.proc import (
     interrupt_process,
@@ -139,6 +140,10 @@ class AgentSession:
     tool_to_task_map: Dict[str, str] = None   # tool_id -> parent task_id
     # Edit tool tracking (for server-side line number parsing)
     edit_tool_inputs: Dict[str, dict] = None  # tool_id -> {old_string, new_string}
+    # File ops awaiting their tool_result: Bash commands classified by
+    # utils/bash_file_ops (confirmed against the filesystem once the command
+    # has run) and Write calls (created vs overwritten comes from the result).
+    pending_file_ops: Dict[str, dict] = None  # tool_id -> {"kind": "bash"|"write", ...}
     task_order_counter: int = 0               # Incrementing counter for ordering
     # Lifecycle tracking
     last_activity: float = None  # timestamp of last activity
@@ -261,6 +266,7 @@ class AgentSession:
         self.active_tasks = {}
         self.tool_to_task_map = {}
         self.edit_tool_inputs = {}
+        self.pending_file_ops = {}
         now = time.time()
         if self.last_activity is None:
             self.last_activity = now
@@ -416,6 +422,7 @@ async def _background_shadow_commit(
     provider_session_id: Optional[str],
     result_msg: Optional[dict] = None,
     session_model: Optional[str] = None,
+    turn_data: Optional[dict] = None,
 ):
     """
     Run shadow git commit in background without blocking user prompts.
@@ -425,6 +432,27 @@ async def _background_shadow_commit(
 
     Cancelled automatically when user sends a new prompt.
     """
+    async def on_files_detected():
+        # The shadow repo's staged diff surfaced files no tool call was
+        # credited with (or line stats for Bash-written ones). The
+        # turn_summary frame already went out — send a follow-up so the
+        # pills row picks them up, and patch the shared turn_data so the
+        # context_update record (if not yet persisted) carries them too.
+        update = {
+            "changedFiles": sorted(tracker_snapshot.modified_files),
+            "fileActions": tracker_snapshot.get_file_actions(),
+            "fileKinds": dict(tracker_snapshot.file_kinds),
+        }
+        if turn_data is not None:
+            turn_data.update(update)
+        await session.safe_send({
+            "type": "turn_files_update",
+            "turnNumber": turn_number,
+            "dbTurnId": tracker_snapshot.db_turn_id,
+            "cwd": session.cwd,
+            **update,
+        })
+
     try:
         commit_hash, session_title = await shadow.commit_turn(
             session_id=session.store_id,
@@ -436,6 +464,7 @@ async def _background_shadow_commit(
             token_profile=resolve_profile(session.token_profile, session.provider),
             session_model=session_model,
             provider=session.provider,
+            on_files_detected=on_files_detected,
         )
         if commit_hash:
             logger.info(f"Shadow Git commit: {commit_hash} for turn {turn_number}")
@@ -1543,11 +1572,21 @@ class AgentManager:
         tool_name = block.get("name")
         tool_input = block.get("input", {})
 
-        # Track file modifications for Edit/Write
-        if tool_name in ("Edit", "Write") and tool_input.get("file_path"):
-            self._track_file_modification(session, tool_id, tool_name, tool_input)
+        # Track file modifications: Edit/Write/MultiEdit (file_path),
+        # NotebookEdit (notebook_path), and Bash commands that touch files
+        # (`sed -i`, heredoc redirects, tee, mv, rm — classified, then
+        # confirmed against the filesystem when the tool_result lands).
+        file_path = tool_input.get("file_path") if isinstance(tool_input, dict) else None
+        if tool_name == "NotebookEdit" and isinstance(tool_input, dict):
+            file_path = tool_input.get("notebook_path") or file_path
+        if tool_name in ("Edit", "Write", "MultiEdit", "NotebookEdit") and file_path:
+            self._track_file_modification(session, tool_id, tool_name, tool_input, file_path)
+        elif tool_name == "Bash":
+            self._track_bash_file_ops(session, tool_id, tool_input)
         else:
             _track_tool_usage(session.turn_tracker, tool_name, tool_input)
+            if tool_name == "Read" and file_path:
+                session.turn_tracker.add_read_file(self._relative_to_cwd(session, file_path))
 
         # ExitPlanMode: clear server-side permission_mode so restarts use full perms.
         # Only matters for /plan command (which sets permission_mode="plan").
@@ -1638,22 +1677,30 @@ class AgentManager:
                 "timestamp": timestamp,
             })
 
-    def _track_file_modification(self, session: AgentSession, tool_id: str, tool_name: str, tool_input: dict):
-        """Track Edit/Write file modifications for shadow git and turn tracker."""
-        file_path = tool_input.get("file_path")
-        # Make path relative to cwd (directory-boundary safe). pathlib, not
-        # string-prefix: `cwd.rstrip("/") + "/"` never matches Windows
-        # `C:\...` paths, which recorded every file under its ABSOLUTE
-        # path and broke shadow-git keying. Forward slashes always — git
-        # pathspecs and the shadow store use them on every platform.
+    @staticmethod
+    def _relative_to_cwd(session: AgentSession, file_path: str) -> str:
+        """Make a tool path relative to the session cwd (directory-boundary
+        safe). pathlib, not string-prefix: `cwd.rstrip("/") + "/"` never
+        matches Windows `C:\\...` paths, which recorded every file under its
+        ABSOLUTE path and broke shadow-git keying. Forward slashes always —
+        git pathspecs and the shadow store use them on every platform.
+        Foreign/malformed paths are returned as given."""
         if session.cwd and file_path:
             try:
                 p, cwd = Path(file_path), Path(session.cwd)
                 if p.is_absolute() and p.is_relative_to(cwd):
-                    file_path = p.relative_to(cwd).as_posix()
+                    return p.relative_to(cwd).as_posix()
             except (ValueError, OSError):
-                pass  # foreign/malformed path — record as given, as before
-        session.turn_tracker.add_modified_file(file_path)
+                pass
+        return file_path
+
+    def _track_file_modification(self, session: AgentSession, tool_id: str, tool_name: str,
+                                 tool_input: dict, file_path: str):
+        """Track Edit/Write/MultiEdit/NotebookEdit file modifications for shadow git and turn tracker."""
+        file_path = self._relative_to_cwd(session, file_path)
+        session.turn_tracker.add_modified_file(
+            file_path, "created" if tool_name == "Write" else "modified"
+        )
 
         # Track in shadow git (skip for comment threads)
         if not session.is_comment_thread:
@@ -1669,11 +1716,80 @@ class AgentManager:
             # Store Edit input for server-side line number parsing
             session.edit_tool_inputs[tool_id] = {"new_string": tool_input.get("new_string", "")}
             logger.debug(f"Stored Edit input for tool {tool_id}")
-        else:  # Write
+        elif tool_name == "Write":
             input_sum, output_sum = summarize_write_output(
                 file_path, tool_input.get("content", ""), False
             )
             session.turn_tracker.add_tool_usage("Write", input_sum, output_sum)
+            # "created" is the optimistic default; the CLI's tool_use_result
+            # says {"type": "update"} on an overwrite and re-stamps it.
+            if tool_id:
+                session.pending_file_ops[tool_id] = {"kind": "write", "path": file_path}
+        else:  # MultiEdit / NotebookEdit — no per-call line stats
+            session.turn_tracker.add_tool_usage(tool_name, file_path, "edited")
+
+    def _track_bash_file_ops(self, session: AgentSession, tool_id: str, tool_input: dict):
+        """Record a Bash call and, when its command names project files,
+        park the classified ops until the tool_result confirms them."""
+        _track_tool_usage(session.turn_tracker, "Bash", tool_input)
+        command = (tool_input or {}).get("command") or ""
+        if not (session.cwd and command and tool_id):
+            return
+        try:
+            ops = classify_bash_command(command, session.cwd)
+        except Exception as e:  # heuristic parser — must never break a turn
+            logger.debug(f"bash_file_ops classify failed: {e}")
+            return
+        if ops.is_empty:
+            return
+        session.pending_file_ops[tool_id] = {
+            "kind": "bash",
+            "ops": ops,
+            "existed": snapshot_existing(ops, session.cwd),
+            "usage": session.turn_tracker.tools_used[-1],
+        }
+
+    def _confirm_file_ops(self, session: AgentSession, pending: dict, block: dict, msg: dict):
+        """Apply a parked file op now that its tool_result has arrived."""
+        tracker = session.turn_tracker
+        if pending["kind"] == "write":
+            tur = msg.get("tool_use_result")
+            if isinstance(tur, dict) and tur.get("type") == "update":
+                path = pending["path"]
+                if tracker.file_kinds.get(path) == "created":
+                    tracker.file_kinds[path] = "modified"
+                for usage in reversed(tracker.tools_used):
+                    if usage.name == "Write" and usage.input_summary == path:
+                        usage.output_summary = usage.output_summary.replace("created", "overwritten", 1)
+                        break
+            return
+
+        failed = bool(block.get("is_error"))
+        verified = verify_ops(pending["ops"], session.cwd,
+                              existed_before=pending["existed"], failed=failed)
+        if verified.is_empty:
+            return
+        for p in verified.created:
+            tracker.add_modified_file(p, "created")
+        for p in verified.modified:
+            tracker.add_modified_file(p, "modified")
+        for p in verified.deleted:
+            tracker.add_modified_file(p, "deleted")
+        for p in verified.reads:
+            tracker.add_read_file(p)
+        written = verified.created | verified.modified | verified.deleted
+        if written and not session.is_comment_thread:
+            shadow = get_shadow_git(session.cwd)
+            for p in written:
+                shadow.track_modification(p, session.store_id)
+        usage = pending.get("usage")
+        if usage is not None:
+            usage.output_summary = summarize_bash_file_ops(
+                verified.created, verified.modified, verified.deleted, verified.reads,
+            )[:200]
+        logger.debug(f"Bash file ops confirmed for {session.store_id}: "
+                     f"+{len(verified.created)} ~{len(verified.modified)} "
+                     f"-{len(verified.deleted)} r{len(verified.reads)}")
 
     def _handle_tool_results(self, session: AgentSession, msg: dict, timestamp: str):
         """Handle tool results from 'user' type messages.
@@ -1700,6 +1816,15 @@ class AgentManager:
                     output = str(raw_output)
                 else:
                     output = raw_output
+
+                # Confirm parked file ops (Bash-classified paths, Write
+                # created-vs-overwritten) now that the tool has run
+                pending = session.pending_file_ops.pop(tool_id, None) if tool_id else None
+                if pending:
+                    try:
+                        self._confirm_file_ops(session, pending, block, msg)
+                    except Exception as e:
+                        logger.debug(f"file-op confirmation failed for {tool_id}: {e}")
 
                 # Inject startLine for Edit tools
                 start_line = None
@@ -1774,6 +1899,7 @@ class AgentManager:
         session.thinking_tool_ids = set()
         session.clear_task_tracking()
         session.edit_tool_inputs = {}
+        session.pending_file_ops = {}
         session.is_idle = True
         # Single owner of compaction/heartbeat teardown: every turn ends here
         # regardless of how compaction settled (success boundary, failure, or
@@ -1844,9 +1970,11 @@ class AgentManager:
             "turnNumber": session.turn_number,
             "durationMs": duration_ms,
             "costUsd": (result_msg or {}).get("total_cost_usd", 0),
-            "changedFiles": list(session.turn_tracker.modified_files),
+            "changedFiles": sorted(session.turn_tracker.modified_files),
             "toolsSummary": session.turn_tracker.get_tools_summary(),
             "fileActions": session.turn_tracker.get_file_actions(),
+            "fileKinds": dict(session.turn_tracker.file_kinds),
+            "readFiles": session.turn_tracker.get_read_files(),
             "readImages": session.turn_tracker.get_read_images(),
             "rateLimited": rate_limited,
             "model": model_used,
@@ -1854,9 +1982,8 @@ class AgentManager:
         }
 
         if turn_data and session.ws_connected:
-            _turn_fields = ("turnNumber", "durationMs", "costUsd", "changedFiles", "toolsSummary", "fileActions", "readImages", "rateLimited", "model", "dbTurnId")
             summary_msg = {"type": "turn_summary", "cwd": session.cwd}
-            for f in _turn_fields:
+            for f in self._CONTEXT_TURN_FIELDS:
                 summary_msg[f] = turn_data.get(f)
             await session.safe_send(summary_msg)
 
@@ -1903,6 +2030,7 @@ class AgentManager:
                 provider_session_id=rich_commit_session_id,
                 result_msg=result_msg,
                 session_model=model_used,
+                turn_data=turn_data,
             ))
         elif session.turn_tracker.db_turn_id:
             db_turn_id = session.turn_tracker.db_turn_id
@@ -2687,7 +2815,8 @@ class AgentManager:
     # so the frontend can match the snapshot to its turn-summary bar.
     _CONTEXT_TURN_FIELDS = (
         "turnNumber", "durationMs", "costUsd", "changedFiles",
-        "toolsSummary", "fileActions", "readImages", "rateLimited", "model", "dbTurnId",
+        "toolsSummary", "fileActions", "fileKinds", "readFiles", "readImages",
+        "rateLimited", "model", "dbTurnId",
     )
 
     async def _emit_context_update(

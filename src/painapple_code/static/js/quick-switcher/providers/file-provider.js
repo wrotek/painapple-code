@@ -25,6 +25,10 @@ const EMPTY_QUERY_LIMIT = 15;
 const RECENT_BOOST_HEAD = 50;
 const RECENT_BOOST_TAIL = 2;
 const RECENT_POOL_SIZE = 100;
+// A file Claude only READ (never edited) ranks as if its last touch were
+// this much older — an edit 10 min ago outranks a read 5 min ago, but a
+// read 5 min ago still beats an edit from three hours ago.
+const READ_ONLY_HANDICAP_MS = 60 * 60 * 1000;
 
 /** Parse a DuckDB TIMESTAMPTZ string (e.g. "2026-06-30 14:22:10.123+00")
  *  to epoch ms, for comparison against client open-times (Date.now()).
@@ -97,11 +101,14 @@ export class FileProvider extends BaseProvider {
             if (r.ok) {
                 const data = await r.json();
                 (data.files || []).forEach(f => {
+                    const readOnly = f.kind === 'read';
                     list.push({
                         abs: resolvePath(cwd, f.path),
                         touchCount: f.touch_count,
+                        readCount: f.read_count || 0,
+                        kind: f.kind || 'modified',
                         lastTouched: f.last_touched_at,
-                        ts: parseTs(f.last_touched_at),
+                        ts: parseTs(f.last_touched_at) - (readOnly ? READ_ONLY_HANDICAP_MS : 0),
                     });
                 });
             }
@@ -120,7 +127,10 @@ export class FileProvider extends BaseProvider {
         const server = await this._loadServerRecent(cwd);
         const map = new Map();
         for (const e of server) {
-            map.set(e.abs, { ts: e.ts, touchCount: e.touchCount, lastTouched: e.lastTouched, opened: false });
+            map.set(e.abs, {
+                ts: e.ts, touchCount: e.touchCount, readCount: e.readCount, kind: e.kind,
+                lastTouched: e.lastTouched, opened: false,
+            });
         }
         for (const o of getRecentOpens()) {
             if (!o || !o.path) continue;

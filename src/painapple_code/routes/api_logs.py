@@ -23,6 +23,7 @@ from fastapi.responses import FileResponse
 from painapple_code import paths
 from painapple_code.session_store import SessionStore
 from painapple_code.routes.dependencies import get_session_store
+from painapple_code.utils.bash_file_ops import classify_bash_command, verify_ops
 
 logger = logging.getLogger(__name__)
 
@@ -399,6 +400,9 @@ def compute_session_changes(store, session_id: str) -> dict:
     tools_dir = store._session_dir(session_id) / "tools"
     if not messages_path.exists():
         return {"files": [], "summary": {"totalFiles": 0, "modified": 0, "created": 0, "linesAdded": 0, "linesRemoved": 0}}
+    # Bash-classified paths are project-relative; /changes keys on the
+    # absolute file_path Edit/Write report, so resolve against the cwd.
+    cwd = (store.load_meta(session_id) or {}).get("cwd") or ""
 
     changes_by_file = {}
 
@@ -457,7 +461,52 @@ def compute_session_changes(store, session_id: str) -> dict:
                 return int(line_num)
         return None
 
-    def process_tool(tool_name, tool_id, tool_input, tool_output, tool_output_file, timestamp):
+    def process_bash(tool_id, tool_input, timestamp, failed):
+        """Bash edits (`sed -i`, heredoc redirects, tee, mv, rm) — classified
+        from the command and confirmed against the filesystem as it is NOW,
+        so a file deleted later in the session drops out. Created-vs-
+        modified can't be known after the fact: everything is 'modified'
+        (deletes are 'deleted')."""
+        command = (tool_input or {}).get('command') or ''
+        if not command or not cwd:
+            return
+        ops = classify_bash_command(command, cwd)
+        if ops.is_empty:
+            return
+        verified = verify_ops(ops, cwd, existed_before=ops.writes, failed=failed)
+        for rel in sorted(verified.modified | verified.deleted):
+            file_path = str(Path(cwd) / rel)
+            status = 'deleted' if rel in verified.deleted else 'modified'
+            entry = changes_by_file.get(file_path)
+            if entry is None:
+                entry = changes_by_file[file_path] = {
+                    'filePath': file_path,
+                    'fileName': Path(file_path).name,
+                    'fileType': Path(file_path).suffix.lstrip('.'),
+                    'status': status,
+                    'edits': [],
+                    'firstChange': timestamp,
+                    'lastChange': timestamp,
+                    'linesAdded': 0,
+                    'linesRemoved': 0,
+                }
+            entry['lastChange'] = timestamp
+            if status == 'deleted':
+                entry['status'] = 'deleted'
+            entry['edits'].append({
+                'toolId': tool_id,
+                'timestamp': timestamp,
+                'type': 'bash',
+                'command': command[:300],
+                'linesAdded': 0,
+                'linesRemoved': 0,
+                'startLine': None,
+            })
+
+    def process_tool(tool_name, tool_id, tool_input, tool_output, tool_output_file, timestamp, failed=False):
+        if tool_name == 'Bash':
+            process_bash(tool_id, tool_input, timestamp, failed)
+            return
         if tool_name not in ('Edit', 'Write'):
             return
 
@@ -540,7 +589,8 @@ def compute_session_changes(store, session_id: str) -> dict:
                         msg.get('tool_input', {}),
                         msg.get('tool_output', ''),
                         msg.get('tool_output_file', ''),
-                        timestamp
+                        timestamp,
+                        failed=bool(msg.get('tool_error')),
                     )
 
                 if msg.get('role') == 'thinking' and msg.get('tools'):
@@ -551,7 +601,8 @@ def compute_session_changes(store, session_id: str) -> dict:
                             tool.get('toolInput', {}),
                             tool.get('toolOutput', ''),
                             tool.get('toolOutputFile', ''),
-                            timestamp
+                            timestamp,
+                            failed=bool(tool.get('toolError')),
                         )
 
             except json.JSONDecodeError:
@@ -580,32 +631,47 @@ def compute_session_changes(store, session_id: str) -> dict:
 
 @router.get("/api/sessions/{session_id}/read-files")
 async def get_session_read_files(session_id: str, store: SessionStore = Depends(get_session_store)):
-    """Get files Claude opened with the Read tool during this session.
+    """Get files Claude opened this session — the Read tool plus Bash reads
+    (`cat`, `head`, `sed -n`, `grep … file`, …).
 
-    Unlike /changes (Edit/Write), reads aren't persisted anywhere queryable,
-    so we reconstruct them by scanning messages.jsonl for Read tool calls.
+    Reconstructed by scanning messages.jsonl (the shadow DB's `turn_files`
+    also carries reads as `change_type='read'` since the Bash-attribution
+    work, but a session's live read log predates its commits).
     Returns files most-recently-read first.
     """
     return await asyncio.to_thread(compute_session_read_files, store, session_id)
 
 
 def compute_session_read_files(store, session_id: str) -> dict:
-    """Scan messages.jsonl for Read tool calls → unique files, recent first.
+    """Scan messages.jsonl for Read tool calls + Bash reads → unique files, recent first.
 
     Returns: {"files": [{filePath, fileName, readCount, firstRead, lastRead}], "summary": {...}}
     """
     messages_path = store._messages_path(session_id)
     if not messages_path.exists():
         return {"files": [], "summary": {"totalFiles": 0, "totalReads": 0}}
+    cwd = (store.load_meta(session_id) or {}).get("cwd") or ""
 
     reads_by_file = {}
 
     def process_tool(tool_name, tool_input, timestamp):
+        if tool_name == 'Bash':
+            command = (tool_input or {}).get('command') or ''
+            if not command or not cwd:
+                return
+            ops = classify_bash_command(command, cwd)
+            # Reads survive a failed command (the file was read before the
+            # pipeline died); only current existence is checked.
+            for rel in sorted(verify_ops(ops, cwd).reads):
+                record_read(str(Path(cwd) / rel), timestamp)
+            return
         if tool_name != 'Read':
             return
         file_path = (tool_input or {}).get('file_path', '')
-        if not file_path:
-            return
+        if file_path:
+            record_read(file_path, timestamp)
+
+    def record_read(file_path, timestamp):
         entry = reads_by_file.get(file_path)
         if entry is None:
             reads_by_file[file_path] = {

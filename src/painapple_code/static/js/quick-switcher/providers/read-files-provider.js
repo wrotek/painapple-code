@@ -1,10 +1,12 @@
 /**
  * ReadFilesProvider — files Claude opened with the Read tool this session.
  *
- * Prefix `!`. Reads aren't persisted anywhere queryable (the shadow DB's
- * `turn_files` only tracks Edit/Write), so the server reconstructs them by
- * scanning the active session's messages.jsonl:
+ * Prefix `!`. The server reconstructs the session's read log by scanning
+ * its messages.jsonl — Read tool calls plus Bash reads (`cat`, `head`,
+ * `sed -n`, `grep … file`) classified by utils/bash_file_ops:
  *   GET /api/sessions/{storeId}/read-files
+ * (The shadow DB's `turn_files` also persists reads as change_type='read',
+ * but only once a turn has committed; the live log is what this wants.)
  *
  * Extends FileProvider to reuse open/execute + context-menu behaviour; only
  * the item source differs (session read-log instead of the project file list).
