@@ -63,7 +63,8 @@ markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
   - pymdownx.inlinehilite
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      check_paths: true
   - pymdownx.keys
 
 plugins:
@@ -104,3 +105,4 @@ nav:
       - HTTP & WebSocket API: reference/api.md
       - Optional helpers: reference/optional-helpers.md
   - Features overview: features.md
+  - Changelog: changelog.md
