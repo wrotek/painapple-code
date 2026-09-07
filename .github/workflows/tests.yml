@@ -67,12 +67,12 @@ jobs:
             # tags rather than falling back to 0.1.devN.
             # ref is empty for every trigger except a workflow_call that
             # passes one — checkout treats empty as "the triggering ref".
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
                   ref: ${{ inputs.ref }}
 
-            - uses: actions/setup-python@v5
+            - uses: actions/setup-python@v7
               with:
                   python-version: ${{ matrix.python-version }}
                   cache: pip
