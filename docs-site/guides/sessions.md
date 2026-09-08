@@ -72,7 +72,7 @@ There's also a send-time shortcut: ++ctrl+shift+enter++ (or ++cmd+shift+enter++)
 
 ## When Claude asks you a question
 
-When Claude uses its AskUserQuestion tool, the answer UI renders as an interactive form right in the chat — option buttons (or a grouped wizard when several questions arrive at once), an **Other…** option for a free-text answer, and an **Ignore** button to dismiss without answering. A **comment box** below the options lets you add free-text context to whatever you picked (or send a comment alone, without picking an option). Sending a regular message auto-dismisses any pending question. Tabs and grid-switcher cards show a **?** badge while a question (or a plan approval) is waiting.
+When Claude uses its AskUserQuestion tool, the answer UI renders as an interactive form right in the chat — option buttons (or a grouped wizard when several questions arrive at once), an **Other…** option for a free-text answer, and an **Ignore** button to dismiss without answering. A long option description is clamped to two lines with a **Show more** toggle, so a wall of text never buries the buttons. A **comment box** below the options lets you add free-text context to whatever you picked (or send a comment alone, without picking an option). Sending a regular message auto-dismisses any pending question. Tabs and grid-switcher cards show a **?** badge while a question (or a plan approval) is waiting.
 
 Answered cards keep an **Edit** button — reopen the form, change your picks or comment, and resend, without retyping the whole answer as a new prompt.
 
