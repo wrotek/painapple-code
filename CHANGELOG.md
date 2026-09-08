@@ -2,13 +2,13 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
-## Unreleased
+## 1.1.0 — 2026-09-08
 
 Also ships everything listed under **1.0.5** below — that tag was cut but never published.
 
 ### Added
 
-- Long option descriptions in AskUserQuestion cards are shown in full instead of being clipped.
+- Long option descriptions in AskUserQuestion cards no longer get silently clipped: a clamped description gets a **Show more** / **Show less** toggle, and the option you chose is shown in full on the answered card.
 
 ## 1.0.5 — 2026-09-05 (tagged, never published)
 
