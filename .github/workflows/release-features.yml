@@ -23,7 +23,7 @@ jobs:
             contents: read
             packages: write
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
 
             - name: Bundle painapple source into Feature
               run: tools/bundle-feature-source.sh --feature-only
