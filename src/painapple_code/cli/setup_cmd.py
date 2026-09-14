@@ -147,24 +147,51 @@ def step_cosmetics(cfg, back, n=3, default_label=""):
 def step_runtime(cfg, back, n=2):
     from painapple_code.cli.deploy.runtime import detect_runtimes
     _section(n, "Container runtime",
-             "Used by `painapple --in-docker` and docker-mode profiles")
+             "Optional — only used by `painapple --in-docker` and "
+             "docker-mode profiles")
     detected = detect_runtimes()
-    choices = [Choice("", "Auto", "prefer docker, fall back to podman")]
+    # "Skip" leaves runtime/image untouched rather than writing a value:
+    # a user who never types --in-docker has nothing to answer here, and
+    # one who already configured a runtime shouldn't have to re-pick it
+    # to get past the step.
+    choices = [Choice("skip", "Skip — not using containers",
+                      "leave these defaults alone"),
+               Choice("", "Auto", "prefer docker, fall back to podman")]
     for name, path, version in detected:
         choices.append(Choice(name, f"{name} {version}".strip(), path))
+
+    # A configured binary path is offered as its own row, so Enter keeps
+    # it. Defaulting to "custom" instead (as this once did) pre-armed the
+    # binary-path text prompt for anyone whose runtime came from a custom
+    # pick or the docker.yaml migration. The row is added even when the
+    # path matches a detected runtime: `podman` and `/usr/bin/podman` are
+    # different saved values (PATH lookup vs pinned binary), so collapsing
+    # them would rewrite the user's config on a plain Enter.
+    current = cfg.get("runtime") or ""
+    if current and current not in {c.value for c in choices}:
+        choices.append(Choice(current, f"Custom: {current}",
+                              "configured binary path"))
     choices.append(Choice("custom", "Custom binary path…",
                           "a docker/podman-compatible CLI"))
     if not detected:
         warn("Neither docker nor podman found on PATH — --in-docker needs "
-             "one installed (or a custom binary path).")
+             "one installed (or a custom binary path). Skip if you don't "
+             "use containers.")
 
-    current = cfg.get("runtime") or ""
+    # Nothing configured yet → land on Skip, so a user who only came for
+    # the network settings can Enter straight past. Note "" (Auto) is
+    # itself a valid choice value, so this can't be folded into a
+    # `current in known` test.
     known = {c.value for c in choices}
-    picked = ui.select("Runtime", choices,
-                       default=current if current in known else "custom",
-                       back=back)
+    if cfg.get("runtime") or cfg.get("image"):
+        default = current if current in known else ""
+    else:
+        default = "skip"
+    picked = ui.select("Runtime", choices, default=default, back=back)
     if picked is BACK:
         return BACK
+    if picked == "skip":
+        return None
     if picked == "custom":
         path = ui.text(
             "Runtime binary path (docker/podman-compatible)",
