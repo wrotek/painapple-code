@@ -7,6 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=contain">
     <meta name="theme-color" content="#0d1117">
     <title>Sign in &middot; pAInapple Code</title>
+    <!-- /instance-icons/, not /static/icons/ — this page is served pre-auth
+         and /static/ is not allowlisted. Without these the browser falls
+         back to an implicit /favicon.ico and the tab shows a blank sheet. -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/instance-icons/favicon-32.png">
+    <link rel="icon" type="image/x-icon" href="/instance-icons/favicon.ico">
+    <link rel="apple-touch-icon" href="/instance-icons/apple-touch-icon.png">
     <link rel="stylesheet" href="/static/css/login.css">
 </head>
 <body>

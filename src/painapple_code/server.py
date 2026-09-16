@@ -1563,8 +1563,12 @@ async def service_worker():
             # module graph, so it is not covered by either arm of `shell`.
             f"/static/js/boot.js?v={version}",
             *[f"/static/{rel}?v={version}" for rel in shell],
-            "/static/icons/icon-192.png",
-            "/static/icons/icon-512.png",
+            # Public icon route, not /static/icons/ — cache.addAll() rejects
+            # the ENTIRE precache if any single entry is non-2xx, so a 401
+            # here would fail the whole service-worker install (e.g. when
+            # the SW registers from the pre-auth login page).
+            "/instance-icons/icon-192.png",
+            "/instance-icons/icon-512.png",
         ]
         # Inject version into SW
         content = (
@@ -1625,6 +1629,18 @@ async def serve_instance_icon(filename: str):
     raise HTTPException(status_code=404, detail="Icon not found")
 
 
+@app.get("/favicon.ico")
+async def serve_favicon():
+    """Root favicon, public — browsers request it implicitly.
+
+    Every HTML shell carries explicit <link rel="icon"> tags, so this is a
+    backstop for the contexts that don't consult them (bare 404 pages, some
+    feed/bookmark readers). Without it the implicit request 401s and the
+    browser caches the failure as "no icon".
+    """
+    return await serve_instance_icon("favicon.ico")
+
+
 @app.get("/manifest.json")
 async def manifest():
     """Serve PWA manifest, customized for instance identity if configured."""
@@ -1639,8 +1655,18 @@ async def manifest():
         data["name"] = f"pAInapple Code {name}"
         data["short_name"] = f"pAInapple {name}"
 
-    if _instance_icons_dir:
-        for icon in data.get("icons", []):
+    # Always point at /instance-icons/, never /static/icons/ — the manifest
+    # itself is public but /static/ is NOT, and a browser fetches manifest
+    # icons without credentials even for a logged-in user. Pointing at
+    # /static/icons/ therefore 401s on every icon and the PWA falls back to
+    # a synthesized initial-letter tile ("P"). serve_instance_icon() already
+    # falls back to the shipped artwork when no instance dir exists, so this
+    # is correct with or without --instance-name.
+    for icon in data.get("icons", []):
+        size = icon["sizes"].split("x")[0]
+        icon["src"] = f"/instance-icons/icon-{size}.png"
+    for shortcut in data.get("shortcuts", []):
+        for icon in shortcut.get("icons", []):
             size = icon["sizes"].split("x")[0]
             icon["src"] = f"/instance-icons/icon-{size}.png"
 

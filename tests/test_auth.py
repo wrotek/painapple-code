@@ -1026,3 +1026,110 @@ def test_lock_mode_skips_chmod_when_already_correct(tmp_path, monkeypatch):
     assert calls == []
     paths.lock_mode(target, 0o755)
     assert len(calls) == 1
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Icons — the PWA/favicon channel must work before login
+# ─────────────────────────────────────────────────────────────────────
+
+_ICON_LINK_RE = re.compile(
+    r'<link[^>]+rel="(?:icon|apple-touch-icon)"[^>]*href="([^"?#]+)"'
+)
+
+
+def test_manifest_icons_are_public(unauth_client):
+    """Every icon the PWA manifest lists must be fetchable without auth.
+
+    Browsers fetch manifest icons *without credentials*, so an icon behind
+    the auth gate 401s even for a logged-in user — and the install/tab
+    artwork silently degrades to a synthesized initial-letter tile ("P").
+    The manifest is public, so its icons have to be too: they must point at
+    /instance-icons/ (allowlisted, falls back to the shipped artwork), never
+    at /static/icons/.
+    """
+    manifest = unauth_client.get("/manifest.json", follow_redirects=False)
+    assert manifest.status_code == 200
+    data = manifest.json()
+
+    srcs = [i["src"] for i in data.get("icons", [])]
+    srcs += [i["src"] for s in data.get("shortcuts", []) for i in s.get("icons", [])]
+    assert srcs, "manifest lists no icons — fixture or manifest.json out of date?"
+
+    for src in srcs:
+        assert src.startswith("/instance-icons/"), (
+            f"manifest icon {src} is not on the public icon route — "
+            f"browsers fetch it uncredentialed and will get a 401"
+        )
+        r = unauth_client.get(src, follow_redirects=False)
+        assert r.status_code == 200, f"manifest icon {src} returned {r.status_code}"
+
+
+def test_login_page_icons_are_public(unauth_client):
+    """The login page's <link rel="icon"> targets must resolve pre-auth.
+
+    Sibling of test_login_page_assets_are_all_public, which only inspects
+    /static/ refs. Icons deliberately live on /instance-icons/, so they'd
+    slip past that regex entirely.
+    """
+    page = unauth_client.get("/login", follow_redirects=False)
+    assert page.status_code == 200
+
+    hrefs = set(_ICON_LINK_RE.findall(page.text))
+    assert hrefs, "login.html declares no icon links — the browser will fall " \
+                  "back to an implicit /favicon.ico"
+
+    for href in sorted(hrefs):
+        r = unauth_client.get(href, follow_redirects=False)
+        assert r.status_code == 200, (
+            f"login page references icon {href} but it returned "
+            f"{r.status_code} without auth"
+        )
+
+
+def test_app_shell_icons_are_public(client):
+    """web-client.html's icon links must also use the public icon route.
+
+    The page itself is authenticated, but the browser's icon fetcher does
+    not reliably send the session cookie — so these must be reachable
+    unauthenticated for the tab/home-screen icon to render.
+    """
+    page = client.get("/app", follow_redirects=False)
+    assert page.status_code == 200
+
+    hrefs = set(_ICON_LINK_RE.findall(page.text))
+    assert hrefs, "web-client.html declares no icon links"
+
+    for href in sorted(hrefs):
+        assert href.startswith("/instance-icons/"), (
+            f"app shell icon {href} is not on the public icon route"
+        )
+
+
+def test_favicon_ico_is_public(unauth_client):
+    """The implicit browser request for /favicon.ico must not 401."""
+    r = unauth_client.get("/favicon.ico", follow_redirects=False)
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/x-icon"
+
+
+def test_sw_precache_icons_are_public(unauth_client):
+    """Service-worker precache entries must all be fetchable.
+
+    cache.addAll() is all-or-nothing: one non-2xx entry rejects the whole
+    install, so an auth-gated icon in PRECACHE_ASSETS takes the entire
+    service worker down with it.
+    """
+    sw = unauth_client.get("/sw.js", follow_redirects=False)
+    assert sw.status_code == 200
+
+    m = re.search(r"const PRECACHE_ASSETS = (\[.*?\]);", sw.text, re.S)
+    assert m, "PRECACHE_ASSETS not found in served sw.js"
+    assets = json.loads(m.group(1))
+
+    for path in assets:
+        if "/icons/" in path or path.startswith("/instance-icons/"):
+            r = unauth_client.get(path, follow_redirects=False)
+            assert r.status_code == 200, (
+                f"sw.js precaches {path} but it returned {r.status_code} "
+                f"without auth — cache.addAll() would reject the install"
+            )

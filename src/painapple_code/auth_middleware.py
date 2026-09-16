@@ -103,6 +103,9 @@ PUBLIC_PATHS = frozenset({
     # the form falls back to a native GET submit and the password lands in
     # the URL instead of a POST to /api/login.
     "/static/js/login.js",
+    # Implicit browser request. /instance-icons/ is the public icon channel;
+    # this is the same file under the name the browser asks for on its own.
+    "/favicon.ico",
 })
 
 PUBLIC_PREFIXES = (
