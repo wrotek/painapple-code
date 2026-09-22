@@ -6,7 +6,7 @@ Flags and environment variables for the default server invocation — `painapple
 
 ## Saved defaults — `painapple setup`
 
-`painapple setup` is an interactive wizard that saves **global** defaults to `~/.painapple-code/serve.yaml`: the network bind (host/port/TLS) a bare `painapple` starts with, and the container runtime + image used by [`--in-docker`](profiles.md#ad-hoc-container-mode-in-docker). Explicit flags always override the saved values. Two quick sections plus a review screen; nothing is written until you confirm.
+`painapple setup` is an interactive wizard that saves **global** defaults to `~/.painapple-code/serve.yaml`: the network bind (host/port/TLS) a bare `painapple` starts with, and — optionally, skippable if you don't use containers — the container runtime + image used by [`--in-docker`](profiles.md#ad-hoc-container-mode-in-docker). Explicit flags always override the saved values. Two quick sections plus a review screen; nothing is written until you confirm.
 
 Workspace and cosmetics are **profile-only** since the CLI unification — a bare `painapple` serves the cwd, and a label/accent belongs to a named deployment. `painapple setup NAME` creates/edits that [profile](profiles.md) instead (host or docker mode).
 

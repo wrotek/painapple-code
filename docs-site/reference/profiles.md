@@ -24,7 +24,7 @@ It's the containerized twin of a bare `painapple`: the current directory (or `--
 
 ## Global defaults vs profiles
 
-`painapple setup` (no name) saves **global** defaults to `~/.painapple-code/serve.yaml`: the network bind (host/port/TLS) for a bare serve, and the container runtime for `--in-docker` — a chooser listing every runtime detected on the machine (with version and path), a custom binary path, and the image tag.
+`painapple setup` (no name) saves **global** defaults to `~/.painapple-code/serve.yaml`: the network bind (host/port/TLS) for a bare serve, and the container runtime for `--in-docker` — optional (**Skip** is the default until one is configured), a chooser listing every runtime detected on the machine (with version and path), a custom binary path, and the image tag.
 
 Workspace and cosmetics are deliberately **not** global: a bare `painapple` always serves the directory you launch it from, and a label/accent only makes sense on a named deployment. Those live in profiles.
 

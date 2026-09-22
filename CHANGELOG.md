@@ -2,6 +2,17 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.1 — 2026-09-23
+
+### Added
+
+- Claude Opus 5.5 (1M context) in the model catalog, replacing Opus 4.8.
+
+### Fixed
+
+- Fresh installs show the real app icon — in the browser tab, on the login page and as the installed PWA/home-screen icon — instead of a generic "P" tile, and the service worker no longer fails to install from the login page.
+- `painapple setup` no longer forces a container-runtime choice: a **Skip** option (the default when nothing is configured yet) leaves the runtime and image untouched, and an existing custom runtime path is kept on Enter.
+
 ## 1.1.0 — 2026-09-08
 
 Also ships everything listed under **1.0.5** below — that tag was cut but never published.
