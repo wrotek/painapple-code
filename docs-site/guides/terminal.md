@@ -59,6 +59,10 @@ With it enabled, three guardrails stay on unconditionally:
 - **Reading the clipboard is never allowed.** The OSC 52 read form is consumed and refused, so a terminal program can't see what you've copied.
 - **Reconnects never replay writes.** Scrollback replayed after a reconnect (which iPad PWAs do constantly) is stripped of clipboard sequences server-side, so an hour-old yank can't re-hijack your clipboard when a tab wakes up.
 
+### `pbcopy`
+
+Terminals on Linux and macOS servers come with a `pbcopy` that works like the macOS one, except it copies to the clipboard of the device you're using. `git diff | pbcopy`, `pbcopy < notes.txt` and `pwd | pbcopy` all work. It sends OSC 52, so it needs the setting above, and inside tmux it also needs `set -g allow-passthrough on`. It's added to the **end** of `PATH`, which means a macOS server's own `pbcopy` still takes priority. There is no `pbpaste`, because terminal programs are never allowed to read the clipboard. To paste, use Cmd/Ctrl+V.
+
 ## Logging into Claude from the terminal
 
 The Claude CLI's OAuth login is interactive, so the `/login` slash command drops you into a terminal tab pre-typed with `claude auth login` — follow the prompts there. If the CLI hits an expired or missing token mid-session, the error card in the chat includes a one-click **Login** button that opens the same terminal. `/logout` mirrors this with `claude auth logout`.

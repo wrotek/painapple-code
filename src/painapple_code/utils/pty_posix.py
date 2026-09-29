@@ -20,6 +20,19 @@ import termios
 
 logger = logging.getLogger(__name__)
 
+# Shims that make clipboard tools reach the BROWSER (tools/term-bin/pbcopy
+# emits OSC 52, which the terminal widget handles). Appended — never
+# prepended — to PATH, so a native pbcopy (a macOS server) still wins.
+TERM_BIN_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tools', 'term-bin')
+
+
+def with_term_bin(path: str) -> str:
+    """PATH with TERM_BIN_DIR appended once (idempotent for nested spawns)."""
+    parts = [p for p in path.split(os.pathsep) if p] if path else []
+    if TERM_BIN_DIR in parts:
+        return path
+    return os.pathsep.join(parts + [TERM_BIN_DIR])
+
 
 class PosixPty:
     """A forked shell attached to a pty master fd."""
@@ -147,6 +160,7 @@ def spawn_pty(cwd: str, rows: int = 24, cols: int = 80) -> PosixPty:
 
         os.environ['TERM'] = 'xterm-256color'
         os.environ['COLORTERM'] = 'truecolor'
+        os.environ['PATH'] = with_term_bin(os.environ.get('PATH', ''))
 
         shell = os.environ.get('SHELL', '/bin/bash')
         os.execvp(shell, [shell, '-i'])

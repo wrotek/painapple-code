@@ -1,0 +1,40 @@
+#!/bin/sh
+# pbcopy for painapple terminals — copies stdin to the BROWSER's clipboard.
+#
+# The PTY runs on the server, so a native clipboard tool (if any) would
+# write the server's clipboard, not the one on the device you're typing on.
+# Instead this emits OSC 52 (ESC ] 52 ; c ; <base64> BEL), which the
+# terminal widget turns into navigator.clipboard.writeText() — see
+# static/js/widgets/terminal/osc52.js. That handler is opt-in
+# (Settings → Terminal → "Terminal apps may write to clipboard"); when it's
+# off the widget toasts instead of copying, so a failure is never silent.
+#
+# The server APPENDS this directory to PATH, so a real pbcopy (macOS) still
+# wins. Usage mirrors macOS: `cmd | pbcopy`, `pbcopy < file`. Flags that
+# macOS pbcopy accepts (-pboard, -Prefer) are ignored.
+
+# Where the escape goes: the controlling terminal, so `pbcopy >/dev/null`
+# and redirected stdout still work. No tty → nothing can receive it.
+tty_out=/dev/tty
+if ! { true >"$tty_out"; } 2>/dev/null; then
+    echo "pbcopy: no terminal to send the clipboard escape to" >&2
+    exit 1
+fi
+
+# The widget refuses payloads over 2,000,000 base64 chars (~1.5 MB of text).
+max_bytes=1500000
+
+data=$(base64 | tr -d '\r\n')
+if [ "${#data}" -gt 2000000 ]; then
+    echo "pbcopy: input too large for the terminal clipboard (max ~$max_bytes bytes)" >&2
+    exit 1
+fi
+
+if [ -n "$TMUX" ]; then
+    # Inside tmux the outer terminal never sees an app's raw OSC 52 unless
+    # `set-clipboard on`; wrap it in DCS passthrough (tmux >= 3.3 also
+    # needs `set -g allow-passthrough on`).
+    printf '\033Ptmux;\033\033]52;c;%s\a\033\\' "$data" >"$tty_out"
+else
+    printf '\033]52;c;%s\a' "$data" >"$tty_out"
+fi
