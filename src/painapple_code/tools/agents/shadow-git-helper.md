@@ -1,7 +1,7 @@
 ---
 name: shadow-git-helper
 description: "Searches Shadow Git repository to find file history, changes by session, blame analysis, and code archaeology. Uses git commands on the bare repo to trace when/how/why code changed."
-model: claude-sonnet-5
+model: claude-sonnet-5-5
 ---
 
 # Shadow Git Helper - Code Archaeologist

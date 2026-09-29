@@ -3,8 +3,8 @@
 # Edit via Settings → Providers, or by hand (both work).
 
 selectable:
-- id: claude-sonnet-5
-  label: Sonnet 5
+- id: claude-sonnet-5-5
+  label: Sonnet 5.5
   desc: Balanced speed and capability
 - id: claude-opus-5-5[1m]
   label: Opus 5.5 (1M)

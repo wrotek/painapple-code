@@ -633,7 +633,7 @@ def save_global_config(config: dict):
 # Persisted in the global config so it survives helper reinstalls
 # (install-helpers.sh cp -f's the bundled default over the top; we re-apply this).
 HELPER_AGENT_INHERIT = "inherit"
-DEFAULT_HELPER_AGENT_MODEL = "claude-sonnet-5"
+DEFAULT_HELPER_AGENT_MODEL = "claude-sonnet-5-5"
 
 
 def get_helper_agent_options() -> list[str]:
