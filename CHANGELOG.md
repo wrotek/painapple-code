@@ -2,6 +2,16 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.2 — 2026-09-30
+
+### Added
+
+- `pbcopy` in the built-in terminal on Linux and macOS servers: `git diff | pbcopy` copies to the clipboard of the device you're using (via OSC 52, so it needs Settings → Terminal → "Terminal apps may write to clipboard"; inside tmux also `set -g allow-passthrough on`). A server's native `pbcopy` still takes priority.
+
+### Changed
+
+- Claude Sonnet 5.5 replaces Sonnet 5 in the model catalog, and is the new default model for the shadow-git-helper subagent.
+
 ## 1.1.1 — 2026-09-23
 
 ### Added
