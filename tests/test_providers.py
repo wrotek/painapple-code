@@ -907,6 +907,23 @@ def test_codex_app_server_interrupt_carries_turn_id(monkeypatch):
     assert sent[-1] == ("turn/interrupt", {"threadId": "thr-1"})
 
 
+def test_codex_app_server_resume_carries_current_sandbox():
+    """thread/resume without `sandbox` keeps the thread's ORIGINAL sandbox, so a
+    session switched to full access (codex --yolo) kept its old workspace-write
+    gating — MCP tools still asked for approval. Resume must send the current
+    mode's sandbox, like thread/start does."""
+    p = get_provider("codex-app-server")
+    for mode, sandbox in (("danger-full-access", "danger-full-access"),
+                          ("read-only", "read-only"),
+                          ("bypassPermissions", "danger-full-access"),
+                          (None, "workspace-write")):
+        params = p.thread_resume_params(LaunchOptions(permission_mode=mode), "thr-1", "/w")
+        assert params["sandbox"] == sandbox
+        assert params["approvalPolicy"] == "never"
+        assert params["sandbox"] == p.thread_start_params(
+            LaunchOptions(permission_mode=mode), "/w")["sandbox"]
+
+
 def test_codex_app_server_mcp_tool_approval_round_trip():
     """Codex asks before running a non-read-only MCP tool via an
     `mcpServer/elicitation/request` (_meta.codex_approval_kind=mcp_tool_call),

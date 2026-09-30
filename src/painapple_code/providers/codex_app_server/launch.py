@@ -74,8 +74,20 @@ class _LaunchMixin:
         return params
 
     def thread_resume_params(self, opts: LaunchOptions, thread_id: str, cwd: str) -> dict:
-        """Params for `thread/resume` (continue an existing thread by id)."""
-        params: dict = {"threadId": thread_id, "cwd": cwd}
+        """Params for `thread/resume` (continue an existing thread by id).
+
+        Sandbox/approval MUST ride along: without them the app-server keeps the
+        thread's ORIGINAL sandbox from its rollout, so a mode change (which
+        respawns + resumes) never took effect — a thread started in
+        workspace-write still gated MCP tools after switching to
+        danger-full-access (codex --yolo), even across restarts.
+        """
+        params: dict = {
+            "threadId": thread_id,
+            "cwd": cwd,
+            "sandbox": _SANDBOX_BY_MODE.get(opts.permission_mode or "", _DEFAULT_SANDBOX),
+            "approvalPolicy": "never",
+        }
         model = self._wire_model(opts.model)
         if model:
             params["model"] = model
