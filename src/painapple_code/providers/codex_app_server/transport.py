@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 
 from painapple_code.session_store import SessionStore
 
@@ -42,6 +43,21 @@ _APPROVAL_DENY = {
     "item/commandExecution/requestApproval": {"decision": "decline"},
     "item/fileChange/requestApproval": {"decision": "decline"},
 }
+
+
+# MCP tool approvals. Codex asks before running an MCP tool that isn't
+# annotated read-only — even under `approvalPolicy="never"`, which only governs
+# shell/patch escalations — by sending an `mcpServer/elicitation/request` whose
+# `_meta.codex_approval_kind` is "mcp_tool_call". An unanswered/errored request
+# makes codex reject the call ("user rejected MCP tool call"), so these are
+# round-tripped to the client's permission card instead. `_meta.persist` lists
+# the remember-scopes codex will honour ("session", "always"); echoing one back
+# in the accept response's `_meta.persist` stops it asking again.
+_MCP_APPROVAL_KIND = "mcp_tool_call"
+_MCP_TOOL_RE = re.compile(r'run tool "([^"]+)"')
+# codex persist scope → the permission card's suggestion `destination`
+# (reusing the addRules row shape the Claude card already renders/labels).
+_PERSIST_DESTINATION = {"session": "session", "always": "userSettings"}
 
 
 def _client_version() -> str:
@@ -66,6 +82,12 @@ class JsonRpcTransport:
         self._thread_id = None      # codex thread id (== session.session_id)
         self._active_turn_id = None  # in-flight turn id (turn/interrupt needs it)
         self._send_lock = asyncio.Lock()  # serialize handshake/thread/turn sends
+        # Set by the session layer: async callable(permission_request dict) that
+        # surfaces an approval card to the client. None → approvals are declined.
+        self.on_permission_request = None
+        # permission request_id → (JSON-RPC request id, [persist scope per
+        # suggestion index]) for approvals awaiting the user's decision.
+        self._pending_approvals: dict = {}
 
     # --- low-level JSON-RPC I/O ------------------------------------------
 
@@ -133,6 +155,13 @@ class JsonRpcTransport:
                 self._active_turn_id = turn["id"]
         elif method == "turn/completed":
             self._active_turn_id = None
+        elif method == "serverRequest/resolved":
+            # Codex settled a request itself (turn interrupted / thread closed)
+            # — retire any approval card still waiting on it.
+            rid = (native.get("params") or {}).get("requestId")
+            request_id = f"codex-mcp-{rid}"
+            if request_id in self._pending_approvals:
+                asyncio.create_task(self._expire_approval(request_id))
         return True                          # notification → translate
 
     async def initialize(self) -> None:
@@ -226,6 +255,9 @@ class JsonRpcTransport:
     async def _answer_server_request(self, native: dict) -> None:
         method = native.get("method", "")
         rid = native.get("id")
+        if method == "mcpServer/elicitation/request":
+            await self._handle_elicitation(rid, native.get("params") or {})
+            return
         deny = _APPROVAL_DENY.get(method)
         if deny is not None:
             await self._write({"jsonrpc": "2.0", "id": rid, "result": deny})
@@ -236,3 +268,68 @@ class JsonRpcTransport:
                 "jsonrpc": "2.0", "id": rid,
                 "error": {"code": -32601, "message": f"{method} not handled"},
             })
+
+    # --- MCP tool approvals ------------------------------------------------
+
+    async def _handle_elicitation(self, rid, params: dict) -> None:
+        """Surface an MCP tool approval as a permission card.
+
+        Only codex's own tool-call approvals are routed to the user. A genuine
+        MCP-server elicitation (a form/URL the server wants filled in) has no
+        UI here yet, so it's declined — explicitly, so codex doesn't hang.
+        """
+        meta = params.get("_meta") or {}
+        if (meta.get("codex_approval_kind") != _MCP_APPROVAL_KIND
+                or self.on_permission_request is None):
+            logger.info(f"codex elicitation from {params.get('serverName')!r} "
+                        f"declined (kind={meta.get('codex_approval_kind')!r})")
+            await self._write({"jsonrpc": "2.0", "id": rid,
+                               "result": {"action": "decline", "content": None}})
+            return
+
+        server = params.get("serverName") or "mcp"
+        message = params.get("message") or ""
+        m = _MCP_TOOL_RE.search(message)
+        tool_name = f"mcp__{server}__{m.group(1)}" if m else f"mcp__{server}"
+        persist = [p for p in (meta.get("persist") or []) if p in _PERSIST_DESTINATION]
+        request_id = f"codex-mcp-{rid}"
+        self._pending_approvals[request_id] = (rid, persist)
+        tool_input = meta.get("tool_params")
+        await self.on_permission_request({
+            "type": "permission_request",
+            "request_id": request_id,
+            "tool_name": tool_name,
+            "input": tool_input if isinstance(tool_input, dict) else {},
+            "description": message or None,
+            "suggestions": [
+                {"type": "addRules", "rules": [{"tool_name": tool_name}],
+                 "destination": _PERSIST_DESTINATION[p]}
+                for p in persist
+            ],
+        })
+
+    async def _expire_approval(self, request_id: str) -> None:
+        self._pending_approvals.pop(request_id, None)
+        self.session._pending_permission_requests.pop(request_id, None)
+        # ok=False → the client marks the card expired (same as a dead process).
+        await self.session.safe_send({"type": "permission_resolved",
+                                      "request_id": request_id, "ok": False})
+
+    def owns_permission(self, request_id) -> bool:
+        return request_id in self._pending_approvals
+
+    async def respond_permission(self, request_id: str, data: dict) -> bool:
+        """Answer a pending MCP approval with the user's decision."""
+        entry = self._pending_approvals.pop(request_id, None)
+        if entry is None:
+            return False
+        rid, persist = entry
+        if data.get("behavior") == "allow":
+            result: dict = {"action": "accept", "content": None}
+            idx = data.get("suggestion_index")
+            if isinstance(idx, int) and 0 <= idx < len(persist):
+                result["_meta"] = {"persist": persist[idx]}
+        else:
+            result = {"action": "decline", "content": None}
+        await self._write({"jsonrpc": "2.0", "id": rid, "result": result})
+        return True

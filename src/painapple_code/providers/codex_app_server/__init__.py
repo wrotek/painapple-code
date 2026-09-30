@@ -88,6 +88,7 @@ class CodexAppServerProvider(
         persistent_process=True,   # one app-server process, many turns
         forward_plain_stderr=False,  # app-server logs human progress to stderr
         transport="jsonrpc",       # the session layer drives a transport driver
+        interactive_permissions=True,  # MCP tool approvals → permission card
     )
 
     def make_transport(self, process, opts, session):

@@ -866,6 +866,11 @@ class AgentManager:
                     session.process, launch_opts, session
                 )
                 if session._transport is not None:
+                    if hasattr(session._transport, "on_permission_request"):
+                        # Transport-native approvals (Codex MCP tool calls)
+                        # ride the same permission-card flow as claude-sdk.
+                        session._transport.on_permission_request = (
+                            lambda msg, _s=session: self._handle_permission_request(_s, msg))
                     await session._transport.initialize()
 
             return True
@@ -2486,6 +2491,18 @@ class AgentManager:
             return False
         if not session.process or not session.is_running:
             return False
+        transport = session._transport
+        if transport is not None and getattr(transport, "owns_permission", lambda _r: False)(request_id):
+            # JSON-RPC transport answers its own server request (Codex MCP
+            # approval) — nothing goes to stdin as a line frame.
+            try:
+                ok = await transport.respond_permission(request_id, data)
+            except Exception as e:
+                logger.error(f"Error sending transport permission response: {e}")
+                return False
+            session._pending_permission_requests.pop(request_id, None)
+            session.touch()
+            return ok
         request = session._pending_permission_requests[request_id]
         frame = {
             "type": "permission_response",

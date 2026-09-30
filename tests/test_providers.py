@@ -907,6 +907,87 @@ def test_codex_app_server_interrupt_carries_turn_id(monkeypatch):
     assert sent[-1] == ("turn/interrupt", {"threadId": "thr-1"})
 
 
+def test_codex_app_server_mcp_tool_approval_round_trip():
+    """Codex asks before running a non-read-only MCP tool via an
+    `mcpServer/elicitation/request` (_meta.codex_approval_kind=mcp_tool_call),
+    even under approvalPolicy="never". Answering it with a JSON-RPC error made
+    codex reject every such call; it must surface as a permission card and
+    answer accept/decline — persisting the scope when "always allow" is picked.
+    Other elicitations (server forms) are declined outright."""
+    import asyncio
+    from painapple_code.providers.codex_app_server.transport import JsonRpcTransport
+
+    class _Sess:
+        _pending_permission_requests: dict = {}
+        sent: list = []
+
+        async def safe_send(self, frame):
+            self.sent.append(frame)
+            return True
+
+    sess = _Sess()
+    tr = JsonRpcTransport(process=None, opts=None, session=sess, provider=None)
+    written, cards = [], []
+
+    async def fake_write(obj):
+        written.append(obj)
+
+    async def on_card(msg):
+        cards.append(msg)
+
+    tr._write = fake_write
+    tr.on_permission_request = on_card
+
+    ask = {"id": 7, "method": "mcpServer/elicitation/request", "params": {
+        "threadId": "t", "serverName": "ida", "mode": "form",
+        "message": 'Allow the ida MCP server to run tool "open_database"?',
+        "requestedSchema": {"type": "object", "properties": {}},
+        "_meta": {"codex_approval_kind": "mcp_tool_call",
+                  "persist": ["session", "always"],
+                  "tool_params": {"path": "/x"}}}}
+
+    async def run():
+        await tr._answer_server_request(ask)
+        assert written == []                      # waits for the user
+        (card,) = cards
+        assert card["tool_name"] == "mcp__ida__open_database"
+        assert card["input"] == {"path": "/x"}
+        assert [s["destination"] for s in card["suggestions"]] == ["session", "userSettings"]
+        rid = card["request_id"]
+        assert tr.owns_permission(rid)
+        # "Always allow (this session)" → accept + persist=session
+        assert await tr.respond_permission(rid, {"behavior": "allow", "suggestion_index": 0})
+        assert written[-1] == {"jsonrpc": "2.0", "id": 7, "result": {
+            "action": "accept", "content": None, "_meta": {"persist": "session"}}}
+        assert not tr.owns_permission(rid)
+        assert not await tr.respond_permission(rid, {"behavior": "allow"})
+
+        # Deny → decline
+        await tr._answer_server_request({**ask, "id": 8})
+        assert await tr.respond_permission(cards[-1]["request_id"], {"behavior": "deny"})
+        assert written[-1]["result"] == {"action": "decline", "content": None}
+
+        # Codex settles a pending ask itself (Stop) → card expired, not left dangling
+        await tr._answer_server_request({**ask, "id": 9})
+        rid9 = cards[-1]["request_id"]
+        assert tr.intake({"method": "serverRequest/resolved",
+                          "params": {"requestId": 9, "threadId": "t"}}) is True
+        await asyncio.sleep(0)
+        assert not tr.owns_permission(rid9)
+        assert sess.sent[-1] == {"type": "permission_resolved", "request_id": rid9, "ok": False}
+
+        # A genuine server form elicitation has no UI → declined, no card
+        n = len(cards)
+        await tr._answer_server_request({"id": 10, "method": "mcpServer/elicitation/request",
+                                         "params": {"serverName": "x", "message": "name?",
+                                                    "mode": "form", "requestedSchema": {}}})
+        assert len(cards) == n
+        assert written[-1] == {"jsonrpc": "2.0", "id": 10,
+                               "result": {"action": "decline", "content": None}}
+
+    asyncio.run(run())
+
+
 def test_codex_app_server_turn_opts_into_reasoning_summaries():
     """turn/start carries summary="auto" — WITHOUT it the app-server emits
     reasoning items with empty summary/content arrays (thinking blocks would
