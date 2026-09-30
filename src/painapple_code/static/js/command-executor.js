@@ -124,14 +124,28 @@ export class CommandExecutor {
             }
 
             // Show output in UI as a tool block
-            const output = (data.stdout || data.stderr || '(no output)').trim();
+            // Both streams, not `stdout || stderr` — a command that writes to
+            // both (progress on stderr, result on stdout) lost its stderr.
+            const combined = [data.stdout, data.stderr]
+                .map(s => (s || '').replace(/\s+$/, ''))
+                .filter(Boolean)
+                .join('\n');
+            const output = combined || '(no output)';
+            const shown = output.slice(0, 3000) + (output.length > 3000 ? '\n...(truncated)' : '');
+            // The Bash renderer shows toolError INSTEAD of toolOutput on error
+            // (Claude's Bash tool puts the full failure text there), so the
+            // output must ride in toolError too — a bare "Exit code: N" hid
+            // the stderr that explains the failure.
+            const failed = data.exit_code !== 0;
             this.activeSession.addMessage({
                 role: 'tool',
                 toolType: toolType,
                 toolName: 'Shell',
                 toolInput: { command: shellCmd },
-                toolOutput: output.slice(0, 3000) + (output.length > 3000 ? '\n...(truncated)' : ''),
-                toolError: data.exit_code !== 0 ? `Exit code: ${data.exit_code}` : null
+                toolOutput: shown,
+                toolError: failed
+                    ? `${combined ? shown + '\n' : ''}Exit code: ${data.exit_code}`
+                    : null
             });
 
             // Add to pending outputs for next Claude message
