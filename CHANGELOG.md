@@ -2,6 +2,14 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.3 — 2026-10-01
+
+### Fixed
+
+- Codex sessions now ask for MCP tool approvals with the same in-chat permission card Claude sessions use — Allow / Deny, plus "always allow" for this session or for good. Previously Codex rejected every MCP tool call that needed approval (anything not marked read-only).
+- Switching a Codex session's permission mode (e.g. to Full access, the equivalent of `codex --yolo`) now takes effect for the existing conversation; before, a resumed Codex thread kept the sandbox it was started with, even across server restarts.
+- Failed `!` bang commands show the stderr explaining the failure instead of a bare "Exit code: N", and output written to both stdout and stderr is no longer cut down to stdout.
+
 ## 1.1.2 — 2026-09-30
 
 ### Added
