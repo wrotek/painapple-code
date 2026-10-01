@@ -143,6 +143,16 @@ export class MarkdownRenderer {
         // Links open in new tab. Allow only safe protocols (defense-in-depth on
         // top of DOMPurify) — reject javascript:/data:/vbscript: hrefs outright.
         renderer.link = (href, title, text) => {
+            // `[name](/abs/path/file.md)` — agents (Codex especially) cite
+            // files as markdown links. As a web link it navigated the browser
+            // to <server>/abs/path and did nothing useful; route it through
+            // the same .file-path-link delegate linkified paths use instead.
+            const local = MarkdownRenderer.parseLocalFileHref(href);
+            if (local) {
+                const optsAttr = local.lineOpts
+                    ? ` data-line-opts="${escapeAttr(JSON.stringify(local.lineOpts))}"` : '';
+                return `<a href="#" class="file-path-link md-file-link" data-file="${escapeAttr(local.path)}" data-tooltip="${escapeAttr(title || local.path)}"${optsAttr}>${text}</a>`;
+            }
             const safe = this.constructor.sanitizeHref(href);
             // escapeAttr, not escapeHtml: both the href and the markdown link
             // title are author-controlled, and escapeHtml leaves quotes intact
@@ -218,6 +228,51 @@ export class MarkdownRenderer {
      * wrong URL. One escape, applied by the caller that knows the context, is
      * the only arrangement that is both safe and correct.
      */
+    /**
+     * Classify a markdown link href as a local file reference.
+     *
+     * Returns `{path, lineOpts}` or null (= treat as a normal web link).
+     * A local path is: `file://` URL, POSIX absolute `/…`, `~/…`, `./…`,
+     * `../…`, a Windows drive path (`C:\…`, `C:/…` — checked BEFORE the
+     * scheme test, which would read `C:` as a scheme), or a bare relative
+     * path (`docs/x.md`, `x.md`) — in a chat a relative web URL would only
+     * resolve against the bridge server, which is never what the author
+     * meant. Excluded: any other scheme, `//host` protocol-relative URLs,
+     * and pure `#anchor` / `?query` hrefs.
+     *
+     * Line targets `#L12`, `#L12-L20`, `:12`, `:12-20`, `:12:5` are split off
+     * via parseLineInfo. marked percent-encodes hrefs (encodeURI), so the
+     * path is decoded back (`My%20File.md` → `My File.md`).
+     */
+    static parseLocalFileHref(href) {
+        if (!href) return null;
+        let s = String(href).replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
+        if (!s || s.startsWith('#') || s.startsWith('?') || s.startsWith('//')) return null;
+        const drive = /^[a-z]:[\\/]/i.test(s);
+        if (!drive) {
+            const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(s);
+            if (scheme) {
+                if (scheme[1].toLowerCase() !== 'file') return null;
+                // file:///abs/path, file://localhost/abs/path, file:///C:/x
+                s = s.replace(/^file:\/\/(localhost)?/i, '');
+                if (/^\/[a-z]:[\\/]/i.test(s)) s = s.slice(1);
+                if (!s) return null;
+            }
+        }
+        try { s = decodeURIComponent(s); } catch { /* keep raw on malformed % */ }
+
+        let lineOpts = null;
+        const m = /(#L\d+(?:-L\d+)?|:\d+(?:[-:]\d+)?)$/.exec(s);
+        if (m) {
+            lineOpts = parseLineInfo(m[1]);
+            if (lineOpts) s = s.slice(0, m.index);
+        }
+        // Any other fragment/query (`f.md#section`) — drop it, open the file.
+        if (!drive) s = s.replace(/[#?].*$/, '');
+        if (!s) return null;
+        return { path: s, lineOpts };
+    }
+
     static sanitizeHref(href) {
         if (!href) return '#';
         const cleaned = String(href).replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
