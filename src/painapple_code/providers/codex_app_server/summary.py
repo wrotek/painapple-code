@@ -30,7 +30,7 @@ from typing import Optional
 from painapple_code import paths
 from painapple_code.providers.base import SummaryForkPlan
 
-logger = logging.getLogger("painapple_code")
+logger = logging.getLogger("painapple-code.codex-app-server")
 
 # Per-request waits. The handshake/fork/turn acks return promptly; the turn's
 # content streams as notifications, so awaiting an ack never blocks turn-length.
@@ -126,6 +126,9 @@ class _SummaryMixin:
         try:
             await client.request("initialize", {
                 "clientInfo": {"name": "painapple-code", "version": _client_version()},
+                # `excludeTurns` below is an experimental field: older CLIs
+                # (0.144) reject it without this opt-in.
+                "capabilities": {"experimentalApi": True},
             }, timeout=_RPC_TIMEOUT)
             await client.notify("initialized")
 
@@ -135,6 +138,11 @@ class _SummaryMixin:
                 "cwd": payload.get("cwd") or ".",
                 "sandbox": "read-only",       # the summarizer must not touch files
                 "approvalPolicy": "never",
+                # Newer CLIs (0.159) refuse an ephemeral fork of a paginated
+                # thread without it ("-32600 … requires excludeTurns: true").
+                # It only trims the RESPONSE's turn list — the fork still
+                # carries the full conversation context.
+                "excludeTurns": True,
             }
             if payload.get("model"):
                 fork_params["model"] = payload["model"]
@@ -163,7 +171,7 @@ class _SummaryMixin:
             }
             return structured, cost
         except Exception as e:
-            logger.info(f"codex app-server summary fork failed: {e}")
+            logger.warning(f"codex app-server summary fork failed: {e}")
             return None, None
         finally:
             await client.close()

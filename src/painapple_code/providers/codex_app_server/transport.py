@@ -25,7 +25,7 @@ import re
 
 from painapple_code.session_store import SessionStore
 
-logger = logging.getLogger("painapple_code")
+logger = logging.getLogger("painapple-code.codex-app-server")
 
 # Default per-request timeout. The handshake and thread/turn acks return
 # promptly; a turn's *content* streams as separate notifications, so awaiting an

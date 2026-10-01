@@ -219,3 +219,47 @@ def test_build_summary_fork_is_transport_driven_no_temp_files():
 def test_build_summary_fork_none_without_session():
     assert _app_server().build_summary_fork(
         session_id="", fork_prompt="p", schema_json="{}", cwd="/w") is None
+
+
+def test_drive_summary_fork_sends_exclude_turns_with_experimental_opt_in(monkeypatch):
+    # codex-cli 0.159 rejects an ephemeral fork of a paginated thread without
+    # `excludeTurns: true` (-32600); 0.144 rejects `excludeTurns` unless the
+    # client opted into `experimentalApi` at initialize. Without both, every
+    # codex rich commit failed silently (raw journal, no session titles).
+    import asyncio
+    from painapple_code.providers.codex_app_server import summary as S
+
+    sent = {}
+
+    class FakeClient:
+        def __init__(self, proc, deny_map=None):
+            pass
+
+        async def start(self):
+            pass
+
+        async def request(self, method, params, timeout=None):
+            sent[method] = params
+            return {"thread": {"id": "F1"}} if method == "thread/fork" else {}
+
+        async def notify(self, method, params=None):
+            pass
+
+        async def await_turn(self, timeout=None):
+            return {"summary": "s"}, {"inputTokens": 3, "outputTokens": 1}
+
+        async def close(self):
+            pass
+
+    monkeypatch.setattr(S, "_SummaryRpcClient", FakeClient)
+    provider = _app_server()
+    plan = provider.build_summary_fork(
+        session_id="T1", fork_prompt="p", schema_json="{}", cwd="/w")
+    structured, cost = asyncio.run(provider.drive_summary_fork(None, plan))
+
+    assert structured == {"summary": "s"}
+    assert sent["initialize"]["capabilities"] == {"experimentalApi": True}
+    fork = sent["thread/fork"]
+    assert fork["excludeTurns"] is True and fork["ephemeral"] is True
+    assert fork["threadId"] == "T1"
+    assert sent["turn/start"]["threadId"] == "F1"

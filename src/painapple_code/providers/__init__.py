@@ -46,7 +46,7 @@ from painapple_code.providers.base import (
 from painapple_code.providers.claude import ClaudeProvider
 from painapple_code.providers.codex_app_server import CodexAppServerProvider
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("painapple-code.providers")
 
 # Default provider for new sessions, and the fallback when a session records no
 # provider (pre-field sessions were all created against the Claude CLI). The
