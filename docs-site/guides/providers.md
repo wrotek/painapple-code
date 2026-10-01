@@ -33,7 +33,7 @@ The **default provider** for new sessions is set with the **Make default** butto
 Each provider self-describes its capabilities, and the UI follows:
 
 - **Models** — the model picker shows the *active provider's* catalog. Claude's comes from the server's editable `models.yaml`; Codex's mirrors the Codex CLI's own model list (so it updates when Codex does). Per-provider default models are configured in Settings → Providers.
-- **Permission modes** — the Claude provider speaks Claude's modes (Plan / Ask / Don't Ask / Accept Edits / Auto / YOLO — see [Permission modes](permissions-and-thinking.md)); the Codex provider maps to Codex **sandbox tiers**: Read-only, Workspace write, and Full access.
+- **Permission modes** — the Claude provider speaks Claude's modes (Plan / Ask / Don't Ask / Accept Edits / Auto / YOLO — see [Permission modes](permissions-and-thinking.md)); the Codex provider maps to Codex **sandbox tiers**: Read-only, Workspace write, and Full access. Codex's MCP tool approvals render as the same in-chat permission cards; Full access skips them, like `codex --yolo`.
 - **Effort** — the effort gauge renders each provider's own scale. Claude has five levels (low → max); Codex levels come from its model catalog and can reach `xhigh` / `ultra` on recent models, with the picker narrowing to what the selected model supports.
 - **Cost** — Codex reports tokens only, no dollar figure, so the `$` cost readouts hide on Codex sessions and the turn bar shows token counts.
 - **Continue in the CLI** — the **Continue in CLI** quick action is provider-aware: a Claude session gives you `claude -r <id>`, a Codex session `codex exec resume <id>`.

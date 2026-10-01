@@ -21,7 +21,7 @@ The modes available on the default provider (set per session via the button next
 | **Auto** | `auto` | Claude's AI classifier gates each tool call |
 | **YOLO** | `bypassPermissions` | Full access |
 
-Three caveats. First, the approval cards only protect you while you're the one clicking them — in **YOLO** and **Auto** nothing asks, and those are the modes that give Claude the most freedom. Second, the cards exist only on the Claude provider: Codex enforces its own sandbox tiers instead. Third — and this is the point of this whole section — the boundary that actually holds is the one *below* the agent: the OS user, the container, the VM. A permission mode is the agent cooperating, not a sandbox. See the [permissions guide](../guides/permissions-and-thinking.md) for the full story.
+Three caveats. First, the approval cards only protect you while you're the one clicking them — in **YOLO** and **Auto** nothing asks, and those are the modes that give Claude the most freedom. Second, on the Codex provider the cards cover only MCP tool calls (Codex asks before running an MCP tool that isn't marked read-only); everything else is governed by Codex's own sandbox tiers. Third — and this is the point of this whole section — the boundary that actually holds is the one *below* the agent: the OS user, the container, the VM. A permission mode is the agent cooperating, not a sandbox. See the [permissions guide](../guides/permissions-and-thinking.md) for the full story.
 
 ## Terminal
 
