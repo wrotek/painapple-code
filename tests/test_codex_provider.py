@@ -306,8 +306,105 @@ def test_compact_routes_to_thread_compact_start_not_turn_start():
     assert session._xlate_state["compact_trigger"] == "manual"
 
     calls.clear()
+    t.intake({"method": "turn/completed", "params": {"turn": {"id": "c1"}}})
     asyncio.run(t.send_turn(_user("hello")))
     assert [m for m, _ in calls] == ["turn/start"]
+
+
+def _queue_transport():
+    from types import SimpleNamespace
+    sent = []
+
+    async def safe_send(frame):
+        sent.append(frame)
+    session = SimpleNamespace(cwd="/w", session_id="T1", store_id=None,
+                              _xlate_state={}, is_idle=True, safe_send=safe_send)
+    t = _app_server().make_transport(process=None, opts=LaunchOptions(), session=session)
+    t._initialized = True
+    t._thread_id = "T1"
+    calls = []
+
+    async def fake_request(method, params, timeout=None):
+        calls.append((method, params))
+        return {"turn": {"id": f"turn-{len(calls)}"}}
+    t._request = fake_request
+    return t, session, calls, sent
+
+
+def test_follow_up_during_compact_queues_then_runs_after_completion():
+    # Codex refuses to steer input into a manual-compact turn
+    # (ActiveTurnNotSteerable); the Claude CLI buffers such a follow-up and
+    # runs it after compaction — the transport must do the same.
+    import asyncio
+    t, session, calls, _ = _queue_transport()
+
+    async def scenario():
+        await t.send_turn(_user("/compact"))
+        assert await t.send_turn(_user("first")) is True
+        assert await t.send_turn(_user("second")) is True
+        assert [m for m, _ in calls] == ["thread/compact/start"]   # parked
+        session.is_idle = True               # compact's result finalized
+        t.intake({"method": "turn/completed", "params": {"turn": {"id": "c1"}}})
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert [m for m, _ in calls] == ["thread/compact/start", "turn/start", "turn/start"]
+        texts = [p["input"][0]["text"] for m, p in calls if m == "turn/start"]
+        assert texts == ["first", "second"]
+        assert session.is_idle is False      # queued turn is running
+        assert t._queued == [] and t._unsteerable is False
+    asyncio.run(scenario())
+
+
+def test_not_steerable_error_from_unknown_turn_kind_queues():
+    # e.g. a /review turn we didn't start: codex rejects the steer — park the
+    # message instead of surfacing "Failed to send message".
+    import asyncio
+    t, session, calls, _ = _queue_transport()
+
+    async def reject_once(method, params, timeout=None):
+        calls.append((method, params))
+        if len(calls) == 1:
+            raise RuntimeError("{'code': -32603, 'message': 'failed to submit turn input: "
+                               "ActiveTurnNotSteerable { turn_kind: Review }'}")
+        return {"turn": {"id": "t2"}}
+    t._request = reject_once
+
+    async def scenario():
+        assert await t.send_turn(_user("hi")) is True
+        assert t._queued and t._unsteerable
+        t.intake({"method": "turn/completed", "params": {"turn": {"id": "r1"}}})
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert [m for m, _ in calls] == ["turn/start", "turn/start"]
+        assert t._queued == []
+    asyncio.run(scenario())
+
+
+def test_other_turn_start_errors_still_raise():
+    import asyncio
+    t, _, _, _ = _queue_transport()
+
+    async def boom(method, params, timeout=None):
+        raise RuntimeError("{'code': -32603, 'message': 'thread not found'}")
+    t._request = boom
+    with pytest.raises(RuntimeError):
+        asyncio.run(t.send_turn(_user("hi")))
+    assert t._queued == []
+
+
+def test_interrupt_drops_queued_follow_ups():
+    import asyncio
+    t, _, calls, _ = _queue_transport()
+
+    async def scenario():
+        await t.send_turn(_user("/compact"))
+        await t.send_turn(_user("later"))
+        await t.interrupt()
+        t.intake({"method": "turn/completed", "params": {"turn": {"id": "c1"}}})
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert [m for m, _ in calls] == ["thread/compact/start", "turn/interrupt"]
+    asyncio.run(scenario())
 
 
 def test_context_compaction_item_maps_to_claude_compaction_frames():

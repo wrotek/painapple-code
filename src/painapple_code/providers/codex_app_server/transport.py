@@ -32,6 +32,13 @@ logger = logging.getLogger("painapple-code.codex-app-server")
 # ack never blocks for the length of a turn.
 _REQUEST_TIMEOUT = 60.0
 
+# `turn/start` sent while a turn is active STEERS the input into that turn.
+# Some turn kinds (manual `/compact`, `/review`) refuse same-turn steering and
+# fail the request with this error instead of queueing — the message is then
+# held here and sent as a fresh turn once the active one completes, matching
+# the Claude CLI, which buffers a follow-up typed during compaction.
+_NOT_STEERABLE = "ActiveTurnNotSteerable"
+
 # Defensive deny decisions, keyed by server-request method → the value for that
 # request's `decision` field. Under `approvalPolicy="never"` (P1) the server
 # resolves approvals itself and these never fire; if one arrives anyway we deny
@@ -82,6 +89,12 @@ class JsonRpcTransport:
         self._thread_id = None      # codex thread id (== session.session_id)
         self._active_turn_id = None  # in-flight turn id (turn/interrupt needs it)
         self._send_lock = asyncio.Lock()  # serialize handshake/thread/turn sends
+        # True while the active turn can't take steered input (a manual
+        # compaction we started, or one codex rejected steering for).
+        self._unsteerable = False
+        # Messages parked while an unsteerable turn runs; flushed in order on
+        # its turn/completed.
+        self._queued: list = []
         # Set by the session layer: async callable(permission_request dict) that
         # surfaces an approval card to the client. None → approvals are declined.
         self.on_permission_request = None
@@ -155,6 +168,9 @@ class JsonRpcTransport:
                 self._active_turn_id = turn["id"]
         elif method == "turn/completed":
             self._active_turn_id = None
+            self._unsteerable = False
+            if self._queued:
+                asyncio.create_task(self._flush_queued())
         elif method == "serverRequest/resolved":
             # Codex settled a request itself (turn interrupted / thread closed)
             # — retire any approval card still waiting on it.
@@ -185,17 +201,35 @@ class JsonRpcTransport:
                 await self.initialize()
             if self._thread_id is None:
                 await self._ensure_thread()
+            if self._unsteerable:
+                self._queue(message, "active turn can't be steered")
+                return True
             if self.provider.is_compact_command(message):
                 # Runs as its own turn (turn/started → contextCompaction item →
                 # turn/completed), which translate maps onto the Claude
                 # compacting/compact_boundary/result frames. Mark it manual so
                 # the boundary isn't labelled an auto-compaction.
                 self.session._xlate_state["compact_trigger"] = "manual"
-                await self._request("thread/compact/start", {"threadId": self._thread_id})
+                # Set before the request so a follow-up racing the ack queues.
+                self._unsteerable = True
+                try:
+                    await self._request("thread/compact/start", {"threadId": self._thread_id})
+                except Exception:
+                    self._unsteerable = False
+                    raise
                 return True
             input_items = self.provider.build_turn_input(message)
             params = self.provider.turn_start_params(self.opts, self._thread_id, input_items)
-            res = await self._request("turn/start", params)
+            try:
+                res = await self._request("turn/start", params)
+            except RuntimeError as e:
+                # A turn kind we didn't start ourselves (e.g. /review) or one
+                # whose start we missed — park it rather than fail the send.
+                if _NOT_STEERABLE not in str(e):
+                    raise
+                self._unsteerable = True
+                self._queue(message, str(e))
+                return True
             # The ack echoes the created Turn (status=inProgress) — capture its
             # id immediately so an instant stop doesn't race the turn/started
             # notification (turn/interrupt requires turnId since codex 0.144).
@@ -204,8 +238,42 @@ class JsonRpcTransport:
                 self._active_turn_id = turn["id"]
         return True
 
+    def _queue(self, message: dict, why: str) -> None:
+        self._queued.append(message)
+        logger.info(f"codex app-server: queued follow-up until the active turn "
+                    f"completes ({why}); {len(self._queued)} waiting")
+
+    async def _flush_queued(self) -> None:
+        """Send messages parked during an unsteerable turn, oldest first.
+
+        The first starts a new turn; later ones steer into it — exactly what
+        they'd have done had they been typed once the compaction finished.
+        """
+        queued, self._queued = self._queued, []
+        for message in queued:
+            try:
+                await self.send_turn(message)
+                # The finished turn's result frame flipped the session idle;
+                # this send opened the next turn, so mark it busy again. Safe
+                # to do after the await: the ack is read by the same reader
+                # AFTER it has finished handling turn/completed (finalize).
+                self.session.is_idle = False
+            except Exception as e:
+                logger.error(f"codex app-server: queued follow-up failed: {e}")
+                await self.session.safe_send({
+                    "type": "stderr",
+                    "data": f"Server error sending queued message: {e}",
+                })
+                return
+
     async def interrupt(self) -> None:
-        """Abort the in-flight turn, leaving the process alive for the next one."""
+        """Abort the in-flight turn, leaving the process alive for the next one.
+
+        Stop means stop: follow-ups parked behind the turn are dropped too.
+        """
+        if self._queued:
+            logger.info(f"codex app-server: interrupt dropped {len(self._queued)} queued follow-up(s)")
+            self._queued = []
         if self._thread_id:
             params = {"threadId": self._thread_id}
             if self._active_turn_id:
