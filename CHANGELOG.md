@@ -2,6 +2,13 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.4 — 2026-10-01
+
+### Fixed
+
+- Codex sessions get rich turn summaries and auto-generated session titles again on newer Codex CLIs (0.159+); the summary fork was being rejected, leaving only the raw journal. Summary-fork failures are now logged as warnings instead of disappearing.
+- Markdown links to local files in chat — `[name](/abs/path/file.md)`, `./x.md`, `file://…`, optionally with `#L12` / `:12` line targets — open the file preview instead of navigating the browser to a dead server URL.
+
 ## 1.1.3 — 2026-10-01
 
 ### Fixed
