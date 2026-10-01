@@ -212,23 +212,6 @@ export class MarkdownRenderer {
     }
 
     /**
-     * Scrub a markdown link href down to safe schemes. Defense-in-depth on top of
-     * DOMPurify: control chars are stripped first (defeats `jav&#9;ascript:` style
-     * bypasses) and any scheme outside the allowlist collapses to '#'.
-     *
-     * Returns a RAW, UNESCAPED url — scheme-checked, not attribute-safe. Every
-     * caller must wrap it in escapeAttr() before interpolating into an
-     * attribute; tests/test_no_unsafe_sinks.py enforces that at every href site.
-     *
-     * It used to return escapeHtml(cleaned), which read as safer and was
-     * actually worse in both directions. escapeHtml doesn't escape quotes, so
-     * the output was never attribute-safe on its own and callers still needed
-     * escapeAttr — and layering escapeAttr on top double-escaped `&`, so
-     * `?a=1&b=2` reached the DOM as `?a=1&amp;b=2` and the link resolved to the
-     * wrong URL. One escape, applied by the caller that knows the context, is
-     * the only arrangement that is both safe and correct.
-     */
-    /**
      * Classify a markdown link href as a local file reference.
      *
      * Returns `{path, lineOpts}` or null (= treat as a normal web link).
@@ -273,6 +256,23 @@ export class MarkdownRenderer {
         return { path: s, lineOpts };
     }
 
+    /**
+     * Scrub a markdown link href down to safe schemes. Defense-in-depth on top of
+     * DOMPurify: control chars are stripped first (defeats `jav&#9;ascript:` style
+     * bypasses) and any scheme outside the allowlist collapses to '#'.
+     *
+     * Returns a RAW, UNESCAPED url — scheme-checked, not attribute-safe. Every
+     * caller must wrap it in escapeAttr() before interpolating into an
+     * attribute; tests/test_no_unsafe_sinks.py enforces that at every href site.
+     *
+     * It used to return escapeHtml(cleaned), which read as safer and was
+     * actually worse in both directions. escapeHtml doesn't escape quotes, so
+     * the output was never attribute-safe on its own and callers still needed
+     * escapeAttr — and layering escapeAttr on top double-escaped `&`, so
+     * `?a=1&b=2` reached the DOM as `?a=1&amp;b=2` and the link resolved to the
+     * wrong URL. One escape, applied by the caller that knows the context, is
+     * the only arrangement that is both safe and correct.
+     */
     static sanitizeHref(href) {
         if (!href) return '#';
         const cleaned = String(href).replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
