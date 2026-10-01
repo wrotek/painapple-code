@@ -263,3 +263,73 @@ def test_drive_summary_fork_sends_exclude_turns_with_experimental_opt_in(monkeyp
     assert fork["excludeTurns"] is True and fork["ephemeral"] is True
     assert fork["threadId"] == "T1"
     assert sent["turn/start"]["threadId"] == "F1"
+
+
+# --- /compact → thread/compact/start ------------------------------------------
+
+def _user(content):
+    return {"type": "user", "message": {"role": "user", "content": content}}
+
+
+def test_is_compact_command():
+    p = _app_server()
+    assert p.is_compact_command(_user("/compact"))
+    assert p.is_compact_command(_user("  /compact keep the API notes "))
+    assert p.is_compact_command(_user([{"type": "text", "text": "/compact"}]))
+    assert not p.is_compact_command(_user("/compactor"))
+    assert not p.is_compact_command(_user("please /compact"))
+    assert not p.is_compact_command(_user([
+        {"type": "text", "text": "/compact"},
+        {"type": "image", "source": {"type": "base64", "data": ""}}]))
+
+
+def test_compact_routes_to_thread_compact_start_not_turn_start():
+    # The app-server has no slash commands: `/compact` sent as turn/start
+    # input just reaches the model as text (it replied instead of compacting).
+    import asyncio
+    from types import SimpleNamespace
+
+    session = SimpleNamespace(cwd="/w", session_id="T1", store_id=None,
+                              _xlate_state={})
+    t = _app_server().make_transport(process=None, opts=LaunchOptions(), session=session)
+    t._initialized = True
+    t._thread_id = "T1"
+    calls = []
+
+    async def fake_request(method, params, timeout=None):
+        calls.append((method, params))
+        return {}
+    t._request = fake_request
+
+    asyncio.run(t.send_turn(_user("/compact")))
+    assert calls == [("thread/compact/start", {"threadId": "T1"})]
+    assert session._xlate_state["compact_trigger"] == "manual"
+
+    calls.clear()
+    asyncio.run(t.send_turn(_user("hello")))
+    assert [m for m, _ in calls] == ["turn/start"]
+
+
+def test_context_compaction_item_maps_to_claude_compaction_frames():
+    # Live sequence (codex 0.144 + 0.159): turn/started → item/started
+    # contextCompaction → tokenUsage → item/completed contextCompaction →
+    # turn/completed. Map onto the frames the bridge already handles for
+    # Claude: status=compacting (heartbeat), compact_boundary (info row).
+    p = _app_server()
+    state = _fresh_state()
+    state["token_usage"] = {"inputTokens": 180000, "outputTokens": 2000}
+    state["compact_trigger"] = "manual"
+    item = {"type": "contextCompaction", "id": "C1"}
+
+    out = p.translate_events({"method": "item/started", "params": {"item": item}}, state)
+    assert out == [{"type": "system", "subtype": "status", "status": "compacting"}]
+
+    out = p.translate_events({"method": "item/completed", "params": {"item": item}}, state)
+    assert out == [{"type": "system", "subtype": "compact_boundary", "uuid": "C1",
+                    "compact_metadata": {"trigger": "manual", "pre_tokens": 182000}}]
+    assert "compact_trigger" not in state
+
+    # Codex's own mid-turn auto-compaction emits the same item → trigger auto.
+    p.translate_events({"method": "item/started", "params": {"item": item}}, state)
+    out = p.translate_events({"method": "item/completed", "params": {"item": item}}, state)
+    assert out[0]["compact_metadata"]["trigger"] == "auto"

@@ -185,6 +185,14 @@ class JsonRpcTransport:
                 await self.initialize()
             if self._thread_id is None:
                 await self._ensure_thread()
+            if self.provider.is_compact_command(message):
+                # Runs as its own turn (turn/started → contextCompaction item →
+                # turn/completed), which translate maps onto the Claude
+                # compacting/compact_boundary/result frames. Mark it manual so
+                # the boundary isn't labelled an auto-compaction.
+                self.session._xlate_state["compact_trigger"] = "manual"
+                await self._request("thread/compact/start", {"threadId": self._thread_id})
+                return True
             input_items = self.provider.build_turn_input(message)
             params = self.provider.turn_start_params(self.opts, self._thread_id, input_items)
             res = await self._request("turn/start", params)

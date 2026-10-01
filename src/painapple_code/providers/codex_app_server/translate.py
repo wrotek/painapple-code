@@ -17,6 +17,9 @@ mixin.
     item/completed webSearch     → assistant {tool_use WebSearch} + user {tool_result}
     item/* mcpToolCall           → assistant {tool_use mcp__…} + user {tool_result}
     thread/tokenUsage/updated    → (stashed in state for the result + context meter)
+    item/started contextCompaction   → system/status compacting
+    item/completed contextCompaction → system/compact_boundary (manual for
+                                   /compact → thread/compact/start, else auto)
     turn/completed               → result  (tokens only; no USD cost)
     error willRetry:true         → system/api_retry  (non-terminal reconnect)
     error / turn.failed          → result  (is_error=True; deduped so the
@@ -158,6 +161,25 @@ class _TranslateMixin(_CodexExecTranslateMixin):
                 msgs.append(self._tool_use(cid, tool, {"file_path": path}))
                 msgs.append(self._tool_result(cid, f"{kind_type}: {path}"))
             return msgs
+
+        if itype == "contextCompaction":
+            if started:
+                # Context size going in = the last request's prompt + reply, read
+                # before this turn's own tokenUsage update overwrites it.
+                tu = state.get("token_usage") or {}
+                state["compact_pre_tokens"] = (
+                    (tu.get("inputTokens") or 0) + (tu.get("outputTokens") or 0))
+                return [{"type": "system", "subtype": "status", "status": "compacting"}]
+            if completed:
+                return [{
+                    "type": "system", "subtype": "compact_boundary",
+                    "uuid": item_id,
+                    "compact_metadata": {
+                        "trigger": state.pop("compact_trigger", None) or "auto",
+                        "pre_tokens": state.pop("compact_pre_tokens", 0),
+                    },
+                }]
+            return []
 
         if itype == "webSearch" and completed:
             return [

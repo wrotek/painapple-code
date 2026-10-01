@@ -10,6 +10,8 @@ provider owns everything CLI-shaped) so the transport driver stays pure plumbing
 
 from __future__ import annotations
 
+import re
+
 from typing import Optional
 
 from painapple_code import paths
@@ -135,6 +137,27 @@ class _LaunchMixin:
         if model:
             params["model"] = model
         return params
+
+    @staticmethod
+    def is_compact_command(message: dict) -> bool:
+        """True when the user turn is the `/compact` slash command.
+
+        Claude's CLI interprets `/compact` itself; the app-server has no slash
+        commands — typed text goes to the model verbatim — so it has to become
+        a `thread/compact/start` request instead of a `turn/start`. Trailing
+        instructions (`/compact keep the API notes`) are accepted but unused:
+        the RPC takes only a thread id.
+        """
+        content = (message or {}).get("message", {}).get("content", "")
+        if isinstance(content, list):
+            texts = [b.get("text", "") for b in content
+                     if isinstance(b, dict) and b.get("type") == "text"]
+            if any(isinstance(b, dict) and b.get("type") != "text" for b in content):
+                return False   # an image rides along → a real prompt
+            content = "\n".join(texts)
+        if not isinstance(content, str):
+            return False
+        return re.match(r"/compact(\s|$)", content.strip()) is not None
 
     def build_turn_input(self, message: dict) -> list[dict]:
         """Canonical user message → app-server `UserInput[]`.
