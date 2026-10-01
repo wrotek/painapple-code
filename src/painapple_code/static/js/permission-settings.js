@@ -17,10 +17,11 @@
 
 import { CONFIG } from './config.js';
 import S from './strings.js';
+import { showToast } from './context-menu.js';
 // Provider registry lookup (status-bar owns the /api/providers cache; it does
 // not import this module, so no cycle). Used to seed the mode vocabulary
 // synchronously on tab switch — the fetches below only confirm.
-import { providerInfo } from './status-bar.js';
+import { providerInfo, PROVIDERS_INFO } from './status-bar.js';
 
 // Pre-fetch fallback modes from strings.yaml (shape matches the provider's
 // permission_modes() dicts). Replaced by server-delivered lists on load.
@@ -37,7 +38,13 @@ class PermissionSettingsManager {
         this.isOpen = false;
         this.currentLevel = 'dontAsk';   // mode value from this.modes
         this.currentSessionId = null;
-        this.globalDefault = 'dontAsk';  // Default for normal chat
+        // The ACTIVE provider's configured default (drives the popup's
+        // "default" tag). Defaults are per provider — see _defaultByProvider.
+        this.globalDefault = 'dontAsk';
+        // provider name → its configured default level (server:
+        // paths.provider_default_permission). Seeds first paint on a switch.
+        this._defaultByProvider = {};
+        this._boxDefaultProvider = null;  // effective default provider's name
         this.modes = FALLBACK_MODES;        // active session's provider modes
         this.defaultModes = FALLBACK_MODES; // effective default provider's modes
     }
@@ -161,12 +168,38 @@ class PermissionSettingsManager {
         } else if (!engName) {
             this._applyModes(this.defaultModes);
         }
+        const provDefault = this._defaultByProvider[this._resolveProvider(engName)];
+        if (provDefault && this._modeInfo(provDefault)) this.globalDefault = provDefault;
         const cached = [session?.permissionLevel, session?.pendingPermission,
-            this.globalDefault].find(v => v && this._modeInfo(v));
+            provDefault].find(v => v && this._modeInfo(v));
         this.currentLevel = cached
             || eng?.default_permission_mode
-            || this.currentLevel;
+            || (this._modeInfo(this.globalDefault) ? this.globalDefault : this.currentLevel);
         this.updateButtonState();
+    }
+
+    /** A provider name, or the box default's when none is bound/picked. */
+    _resolveProvider(name) {
+        return name || this._boxDefaultProvider || PROVIDERS_INFO?.default || null;
+    }
+
+    /** Name of the provider the active tab runs (or will run) on. */
+    _activeProviderName() {
+        const session = window.app?.activeSession;
+        return this._resolveProvider(session?.provider || session?.pendingProvider || null);
+    }
+
+    /**
+     * Record a provider's default (Settings → Providers / System changed it)
+     * and repaint: the popup's default tag, and an untouched fresh tab on
+     * that provider. `provider` null = the effective default provider.
+     */
+    noteProviderDefault(provider, level) {
+        const name = this._resolveProvider(provider);
+        if (name && level) this._defaultByProvider[name] = level;
+        if (name === this._activeProviderName()) {
+            this.setSession(this.currentSessionId);
+        }
     }
 
     /**
@@ -196,6 +229,10 @@ class PermissionSettingsManager {
                         if (Array.isArray(data.modes) && data.modes.length) {
                             this._applyModes(data.modes);
                         }
+                        if (this._modeInfo(data.default_level)) {
+                            this._defaultByProvider[pendingProvider] = data.default_level;
+                            this.globalDefault = data.default_level;
+                        }
                         // A stashed choice only survives if this provider speaks it.
                         this.currentLevel = this._modeInfo(session?.pendingPermission)
                             ? session.pendingPermission
@@ -207,6 +244,8 @@ class PermissionSettingsManager {
                 if (this.currentSessionId !== sessionId) return;
             }
             this._applyModes(this.defaultModes);
+            const boxDefault = this._defaultByProvider[this._resolveProvider(null)];
+            if (boxDefault) this.globalDefault = boxDefault;
             this.currentLevel = session?.pendingPermission || this.globalDefault;
             this.updateButtonState();
             return;
@@ -219,7 +258,13 @@ class PermissionSettingsManager {
             if (response.ok) {
                 const data = await response.json();
                 this._applyModes(data.modes);
-                this.globalDefault = this._modeInfo(data.global_default) ? data.global_default : 'dontAsk';
+                // global_default is the default of THIS session's provider.
+                this.globalDefault = this._modeInfo(data.global_default)
+                    ? data.global_default
+                    : (data.provider_default || 'dontAsk');
+                const provName = window.app?.sessionManager?.sessions
+                    ?.find(s => s.storeId === sessionId)?.provider;
+                if (provName) this._defaultByProvider[provName] = this.globalDefault;
                 // A brand-new session has no stored per-session level yet. Fall
                 // back to the global default (e.g. YOLO) rather than a hardcoded
                 // 'dontAsk', which would silently override it after first send.
@@ -337,26 +382,44 @@ class PermissionSettingsManager {
     async _saveAsGlobalDefault() {
         const level = this.currentLevel;
         this.close();
-        await this.saveToGlobal(level);
+        const provider = this._activeProviderName();
+        if (!await this.saveToGlobal(level, provider)) return;
 
-        // Sync Settings panel dropdown if open
+        // Sync Settings → System dropdown if open (it edits the box
+        // default provider only).
         const sel = document.querySelector('#default-permission-level');
-        if (sel) sel.value = level;
+        if (sel && provider === this._resolveProvider(null)) sel.value = level;
     }
 
     /**
-     * Save to global config (when no session)
+     * Save `level` as `provider`'s default for new sessions (per provider —
+     * Codex's "Full access" and Claude's "YOLO" are separate defaults).
+     * Returns true on success.
      */
-    async saveToGlobal(level) {
+    async saveToGlobal(level, provider = this._activeProviderName()) {
         try {
-            await fetch(`${CONFIG.API_BASE}/api/app/default-permissions`, {
+            const body = { permission_level: level };
+            if (provider) body.provider = provider;
+            const r = await fetch(`${CONFIG.API_BASE}/api/app/default-permissions`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ permission_level: level })
+                body: JSON.stringify(body)
             });
+            if (!r.ok) {
+                const detail = (await r.json().catch(() => ({}))).detail || r.status;
+                console.error('Error saving default permission level:', detail);
+                showToast(S.toast.permission_default_failed.replace('{error}', detail));
+                return false;
+            }
+            const data = await r.json().catch(() => ({}));
+            if (provider) this._defaultByProvider[provider] = level;
+            if (data.provider) this._defaultByProvider[data.provider] = level;
             this.globalDefault = level;
+            this.updatePresetSelection();
+            return true;
         } catch (err) {
-            console.error('Error saving global permission level:', err);
+            console.error('Error saving default permission level:', err);
+            return false;
         }
     }
 
@@ -373,6 +436,10 @@ class PermissionSettingsManager {
                 }
                 this._applyModes(this.defaultModes);
                 this.globalDefault = this._modeInfo(data.default_level) ? data.default_level : 'dontAsk';
+                if (data.provider) {
+                    this._boxDefaultProvider = data.provider;
+                    this._defaultByProvider[data.provider] = this.globalDefault;
+                }
                 this.currentLevel = this.globalDefault;
                 this.updateButtonState();
             }

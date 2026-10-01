@@ -736,7 +736,7 @@ def save_models_config(config: dict) -> None:
 # Session defaults are per PROVIDER: each map is keyed by the provider's
 # `models_key` namespace (driver pairs share — same convention as
 # `models_disabled`). The flat legacy keys (`default_model`, `default_effort`,
-# `default_token_profile`) remain as read fallbacks for configs written before
+# `default_token_profile`, `default_permission_level`) remain as read fallbacks for configs written before
 # the split; the provider-defaults PUT migrates them into the maps on first
 # write and drops them.
 
@@ -787,6 +787,22 @@ def provider_default_effort(provider):
     if value and levels and value not in levels:
         return None
     return value
+
+
+def provider_default_permission(provider):
+    """The provider's default new-session permission mode — always a value the
+    provider speaks.
+
+    Resolution: per-provider ``default_permissions`` map → legacy app-wide
+    ``default_permission_level`` (only when it's in this provider's own
+    vocabulary — a Claude ``dontAsk`` means nothing to Codex's sandbox tiers)
+    → the provider's native ``default_permission_mode()``."""
+    value = _provider_scoped_default(
+        "default_permissions", "default_permission_level", provider)
+    vocab = {m.get("value") for m in (provider.permission_modes() or [])}
+    if value and (not vocab or value in vocab):
+        return value
+    return provider.default_permission_mode()
 
 
 def provider_default_token_profile(provider):

@@ -991,9 +991,9 @@ function attachConfigEventHandlers(container) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ permission_level: e.target.value })
             });
-            if (window.permissionSettings) {
-                window.permissionSettings.globalDefault = e.target.value;
-            }
+            // No provider in the body → the server applies it to the
+            // effective default provider; mirror that in the picker cache.
+            window.permissionSettings?.noteProviderDefault(null, e.target.value);
         });
     }
 

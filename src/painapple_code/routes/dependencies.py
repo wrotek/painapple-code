@@ -52,25 +52,23 @@ def bind_permission_level(stored_level, provider):
     with an explicit provider, or an in-place switch) — or None to leave the
     meta alone.
 
-    The effective level (session's stored one, else the app-wide default)
-    survives when the new provider speaks it. A cross-vocabulary value (e.g.
-    Claude's ``dontAsk`` landing on a Codex session) is re-anchored to the
-    provider's own default: launch would otherwise apply a silent back-compat
+    The effective level (session's stored one, else the provider's configured
+    default) survives when the new provider speaks it. A cross-vocabulary
+    value (e.g. Claude's ``dontAsk`` landing on a Codex session) is
+    re-anchored to the provider's configured default
+    (`paths.provider_default_permission` — the user's per-provider pick, else
+    the provider's native one): launch would otherwise apply a silent back-compat
     mapping the UI can't label, leaving the permission chip showing a mode
     the provider doesn't have. Meta, UI, and launch must agree at bind time.
     """
-    from painapple_code.providers import DEFAULT_PROVIDER, get_provider
     if provider is None:
         return None
-    effective = stored_level
-    if effective is None:
-        config = paths.load_global_config()
-        effective = (config.get("default_permission_level")
-                     or get_provider(DEFAULT_PROVIDER).default_permission_mode())
+    default = paths.provider_default_permission(provider)
+    effective = stored_level if stored_level is not None else default
     vocab = {m["value"] for m in provider.permission_modes() if m.get("value")}
     if effective in vocab:
         return None
-    return provider.default_permission_mode()
+    return default
 
 
 def preferred_model_survives(stored_model, provider) -> bool:

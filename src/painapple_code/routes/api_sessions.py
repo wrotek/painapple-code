@@ -234,14 +234,6 @@ async def set_session_thinking_tokens(session_id: str, request: Request):
 # Session Permission Level
 # ═══════════════════════════════════════════════════════════════════
 
-def _get_default_permission_level() -> str:
-    """Get the default permission level from config, falling back to the default
-    provider's own default (no hardcoded provider vocabulary)."""
-    from painapple_code.providers import get_provider, DEFAULT_PROVIDER
-    config = paths.load_global_config()
-    return config.get("default_permission_level") or get_provider(DEFAULT_PROVIDER).default_permission_mode()
-
-
 @router.get("/api/session/{session_id}/permission-mode")
 async def get_session_permission_mode(session_id: str, request: Request):
     """Get the permission mode for a specific session, plus the mode vocabulary
@@ -252,12 +244,13 @@ async def get_session_permission_mode(session_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Session not found")
 
     session_level = meta.get("permission_level")
-    global_default = _get_default_permission_level()
 
     from painapple_code.providers import get_provider
     from painapple_code.routes.dependencies import effective_default_provider
     provider = (get_provider(meta["provider"]) if meta.get("provider")
                 else effective_default_provider(request.app))
+    # The default of the provider THIS session runs on.
+    global_default = paths.provider_default_permission(provider)
 
     return {
         "permission_level": session_level if session_level is not None else global_default,

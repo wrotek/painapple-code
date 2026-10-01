@@ -697,13 +697,12 @@ class AgentManager:
                 effort = paths.provider_default_effort(session.provider)
 
             # Permission mode resolution: in-memory override → session meta →
-            # user's configured global default → provider's native default. The
-            # user's explicit global default (e.g. YOLO) must win over the
-            # provider's hardcoded default, otherwise Claude's 'dontAsk' would
-            # always short-circuit it. Only when no global default is configured
-            # do we fall back to the provider's native default (e.g. Codex →
-            # workspace-write). This matches the precedence used by the
-            # GET /api/sessions default-permission endpoint. A stored value
+            # the user's configured default FOR THIS PROVIDER → the provider's
+            # native default (paths.provider_default_permission). The user's
+            # explicit default (e.g. YOLO, Codex "Full access") must win over
+            # the provider's hardcoded one (Claude 'dontAsk', Codex
+            # workspace-write). Same resolution as the default-permissions
+            # endpoints and bind_permission_level. A stored value
             # (native or legacy canonical) is left untouched — the provider
             # maps it at launch.
             permission_mode = session.permission_mode
@@ -712,11 +711,8 @@ class AgentManager:
                 if meta:
                     permission_mode = meta.get("permission_level")
             if not permission_mode:
-                from painapple_code.paths import load_global_config
-                permission_mode = (
-                    load_global_config().get("default_permission_level")
-                    or session.provider.default_permission_mode()
-                )
+                from painapple_code.paths import provider_default_permission
+                permission_mode = provider_default_permission(session.provider)
 
             # Record the desired mode we launched with, so a later change is
             # detected on the next message (universal lazy mode-apply) — and

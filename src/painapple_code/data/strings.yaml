@@ -178,6 +178,7 @@ toast:
   terminal_unavailable_login: "No terminal on this server — run the login command in a console on the server machine"
   draft_saved: "Draft saved"
   draft_save_failed: "Couldn't save draft"
+  permission_default_failed: "Couldn't save default permissions: {error}"
   session_id_copied: "Session ID copied"
   cli_resume_copied: "Copied: {cmd}"
   url_copied: "URL copied"
@@ -1044,7 +1045,7 @@ settings:
     sigint_on_ask_desc: "Interrupt Claude when it asks a multiple-choice question instead of letting it auto-answer and continue"
     download_behavior: "Download behavior"
     download_behavior_desc: "How the download button and \"Download\" context menu items work"
-    perm_normal_desc: "Permission mode for normal chat"
+    perm_normal_desc: "Permission mode for new sessions on the default provider"
   # Thinking levels
   thinking_levels:
     "off": "Off"
@@ -1107,6 +1108,7 @@ settings:
     provider_default_model_label: "Default model"
     provider_default_effort_label: "Default effort"
     provider_default_profile_label: "Account"
+    provider_default_permission_label: "Default permissions"
     provider_defaults_hint: "Used when a new session starts on this provider — every provider keeps its own defaults. Override per-session via the status-bar chips."
     provider_journal_hint: "Model for this provider's auto-journal fork — runs after each turn to write journal summaries, tags and decisions. Clear to use the provider's default."
     thinking_hint: "Default thinking budget when creating new sessions. Can be changed per-session via the sparkle button."
@@ -1129,7 +1131,7 @@ settings:
     models_reset_done: "Models restored to defaults"
     models_id_title: "Model ID — edit to rename (must be unique)"
     models_id_dupe: "Model \"{id}\" already exists"
-    perm_hint: "Can be overridden per-session via the shield button in the input bar."
+    perm_hint: "Each provider keeps its own default — set the others under Settings → Providers. Can be overridden per-session via the shield button in the input bar."
     shadow_defaults_hint: "Default settings for new projects. Per-project settings can override these."
 
 # ============================================================

@@ -153,11 +153,12 @@ def test_default_enabled_split():
     assert get_provider("claude-sdk").describe()["default_enabled"] is True
 
 
-def test_bind_permission_level_anchoring():
+def test_bind_permission_level_anchoring(monkeypatch):
     """A permission level the new provider doesn't speak is re-anchored to the
     provider's own default at bind time; a shared/valid level survives."""
     from painapple_code.routes.dependencies import bind_permission_level
     from painapple_code.providers import get_provider
+    _patch_config_store(monkeypatch, {})
     codex = get_provider("codex-app-server")
     claude_sdk = get_provider("claude-sdk")
     # Claude vocab landing on Codex → Codex's own default
@@ -742,6 +743,80 @@ def test_provider_defaults_put_scoped_with_migration(client, monkeypatch, tmp_pa
                       json={"token_profile": "x"}).status_code == 400
     assert client.put("/api/app/provider-defaults/claude-sdk",
                       json={"token_profile": "definitely-missing"}).status_code == 400
+
+
+def test_permission_defaults_are_per_provider(client, monkeypatch):
+    """Codex "Full access" can be the Codex default while Claude keeps its own.
+    Before the split the single flat key was validated against the DEFAULT
+    provider (Claude), so danger-full-access 400'd and every new Codex session
+    opened as workspace-write."""
+    from painapple_code import paths
+    from painapple_code.routes.dependencies import bind_permission_level
+    codex = get_provider("codex-app-server")
+    claude = get_provider("claude-sdk")
+    # Legacy flat Claude-vocab default.
+    store = {"default_permission_level": "bypassPermissions"}
+    _patch_config_store(monkeypatch, store)
+    assert paths.provider_default_permission(claude) == "bypassPermissions"
+    # Cross-vocab legacy value never leaks into Codex.
+    assert paths.provider_default_permission(codex) == "workspace-write"
+
+    r = client.put("/api/app/default-permissions",
+                   json={"permission_level": "danger-full-access",
+                         "provider": "codex-app-server"})
+    assert r.status_code == 200, r.text
+    assert r.json()["default_level"] == "danger-full-access"
+    # Flat key folded into the claude entry only (codex can't speak it).
+    assert store["default_permissions"] == {
+        "claude": "bypassPermissions", "codex": "danger-full-access"}
+    assert "default_permission_level" not in store
+
+    # Every read path sees the per-provider value.
+    assert client.get("/api/app/default-permissions?provider=codex-app-server"
+                      ).json()["default_level"] == "danger-full-access"
+    assert client.get("/api/app/default-permissions?provider=claude-sdk"
+                      ).json()["default_level"] == "bypassPermissions"
+    assert client.get("/api/app/provider-defaults/codex-app-server"
+                      ).json()["default_permission"] == "danger-full-access"
+    # Bind: nothing stored → configured default is valid → leave meta alone;
+    # a Claude level carried into Codex re-anchors to Codex's CONFIGURED
+    # default, not its native workspace-write.
+    assert bind_permission_level(None, codex) is None
+    assert bind_permission_level("dontAsk", codex) == "danger-full-access"
+
+    # Validation is against the NAMED provider's vocabulary.
+    assert client.put("/api/app/default-permissions",
+                      json={"permission_level": "danger-full-access"}).status_code == 400
+    assert client.put("/api/app/default-permissions",
+                      json={"permission_level": "dontAsk",
+                            "provider": "codex-app-server"}).status_code == 400
+    assert client.put("/api/app/default-permissions",
+                      json={"permission_level": "plan",
+                            "provider": "nope"}).status_code == 400
+    # No provider → the effective default provider (claude-sdk).
+    r = client.put("/api/app/default-permissions", json={"permission_level": "plan"})
+    assert r.status_code == 200 and r.json()["provider"] == "claude-sdk"
+    assert store["default_permissions"]["claude"] == "plan"
+
+    # provider-defaults PUT: set, validate, clear → native default.
+    assert client.put("/api/app/provider-defaults/codex-app-server",
+                      json={"default_permission": "acceptEdits"}).status_code == 400
+    r = client.put("/api/app/provider-defaults/codex-app-server",
+                   json={"default_permission": None})
+    assert r.json()["default_permission"] == "workspace-write"
+    assert store["default_permissions"] == {"claude": "plan"}
+
+
+def test_session_permission_mode_reports_its_providers_default(client, monkeypatch, tmp_path):
+    from painapple_code.session_store import SessionStore
+    _patch_config_store(monkeypatch, {"default_permissions": {
+        "codex": "danger-full-access", "claude": "bypassPermissions"}})
+    monkeypatch.setattr(SessionStore, "load_meta",
+                        staticmethod(lambda sid: {"provider": "codex-app-server"}))
+    data = client.get("/api/session/abc/permission-mode").json()
+    assert data["global_default"] == "danger-full-access"
+    assert data["permission_level"] == "danger-full-access"
+    assert data["is_session_override"] is False
 
 
 def test_provider_defaults_journal_model(client, monkeypatch):

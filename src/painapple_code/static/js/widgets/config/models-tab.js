@@ -329,6 +329,8 @@ function applyProviderDefaults(root, container, p) {
     if (effortSel) effortSel.value = data.default_effort || '';
     const profileSel = root.querySelector('.provider-default-profile');
     if (profileSel) profileSel.value = data.token_profile || '';
+    const permSel = root.querySelector('.provider-default-permission');
+    if (permSel && data.default_permission) permSel.value = data.default_permission;
     const journal = root.querySelector('[data-role="journal"]');
     if (journal) {
         if (!data.summary_supported) {
@@ -363,6 +365,10 @@ async function saveProviderDefaults(container, p, patch) {
         // The chip's "default" state may have changed for open sessions.
         const sb = window.app?.statusBar;
         if (sb?.currentSessionId) sb.setSession(sb.currentSessionId);
+        if ('default_permission' in patch) {
+            window.permissionSettings?.noteProviderDefault(
+                p.name, _tab.providerDefaults[p.name].default_permission);
+        }
     } catch (err) {
         showToast(`Save failed: ${err.message || err}`);
         if (root?.dataset.provider === p.name) applyProviderDefaults(root, container, p);
@@ -447,6 +453,8 @@ function renderProviderPanel(container) {
     // accounts); stored values arrive via loadProviderDefaults.
     const effortOptions = (p.efforts || []).map(lvl =>
         `<option value="${escapeHtml(lvl)}">${escapeHtml(S.provider.setup.effort_labels?.[lvl] || lvl)}</option>`).join('');
+    const permissionOptions = (p.permission_modes || []).map(m =>
+        `<option value="${escapeHtml(m.value)}">${escapeHtml(m.label || m.value)}</option>`).join('');
     const accountOptions = (p.accounts || []).map(a =>
         `<option value="${escapeHtml(a.id)}">${escapeHtml(a.label || a.id)}</option>`).join('');
     const defaultsBlock = `
@@ -462,6 +470,13 @@ function renderProviderPanel(container) {
                 <select class="system-select provider-default-effort">
                     <option value="">${S.settings.hints.model_default_option}</option>
                     ${effortOptions}
+                </select>
+            </div>` : ''}
+            ${(p.permission_modes || []).length ? `
+            <div class="provider-defaults-row">
+                <span class="provider-defaults-label">${S.settings.hints.provider_default_permission_label}</span>
+                <select class="system-select provider-default-permission">
+                    ${permissionOptions}
                 </select>
             </div>` : ''}
             ${(p.accounts || []).length > 1 ? `
@@ -742,6 +757,8 @@ function wireProviderPanel(container) {
             await saveProviderDefaults(container, p, { default_effort: e.target.value || null });
         } else if (e.target.matches?.('.provider-default-profile')) {
             await saveProviderDefaults(container, p, { token_profile: e.target.value || null });
+        } else if (e.target.matches?.('.provider-default-permission')) {
+            await saveProviderDefaults(container, p, { default_permission: e.target.value || null });
         }
     });
 

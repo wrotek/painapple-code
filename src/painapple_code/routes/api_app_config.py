@@ -298,6 +298,7 @@ _DEFAULTS_FIELDS = [
     ("default_model", "default_models", "default_model"),
     ("default_effort", "default_efforts", "default_effort"),
     ("token_profile", "default_token_profiles", "default_token_profile"),
+    ("default_permission", "default_permissions", "default_permission_level"),
 ]
 
 
@@ -312,7 +313,30 @@ def _provider_speaks_default(p, field: str, value: str) -> bool:
         return not levels or value in levels
     if field == "token_profile":
         return bool(p.accounts())
+    if field == "default_permission":
+        return value in _permission_vocab(p)
     return False
+
+
+def _permission_vocab(p) -> set:
+    return {m["value"] for m in p.permission_modes() if m.get("value")}
+
+
+def _set_provider_default(config: dict, p, field: str, map_key: str,
+                          legacy_key: str, value: str) -> None:
+    """Write (or clear, on empty) one provider's entry in a defaults map,
+    folding any legacy flat key into the maps first."""
+    _migrate_legacy_default(config, field, map_key, legacy_key)
+    ns = p.models_key or p.name
+    overrides = dict(config.get(map_key) or {})
+    if value:
+        overrides[ns] = value
+    else:
+        overrides.pop(ns, None)
+    if overrides:
+        config[map_key] = overrides
+    else:
+        config.pop(map_key, None)
 
 
 def _migrate_legacy_default(config: dict, field: str, map_key: str, legacy_key: str) -> None:
@@ -348,6 +372,8 @@ def _provider_defaults_payload(p) -> dict:
         "default_model": paths.provider_default_model(p),
         "default_effort": paths.provider_default_effort(p),
         "token_profile": paths.provider_default_token_profile(p),
+        "default_permission": paths.provider_default_permission(p),
+        "permission_modes": p.permission_modes(),
         "efforts": p.effort_levels(),
         "accounts": p.accounts(),
         "summary_supported": p.summary_model_editable(),
@@ -367,8 +393,9 @@ async def get_provider_defaults(provider_name: str):
 async def set_provider_defaults(provider_name: str, request: Request):
     """Set any subset of one provider's defaults.
 
-    Body: ``{default_model?, default_effort?, token_profile?, summary_model?}``
-    — null/empty clears a key (model/effort/profile fall back to the provider's
+    Body: ``{default_model?, default_effort?, token_profile?,
+    default_permission?, summary_model?}``
+    — null/empty clears a key (model/effort/profile/permission fall back to the provider's
     own default; the journal override falls back per provider: Codex inherits
     the session model, Claude resets to the shipped summary model).
     """
@@ -400,17 +427,14 @@ async def set_provider_defaults(provider_name: str, request: Request):
                     detail=f"{p.display_name} has no selectable accounts")
             if value not in {x["name"] for x in list_profiles()}:
                 raise HTTPException(status_code=400, detail=f"Token profile not found: {value}")
+        if value and field == "default_permission":
+            vocab = _permission_vocab(p)
+            if value not in vocab:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid permission level for {p.display_name}: {value}. Valid: {sorted(vocab)}")
 
-        _migrate_legacy_default(config, field, map_key, legacy_key)
-        overrides = dict(config.get(map_key) or {})
-        if value:
-            overrides[ns] = value
-        else:
-            overrides.pop(ns, None)
-        if overrides:
-            config[map_key] = overrides
-        else:
-            config.pop(map_key, None)
+        _set_provider_default(config, p, field, map_key, legacy_key, value)
         maps_changed = True
 
     if maps_changed:
@@ -579,57 +603,57 @@ async def set_sigint_on_ask(request: Request):
 
 @router.get("/api/app/default-permissions")
 async def get_default_permissions(request: Request, provider: str = None):
-    """Get the global default permission level, plus the mode vocabulary of the
-    provider new sessions run on (the effective default provider — the
-    --default-provider flag / `default_provider` config key, not always Claude).
+    """Get a provider's default permission level plus its mode vocabulary.
 
-    `provider` overrides which provider's vocabulary is returned — the picker
-    uses it so a pre-connect tab that chose a different provider shows that
-    provider's modes, not the box default's. The stored global level only
-    applies when it's valid in the resolved provider's own vocabulary (a Claude
-    `acceptEdits` default means nothing to Codex's sandbox tiers)."""
+    Defaults are PER PROVIDER (`default_permissions` map, see
+    `paths.provider_default_permission`). `provider` picks which one — the
+    picker passes it so a pre-connect tab that chose Codex shows Codex's modes
+    and Codex's default; without it, the effective default provider (the
+    --default-provider flag / `default_provider` config key)."""
     from painapple_code.providers import get_provider, provider_names
     from painapple_code.routes.dependencies import effective_default_provider
     if provider and provider in provider_names():
         dp = get_provider(provider)
     else:
         dp = effective_default_provider(request.app)
-    config = paths.load_global_config()
-    valid = {m["value"] for m in dp.permission_modes()}
-    level = config.get("default_permission_level")
-    if level not in valid:
-        level = dp.default_permission_mode()
     return {
-        "default_level": level,
+        "provider": dp.name,
+        "default_level": paths.provider_default_permission(dp),
         "modes": dp.permission_modes(),
     }
 
 
 @router.put("/api/app/default-permissions")
 async def set_default_permissions(request: Request):
-    """Set the global default permission level for normal sessions."""
+    """Set one provider's default permission level for new sessions.
+
+    Body: ``{permission_level, provider?}`` — `provider` defaults to the
+    effective default provider. Validated against THAT provider's own modes:
+    before defaults were per-provider this always validated against the
+    default provider, so Codex's "Full access" could never be saved."""
     body = await request.json()
     value = body.get("permission_level")
+    provider = body.get("provider")
 
-    # The global default feeds the effective default provider's sessions, so
-    # validate against that provider's own modes (not a hardcoded set) and
-    # treat its own default as the "unset" sentinel.
+    from painapple_code.providers import get_provider, provider_names
     from painapple_code.routes.dependencies import effective_default_provider
-    dp = effective_default_provider(request.app)
-    valid = {m["value"] for m in dp.permission_modes()}
+    if provider and provider in provider_names():
+        dp = get_provider(provider)
+    elif provider:
+        raise HTTPException(status_code=400, detail=f"Unknown provider: {provider}")
+    else:
+        dp = effective_default_provider(request.app)
+    valid = _permission_vocab(dp)
     if value not in valid:
-        raise HTTPException(status_code=400, detail=f"Invalid permission level: {value}. Valid: {valid}")
+        raise HTTPException(status_code=400, detail=f"Invalid permission level: {value}. Valid: {sorted(valid)}")
 
     config = paths.load_global_config()
-    if value == dp.default_permission_mode():
-        config.pop("default_permission_level", None)
-    else:
-        config["default_permission_level"] = value
-
+    _set_provider_default(config, dp, "default_permission", "default_permissions",
+                          "default_permission_level", value)
     paths.save_global_config(config)
-    logger.info(f"Default permission level updated to: {value}")
+    logger.info(f"Default permission level for {dp.models_key or dp.name} updated to: {value}")
 
-    return await get_default_permissions(request)
+    return await get_default_permissions(request, provider=dp.name)
 
 
 # ═══════════════════════════════════════════════════════════════════
