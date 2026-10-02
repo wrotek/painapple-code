@@ -2,6 +2,13 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.6 — 2026-10-02
+
+### Fixed
+
+- A message sent while a Codex `/compact` is running now waits and runs once the compaction finishes (as it does on Claude), instead of failing with "ActiveTurnNotSteerable … Failed to send message". Pressing Stop discards the waiting message.
+- Default permission modes are now kept per provider: choosing **Set as default** on a Codex tab (e.g. Full access) saves it as Codex's default and new Codex sessions open with it, instead of always falling back to Workspace write. Claude keeps its own default. Each provider's default is also editable under Settings → Providers → New Session Defaults; an existing app-wide default carries over to the providers that support it.
+
 ## 1.1.5 — 2026-10-01
 
 ### Fixed
