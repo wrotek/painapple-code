@@ -48,7 +48,7 @@ Each provider self-describes its capabilities, and the UI follows:
     - **CLI status** — the resolved binary path and live `--version`, plus a path-override field per provider CLI.
     - <a id="logging-in"></a>**Login status** — whether the CLI is authenticated ("Logged in — email · plan" for Claude, exit status for Codex). When it isn't, a **Log in** button opens a terminal tab running the provider's login flow; the row polls and flips green when you finish. Codex uses device-code auth (`codex login --device-auth`) so the flow works even when the server is remote.
     - **Model catalog** — every model with a show/hide toggle (hidden models disappear from all pickers). Claude's catalog is fully editable (add/edit/delete, restore defaults); Codex's is read-only because the Codex CLI owns it.
-    - **New Session Defaults** — that provider's default model, default effort (its own vocabulary), and default account/token profile where applicable.
+    - **New Session Defaults** — that provider's default model, default effort (its own vocabulary), default permissions (its own modes — e.g. Codex Full access), and default account/token profile where applicable.
     - **Auto-journal model** — which model writes the [Shadow Git](shadow-git.md) summaries for sessions on this provider.
 
 ## Related

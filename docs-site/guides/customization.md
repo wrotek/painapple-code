@@ -47,7 +47,7 @@ Full walkthrough: [AI providers → Settings → Providers](providers.md#setting
 ### System
 
 - **Sessions** — maximum concurrent tabs (1–20), how many sessions the welcome screen and search load, auto-retry count for transient API errors (500/529), and "Stop on questions" — interrupt Claude when it asks a multiple-choice question instead of letting it auto-answer and continue.
-- **Permissions** — the default [permission mode](permissions-and-thinking.md) for new sessions.
+- **Permissions** — the default [permission mode](permissions-and-thinking.md) for new sessions on the default provider (each provider's own default is under Settings → Providers).
 - **File downloads** — what clicking a file download does: Auto, always Download, or Copy to clipboard.
 - **Additional directories (all projects)** — like the Project tab's extra dirs, but global.
 - **Shadow Git defaults** — journal on/off and rich commits for projects that haven't set their own.

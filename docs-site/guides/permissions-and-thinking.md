@@ -1,6 +1,6 @@
 # Permission modes & thinking
 
-Two controls next to the message input decide how much rope Claude gets: the **permission mode** button (what it may do without asking) and the **effort** gauge (how hard it thinks). Both are per-session with a global default.
+Two controls next to the message input decide how much rope Claude gets: the **permission mode** button (what it may do without asking) and the **effort** gauge (how hard it thinks). Both are per-session with a default for new sessions (the permission default is kept separately for each AI provider).
 
 ## Permission modes
 
@@ -38,7 +38,7 @@ The default mode is **Ask** — reads run freely, but every edit and command wai
 
 ### Per-session, with a default
 
-The one thing the app really does own here is *when* you get to choose. The CLI takes its mode at startup; here it's a per-session setting, saved with the session and restored when you reopen it. On the default SDK provider a mode switch applies **immediately, even mid-turn** — the running provider changes gear in place, so you can flip to Accept Edits while approval cards are stacking up and the rest of the turn follows the new mode (the system log confirms "applied to the running provider"). Whenever the live switch isn't possible, it takes effect on your next message instead, when the server respawns the idle provider process with the new mode. The **Set as default** button in the popup makes the current mode the global default for new sessions (also editable in Settings).
+The one thing the app really does own here is *when* you get to choose. The CLI takes its mode at startup; here it's a per-session setting, saved with the session and restored when you reopen it. On the default SDK provider a mode switch applies **immediately, even mid-turn** — the running provider changes gear in place, so you can flip to Accept Edits while approval cards are stacking up and the rest of the turn follows the new mode (the system log confirms "applied to the running provider"). Whenever the live switch isn't possible, it takes effect on your next message instead, when the server respawns the idle provider process with the new mode. The **Set as default** button in the popup makes the current mode the default for new sessions **on that tab's provider** — Claude and Codex each keep their own, so Codex can default to Full access while Claude stays on Ask. Both are also editable in Settings → Providers.
 
 ### Plan mode and plan approval
 
