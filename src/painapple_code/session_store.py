@@ -222,19 +222,6 @@ class SessionStore:
         return store is not None
 
     @classmethod
-    def get_uploads_path(cls, session_id: str) -> Optional[Path]:
-        """Get or create the uploads directory for a session.
-
-        Returns None if the session doesn't exist in any project store.
-        """
-        store, _ = cls._find_session(session_id)
-        if store:
-            uploads_dir = store._uploads_dir(session_id)
-            uploads_dir.mkdir(parents=True, exist_ok=True)
-            return uploads_dir
-        return None
-
-    @classmethod
     def load_meta(cls, session_id: str) -> Optional[dict]:
         """Load session metadata only (fast, for listings)."""
         store, meta = cls._find_session(session_id)

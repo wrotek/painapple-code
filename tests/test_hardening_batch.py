@@ -20,13 +20,11 @@ from painapple_code.routes.dependencies import get_session_store
 # ---------------------------------------------------------------------------
 
 class _FakeStore:
-    """Minimal stand-in exposing just the _uploads_dir hook the route uses."""
+    """Minimal stand-in: uploads_store derives the project uploads dir as
+    ``base_dir.parent / "uploads"``, so base_dir is its sibling sessions/."""
 
     def __init__(self, uploads_dir):
-        self._d = uploads_dir
-
-    def _uploads_dir(self, session_id):  # noqa: ARG002 - signature match
-        return self._d
+        self.base_dir = uploads_dir.parent / "sessions"
 
 
 @pytest.fixture

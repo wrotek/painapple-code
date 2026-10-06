@@ -12,6 +12,7 @@ Public surface:
 """
 
 import base64
+import hashlib
 import json
 import logging
 import time
@@ -368,16 +369,26 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
     image_files = []
     if images:
         try:
-            uploads_dir = SessionStore.get_uploads_path(store_id)
+            # Project-level uploads dir (uploads_store). An image that came
+            # through /api/upload-image is already stored there with its hash
+            # recorded — reuse that file instead of writing a duplicate.
+            from painapple_code import uploads_store
+            store, _ = SessionStore._find_session(store_id)
             for i, img in enumerate(images):
                 source = img.get("source", {})
                 if source.get("type") == "base64" and source.get("data"):
                     media_type = source.get("media_type", "image/jpeg")
                     ext = "jpg" if "jpeg" in media_type else media_type.split("/")[-1]
-                    filename = f"img_{int(time.time()*1000)}_{uuid.uuid4().hex[:6]}.{ext}"
                     img_data = base64.b64decode(source["data"])
-                    (uploads_dir / filename).write_bytes(img_data)
-                    image_files.append(filename)
+                    digest = hashlib.sha256(img_data).hexdigest()
+                    existing = uploads_store.find_by_hash(store, store_id, digest)
+                    if existing:
+                        image_files.append(existing)
+                        continue
+                    filename = f"img_{int(time.time()*1000)}_{uuid.uuid4().hex[:6]}.{ext}"
+                    path = uploads_store.write_bytes(
+                        store, store_id, filename, img_data, record_hash=True)
+                    image_files.append(path.name)
         except Exception as e:
             logger.warning(f"Failed to save images for session {store_id}: {e}")
 

@@ -1,5 +1,5 @@
 /**
- * Server-side system controls — API auto-retry max, SIGINT-on-ask. Each is
+ * Server-side system controls — API auto-retry max, max upload size, SIGINT-on-ask. Each is
  * its own GET-on-load, save-on-change pair against `/api/app/*`.
  *
  * Grouped here because the patterns are nearly identical (small `setupX`
@@ -8,6 +8,8 @@
  * of config-widget. (Provider CLI paths, per-provider session defaults, and
  * the auto-journal model live in the provider panel — config/models-tab.js.)
  */
+
+import S from '../../strings.js';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // API Retry Controls
@@ -44,6 +46,55 @@ export function setupApiRetryControls(container) {
             }
         } else {
             e.target.value = '3';
+        }
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Max Upload Size
+// ═══════════════════════════════════════════════════════════════════════════
+
+export function setupUploadLimitControls(container) {
+    const input = container.querySelector('#upload-max-mb-input');
+    const desc = container.querySelector('#upload-max-mb-desc');
+    if (!input) return;
+
+    let bounds = { min: 1, max: 4096, default: 128 };
+    const apply = (data) => {
+        bounds = { min: data.min, max: data.max, default: data.default };
+        input.min = data.min;
+        input.max = data.max;
+        input.value = data.upload_max_mb;
+        if (desc) {
+            desc.textContent = S.settings.system_labels.upload_max_mb_desc
+                .replace('{min}', data.min)
+                .replace('{max}', data.max)
+                .replace('{default}', data.default);
+        }
+        // Keep the chat input's pre-upload check in step without a reload.
+        window.app?.uploadManager?.setUploadLimitMb(data.upload_max_mb);
+    };
+
+    fetch('/api/app/upload-max-mb')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) apply(data); })
+        .catch(() => {});
+
+    input.addEventListener('change', async (e) => {
+        const value = parseInt(e.target.value, 10);
+        if (!(value >= bounds.min && value <= bounds.max)) {
+            e.target.value = String(bounds.default);
+            return;
+        }
+        try {
+            const resp = await fetch('/api/app/upload-max-mb', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ upload_max_mb: value }),
+            });
+            if (resp.ok) apply(await resp.json());
+        } catch (err) {
+            console.error('Failed to save upload_max_mb:', err);
         }
     });
 }

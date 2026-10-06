@@ -15,7 +15,7 @@
 
 import S from '../strings.js';
 import { CONFIG } from '../config.js';
-import { escapeHtml, formatSize, highlightThinkingKeywords, formatTimePrecise } from '../utils.js';
+import { escapeHtml, formatSize, highlightThinkingKeywords, formatTimePrecise, resolveStoreId } from '../utils.js';
 import { WidgetManager, WidgetBus, ICONS } from '../widget-system/index.js';
 import { isThinkingKeywordsHighlightingEnabled } from './config-widget.js';
 import { renderJsonTree } from '../preview/json-tree.js';
@@ -126,22 +126,6 @@ function destroyState(sessionId) {
     states.delete(sessionId);
 }
 
-// Resolve a session identifier to its server-side storeId. ctx.sessionId may
-// be the client `sess_xxx` ID (assigned at Session construction) for a fresh
-// session that hasn't yet received a server-assigned storeId — but the logs
-// API endpoints key on storeId. Returns null if the session has no storeId
-// yet (fresh, no message sent), meaning there are no server-side logs.
-function resolveStoreId(maybeId) {
-    if (!maybeId) return null;
-    const sessions = window.app?.sessionManager?.sessions || [];
-    const session = sessions.find(s => s.id === maybeId || s.storeId === maybeId);
-    if (session) return session.storeId || null;
-    // Unknown to the session manager — could be a historical session ID
-    // opened directly. Client IDs are sess_-prefixed; anything else is treated
-    // as already a storeId.
-    if (maybeId.startsWith('sess_')) return null;
-    return maybeId;
-}
 
 // ─────────────────────────────────────────────────────────────────────
 // Widget Registration

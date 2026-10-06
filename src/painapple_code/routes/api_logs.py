@@ -299,8 +299,13 @@ IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp'}
 @router.get("/api/sessions/{session_id}/uploads")
 async def list_session_uploads(session_id: str, scope: str = "session", store: SessionStore = Depends(get_session_store)):
     """List uploaded files. scope='session' (default) lists this session only;
-    scope='project' lists uploads across every session in the same project."""
-    def _entry(path, sid: str) -> dict:
+    scope='project' lists every upload in the session's project.
+
+    Uploads are stored per PROJECT (``projects/{hash}/uploads/``, see
+    uploads_store.py); the session filter comes from the uploads index."""
+    from painapple_code import uploads_store
+
+    def _entry(path, sid) -> dict:
         stat = path.stat()
         return {
             "name": path.name,
@@ -314,42 +319,33 @@ async def list_session_uploads(session_id: str, scope: str = "session", store: S
             "is_image": path.suffix.lower() in IMAGE_EXTENSIONS,
         }
 
-    if scope == "project":
-        files = []
-        for sess_dir in store.base_dir.iterdir():
-            if not sess_dir.is_dir():
-                continue
-            uploads_dir = sess_dir / "uploads"
-            if not uploads_dir.exists():
-                continue
-            for f in uploads_dir.iterdir():
-                if f.is_file():
-                    files.append(_entry(f, sess_dir.name))
-        files.sort(key=lambda x: x["modified"], reverse=True)
-        return {"files": files, "count": len(files), "scope": "project"}
-
-    uploads_dir = store._uploads_dir(session_id)
-    if not uploads_dir.exists():
-        return {"files": [], "count": 0, "scope": "session"}
-
-    files = [_entry(f, session_id) for f in sorted(uploads_dir.iterdir()) if f.is_file()]
-    return {"files": files, "count": len(files), "scope": "session"}
+    scope = "project" if scope == "project" else "session"
+    rows = await asyncio.to_thread(
+        uploads_store.list_uploads, store, None if scope == "project" else session_id)
+    files = [_entry(p, sid) for p, sid in rows]
+    files.sort(key=lambda x: x["modified"], reverse=True)
+    return {
+        "files": files,
+        "count": len(files),
+        "scope": scope,
+        "dir": str(uploads_store.project_uploads_dir(store, create=False)),
+    }
 
 
 @router.get("/api/sessions/{session_id}/uploads/{filename}")
 async def get_session_upload(session_id: str, filename: str, base64_encode: bool = False, store: SessionStore = Depends(get_session_store)):
-    """Serve an uploaded file (image/file) from a session's uploads directory.
+    """Serve an uploaded file (image/file). Looks in the session's legacy
+    uploads dir first, then the project uploads dir (uploads_store).
     With ?base64_encode=true, returns JSON with base64-encoded data (for image restore)."""
-    uploads_dir = store._uploads_dir(session_id)
-    file_path = (uploads_dir / filename).resolve()
+    from painapple_code import uploads_store
 
-    # Path traversal protection. is_relative_to, not startswith: a string prefix
-    # test would also accept a sibling directory whose name merely starts with
-    # the same characters (".../uploads" is a prefix of ".../uploads_old").
-    if not file_path.is_relative_to(uploads_dir.resolve()):
-        raise HTTPException(status_code=403, detail="Access denied")
-
-    if not file_path.exists():
+    # Path traversal protection lives in resolve_upload (is_relative_to per
+    # candidate dir, never a string-prefix test); a name that escapes maps
+    # to 403 so probing can't be mistaken for a plain miss.
+    file_path = uploads_store.resolve_upload(store, session_id, filename)
+    if file_path is None:
+        if uploads_store.is_traversal(store, filename):
+            raise HTTPException(status_code=403, detail="Access denied")
         raise HTTPException(status_code=404, detail="File not found")
 
     if not base64_encode:

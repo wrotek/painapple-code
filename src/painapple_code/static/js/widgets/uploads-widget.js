@@ -1,5 +1,7 @@
 /**
  * UploadsWidget - Browse images and files uploaded to the current session
+ * (or, with "Only this session" off, to the whole project — uploads are
+ * stored per project, in projects/{hash}/uploads/).
  *
  * Shows a grid of image thumbnails and a list of non-image files.
  * Clicking an image opens the image preview modal; clicking a file opens file preview.
@@ -14,7 +16,7 @@
 import { WidgetManager, WidgetBus, ICONS } from '../widget-system/index.js';
 import { ImagePreviewWidget } from './image-preview-widget.js';
 import { CONFIG } from '../config.js';
-import { formatSize, escapeHtml } from '../utils.js';
+import { formatSize, escapeHtml, resolveStoreId } from '../utils.js';
 import { ContextMenu, copyToClipboard, copyImageToClipboard, showToast, lastInputWasTouch } from '../context-menu.js';
 import S from '../strings.js';
 
@@ -25,7 +27,11 @@ const contextMenu = new ContextMenu();
 // Per-instance state (keyed by sessionId to avoid singleton issues)
 // ============================================================================
 
-const instances = new Map(); // sessionId -> { files, loading, error, container, ctx, onlyThisSession }
+// Keys are the widget's ctx.sessionId, which is the CLIENT tab id
+// (`sess_…`) when the widget opened before the session connected. Every
+// server call goes through resolveStoreId() — passing the key straight
+// through was the "Failed to load uploads: 404".
+const instances = new Map(); // sessionId -> { files, dir, noSession, loading, error, container, ctx, onlyThisSession }
 
 const PREF_KEY = 'uploads-widget:only-this-session';
 
@@ -46,6 +52,8 @@ function getState(sessionId) {
     if (!instances.has(sessionId)) {
         instances.set(sessionId, {
             files: [],
+            dir: null,
+            noSession: false,
             loading: false,
             error: null,
             container: null,
@@ -63,13 +71,14 @@ let activeSessionId = null;
 // Data Fetching
 // ============================================================================
 
-async function loadUploads(sessionId, onlyThisSession) {
-    if (!sessionId) return [];
+async function loadUploads(sessionKey, onlyThisSession) {
+    const storeId = resolveStoreId(sessionKey);
+    if (!storeId) return { files: [], dir: null, noSession: true };
     const scope = onlyThisSession ? 'session' : 'project';
-    const resp = await fetch(`${CONFIG.API_BASE}/api/sessions/${sessionId}/uploads?scope=${scope}`);
+    const resp = await fetch(`${CONFIG.API_BASE}/api/sessions/${encodeURIComponent(storeId)}/uploads?scope=${scope}`);
     if (!resp.ok) throw new Error(`Failed to load uploads: ${resp.status}`);
     const data = await resp.json();
-    return data.files || [];
+    return { files: data.files || [], dir: data.dir || null, noSession: false };
 }
 
 // ============================================================================
@@ -77,7 +86,8 @@ async function loadUploads(sessionId, onlyThisSession) {
 // ============================================================================
 
 function getUploadUrl(sessionId, filename) {
-    return `${CONFIG.API_BASE}/api/sessions/${sessionId}/uploads/${encodeURIComponent(filename)}`;
+    const sid = resolveStoreId(sessionId) || sessionId;
+    return `${CONFIG.API_BASE}/api/sessions/${encodeURIComponent(sid)}/uploads/${encodeURIComponent(filename)}`;
 }
 
 // Paperclip — "attach this upload to the message input"
@@ -116,14 +126,28 @@ async function attachUpload(widgetSessionId, name, ownerId) {
     }
 }
 
-function filterBarHtml(onlyThisSession) {
-    const checked = onlyThisSession ? 'checked' : '';
+/** "…/projects/<hash>/uploads" — the tail is what identifies the folder;
+ *  the full path is what the click copies. */
+function shortDir(dir) {
+    const parts = dir.split(/[\\/]/).filter(Boolean);
+    return parts.length > 3 ? '…/' + parts.slice(-3).join('/') : dir;
+}
+
+function filterBarHtml(st) {
+    const checked = st.onlyThisSession ? 'checked' : '';
+    const dir = st.dir
+        ? `<button class="uploads-dir" data-action="copy-dir" data-dir="${escapeHtml(st.dir)}" data-tooltip="${escapeHtml(S.uploads.dir_tooltip)}">
+               <span class="uploads-dir-label">${escapeHtml(S.uploads.dir_label)}</span>
+               <span class="uploads-dir-path">${escapeHtml(shortDir(st.dir))}</span>
+           </button>`
+        : '';
     return `
         <div class="uploads-filter-bar">
             <label class="uploads-filter-checkbox">
                 <input type="checkbox" data-action="toggle-scope" ${checked}>
                 <span>${S.uploads.only_this_session}</span>
             </label>
+            ${dir}
         </div>
     `;
 }
@@ -132,7 +156,7 @@ function renderContent(sessionId) {
     const st = instances.get(sessionId);
     if (!st || !st.container) return;
 
-    const bar = filterBarHtml(st.onlyThisSession);
+    const bar = filterBarHtml(st);
 
     if (st.loading) {
         st.container.innerHTML = bar + '<div class="uploads-loading">Loading...</div>';
@@ -145,9 +169,9 @@ function renderContent(sessionId) {
     }
 
     if (st.files.length === 0) {
-        const hint = st.onlyThisSession
-            ? S.uploads.empty_session
-            : S.uploads.empty_project;
+        const hint = st.noSession
+            ? S.uploads.no_session_yet
+            : st.onlyThisSession ? S.uploads.empty_session : S.uploads.empty_project;
         st.container.innerHTML = bar + `
             <div class="uploads-empty">
                 <div class="uploads-empty-icon">${ICONS.image}</div>
@@ -217,6 +241,12 @@ function renderContent(sessionId) {
 
 function handleClick(e) {
     const sessionId = e.currentTarget._uploadsSessionId;
+
+    const dirBtn = e.target.closest('[data-action="copy-dir"]');
+    if (dirBtn) {
+        copyToClipboard(dirBtn.dataset.dir).then(ok => { if (ok) showToast(S.uploads.dir_copied); });
+        return;
+    }
 
     // Attach button wins over the row/thumb it sits inside
     const attachBtn = e.target.closest('[data-action="attach"]');
@@ -359,7 +389,7 @@ async function refreshSession(sessionId) {
     st.error = null;
     renderContent(sessionId);
     try {
-        st.files = await loadUploads(sessionId, st.onlyThisSession);
+        Object.assign(st, await loadUploads(sessionId, st.onlyThisSession));
     } catch (e) {
         st.error = e.message;
     }
@@ -385,9 +415,14 @@ function attachBusListener() {
     busListenerAttached = true;
 
     WidgetBus.on('uploads:changed', ({ sessionId }) => {
-        // Only refresh if the widget instance exists for this session
-        if (sessionId && instances.has(sessionId)) {
-            refreshSession(sessionId);
+        // The event carries a storeId; instance keys may be client tab ids
+        // (widget opened pre-connect), so compare resolved ids. Project-scope
+        // instances refresh for any upload — they list the whole project.
+        if (!sessionId) return;
+        for (const [key, st] of instances) {
+            if (key === sessionId || resolveStoreId(key) === sessionId || !st.onlyThisSession) {
+                refreshSession(key);
+            }
         }
     });
 }

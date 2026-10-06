@@ -137,6 +137,13 @@ async def lifespan(app: FastAPI):
     if agents:
         agents.start_cleanup_task()
         logger.info("Painapple Code initialized")
+        # One-time-ish sweep: hardlink legacy per-session uploads into each
+        # project's uploads/ dir (idempotent; see uploads_store.py). Off the
+        # loop and fire-and-forget — the listing route migrates its own
+        # project on demand, so nothing waits on this.
+        from painapple_code import uploads_store
+        app.state.uploads_migration = asyncio.create_task(
+            asyncio.to_thread(uploads_store.migrate_all_projects))
     # Deliberately a hint, not an auto-build: shelling out to npm on the boot
     # path would put a network call (and a new failure mode) in front of
     # serving, for what is only an optimisation. Gated on the build script

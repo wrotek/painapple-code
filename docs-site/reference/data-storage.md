@@ -30,8 +30,9 @@ Override with `PAINAPPLE_CODE_HOME`. The Docker image sets it to `/data` (a name
         │       ├── messages.jsonl # Parsed conversation + cost (append-only)
         │       ├── raw.jsonl      # Raw Claude I/O (debugging/audit)
         │       ├── tools/         # Large tool outputs (Read_xxx.txt, Bash_xxx.txt, …)
-        │       ├── stash.json     # Comments-stash items
-        │       └── uploads/       # Uploaded images/files
+        │       └── stash.json     # Comments-stash items
+        ├── uploads/         # Every image/file uploaded in this project
+        │   └── .index.json  # Which session uploaded which file
         └── shadow-git/      # Per-project shadow git repository (auto-journal)
 ```
 
@@ -39,6 +40,8 @@ Notes:
 
 - **One project per path.** The `{hash}` is derived from the absolute project path, so two clones of the same repo at different paths are separate projects.
 - **UI-state files are per-tier.** With `--state-suffix dev`, the top-level state files become `tab-state-dev.json`, `presets-dev/`, and so on; project and session history stays shared. See the [Server CLI reference](server-cli.md).
+- **Uploads are per project**, not per session: one folder holds everything uploaded in that project (the Uploads widget shows its path; click to copy). Same-named uploads get a `-2`, `-3`… suffix rather than overwriting each other. The widget's *Only this session* filter comes from `.index.json`.
+- **Older installs kept uploads under `sessions/{id}/uploads/`.** On startup those files are hard-linked into the project folder, so nothing moves and no extra disk space is used. The originals stay in place because old conversations reference them by path. Deleting a file from the project folder therefore frees its space only once the copy under the session dir is deleted too.
 - **Uploads before a session exists** land in `uploads/tmp/` at the top level.
 
 ## What the shadow journal captures

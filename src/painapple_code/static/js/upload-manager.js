@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from './config.js';
-import { genId, escapeHtml, $ } from './utils.js';
+import { genId, escapeHtml, formatSize, $ } from './utils.js';
 import { ImagePreviewWidget, openImageAnnotator, isImageAnnotatorOpen, isAnnotateOnPasteEnabled } from './widgets/index.js';
 import { ContextMenu, copyToClipboard, showToast } from './context-menu.js';
 import { WidgetBus } from './widget-system/event-bus.js';
@@ -72,6 +72,12 @@ export class UploadManager {
         // upload that will never belong to it.
         this._activeBatchSessions = [];
 
+        // Server-side upload cap (bytes), mirrored here so an oversized file is
+        // refused before it's sent rather than after a long upload. Null until
+        // the first fetch lands — the server still enforces it either way.
+        this.maxUploadBytes = null;
+        this.refreshUploadLimit();
+
         // Context menu for file chips
         this._contextMenu = new ContextMenu();
         this._longPressTimer = null;
@@ -88,6 +94,67 @@ export class UploadManager {
      */
     showImagePreview(src) {
         ImagePreviewWidget.show(src);
+    }
+
+    /** Re-read the upload cap from the server (Settings → System). */
+    async refreshUploadLimit() {
+        try {
+            const r = await fetch(`${this.apiBase}/api/app/upload-max-mb`);
+            if (r.ok) this.setUploadLimitMb((await r.json()).upload_max_mb);
+        } catch { /* server still enforces the cap */ }
+    }
+
+    setUploadLimitMb(mb) {
+        const n = Number(mb);
+        this.maxUploadBytes = n > 0 ? n * 1024 * 1024 : null;
+    }
+
+    /**
+     * Report an upload problem where the user will actually see it. onError
+     * alone only reached the session's debug log, so a rejected upload just
+     * made its chip vanish with no visible reason.
+     */
+    _reportError(message) {
+        showToast(message, { duration: 6000, className: 'toast-error' });
+        this.onError(message);
+    }
+
+    /**
+     * Drop (and report) files over the cap before uploading them.
+     * @returns {File[]} the files that fit
+     */
+    _withinLimit(files) {
+        const limit = this.maxUploadBytes;
+        if (!limit) return files;
+        const ok = [];
+        for (const f of files) {
+            if (f.size > limit) {
+                this._reportError(S.uploads.too_large
+                    .replace('{name}', f.name || 'File')
+                    .replace('{size}', formatSize(f.size))
+                    .replace('{limit}', Math.round(limit / 1048576)));
+            } else {
+                ok.push(f);
+            }
+        }
+        return ok;
+    }
+
+    /**
+     * Human-readable reason for a failed upload response. The body is JSON
+     * `{detail}` from our server, but a proxy in front (413 from nginx/Caddy,
+     * a 502 page) answers with HTML — parsing that as JSON used to throw and
+     * surface as a cryptic "Unexpected token <".
+     */
+    async _failureDetail(response) {
+        let detail = null;
+        try {
+            const body = await response.json();
+            detail = typeof body?.detail === 'string' ? body.detail : null;
+        } catch { /* non-JSON body */ }
+        if (detail) return detail;
+        if (response.status === 413) return S.uploads.proxy_too_large;
+        return `HTTP ${response.status}${response.statusText ? ' ' + response.statusText : ''}`;
     }
 
     /**
@@ -200,7 +267,7 @@ export class UploadManager {
      * Handle image uploads
      */
     async handleImages(files) {
-        const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+        const imageFiles = this._withinLimit(Array.from(files).filter(f => f.type.startsWith('image/')));
         if (!imageFiles.length) return;
 
         const batch = this._beginBatch();
@@ -239,8 +306,7 @@ export class UploadManager {
                 this.uploadingImages = this.uploadingImages.filter(img => img.id !== uploadId);
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    this.onError(`Upload failed: ${error.detail}`);
+                    this._reportError(S.uploads.upload_failed.replace('{detail}', await this._failureDetail(response)));
                     this._renderImagePreviews();
                     this._notifyChange();
                     continue;
@@ -271,7 +337,7 @@ export class UploadManager {
                 this._notifyChange();
             } catch (error) {
                 this.uploadingImages = this.uploadingImages.filter(img => img.id !== uploadId);
-                this.onError(`Upload error: ${error.message}`);
+                this._reportError(S.uploads.upload_failed.replace('{detail}', error.message));
                 this._renderImagePreviews();
                 this._notifyChange();
             }
@@ -371,8 +437,10 @@ export class UploadManager {
             return true;
         }
 
-        const ownerId = entry.session_id;
         const currentId = this.getSessionId();
+        // Uploads are stored per project, so a file the index can't attribute
+        // is still reachable through the current session's URL.
+        const ownerId = entry.session_id || currentId;
         if (!ownerId) return false;
 
         // Already pending from this same session — don't stack a duplicate
@@ -473,6 +541,7 @@ export class UploadManager {
      * Handle non-image file uploads
      */
     async _uploadFiles(files) {
+        files = this._withinLimit(files);
         if (!files.length) return;
 
         const batch = this._beginBatch();
@@ -505,8 +574,7 @@ export class UploadManager {
                 this.uploadingFiles = this.uploadingFiles.filter(f => f.id !== uploadId);
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    this.onError(`File upload failed: ${error.detail}`);
+                    this._reportError(S.uploads.upload_failed.replace('{detail}', await this._failureDetail(response)));
                     this._renderFilePreviews();
                     this._notifyChange();
                     continue;
@@ -548,7 +616,7 @@ export class UploadManager {
                 }
             } catch (error) {
                 this.uploadingFiles = this.uploadingFiles.filter(f => f.id !== uploadId);
-                this.onError(`File upload error: ${error.message}`);
+                this._reportError(S.uploads.upload_failed.replace('{detail}', error.message));
                 this._renderFilePreviews();
                 this._notifyChange();
             }

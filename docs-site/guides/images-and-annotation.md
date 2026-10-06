@@ -20,7 +20,7 @@ Every image upload is optimized on the server before it reaches Claude:
 
 - Resized so the longest edge is at most **1568 px** (Claude's recommended maximum) — no point paying tokens for retina pixels the model downsamples anyway.
 - Recompressed: images with transparency stay PNG, everything else becomes quality-85 JPEG.
-- Upload limits: 20 MB per image, 10 MB per other file.
+- Upload limit: **128 MB** per file or image by default. Change it under **Settings → System → Max Upload Size** (1–4096 MB); it applies to the next upload, no restart. A file over the limit is refused before it uploads, with an error toast saying why.
 
 ### Attachments survive a refresh
 

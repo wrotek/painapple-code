@@ -162,6 +162,11 @@
     transform: translateX(-50%) translateY(0);
 }
 
+/* Error toasts (e.g. a rejected upload) — same toast, red edge. */
+.context-menu-toast.toast-error {
+    border-left: 3px solid var(--error);
+}
+
 .context-menu-toast.toast-top {
     bottom: auto;
     top: 60px;

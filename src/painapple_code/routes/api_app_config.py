@@ -551,6 +551,50 @@ async def set_api_retry_max(request: Request):
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Max upload size
+# ═══════════════════════════════════════════════════════════════════
+
+def _upload_max_payload() -> dict:
+    from painapple_code import uploads_store as us
+    return {
+        "upload_max_mb": us.get_upload_max_mb(),
+        "default": us.DEFAULT_UPLOAD_MAX_MB,
+        "min": us.MIN_UPLOAD_MAX_MB,
+        "max": us.MAX_UPLOAD_MAX_MB,
+    }
+
+
+@router.get("/api/app/upload-max-mb")
+async def get_upload_max_mb():
+    """Per-upload size cap (MiB) for /api/upload-file and /api/upload-image."""
+    return _upload_max_payload()
+
+
+@router.put("/api/app/upload-max-mb")
+async def set_upload_max_mb(request: Request):
+    """Set the per-upload size cap. Applies to the next upload, no restart."""
+    from painapple_code import uploads_store as us
+    body = await request.json()
+    try:
+        value = int(body.get("upload_max_mb"))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="upload_max_mb must be an integer")
+    if not us.MIN_UPLOAD_MAX_MB <= value <= us.MAX_UPLOAD_MAX_MB:
+        raise HTTPException(
+            status_code=400,
+            detail=f"upload_max_mb must be between {us.MIN_UPLOAD_MAX_MB} and {us.MAX_UPLOAD_MAX_MB}",
+        )
+    config = paths.load_global_config()
+    if value == us.DEFAULT_UPLOAD_MAX_MB:
+        config.pop(us.UPLOAD_MAX_MB_KEY, None)
+    else:
+        config[us.UPLOAD_MAX_MB_KEY] = value
+    paths.save_global_config(config)
+    logger.info(f"Upload max size updated to: {value} MB")
+    return _upload_max_payload()
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Stop Claude on AskUserQuestion (SIGINT)
 # ═══════════════════════════════════════════════════════════════════
 

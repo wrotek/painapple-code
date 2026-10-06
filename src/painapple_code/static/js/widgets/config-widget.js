@@ -59,6 +59,7 @@ import {
 } from './config/dir-autocomplete.js';
 import {
     setupApiRetryControls,
+    setupUploadLimitControls,
     setupSigintOnAskControls,
 } from './config/system-controls.js';
 import { setupModelsTab } from './config/models-tab.js';
@@ -576,6 +577,17 @@ function renderConfigPanel(container, context) {
                         <div class="system-setting-control">
                             <input type="number" id="api-retry-max-input" min="0" max="10"
                                    value="3"
+                                   class="system-number-input">
+                        </div>
+                    </div>
+                    <div class="system-setting">
+                        <label class="system-setting-label">
+                            <span class="system-setting-name">${S.settings.system_labels.upload_max_mb}</span>
+                            <span class="system-setting-desc" id="upload-max-mb-desc"></span>
+                        </label>
+                        <div class="system-setting-control">
+                            <input type="number" id="upload-max-mb-input" min="1" max="4096" step="1"
+                                   value="128"
                                    class="system-number-input">
                         </div>
                     </div>
@@ -1109,6 +1121,7 @@ function attachConfigEventHandlers(container) {
 
     // API retry max controls
     setupApiRetryControls(container);
+    setupUploadLimitControls(container);
 
     // Stop-on-AskUserQuestion toggle
     setupSigintOnAskControls(container);

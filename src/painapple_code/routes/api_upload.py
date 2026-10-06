@@ -3,7 +3,10 @@ Upload API Routes - Image and file upload endpoints
 
 These endpoints provide:
 - Image upload with automatic resizing for Claude
-- File upload to session uploads directory
+- File upload to the project's uploads directory
+
+Both land in ``projects/{hash}/uploads/`` (see uploads_store.py) and share one
+size cap, configurable in Settings (``upload_max_mb``, default 128 MiB).
 """
 
 import base64
@@ -17,11 +20,12 @@ from pathlib import Path, PurePosixPath
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from PIL import Image
 
+from painapple_code import uploads_store
 from painapple_code.session_store import SessionStore
 from painapple_code.paths import DATA_HOME
 from painapple_code.utils.file_paths import is_reserved_dos_name
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("painapple-code.uploads")
 
 router = APIRouter(tags=["upload"])
 
@@ -33,7 +37,6 @@ IMAGE_TYPES = {
     'image/webp': 'webp',
 }
 
-MAX_IMAGE_SIZE = 20 * 1024 * 1024  # 20MB upload limit
 MAX_IMAGE_DIMENSION = 1568  # Claude's recommended max
 TARGET_FILE_SIZE = 1 * 1024 * 1024  # Target ~1MB after processing
 
@@ -50,7 +53,31 @@ Image.MAX_IMAGE_PIXELS = 50_000_000
 # already converts exceptions into a 400.
 warnings.simplefilter('error', Image.DecompressionBombWarning)
 
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB limit for file uploads
+# Streamed in chunks so a large upload is never held in memory whole.
+_CHUNK = 1024 * 1024
+
+
+def _too_large(size: int, limit: int, kind: str = "File") -> HTTPException:
+    """413 with a human-readable message the client shows verbatim."""
+    return HTTPException(
+        status_code=413,
+        detail=(f"{kind} too large: {size / 1048576:.1f} MB. "
+                f"Max upload size is {limit // 1048576} MB (Settings → System)."),
+    )
+
+
+def _session_store(session: str | None):
+    """The SessionStore owning ``session``, or None (no session yet)."""
+    if not session:
+        return None
+    store, _ = SessionStore._find_session(session)
+    return store
+
+
+def _tmp_dir() -> Path:
+    d = DATA_HOME / "uploads" / "tmp"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def resize_image_for_claude(image_data: bytes, content_type: str) -> tuple[bytes, str, dict]:
@@ -105,13 +132,10 @@ async def upload_image(file: UploadFile = File(...), session: str = None):
             detail=f"Unsupported image type: {content_type}. Supported: {list(IMAGE_TYPES.keys())}"
         )
 
-    content = await file.read()
-
-    if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Image too large: {len(content)} bytes. Max: {MAX_IMAGE_SIZE} bytes"
-        )
+    limit = uploads_store.get_upload_max_bytes()
+    content = await file.read(limit + 1)
+    if len(content) > limit:
+        raise _too_large(file.size or len(content), limit, "Image")
 
     try:
         processed_data, media_type, stats = resize_image_for_claude(content, content_type)
@@ -125,14 +149,18 @@ async def upload_image(file: UploadFile = File(...), session: str = None):
     ext = 'png' if media_type == 'image/png' else 'jpg'
     stored_name = f"img_{int(time.time())}_{secrets.token_hex(4)}.{ext}"
 
-    if session and SessionStore.exists(session):
-        uploads_dir = SessionStore.get_uploads_path(session)
-    else:
-        uploads_dir = DATA_HOME / "uploads" / "tmp"
-        uploads_dir.mkdir(parents=True, exist_ok=True)
-
+    store = _session_store(session)
     try:
-        (uploads_dir / stored_name).write_bytes(processed_data)
+        if store is not None:
+            # Hash recorded so the chat handler can recognise these exact
+            # bytes when the image comes back inline with the prompt, instead
+            # of storing a second copy (uploads_store.find_by_hash).
+            stored_name = uploads_store.write_bytes(
+                store, session, stored_name, processed_data,
+                original_name=file.filename, record_hash=True,
+            ).name
+        else:
+            (_tmp_dir() / stored_name).write_bytes(processed_data)
     except Exception as e:
         logger.warning(f"Failed to persist uploaded image to disk: {e}")
         # Non-fatal — image still works in-memory, just won't survive refresh
@@ -250,44 +278,59 @@ def sanitize_filename(filename: str) -> str:
 
 @router.post("/api/upload-file")
 async def upload_file(file: UploadFile = File(...), session: str = None):
-    """Upload a file to the session's uploads directory (or temp dir if no session yet)."""
-    content = await file.read()
-
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large: {len(content)} bytes. Max: {MAX_FILE_SIZE} bytes (10MB)"
-        )
-
-    if len(content) == 0:
-        raise HTTPException(status_code=400, detail="Empty file")
+    """Upload a file to the project's uploads directory (or a temp dir if
+    there is no session yet). Streamed to disk; over the cap → 413."""
+    limit = uploads_store.get_upload_max_bytes()
+    # Starlette sets .size once the multipart part is fully received — reject
+    # up front without touching the disk when it's known.
+    if file.size is not None and file.size > limit:
+        raise _too_large(file.size, limit)
 
     try:
         safe_name = sanitize_filename(file.filename)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Use session uploads dir if available, otherwise a shared temp dir
-    if session and SessionStore.exists(session):
-        uploads_dir = SessionStore.get_uploads_path(session)
+    store = _session_store(session)
+    if store is not None:
+        target_path = uploads_store.reserve(store, session, safe_name, file.filename)
     else:
-        uploads_dir = DATA_HOME / "uploads" / "tmp"
-        uploads_dir.mkdir(parents=True, exist_ok=True)
+        target_path = _tmp_dir() / safe_name
 
-    target_path = uploads_dir / safe_name
-
+    size = 0
     try:
-        target_path.write_bytes(content)
+        with open(target_path, "wb") as out:
+            while chunk := await file.read(_CHUNK):
+                size += len(chunk)
+                if size > limit:
+                    raise _too_large(file.size or size, limit)
+                out.write(chunk)
+        if size == 0:
+            raise HTTPException(status_code=400, detail="Empty file")
+    except HTTPException:
+        _discard(store, target_path)
+        raise
     except Exception as e:
+        _discard(store, target_path)
         logger.error(f"Failed to write uploaded file: {e}")
         raise HTTPException(status_code=500, detail="Failed to save file")
 
-    logger.info(f"Uploaded file: {file.filename} -> {target_path} ({len(content)} bytes)")
+    if store is not None:
+        uploads_store.finalize(target_path, size)
+
+    logger.info(f"Uploaded file: {file.filename} -> {target_path} ({size} bytes)")
 
     return {
         "success": True,
         "filename": file.filename,
-        "stored_name": safe_name,
+        "stored_name": target_path.name,
         "path": str(target_path.resolve()),
-        "size": len(content),
+        "size": size,
     }
+
+
+def _discard(store, path: Path) -> None:
+    if store is not None:
+        uploads_store.discard(path)
+    else:
+        path.unlink(missing_ok=True)

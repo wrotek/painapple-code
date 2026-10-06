@@ -15,6 +15,8 @@
 }
 
 .uploads-filter-checkbox {
+    flex-shrink: 0;
+    white-space: nowrap;
     display: inline-flex;
     align-items: center;
     gap: var(--sp-6);
@@ -22,6 +24,43 @@
     color: var(--text-secondary, #aaa);
     cursor: pointer;
     user-select: none;
+}
+
+/* Project uploads folder — click copies the path for browsing on disk. */
+.uploads-dir {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-6);
+    min-width: 0;
+    margin-left: auto;
+    padding: var(--sp-2) var(--sp-6);
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted, #777);
+    font-size: var(--font-size-xs, 11px);
+    cursor: pointer;
+}
+
+.uploads-dir:hover {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+    color: var(--text-secondary, #aaa);
+}
+
+.uploads-dir-label {
+    flex-shrink: 0;
+}
+
+.uploads-dir-path {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono, monospace);
+}
+
+.uploads-filter-bar {
+    gap: var(--sp-8);
 }
 
 .uploads-filter-checkbox input[type="checkbox"] {

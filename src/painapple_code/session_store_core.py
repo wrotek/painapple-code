@@ -71,10 +71,6 @@ class SessionStoreV2:
         """Get the tools/ directory path for a session."""
         return self._session_dir(session_id) / "tools"
 
-    def _uploads_dir(self, session_id: str) -> Path:
-        """Get the uploads/ directory path for a session."""
-        return self._session_dir(session_id) / "uploads"
-
     def _stash_path(self, session_id: str) -> Path:
         """Get the stash.json path for a session."""
         return self._session_dir(session_id) / "stash.json"
