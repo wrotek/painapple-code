@@ -2,6 +2,19 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.7 — 2026-10-07
+
+### Changed
+
+- Uploads are now stored per project (`projects/{hash}/uploads/`) instead of per session, so one folder holds everything ever uploaded to a project. The Uploads widget shows that folder (click to copy its path), and "Only this session" still filters by the session that uploaded each file. Files from existing sessions are linked into the project folder automatically; nothing is moved or deleted. Uploading a file whose name is already taken saves it as `name-2.ext` instead of overwriting the earlier one.
+- The upload size limit is now 128 MB for both files and images (it was 10 MB for files and 20 MB for images). Change it under Settings → System → Max Upload Size.
+
+### Fixed
+
+- An upload that is too large or that fails now shows an error toast. Before, its chip just disappeared and the reason only reached the debug log. Oversized files are refused before they are sent, and errors from a reverse proxy (an HTML 413 or 502 page) read as a plain message instead of "Unexpected token <".
+- An image attached to a prompt is no longer stored twice.
+- The Uploads widget no longer returns 404 when opened on a tab that hasn't connected yet.
+
 ## 1.1.6 — 2026-10-02
 
 ### Fixed
