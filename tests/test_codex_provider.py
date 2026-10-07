@@ -430,3 +430,22 @@ def test_context_compaction_item_maps_to_claude_compaction_frames():
     p.translate_events({"method": "item/started", "params": {"item": item}}, state)
     out = p.translate_events({"method": "item/completed", "params": {"item": item}}, state)
     assert out[0]["compact_metadata"]["trigger"] == "auto"
+
+
+# --- image attachments ------------------------------------------------------
+
+def test_materialize_images_writes_files(monkeypatch, tmp_path):
+    """Regression: a local list named `paths` shadowed the `paths` module, so
+    `paths.DATA_HOME` raised UnboundLocalError on every image send."""
+    import base64
+    from painapple_code import paths as paths_mod
+    monkeypatch.setattr(paths_mod, "DATA_HOME", tmp_path)
+    data = base64.b64encode(b"\x89PNG fake").decode()
+    out = _app_server()._materialize_images([
+        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": data}},
+        {"type": "image", "source": {"type": "url", "url": "http://x"}},  # skipped
+    ])
+    assert len(out) == 1 and out[0].endswith(".jpg")
+    from pathlib import Path
+    assert Path(out[0]).read_bytes() == b"\x89PNG fake"
+    assert Path(out[0]).parent == tmp_path / "tmp" / "codex-images"

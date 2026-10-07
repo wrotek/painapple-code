@@ -211,7 +211,7 @@ class _LaunchMixin:
             out_dir.mkdir(parents=True, exist_ok=True)
         except OSError:
             out_dir = None
-        paths: list[str] = []
+        written: list[str] = []
         for img in images:
             source = img.get("source", {}) if isinstance(img, dict) else {}
             if source.get("type") != "base64" or not source.get("data"):
@@ -231,7 +231,7 @@ class _LaunchMixin:
                     fd.write(data)
                     fd.close()
                     p = fd.name
-                paths.append(str(p))
+                written.append(str(p))
             except (OSError, ValueError):
                 continue
-        return paths
+        return written

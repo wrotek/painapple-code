@@ -627,7 +627,8 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
         if not await agents.start_agent(agent_session):
             await websocket.send_json({
                 "type": "error",
-                "message": agent_session.start_error or "Failed to start Claude Code"
+                "message": agent_session.start_error
+                           or f"Failed to start {agent_session.provider.display_name}"
             })
             return
 
@@ -635,7 +636,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
     if not await agents.send_to_agent(agent_session, agent_msg):
         await websocket.send_json({
             "type": "error",
-            "message": "Failed to send message to Claude"
+            "message": f"Failed to send message to {agent_session.provider.display_name}"
         })
 
 
@@ -737,7 +738,8 @@ async def _handle_tool_answer(websocket, agent_session, store_id, data, agents) 
         if not await agents.start_agent(agent_session):
             await websocket.send_json({
                 "type": "error",
-                "message": agent_session.start_error or "Failed to start Claude Code"
+                "message": agent_session.start_error
+                           or f"Failed to start {agent_session.provider.display_name}"
             })
             return
 
@@ -745,7 +747,7 @@ async def _handle_tool_answer(websocket, agent_session, store_id, data, agents) 
     if not await agents.send_to_agent(agent_session, agent_msg):
         await websocket.send_json({
             "type": "error",
-            "message": "Failed to send answers to Claude"
+            "message": f"Failed to send answers to {agent_session.provider.display_name}"
         })
         return
 
