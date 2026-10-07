@@ -98,6 +98,59 @@
     background: var(--bg-tertiary);
 }
 
+/* Local markdown images (`![alt](/abs/shot.png)`) — thumbnail, click opens
+   the image gallery. Falls back to the alt text as a link if the file 404s. */
+.file-path-link.md-image-link {
+    display: inline-block;
+    max-width: 100%;
+    margin: var(--sp-4) 0;
+    vertical-align: top;
+    cursor: zoom-in;
+}
+
+.file-path-link.md-image-link:hover {
+    background: transparent;
+    text-decoration: none;
+}
+
+.md-image-link .md-local-image {
+    display: block;
+    max-width: min(100%, 480px);
+    max-height: 320px;
+    object-fit: contain;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    background: var(--bg-tertiary);
+    transition: border-color 0.15s;
+}
+
+.md-image-link:hover .md-local-image {
+    border-color: var(--accent);
+}
+
+.md-image-link .md-image-fallback {
+    display: none;
+}
+
+.md-image-link.md-image-broken {
+    display: inline;
+    margin: 0;
+    cursor: pointer;
+}
+
+.md-image-link.md-image-broken .md-local-image {
+    display: none;
+}
+
+.md-image-link.md-image-broken .md-image-fallback {
+    display: inline;
+}
+
+.md-image-link.md-image-broken:hover {
+    text-decoration: underline;
+    background: var(--bg-tertiary);
+}
+
 /* File-path tooltips handled by JS tooltip system (tooltips.js) */
 
 /* File path links in tool headers - keep tool's native filename styling */

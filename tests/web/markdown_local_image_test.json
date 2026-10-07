@@ -1,0 +1,28 @@
+{
+  "name": "Markdown local-path images render as thumbnails and open the gallery",
+  "description": "![alt](/abs/x.png) must render through /api/file-raw as a .md-image-link thumbnail (not a broken <img src=/abs/x.png>), fall back to the alt text when the file is missing, keep http images as plain <img>, and a click must open the image gallery.",
+  "steps": [
+    { "action": "navigate", "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}" },
+    { "action": "delay", "ms": 4500 },
+    {
+      "action": "execute",
+      "script": "(() => { const ok = '/home/claude/dev/painapple-code/src/painapple_code/static/icons/apple-touch-icon.png'; const md = `Shot: ![Salvage tooltip](${ok})\\n\\nMissing: ![Gone shot](/nope/missing-shot.png)\\n\\nRemote: ![remote](https://example.com/x.png)`; const host = document.createElement('div'); host.id = 'md-img-test'; host.className = 'message-content markdown-body'; host.style.cssText = 'position:fixed;top:80px;left:80px;z-index:99999;background:#222;padding:12px;width:560px;'; host.innerHTML = window.app.markdown.render(md); document.body.appendChild(host); const links = [...host.querySelectorAll('a.md-image-link')]; if (links.length !== 2) throw new Error('expected 2 local image links, got ' + links.length + ': ' + host.innerHTML); const img = links[0].querySelector('img.md-local-image'); if (!img || !img.getAttribute('src').startsWith('/api/file-raw?path=')) throw new Error('bad src: ' + (img && img.outerHTML)); if (links[0].dataset.resolved !== ok) throw new Error('data-resolved wrong: ' + links[0].dataset.resolved); if (img.alt !== 'Salvage tooltip') throw new Error('alt wrong'); const remote = [...host.querySelectorAll('img')].find(i => i.alt === 'remote'); if (!remote || remote.closest('.md-image-link')) throw new Error('remote image changed: ' + (remote && remote.outerHTML)); return 'render OK'; })()"
+    },
+    { "action": "delay", "ms": 1500 },
+    {
+      "action": "execute",
+      "script": "(() => { const [good, bad] = document.querySelectorAll('#md-img-test a.md-image-link'); const img = good.querySelector('img'); if (!img.complete || img.naturalWidth === 0) throw new Error('good image did not load'); if (good.classList.contains('md-image-broken')) throw new Error('good image marked broken'); if (img.getBoundingClientRect().height < 20) throw new Error('thumbnail not visible'); if (!bad.classList.contains('md-image-broken')) throw new Error('missing image not marked broken'); const fb = bad.querySelector('.md-image-fallback'); if (getComputedStyle(fb).display === 'none' || fb.textContent !== 'Gone shot') throw new Error('fallback not shown'); return 'load/fallback OK'; })()"
+    },
+    { "action": "screenshot", "filename": "01-rendered-images.png" },
+    {
+      "action": "execute",
+      "script": "(() => { document.querySelector('#md-img-test a.md-image-link img').click(); return 'clicked'; })()"
+    },
+    { "action": "delay", "ms": 1500 },
+    { "action": "screenshot", "filename": "02-gallery.png" },
+    {
+      "action": "execute",
+      "script": "(() => { if (!window.WidgetManager.isOpen('image-preview')) throw new Error('gallery did not open'); const src = document.querySelector('#widget-image-preview .panzoom-img')?.getAttribute('src') || ''; if (!src.includes('apple-touch-icon.png')) throw new Error('gallery shows wrong image: ' + src); return 'gallery OK'; })()"
+    }
+  ]
+}

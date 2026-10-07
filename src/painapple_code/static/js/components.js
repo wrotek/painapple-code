@@ -15,6 +15,7 @@ import {
     isValidStandaloneFile,
     parseLineInfo
 } from './linkify-utils.js';
+import { isAbsolutePath, joinPath, basename } from './path-utils.js';
 
 // Helper to get app instance
 const getApp = () => window.app;
@@ -142,6 +143,7 @@ export class MarkdownRenderer {
 
         // Links open in new tab. Allow only safe protocols (defense-in-depth on
         // top of DOMPurify) — reject javascript:/data:/vbscript: hrefs outright.
+        const defaultImage = renderer.image.bind(renderer);
         renderer.link = (href, title, text) => {
             // `[name](/abs/path/file.md)` — agents (Codex especially) cite
             // files as markdown links. As a web link it navigated the browser
@@ -160,6 +162,24 @@ export class MarkdownRenderer {
             // inject new ones. DOMPurify runs after this and would strip an
             // injected handler, but that's the backstop, not the seatbelt.
             return `<a href="${escapeAttr(safe)}" target="_blank" rel="noopener noreferrer"${title ? ` data-tooltip="${escapeAttr(title)}"` : ''}>${text}</a>`;
+        };
+
+        // `![alt](/abs/shot.png)` — same local-path story as links: marked's
+        // default <img src="/abs/shot.png"> asked the bridge server for that
+        // URL and rendered a broken-image box. Local paths are served through
+        // /api/file-raw as a thumbnail wrapped in a .file-path-link, so a
+        // click goes through the same delegate → openFileLink → image
+        // gallery, and data-resolved puts it in the gallery's prev/next set.
+        // Remote (http/data) images keep marked's default rendering.
+        renderer.image = (href, title, text) => {
+            const local = MarkdownRenderer.parseLocalFileHref(href);
+            if (!local) return defaultImage(href, title, text);
+            const path = MarkdownRenderer.resolveLocalPath(local.path);
+            const src = `/api/file-raw?path=${encodeURIComponent(path)}`;
+            const label = text || basename(path) || path;
+            return `<a href="#" class="file-path-link md-image-link" data-file="${escapeAttr(path)}" data-resolved="${escapeAttr(path)}" data-tooltip="${escapeAttr(title || path)}">`
+                + `<img class="md-local-image" src="${escapeAttr(src)}" alt="${escapeAttr(label)}" loading="lazy">`
+                + `<span class="md-image-fallback">${escapeHtml(label)}</span></a>`;
         };
 
         // Wrap tables in scrollable container. The extra .table-block around the
@@ -209,6 +229,17 @@ export class MarkdownRenderer {
             return escapeHtml(html);
         }
         return DOMPurify.sanitize(html, MarkdownRenderer._PURIFY_CONFIG);
+    }
+
+    /**
+     * Absolute path for a local markdown image. Relative paths resolve
+     * against the active session's cwd (the renderer has no per-message
+     * context); `~/` and absolute paths pass through — the server expands ~.
+     */
+    static resolveLocalPath(path) {
+        if (isAbsolutePath(path) || path.startsWith('~')) return path;
+        const cwd = window.app?.activeSession?.cwd;
+        return cwd ? joinPath(cwd, path.replace(/^\.[\\/]/, '')) : path;
     }
 
     /**
@@ -473,6 +504,16 @@ export class MarkdownRenderer {
     static _installDelegation() {
         if (MarkdownRenderer._delegationInstalled) return;
         MarkdownRenderer._delegationInstalled = true;
+
+        // A local image that fails to load (missing, moved, 403) collapses to
+        // its alt text as a plain file link instead of a broken-image box.
+        // Capture phase: <img> error events don't bubble.
+        document.addEventListener('error', (event) => {
+            const img = event.target;
+            if (img?.classList?.contains('md-local-image')) {
+                img.closest('.md-image-link')?.classList.add('md-image-broken');
+            }
+        }, true);
 
         document.addEventListener('click', (event) => {
             const wrapBtn = event.target.closest?.('.wrap-toggle');
