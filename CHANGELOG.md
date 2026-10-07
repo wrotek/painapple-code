@@ -12,6 +12,7 @@ Notable changes are documented here per release. The format follows [Keep a Chan
 ### Fixed
 
 - An upload that is too large or that fails now shows an error toast. Before, its chip just disappeared and the reason only reached the debug log. Oversized files are refused before they are sent, and errors from a reverse proxy (an HTML 413 or 502 page) read as a plain message instead of "Unexpected token <".
+- Sending a message with an image attached in a Codex session failed every time with an internal error (`UnboundLocalError`). It works again, and start/send failure messages now name the session's provider instead of always saying "Claude".
 - An image attached to a prompt is no longer stored twice.
 - The Uploads widget no longer returns 404 when opened on a tab that hasn't connected yet.
 
