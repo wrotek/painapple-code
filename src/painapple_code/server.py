@@ -1947,6 +1947,47 @@ def credentials_visible(host: str, no_password: bool, show_password: bool) -> bo
     return host in LOOPBACK_HOSTS
 
 
+def agent_env(host: str, port: int, use_tls: bool, cert_path: Optional[Path],
+              auth_config_file: str, data_home: Path) -> dict:
+    """Env vars that tell agent-side helpers WHICH server they belong to.
+
+    Exported into this process's own environment at startup, so every child
+    inherits them: the agent CLIs (claude-sdk driver, codex app-server), the
+    tools those agents run, subagents, and PTY terminal tabs. `shadow-query`
+    and `shadow-git` read them; without them they guessed the root deployment
+    (`http://localhost:8765`, `~/.painapple-code`) and silently queried the
+    wrong server — or a frozen copy of the right project's history — under
+    any other port, bind, TLS mode or host profile.
+
+    The URL always points at loopback when this server listens there:
+    loopback binds and wildcards directly, a TLS bind on a specific LAN
+    address via the plain-HTTP loopback companion `main()` starts. Only a
+    TLS wildcard/loopback bind leaves https on loopback, and then the
+    self-signed cert (whose SAN always carries 127.0.0.1/::1) rides along as
+    PAINAPPLE_CACERT. No credential is exported — the helpers read the token
+    from PAINAPPLE_AUTH_CONFIG on each call, so a revocation applies at once.
+    (Codex's default shell_environment_policy also strips *TOKEN* names.)
+    """
+    wildcard = host in ("0.0.0.0", "::", "")
+    loopback = host in LOOPBACK_HOSTS
+    if wildcard or loopback:
+        addr = "[::1]" if host in ("::", "::1") else "127.0.0.1"
+        scheme = "https" if use_tls else "http"
+    elif use_tls:
+        addr, scheme = "127.0.0.1", "http"      # the loopback companion
+    else:
+        addr = f"[{host}]" if ":" in host else host
+        scheme = "http"
+    env = {
+        "PAINAPPLE_CODE_HOME": str(data_home),
+        "PAINAPPLE_URL": f"{scheme}://{addr}:{port}",
+        "PAINAPPLE_AUTH_CONFIG": str(auth_config_file),
+    }
+    if scheme == "https" and cert_path:
+        env["PAINAPPLE_CACERT"] = str(cert_path)
+    return env
+
+
 def main(argv=None):
     if sys.platform == "win32":  # idempotent; direct-entry safety (cli.main already did it)
         from painapple_code.utils.proc import force_utf8_stdio
@@ -2147,6 +2188,14 @@ def main(argv=None):
 
     scheme = "https" if use_tls else "http"
     ws_scheme = "wss" if use_tls else "ws"
+
+    # Point every child (agents, their tools, terminals) at THIS server.
+    # A stale PAINAPPLE_CACERT inherited from a parent must not survive a
+    # plain-http start, hence the pop before the update.
+    os.environ.pop("PAINAPPLE_CACERT", None)
+    os.environ.update(agent_env(
+        args.host, args.port, use_tls, tls_cert_path,
+        app.state.auth_config_file, paths.DATA_HOME))
 
     # The bootstrap link carries the derived api_token, never the password —
     # a link is the most-shared, most-logged artifact we emit, and this one

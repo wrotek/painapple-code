@@ -1951,7 +1951,7 @@ helpers:
     body_intro_rich: "Rich commits is a {model} fork that runs after each turn and adds metadata to those commits — a summary, tags, decisions, findings, files touched. Lets you search by intent, not just diff."
     body_intro_outro: "Browse it from the Journal panel, query it from the terminal, or have a subagent dig through it."
     body_current: |
-      Both helpers are installed and up to date. Re-run install to
+      All helpers are installed and up to date. Re-run install to
       overwrite any local edits with the bundled versions.
     body_missing: |
       The helpers above are not installed yet. Installing copies the
@@ -1980,8 +1980,10 @@ helpers:
     section_defaults_hint: "Applied to projects you open from now on. Each project can still override it above."
     section_helpers: "Optional helpers"
     section_helpers_hint: "Auto-journal records regardless. These helpers add ways to query it."
-    helpers_usage_example: "Type <code>#</code> in chat → pick <code>shadow-git-helper</code> to summon a subagent that searches your journal. Or run <code>{cmd}</code> in the terminal."
-    helpers_usage_example_agent_only: "Type <code>#</code> in chat → pick <code>shadow-git-helper</code> to summon a subagent that searches your journal."
+    helpers_usage_example: "Type <code>#</code> in chat → pick <code>shadow-db-helper</code> (prompts, summaries, decisions, costs) or <code>shadow-git-helper</code> (file history, diffs) to summon a subagent that searches your journal. Or run <code>{cmd}</code> in the terminal."
+    helpers_usage_example_agent_only: "Type <code>#</code> in chat → pick <code>shadow-db-helper</code> (prompts, summaries, decisions, costs) or <code>shadow-git-helper</code> (file history, diffs) to summon a subagent that searches your journal."
+    # {providers} = display names of non-Claude-format agent hosts (e.g. Codex)
+    helpers_usage_other_hosts: "In {providers} sessions, ask for them by name — e.g. “use the shadow-db-helper agent to find when we changed the login flow”. The database helper needs Full access there; in sandboxed modes it falls back to the shadow-git history."
     helpers_status_missing: "Not installed"
     helpers_status_unsupported: "Not available here"
     helpers_status_outdated: "Update available"
@@ -2000,7 +2002,7 @@ helpers:
     status_helpers_missing: "Helpers not installed"
     status_helpers_outdated: "Helpers update available"
     agent_model_label: "Subagent model"
-    agent_model_hint: "Which model the shadow-git-helper subagent runs on when you summon it — same picks as the model selector, plus Inherit (use your main thread's model). Separate from the {model} enrichment fork above."
+    agent_model_hint: "Which model the Claude helper subagents (shadow-git-helper, shadow-db-helper) run on when you summon them — same picks as the model selector, plus Inherit (use your main thread's model). Other providers' copies always inherit the session's model. Separate from the {model} enrichment fork above."
     agent_model_opt_inherit: "Inherit"
 
 # ============================================================

@@ -310,14 +310,26 @@ async def update_app_config(config: dict):
 # Helper Install (shadow-git CLI + agent template)
 # ═══════════════════════════════════════════════════════════════════
 
+def _helper_enabled_map(request: Request) -> dict | None:
+    """Provider enabled-map for the helper agents (which providers' agent
+    roots get them). None → each provider's own default_enabled."""
+    try:
+        from painapple_code.routes.dependencies import provider_enabled_map
+        return provider_enabled_map(request.app)
+    except Exception:
+        logger.exception("helpers: provider enabled map unavailable")
+        return None
+
+
 @router.get("/api/app/helpers/status")
-async def get_helpers_status():
+async def get_helpers_status(request: Request):
     """Return install + freshness state for bundled helpers."""
-    return helpers_module.helpers_status()
+    return await asyncio.to_thread(
+        helpers_module.helpers_status, _helper_enabled_map(request))
 
 
 @router.post("/api/app/helpers/install")
-async def install_helpers():
+async def install_helpers(request: Request):
     """
     Run tools/install-helpers.sh --update on the server's filesystem.
     Returns 200 with {ok, exit_code, stdout, stderr} regardless of script outcome
@@ -329,11 +341,12 @@ async def install_helpers():
         # Windows box, and uninstall was already pure Python — the two
         # halves of the same feature no longer disagree about their
         # requirements. Still off the event loop: it's blocking file IO.
-        result = await asyncio.to_thread(helpers_module.install_helpers, True)
+        enabled = _helper_enabled_map(request)
+        result = await asyncio.to_thread(helpers_module.install_helpers, True, enabled)
         # The install overwrites the bundled agent file (model: sonnet
         # default); re-apply the user's persisted subagent-model choice on top.
         try:
-            helpers_module.apply_agent_model_from_config()
+            helpers_module.apply_agent_model_from_config(enabled)
         except Exception:
             logger.exception("failed to re-apply helper agent model after install")
         return result
@@ -353,7 +366,7 @@ async def uninstall_helpers():
 
 
 @router.post("/api/app/helpers/agent-model")
-async def set_helper_agent_model(payload: dict):
+async def set_helper_agent_model(payload: dict, request: Request):
     """Set the model the shadow-git-helper subagent runs on.
 
     Persists the choice to the global config and applies it to the installed
@@ -364,5 +377,5 @@ async def set_helper_agent_model(payload: dict):
         model = paths.set_helper_agent_model((payload or {}).get("model"))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    applied = helpers_module.apply_agent_model(model)
+    applied = helpers_module.apply_agent_model(model, _helper_enabled_map(request))
     return {"ok": True, "model": model, "applied": applied}

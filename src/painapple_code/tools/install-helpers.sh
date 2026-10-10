@@ -6,6 +6,11 @@
 #   tools/shadow-git                  → ~/.local/bin/shadow-git
 #   tools/shadow-query                → ~/.local/bin/shadow-query
 #   tools/agents/shadow-git-helper.md → ~/.claude/agents/shadow-git-helper.md
+#   tools/agents/shadow-db-helper.md  → ~/.claude/agents/shadow-db-helper.md
+#
+# The in-app installer (Auto-journal panel → Install) does the same AND
+# renders both agents for every other enabled provider in its own format
+# (e.g. ~/.codex/agents/*.toml for Codex). This script is Claude-only.
 #
 # All targets are user-scoped. No sudo, no PATH edits, no shell rc edits.
 # The shadow-git-helper agent invokes the CLI via its absolute path
@@ -32,6 +37,7 @@ FILES=(
     "tools/shadow-git|$HOME/.local/bin/shadow-git"
     "tools/shadow-query|$HOME/.local/bin/shadow-query"
     "tools/agents/shadow-git-helper.md|$HOME/.claude/agents/shadow-git-helper.md"
+    "tools/agents/shadow-db-helper.md|$HOME/.claude/agents/shadow-db-helper.md"
 )
 
 # Legacy targets from earlier installs (renamed/moved files). Cleaned up
@@ -47,7 +53,7 @@ FORCE=0
 DRY_RUN=0
 
 usage() {
-    sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
 }
 

@@ -22,19 +22,27 @@
 #   EOF
 #
 # Environment:
-#   PAINAPPLE_URL    Server base URL (default http://localhost:8765)
-#                    Dev:  PAINAPPLE_URL=http://localhost:8880 shadow-query '...'
-#   PAINAPPLE_TOKEN  API token override; otherwise read from config.yaml.
+#   PAINAPPLE_URL          Server base URL (default http://localhost:8765)
+#                          Dev:  PAINAPPLE_URL=http://localhost:8880 shadow-query '...'
+#   PAINAPPLE_AUTH_CONFIG  Auth config to read the token from
+#                          (default ~/.config/painapple-code/config.yaml)
+#   PAINAPPLE_CACERT       CA/cert file for an https PAINAPPLE_URL (self-signed)
+#   PAINAPPLE_TOKEN        API token override; otherwise read from the config.
+#
+#   Inside a painapple session (agents, subagents, terminal tabs) the server
+#   exports PAINAPPLE_URL / PAINAPPLE_AUTH_CONFIG / PAINAPPLE_CACERT itself,
+#   so this always queries the server that owns the session — whatever port,
+#   bind, TLS or profile it runs under.
 #
 # Auth:
-#   Reads `api_token:` from ~/.config/painapple-code/config.yaml when
-#   PAINAPPLE_TOKEN is unset. That token is derived from the password and
+#   Reads `api_token:` from $PAINAPPLE_AUTH_CONFIG when PAINAPPLE_TOKEN is
+#   unset. That token is derived from the password and
 #   is separately revocable (bump `bearer_epoch` in the same file); the
 #   password itself is not accepted on this endpoint.
 
 set -euo pipefail
 
-CONFIG_FILE="${HOME}/.config/painapple-code/config.yaml"
+CONFIG_FILE="${PAINAPPLE_AUTH_CONFIG:-${HOME}/.config/painapple-code/config.yaml}"
 DEFAULT_URL="http://localhost:8765"
 
 show_help() {
@@ -110,10 +118,20 @@ fi
 # strictly WIDER exposure than the 0600 config file the secret came from.
 # curl's --config accepts the same header from a file, and `-` means stdin.
 # (In `-` mode stdin was already drained by $(cat) above, so it's free here.)
+tls_opts=()
+case "$base_url" in
+    https://*)
+        if [ -n "${PAINAPPLE_CACERT:-}" ] && [ -r "$PAINAPPLE_CACERT" ]; then
+            tls_opts=(--cacert "$PAINAPPLE_CACERT")
+        fi
+        ;;
+esac
+
 escaped=${token//\\/\\\\}
 escaped=${escaped//\"/\\\"}
 
 printf 'header = "Authorization: Bearer %s"\n' "$escaped" | curl -sS --fail-with-body \
+    ${tls_opts[@]+"${tls_opts[@]}"} \
     --config - \
     -X POST "${base_url}/api/shadow-db/sql?format=${format}" \
     -H "Content-Type: text/plain" \

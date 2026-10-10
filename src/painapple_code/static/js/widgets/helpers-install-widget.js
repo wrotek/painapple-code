@@ -279,6 +279,13 @@ function renderHelpersSection(status) {
         ? M.helpers_usage_example_agent_only
         : M.helpers_usage_example.replace(
             '{cmd}', escapeHtml(status.usage_command || '~/.local/bin/shadow-git log'));
+    // Providers whose agents aren't Claude-format (Codex's TOML roles) have
+    // no `#` picker entry — tell their users how to summon the helpers.
+    const otherHosts = (status.agent_hosts || []).filter(h => h.fmt && h.fmt !== 'markdown');
+    const otherHostsLine = otherHosts.length && M.helpers_usage_other_hosts
+        ? `<p class="helpers-usage-example">${escapeHtml(M.helpers_usage_other_hosts.replace(
+            '{providers}', otherHosts.map(h => h.label || h.provider).join(', ')))}</p>`
+        : '';
     // Subagent model selector — same picks as the main model selector (full
     // model IDs from models.yaml) plus "Inherit". Styled buttons (no native
     // select); labels come from formatModelLabel so they match the main selector.
@@ -301,7 +308,7 @@ function renderHelpersSection(status) {
                 <span class="helpers-section-tag tag-${overallState}">${escapeHtml(overallText)}</span>
             </div>
             <p class="helpers-section-hint">${escapeHtml(M.section_helpers_hint)}</p>
-            <p class="helpers-usage-example">${usageExample}</p>
+            <p class="helpers-usage-example">${usageExample}</p>${otherHostsLine}
             <ul class="helpers-file-list">${fileRows}</ul>
             <div class="helpers-model-row">
                 <span class="helpers-model-label">${escapeHtml(M.agent_model_label)}</span>

@@ -16,18 +16,90 @@
 #
 # Environment:
 #   SHADOW_PROJECT=/path/to/project   # Override project detection
+#   PAINAPPLE_CODE_HOME=/path         # Data home of the server to read
 #
 # Shadow git stores turn-by-turn history at:
-#   ~/.painapple-code/projects/{hash}/shadow-git/
+#   $PAINAPPLE_CODE_HOME/projects/{hash}/shadow-git/
+#   (default ~/.painapple-code; host profiles live in
+#    ~/.painapple-code/profiles/NAME/ — see resolve_shadow_git_dir)
 #
 
 set -e
 
-PAINAPPLE_DIR="${HOME}/.painapple-code"
+ROOT_HOME="${HOME}/.painapple-code"
+# The server exports PAINAPPLE_CODE_HOME to every agent and terminal it
+# spawns, so inside a session it always names the home of the server that
+# owns the session. Outside one (a plain shell) it is unset and the root
+# home is only one candidate — see resolve_shadow_git_dir.
 
 # Compute project hash (first 12 chars of SHA256)
 project_hash() {
-    echo -n "$1" | sha256sum | cut -c1-12
+    # sha256sum is GNU coreutils; stock macOS before 15 only has shasum.
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$1" | sha256sum | cut -c1-12
+    else
+        printf '%s' "$1" | shasum -a 256 | cut -c1-12
+    fi
+}
+
+# Every data home a server on this box can be running from: the root one
+# plus each host profile (`painapple setup NAME` → profiles/NAME/).
+candidate_homes() {
+    local h
+    for h in "$ROOT_HOME" "$ROOT_HOME"/profiles/*/; do
+        h="${h%/}"
+        [[ -d "$h/projects" ]] && printf '%s\n' "$h"
+    done
+}
+
+# Last-write time of a shadow repo (newest ref or packed-refs), epoch secs.
+repo_mtime() {
+    local d="$1" newest=0 t f
+    for f in "$d/packed-refs" "$d"/refs/heads/shadow/* "$d"/refs/heads/*; do
+        [[ -f "$f" ]] || continue
+        t=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0)
+        (( t > newest )) && newest=$t
+    done
+    echo "$newest"
+}
+
+# Pick the shadow repo for project hash $1.
+#
+# With PAINAPPLE_CODE_HOME set (always the case inside a session) that home
+# is authoritative. Without it, the SAME project can have a repo in several
+# homes — e.g. it was opened under the root deployment once and is now
+# served by profile `vm` — and the root copy is a frozen fossil. Reading it
+# silently showed weeks-old history as if nothing had been committed since.
+# So: take the most recently written repo across all homes, and say so on
+# stderr whenever there was a choice to make.
+resolve_shadow_git_dir() {
+    local hash="$1"
+    if [[ -n "${PAINAPPLE_CODE_HOME:-}" ]]; then
+        echo "${PAINAPPLE_CODE_HOME%/}/projects/${hash}/shadow-git"
+        return
+    fi
+    local best="" best_t=-1 n=0 others="" h d t
+    while IFS= read -r h; do
+        d="$h/projects/${hash}/shadow-git"
+        [[ -d "$d" ]] || continue
+        n=$((n + 1))
+        t=$(repo_mtime "$d")
+        if (( t > best_t )); then
+            [[ -n "$best" ]] && others="$others ${best%/projects/*}"
+            best="$d"; best_t=$t
+        else
+            others="$others $h"
+        fi
+    done < <(candidate_homes)
+    if [[ -z "$best" ]]; then
+        echo "${ROOT_HOME}/projects/${hash}/shadow-git"
+        return
+    fi
+    if (( n > 1 )); then
+        echo "shadow-git: using ${best%/projects/*} (most recent; also in:${others})" >&2
+        echo "shadow-git: set PAINAPPLE_CODE_HOME to pick one explicitly" >&2
+    fi
+    echo "$best"
 }
 
 # Show help
@@ -63,15 +135,32 @@ Examples:
   shadow-git log --all --oneline -- src/    Commits touching src/
 
 Environment:
-  SHADOW_PROJECT=/path    Use specific project instead of cwd
+  SHADOW_PROJECT=/path       Use specific project instead of cwd
+  PAINAPPLE_CODE_HOME=/path  Server data home (set automatically inside
+                             sessions; otherwise the most recently written
+                             repo across ~/.painapple-code and its
+                             profiles/* is used)
 EOF
 }
 
 # List all projects with shadow git
 list_projects() {
-    echo "Projects with shadow git:"
+    local homes h
+    if [[ -n "${PAINAPPLE_CODE_HOME:-}" ]]; then
+        homes="${PAINAPPLE_CODE_HOME%/}"
+    else
+        homes="$(candidate_homes)"
+    fi
+    while IFS= read -r h; do
+        [[ -n "$h" ]] || continue
+        list_projects_in "$h"
+    done <<< "$homes"
+}
+
+list_projects_in() {
+    echo "Projects with shadow git in ${1}:"
     echo ""
-    for dir in "${PAINAPPLE_DIR}/projects"/*/shadow-git; do
+    for dir in "${1}/projects"/*/shadow-git; do
         if [[ -d "$dir" ]]; then
             project_dir=$(dirname "$dir")
             hash=$(basename "$project_dir")
@@ -84,6 +173,7 @@ list_projects() {
             fi
         fi
     done
+    echo ""
 }
 
 # List sessions in current project
@@ -276,7 +366,7 @@ if [ -z "${SHADOW_PROJECT:-}" ] && command -v cygpath >/dev/null 2>&1; then
 fi
 
 HASH=$(project_hash "$PROJECT_PATH")
-SHADOW_GIT_DIR="${PAINAPPLE_DIR}/projects/${HASH}/shadow-git"
+SHADOW_GIT_DIR="$(resolve_shadow_git_dir "$HASH")"
 
 # Handle commands that need project context
 case "${1:-}" in
