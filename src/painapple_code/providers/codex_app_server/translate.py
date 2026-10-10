@@ -34,7 +34,10 @@ token streaming is a later phase.
 from __future__ import annotations
 
 import json
+import re
 from typing import Optional
+
+_HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 
 # Reuse the canonical-event builders (_assistant/_tool_use/_tool_result/
 # _error_result) — they're schema-agnostic. Everything else is overridden below.
@@ -152,14 +155,7 @@ class _TranslateMixin(_CodexExecTranslateMixin):
         if itype == "fileChange" and completed:
             msgs: list[dict] = []
             for i, change in enumerate(item.get("changes") or []):
-                path = change.get("path", "")
-                kind = change.get("kind")
-                # kind is an object {type: add|delete|update} in the app-server schema.
-                kind_type = kind.get("type") if isinstance(kind, dict) else (kind or "update")
-                tool = "Write" if kind_type == "add" else "Edit"
-                cid = f"{item_id}_{i}"
-                msgs.append(self._tool_use(cid, tool, {"file_path": path}))
-                msgs.append(self._tool_result(cid, f"{kind_type}: {path}"))
+                msgs.extend(self._file_change_events(f"{item_id}_{i}", change))
             return msgs
 
         if itype == "contextCompaction":
@@ -207,6 +203,58 @@ class _TranslateMixin(_CodexExecTranslateMixin):
         return []
 
     # --- helpers ----------------------------------------------------------
+
+    def _file_change_events(self, cid: str, change: dict) -> list[dict]:
+        """One `fileChange` entry → Claude-shaped Write/Edit tool_use + result.
+
+        Every entry carries a required `diff` string whose meaning depends on
+        `kind.type` (verified live, codex 0.159): `add` → the new file's full
+        content; `delete` → the removed file's content; `update` → a hunks-only
+        unified diff (`@@ -a,b +c,d @@`, no ---/+++ header). Claude's renderers
+        draw from `content` (Write) and `old_string`/`new_string` (Edit), so the
+        diff is reshaped into those — an update becomes one Edit per hunk, each
+        carrying a `structuredPatch` so the server stamps its real startLine.
+        """
+        path = change.get("path", "")
+        kind = change.get("kind")
+        # kind is an object {type: add|delete|update[, move_path]} in the app-server schema.
+        kind_type = kind.get("type") if isinstance(kind, dict) else (kind or "update")
+        move_path = kind.get("move_path") if isinstance(kind, dict) else None
+        diff = change.get("diff")
+        diff = diff if isinstance(diff, str) else ""
+
+        if kind_type == "add":
+            return [self._tool_use(cid, "Write", {"file_path": path, "content": diff}),
+                    self._tool_result(cid, f"File created successfully at: {path}")]
+
+        if kind_type == "delete":
+            return [self._tool_use(cid, "Edit", {"file_path": path,
+                                                 "old_string": diff, "new_string": ""}),
+                    self._patched_result(cid, f"Deleted {path}", 1)]
+
+        target = move_path or path
+        note = f" (moved from {path})" if move_path and move_path != path else ""
+        hunks = _parse_unified_hunks(diff)
+        if not hunks:
+            # Pure rename or an unparseable diff — nothing to draw, keep the path.
+            return [self._tool_use(cid, "Edit", {"file_path": target}),
+                    self._tool_result(cid, f"{kind_type}: {target}{note}")]
+        msgs: list[dict] = []
+        for h, (start, old, new) in enumerate(hunks):
+            hid = cid if len(hunks) == 1 else f"{cid}_{h}"
+            msgs.append(self._tool_use(hid, "Edit", {"file_path": target,
+                                                     "old_string": old, "new_string": new}))
+            msgs.append(self._patched_result(
+                hid, f"The file {target} has been updated{note}.", start))
+        return msgs
+
+    def _patched_result(self, tool_id: str, content: str, start_line: int) -> dict:
+        """tool_result carrying Claude's `tool_use_result.structuredPatch` so the
+        server's startLine injection (agent_session) works unchanged."""
+        msg = self._tool_result(tool_id, content)
+        msg["tool_use_result"] = {"structuredPatch": [{"newStart": start_line}]}
+        return msg
+
 
     @staticmethod
     def _error_http_status(err) -> Optional[int]:
@@ -283,3 +331,29 @@ class _TranslateMixin(_CodexExecTranslateMixin):
                 "cacheCreationInputTokens": 0,
             }}
         return result
+
+
+def _parse_unified_hunks(diff: str) -> list[tuple[int, str, str]]:
+    """Split a unified diff into `(new_start, old_text, new_text)` per hunk.
+
+    Tolerates an optional ---/+++ header and `\\ No newline` markers. Returns
+    [] when the text has no `@@` hunk header (so callers can fall back).
+    """
+    hunks: list[tuple[int, list[str], list[str]]] = []
+    for line in diff.splitlines():
+        if line.startswith("@@"):
+            m = _HUNK_RE.match(line)
+            hunks.append((int(m.group(1)) if m else 1, [], []))
+            continue
+        if not hunks or line.startswith("\\"):
+            continue  # file header before the first hunk / "\\ No newline at end of file"
+        _, old, new = hunks[-1]
+        tag, body = line[:1], line[1:]
+        if tag == "-":
+            old.append(body)
+        elif tag == "+":
+            new.append(body)
+        else:  # context (" ") — or a bare empty line some emitters produce
+            old.append(body)
+            new.append(body)
+    return [(start, "\n".join(old), "\n".join(new)) for start, old, new in hunks]

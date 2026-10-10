@@ -449,3 +449,57 @@ def test_materialize_images_writes_files(monkeypatch, tmp_path):
     from pathlib import Path
     assert Path(out[0]).read_bytes() == b"\x89PNG fake"
     assert Path(out[0]).parent == tmp_path / "tmp" / "codex-images"
+
+
+# --- fileChange → Write/Edit (payload captured live from codex 0.159.3) ------
+
+_FILE_CHANGE = {"method": "item/completed", "params": {"item": {
+    "type": "fileChange", "id": "exec-1", "status": "completed",
+    "changes": [
+        {"path": "/w/existing.txt", "kind": {"type": "update", "move_path": None},
+         "diff": "@@ -1,3 +1,3 @@\n a\n-b\n+B\n c\n@@ -10,3 +10,3 @@\n j\n-k\n+K\n l\n"},
+        {"path": "/w/hello.py", "kind": {"type": "add"},
+         "diff": "print('hi')\nprint('bye')\n"},
+        {"path": "/w/gone.txt", "kind": {"type": "delete"}, "diff": "old\n"},
+    ]}}}
+
+
+def _tool_uses(out):
+    return [(m["message"]["content"][0]["id"], m["message"]["content"][0]["name"],
+             m["message"]["content"][0]["input"])
+            for m in out if m["type"] == "assistant"]
+
+
+def test_file_change_add_carries_content_for_write_block():
+    # Regression: Write used to carry only file_path, so codex-created files
+    # rendered as an empty one-line block.
+    uses = _tool_uses(_app_server().translate_events(_FILE_CHANGE, _fresh_state()))
+    write = [u for u in uses if u[1] == "Write"]
+    assert write == [("exec-1_1", "Write",
+                      {"file_path": "/w/hello.py", "content": "print('hi')\nprint('bye')\n"})]
+
+
+def test_file_change_update_splits_hunks_into_edits_with_start_lines():
+    out = _app_server().translate_events(_FILE_CHANGE, _fresh_state())
+    edits = [u for u in _tool_uses(out) if u[0].startswith("exec-1_0")]
+    assert edits == [
+        ("exec-1_0_0", "Edit", {"file_path": "/w/existing.txt",
+                                "old_string": "a\nb\nc", "new_string": "a\nB\nc"}),
+        ("exec-1_0_1", "Edit", {"file_path": "/w/existing.txt",
+                                "old_string": "j\nk\nl", "new_string": "j\nK\nl"}),
+    ]
+    starts = {m["message"]["content"][0]["tool_use_id"]: m["tool_use_result"]["structuredPatch"][0]["newStart"]
+              for m in out if m["type"] == "user" and "tool_use_result" in m}
+    assert starts["exec-1_0_0"] == 1 and starts["exec-1_0_1"] == 10
+
+
+def test_file_change_delete_renders_as_removal_and_rename_keeps_path():
+    uses = _tool_uses(_app_server().translate_events(_FILE_CHANGE, _fresh_state()))
+    assert ("exec-1_2", "Edit", {"file_path": "/w/gone.txt",
+                                 "old_string": "old\n", "new_string": ""}) in uses
+    rename = {"method": "item/completed", "params": {"item": {
+        "type": "fileChange", "id": "x", "status": "completed",
+        "changes": [{"path": "/w/a", "kind": {"type": "update", "move_path": "/w/b"},
+                     "diff": ""}]}}}
+    assert _tool_uses(_app_server().translate_events(rename, _fresh_state())) == [
+        ("x_0", "Edit", {"file_path": "/w/b"})]
