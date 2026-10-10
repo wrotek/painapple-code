@@ -2,6 +2,18 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.9 — 2026-10-10
+
+### Added
+
+- A second journal helper agent, `shadow-db-helper`, that searches the turn database (prompts, summaries, decisions, costs, files touched). It sits next to `shadow-git-helper`, which handles file history.
+- Both helper agents are now installed for every enabled provider that is available on the server, in that provider's own format. Codex sessions can now ask for them by name. Before, only Claude got them.
+
+### Fixed
+
+- `shadow-git` and `shadow-query` now use the server that started the session. Before, they always read `~/.painapple-code` and `http://localhost:8765`, so under a host profile, another port, TLS or Docker they showed a frozen copy of the journal or queried the wrong server. That looked like "turns aren't being committed". Outside a session, `shadow-git` picks the most recently written journal across the root home and its profiles, and says which one it used.
+- `shadow-git` works on macOS systems that have no `sha256sum`.
+
 ## 1.1.8 — 2026-10-07
 
 ### Fixed

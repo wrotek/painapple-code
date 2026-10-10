@@ -1,14 +1,17 @@
 # Optional helpers
 
-Three small helpers ship with the package to make the [Shadow Git journal](../guides/shadow-git.md) usable from a terminal and from Claude itself: two CLIs and one agent template.
+Four small helpers ship with the package to make the [Shadow Git journal](../guides/shadow-git.md) usable from a terminal and from the agent itself: two CLIs and two agent templates.
 
 | Helper | Installed to | What it does |
 |--------|--------------|--------------|
 | `shadow-git` | `~/.local/bin/shadow-git` | Git wrapper for the per-project shadow repositories — log, show, diff, blame, plus project/session listing and full-text search |
 | `shadow-query` | `~/.local/bin/shadow-query` | Runs read-only SQL against the shadow DuckDB via the server's `/api/shadow-db/sql` endpoint (handles auth and formatting) |
-| `shadow-git-helper` | `~/.claude/agents/shadow-git-helper.md` | Claude Code agent template — a "code archaeologist" that knows how to search the shadow repo |
+| `shadow-git-helper` | `~/.claude/agents/shadow-git-helper.md` (+ `~/.codex/agents/shadow-git-helper.toml`) | Agent template — a "code archaeologist" for file history, diffs and blame in the shadow repo |
+| `shadow-db-helper` | `~/.claude/agents/shadow-db-helper.md` (+ `~/.codex/agents/shadow-db-helper.toml`) | Agent template — a journal researcher that queries the turn database (prompts, summaries, decisions, costs) via `shadow-query` |
 
-All targets are user-scoped: no `sudo`, no `$PATH` edits, no shell-rc changes. The Docker image installs all three at build time.
+The agent templates are installed for **every provider that is enabled and available** on the server, each in that provider's own format — Markdown for Claude Code, a TOML role file for Codex. A provider whose CLI isn't installed gets nothing.
+
+All targets are user-scoped: no `sudo`, no `$PATH` edits, no shell-rc changes. The Docker image installs the CLIs and the Claude agents at build time; the in-app installer adds the other providers' copies.
 
 !!! warning "You'll likely need the full path — `~/.local/bin` may not be on your `$PATH`"
     The installer creates `~/.local/bin/` and copies the scripts in, but it **never touches your `$PATH`** and doesn't warn you if the directory isn't on it. On many distros it already is; on macOS and plenty of others it isn't, and a bare `shadow-git log` then just reports "command not found".
@@ -19,22 +22,19 @@ All targets are user-scoped: no `sudo`, no `$PATH` edits, no shell-rc changes. T
     export PATH="$HOME/.local/bin:$PATH"   # add to ~/.bashrc / ~/.zshrc / ~/.config/fish/config.fish
     ```
 
-!!! warning "`shadow-git` only looks in `~/.painapple-code` — it breaks in Docker and on profiles"
-    `shadow-git` hardcodes its data directory as `$HOME/.painapple-code` and **ignores `$PAINAPPLE_CODE_HOME`**, which is the one thing the server does honour. So anywhere the data home has been relocated, the CLI looks in the wrong place and reports *"No shadow git found"* even though the journal is being written normally:
+!!! note "Helpers follow the server that launched them"
+    The server exports `PAINAPPLE_CODE_HOME`, `PAINAPPLE_URL`, `PAINAPPLE_AUTH_CONFIG` and (for an https loopback URL) `PAINAPPLE_CACERT` to everything it starts — agents, subagents and terminal tabs. Inside a session, `shadow-git` therefore reads the right data home (the container's `/data`, a host [profile](profiles.md)'s `~/.painapple-code/profiles/NAME/`) and `shadow-query` talks to the right server, whatever its port, bind or TLS mode. No credential is exported; `shadow-query` reads the token from the config file on each call.
 
-    - **In the container**, the image sets `PAINAPPLE_CODE_HOME=/data`. No symlink is created, so an in-container `shadow-git log` finds nothing. (`~/.local/bin` isn't on the container's `PATH` either.)
-    - **On a host [profile](profiles.md)**, the data home is `~/.painapple-code/profiles/NAME/`, so the same mismatch applies.
-
-    Use the Journal panel or the [`/api/shadow-db/sql` endpoint](api.md#shadow-db-sql) in those setups — `shadow-query` is unaffected, since it talks to the server over HTTP rather than reading the filesystem. The CLI is reliable on a plain, default-home host install.
+    In a plain shell outside a session, `shadow-git` looks in `~/.painapple-code` and every `~/.painapple-code/profiles/*/`, uses the most recently written repo for the project, and says on stderr which one it picked when there was a choice. Set `PAINAPPLE_CODE_HOME` to choose explicitly.
 
 !!! note "On native Windows"
-    `shadow-git` and `shadow-query` are bash scripts, so they need a bash. If the installer finds one — **Git for Windows** counts, and is looked for next to `git.exe` — it installs both scripts *and* generates a small `.cmd` wrapper beside each, which is what lets PowerShell run `shadow-git log` by name. If no bash is found, the two CLIs are skipped (the Settings panel marks them *"Not available here"* rather than nagging that they're out of date) and only the `shadow-git-helper` agent installs — which is the part that matters for `#` autocomplete.
+    `shadow-git` and `shadow-query` are bash scripts, so they need a bash. If the installer finds one — **Git for Windows** counts, and is looked for next to `git.exe` — it installs both scripts *and* generates a small `.cmd` wrapper beside each, which is what lets PowerShell run `shadow-git log` by name. If no bash is found, the two CLIs are skipped (the Settings panel marks them *"Not available here"* rather than nagging that they're out of date) and only the agents install — which is the part that matters for `#` autocomplete.
 
 ## Installing
 
 ### From the UI
 
-The status bar **always** shows an auto-journal pill, so the feature stays discoverable — it just changes label to report state: *Auto-journal* when everything is current, *Helpers outdated*, or *Helpers not installed*. Click it to open the **helpers-install widget** (the auto-journal control center). It shows per-file install/freshness state, installs or updates all three with one click (`POST /api/app/helpers/install`), and also holds the per-project journal toggles.
+The status bar **always** shows an auto-journal pill, so the feature stays discoverable — it just changes label to report state: *Auto-journal* when everything is current, *Helpers outdated*, or *Helpers not installed*. Click it to open the **helpers-install widget** (the auto-journal control center). It shows per-file install/freshness state, installs or updates them all with one click (`POST /api/app/helpers/install`), and also holds the per-project journal toggles.
 
 What *is* conditional is the widget opening by itself: it auto-pops when anything is outdated (always) or missing (unless you've ticked "Don't show again"), and never when everything is current.
 
@@ -59,7 +59,7 @@ The server tracks freshness by content hash (`GET /api/app/helpers/status`), so 
 
 ## `shadow-git`
 
-Wraps `git` pointed at the current project's shadow repository (`~/.painapple-code/projects/{hash}/shadow-git/`). Any git command passes through; a few extras are built in:
+Wraps `git` pointed at the current project's shadow repository (`$PAINAPPLE_CODE_HOME/projects/{hash}/shadow-git/`, default `~/.painapple-code`). Any git command passes through; a few extras are built in:
 
 ```bash
 shadow-git log --oneline -20        # last 20 journal commits
@@ -93,17 +93,29 @@ EOF
 
 | Variable | Purpose |
 |----------|---------|
-| `PAINAPPLE_URL` | Server base URL (default `http://localhost:8765`) |
-| `PAINAPPLE_TOKEN` | API token override; otherwise read from `~/.config/painapple-code/config.yaml` |
+| `PAINAPPLE_URL` | Server base URL (default `http://localhost:8765`; set automatically inside a session) |
+| `PAINAPPLE_AUTH_CONFIG` | Config file to read the API token from (default `~/.config/painapple-code/config.yaml`; set automatically inside a session) |
+| `PAINAPPLE_CACERT` | Certificate to trust for an `https` URL with a self-signed cert (set automatically when needed) |
+| `PAINAPPLE_TOKEN` | API token override; otherwise read from the config file |
 
 Output is TSV by default, JSON with `--json`. `--tsv` asks for the default explicitly, and `--format json|tsv` (or `--format=json`) does the same thing if you prefer that spelling. A `-` argument reads the SQL from stdin. The endpoint rejects anything that isn't a read (no INSERT/UPDATE/DDL), and — worth knowing before you pipe into `jq` — [every value comes back as a string](api.md#shadow-db-sql).
 
-## `shadow-git-helper` agent
+## Helper agents
 
-A Claude Code agent template installed into `~/.claude/agents/`, giving every Claude session (pAInapple Code or plain CLI) a specialist for code archaeology: file history, changes by session, blame analysis, tracing when and why code changed.
+### `shadow-git-helper`
+
+An agent template installed into `~/.claude/agents/` (and `~/.codex/agents/` when Codex is enabled), giving every Claude session (pAInapple Code or plain CLI) a specialist for code archaeology: file history, changes by session, blame analysis, tracing when and why code changed.
 
 Use it by delegating from a normal prompt:
 
 > Consult with shadow-git-helper about when the auth middleware last changed and why.
 
 Claude spawns the sub-agent, which digs through the shadow repo with the `shadow-git` CLI and reports back — keeping your main thread focused on the task instead of filling it with research output.
+
+### `shadow-db-helper`
+
+A journal researcher that queries the turn database through `shadow-query`: what was asked, the per-turn summaries, decisions and findings, tags, costs and which files each turn touched. Pick it for questions about *intent* (“when did we decide to drop the CDN imports, and why?”); pick `shadow-git-helper` for questions about *code* (“what did this function look like last week?”).
+
+### Using them from Codex
+
+Codex has no `#` picker for agents, so ask for one by name — *“use the shadow-db-helper agent to find when we changed the login flow”*. Codex subagents inherit the session's sandbox, and the sandboxed modes block all network access including loopback, so `shadow-db-helper` can reach the database only in **Full access**; in sandboxed modes it falls back to the shadow-git commit bodies, which carry the same journal. The **Subagent model** picker applies to the Claude copies only — Codex copies run on the session's model.

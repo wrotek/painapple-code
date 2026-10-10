@@ -36,7 +36,7 @@ Click the **Auto-journal** pill in the status bar (or open the *Helpers* widget)
 - **Sections** — choose which generated sections rich commits include for this project.
 - A link to system settings sets the defaults new projects inherit.
 
-The same panel installs the [optional helpers](../reference/optional-helpers.md) — the `shadow-git` and `shadow-query` CLIs and the `shadow-git-helper` agent. The journal records regardless; the helpers just add ways to query it. Installation is user-scoped (files in your home directory on the server, no sudo) and the pill warns you when installed copies are outdated.
+The same panel installs the [optional helpers](../reference/optional-helpers.md) — the `shadow-git` and `shadow-query` CLIs and the `shadow-git-helper` and `shadow-db-helper` agents (for Claude, and for Codex when it's enabled). The journal records regardless; the helpers just add ways to query it. Installation is user-scoped (files in your home directory on the server, no sudo) and the pill warns you when installed copies are outdated.
 
 ## Browsing: the Journal widget
 
