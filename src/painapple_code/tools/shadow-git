@@ -50,6 +50,10 @@ candidate_homes() {
         h="${h%/}"
         [[ -d "$h/projects" ]] && printf '%s\n' "$h"
     done
+    # The loop's status is the last `[[ -d ]]` — false whenever the last
+    # candidate (or the unmatched profiles/*/ glob) has no projects/. Under
+    # `set -e` that killed `homes="$(candidate_homes)"` in list_projects.
+    return 0
 }
 
 # Last-write time of a shadow repo (newest ref or packed-refs), epoch secs.

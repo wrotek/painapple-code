@@ -230,6 +230,25 @@ def test_shadow_git_prefers_live_profile_over_stale_root(tmp_path):
     assert r.stderr == ""
 
 
+@pytest.mark.skipif(not shutil.which("git") or not shutil.which("bash"),
+                    reason="needs git + bash")
+def test_shadow_git_projects_without_profiles(tmp_path):
+    # The common fresh-install layout: a root home, no profiles/ at all.
+    # candidate_homes() used to return the last failed `[[ -d ]]` status,
+    # and under `set -e` the `homes="$(…)"` assignment killed the script —
+    # `shadow-git projects` printed nothing and exited 1.
+    home = tmp_path / "u"
+    project = tmp_path / "proj"
+    project.mkdir()
+    _make_repo(home / ".painapple-code", project, "c", 1_700_000_000)
+    env = {k: v for k, v in os.environ.items() if k != "PAINAPPLE_CODE_HOME"}
+    env.update(HOME=str(home))
+    r = subprocess.run(["bash", str(TOOLS / "shadow-git"), "projects"],
+                       capture_output=True, text=True, env=env, cwd=project)
+    assert r.returncode == 0, r.stderr
+    assert _project_hash(str(project)) in r.stdout
+
+
 @pytest.mark.skipif(not shutil.which("bash"), reason="needs bash")
 def test_shadow_query_reads_exported_auth_config(tmp_path):
     cfg = tmp_path / "cfg.yaml"
