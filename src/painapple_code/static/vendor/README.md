@@ -11,6 +11,8 @@ deploy time, no runtime CDN dependency.
 |------|----------------|---------|
 | `codemirror.js`                       | 20 `@codemirror/*` packages (39 with transitive `@lezer/*` etc.), esbuild-bundled | `static/js/editor-view.js` |
 | `codemirror.js.LEGAL.txt`             | generated license notice for everything in that bundle | nothing at runtime — it's a legal artifact |
+| `mermaid.js`                          | `mermaid@12.1.0` (+62 deps incl. d3, dagre, cytoscape, elkjs), esbuild-bundled ESM, ~5 MB / ~1.5 MB gz | `static/js/components.js` — lazy `import()` only when a markdown view contains a diagram |
+| `mermaid.js.LEGAL.txt`                | generated license notice for that bundle | nothing at runtime — it's a legal artifact |
 | `LICENSES.txt`                        | generated license notice for every copied file below   | nothing at runtime — it's a legal artifact |
 | `xterm.js`                            | `xterm@5` (UMD)                              | `static/js/widgets/terminal-widget.js` |
 | `xterm.css`                           | `xterm@5`                                    | `static/js/widgets/terminal-widget.js` |

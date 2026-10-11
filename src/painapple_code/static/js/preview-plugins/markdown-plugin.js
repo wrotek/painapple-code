@@ -191,6 +191,7 @@ export default {
         if (state.viewMode === 'rendered') {
             MarkdownRenderer.processExcalidrawBlocks?.(container);
             MarkdownRenderer.processChartBlocks?.(container);
+            MarkdownRenderer.processMermaidBlocks?.(container);
             setupInlineEdit(container);
             setupCheckboxes(container);
 

@@ -741,6 +741,8 @@ export class ChatController {
         MarkdownRenderer.processExcalidrawBlocks(div);
         // Render Vega-Lite chart code blocks as SVG charts
         MarkdownRenderer.processChartBlocks(div);
+        // Render mermaid code blocks as diagrams (client-side)
+        MarkdownRenderer.processMermaidBlocks(div);
 
         // Track new assistant messages for the "new messages" indicator
         if (scroll && msg.role === 'assistant') {
@@ -2842,6 +2844,8 @@ export class ChatController {
         MarkdownRenderer.processExcalidrawBlocks(div);
         // Render Vega-Lite chart code blocks as SVG charts
         MarkdownRenderer.processChartBlocks(div);
+        // Render mermaid code blocks as diagrams (client-side)
+        MarkdownRenderer.processMermaidBlocks(div);
 
         return div;
     }

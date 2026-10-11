@@ -3,7 +3,7 @@
  */
 
 import { COMMANDS, getRecentShellCommands } from './config.js';
-import { escapeHtml, escapeAttr, decodeHtml, sanitizeSvg } from './utils.js';
+import { escapeHtml, escapeAttr, decodeHtml, sanitizeSvg, b64AttrDecode } from './utils.js';
 import { getCommandStore, CommandType } from './command-store.js';
 import { anchorAbove } from './caret-position.js';
 import S from './strings.js';
@@ -33,7 +33,7 @@ export class MarkdownRenderer {
         const renderer = new marked.Renderer();
 
         // Custom code block rendering with syntax highlighting
-        renderer.code = (code, language) => {
+        const renderCode = (code, language) => {
             // Excalidraw diagram rendering — placeholder for async SVG fetch
             if (language === 'excalidraw' || language === 'excalidraw-json') {
                 try {
@@ -139,6 +139,21 @@ export class MarkdownRenderer {
                     <pre><code id="${id}" class="hljs language-${lang}">${highlighted}</code></pre>
                 </div>
             `;
+        };
+
+        // Mermaid diagrams — rendered client-side by processMermaidBlocks().
+        // The ordinary code block is emitted INSIDE the wrapper so a parse
+        // failure (or the source toggle) still shows the text, and so
+        // selection / inline-edit see a normal block. Codex often fences
+        // these with no language, so an untagged block whose first line is
+        // a mermaid diagram header counts too.
+        renderer.code = (code, language) => {
+            if (!MarkdownRenderer.isMermaidSource(code, language)) return renderCode(code, language);
+            const encoded = btoa(unescape(encodeURIComponent(code)));
+            const inner = renderCode(code, 'plaintext').replace(
+                '<span class="code-block-lang">plaintext</span>',
+                '<span class="code-block-lang">mermaid</span>');
+            return `<div class="mermaid-block" data-mermaid-src="${encoded}">${inner}</div>`;
         };
 
         // Links open in new tab. Allow only safe protocols (defense-in-depth on
@@ -1309,7 +1324,122 @@ export class MarkdownRenderer {
             });
         });
     }
+
+    /**
+     * Is this fenced block a Mermaid diagram? Explicit `mermaid` fences
+     * always are; untagged/plain-text fences qualify when their first real
+     * line (skipping blanks and %% comments) is a diagram header such as
+     * `flowchart TD` or `sequenceDiagram` — the shape Codex writes.
+     */
+    static isMermaidSource(code, language) {
+        const lang = (language || '').trim().toLowerCase();
+        if (lang === 'mermaid' || lang === 'mmd') return true;
+        if (lang && !['text', 'txt', 'plaintext', 'plain'].includes(lang)) return false;
+        const first = (code || '').split('\n').map(l => l.trim()).find(l => l && !l.startsWith('%%'));
+        return !!first && MERMAID_HEADER_RE.test(first);
+    }
+
+    /** Lazy-load the vendored Mermaid bundle (~5 MB) once, on first diagram. */
+    static loadMermaid() {
+        if (!MarkdownRenderer._mermaidPromise) {
+            MarkdownRenderer._mermaidPromise = import('/static/vendor/mermaid.js').then(mod => {
+                const mermaid = mod.default;
+                mermaid.initialize({
+                    startOnLoad: false,
+                    // strict: no click handlers / scripts, labels HTML-encoded
+                    securityLevel: 'strict',
+                    theme: 'dark',
+                    // SVG <text> labels instead of <foreignObject> HTML —
+                    // sanitizeSvg (DOMPurify SVG profile) strips foreignObject.
+                    htmlLabels: false,
+                    flowchart: { htmlLabels: false },
+                    fontFamily: 'inherit',
+                    themeVariables: { background: 'transparent' },
+                });
+                return mermaid;
+            }).catch(err => {
+                MarkdownRenderer._mermaidPromise = null; // allow a retry
+                throw err;
+            });
+        }
+        return MarkdownRenderer._mermaidPromise;
+    }
+
+    /**
+     * Render .mermaid-block placeholders after DOM insertion. Runs entirely
+     * in the browser (no server round-trip, so unlike charts/excalidraw it
+     * isn't gated by renderers_enabled). On success the diagram replaces
+     * the code view, with a toggle back to the source; on a parse error the
+     * code block stays and gets an inline error note.
+     * @param {HTMLElement} container - DOM element to scan for mermaid blocks
+     */
+    static processMermaidBlocks(container) {
+        const blocks = container.querySelectorAll('.mermaid-block:not([data-rendered])');
+        if (blocks.length === 0) return;
+
+        blocks.forEach(block => {
+            block.setAttribute('data-rendered', 'true');
+            const source = b64AttrDecode(block.dataset.mermaidSrc || '');
+            if (!source.trim()) return;
+
+            const diagram = document.createElement('div');
+            diagram.className = 'mermaid-diagram';
+            diagram.innerHTML = `<div class="mermaid-loading">${escapeHtml(S.code_block.mermaid_rendering)}</div>`;
+            block.prepend(diagram);
+
+            const toggleIcon = (showSource) => showSource
+                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="6" rx="1"/><rect x="14" y="15" width="7" height="6" rx="1"/><path d="M6.5 9v3a3 3 0 0 0 3 3h4.5"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>';
+
+            // Code header gets a "show diagram" button; the diagram gets a
+            // "show source" one. Both flip .show-source on the block.
+            const header = block.querySelector('.code-block-header');
+            const toDiagram = document.createElement('button');
+            toDiagram.className = 'mermaid-toggle';
+            toDiagram.setAttribute('data-tooltip', S.code_block.mermaid_show_diagram);
+            toDiagram.innerHTML = toggleIcon(true);
+            header?.insertBefore(toDiagram, header.querySelector('.code-block-wrap'));
+
+            const toSource = document.createElement('button');
+            toSource.className = 'mermaid-toggle mermaid-toggle-source';
+            toSource.setAttribute('data-tooltip', S.code_block.mermaid_show_source);
+            toSource.innerHTML = toggleIcon(false);
+
+            for (const btn of [toDiagram, toSource]) {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // don't trigger inline-edit / selection
+                    block.classList.toggle('show-source');
+                });
+            }
+
+            const id = 'mermaid-' + Math.random().toString(36).slice(2, 11);
+            // mermaid.render() shares global state — serialize calls.
+            MarkdownRenderer._mermaidQueue = (MarkdownRenderer._mermaidQueue || Promise.resolve())
+                .then(() => MarkdownRenderer.loadMermaid())
+                .then(mermaid => mermaid.render(id, source))
+                .then(({ svg }) => {
+                    const clean = sanitizeSvg(svg);
+                    if (!clean) throw new Error('SVG sanitizer unavailable');
+                    diagram.innerHTML = `<div class="mermaid-svg">${clean}</div>`;
+                    diagram.appendChild(toSource);
+                    block.classList.add('mermaid-ok');
+                })
+                .catch(err => {
+                    // mermaid leaves its error-bomb svg in <body> on failure
+                    document.getElementById('d' + id)?.remove();
+                    document.getElementById(id)?.remove();
+                    const msg = (err?.message || String(err)).split('\n')[0];
+                    diagram.innerHTML = `<div class="mermaid-error">${escapeHtml(S.code_block.mermaid_error.replace('{error}', msg))}</div>`;
+                    block.classList.add('mermaid-failed');
+                    toDiagram.remove();
+                });
+        });
+    }
 }
+
+// First line of an untagged code block that marks it as Mermaid source.
+// Anchored at both ends so prose like "graph of results" stays a code block.
+const MERMAID_HEADER_RE = /^(?:(?:flowchart|graph)(?:\s+(?:TD|TB|BT|RL|LR))?\s*;?$|(?:sequenceDiagram|classDiagram(?:-v2)?|stateDiagram(?:-v2)?|erDiagram|gantt|journey|gitGraph|mindmap|timeline|quadrantChart|requirementDiagram|kanban|xychart(?:-beta)?|sankey(?:-beta)?|block(?:-beta)?|packet(?:-beta)?|architecture(?:-beta)?|C4(?:Context|Container|Component|Dynamic|Deployment))\s*;?$|pie(?:\s+(?:showData|title\b.*))?$)/;
 
 /**
  * Autocomplete dropdown for slash commands and shell commands

@@ -1,0 +1,101 @@
+/**
+ * Mermaid diagrams — ```mermaid (or untagged `flowchart TD` …) code blocks
+ * rendered client-side by MarkdownRenderer.processMermaidBlocks(), in chat
+ * and in the markdown preview's Rendered mode.
+ *
+ * .mermaid-block wraps [.mermaid-diagram, .code-block-wrapper]. Once the
+ * diagram renders (.mermaid-ok) the code view hides; .show-source flips it.
+ */
+
+.mermaid-block {
+    margin: var(--sp-8) 0;
+}
+
+.mermaid-block .code-block-wrapper {
+    margin: 0;
+}
+
+/* Rendered: diagram only, until the user asks for the source */
+.mermaid-block.mermaid-ok:not(.show-source) > .code-block-wrapper,
+.mermaid-block.mermaid-ok.show-source > .mermaid-diagram {
+    display: none;
+}
+
+/* Loading / error keep the code block visible underneath */
+.mermaid-block:not(.mermaid-ok) > .mermaid-diagram {
+    margin-bottom: var(--sp-4);
+}
+
+.mermaid-diagram {
+    position: relative;
+    border: 1px solid var(--border-secondary);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+}
+
+.mermaid-svg {
+    display: flex;
+    justify-content: center;
+    padding: var(--sp-16) var(--sp-12);
+    overflow: auto;
+    overscroll-behavior: contain;
+    max-height: 80vh;
+}
+
+.mermaid-svg svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.mermaid-loading,
+.mermaid-error {
+    padding: var(--sp-8) var(--sp-12);
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}
+
+.mermaid-error {
+    color: var(--text-error, #f85149);
+}
+
+/* Toggle buttons — same shape as the code block's wrap/copy buttons */
+.mermaid-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.mermaid-toggle svg {
+    width: 14px;
+    height: 14px;
+}
+
+.mermaid-toggle:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+}
+
+.mermaid-block .code-block-header .mermaid-toggle {
+    margin-left: auto;
+}
+
+.mermaid-block .code-block-header .mermaid-toggle + .code-block-wrap {
+    margin-left: 0;
+}
+
+.mermaid-toggle-source {
+    position: absolute;
+    top: var(--sp-6);
+    right: var(--sp-6);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-secondary);
+}

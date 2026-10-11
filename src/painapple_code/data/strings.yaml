@@ -1672,6 +1672,10 @@ auth:
 code_block:
   copy_code: "Copy code"
   toggle_wrap: "Toggle line wrap"
+  mermaid_rendering: "Rendering diagram…"
+  mermaid_show_source: "Show source"
+  mermaid_show_diagram: "Show diagram"
+  mermaid_error: "Couldn't render Mermaid diagram: {error}"
 
 # Floating selection panel (select text → Discuss / Stash)
 selection:
