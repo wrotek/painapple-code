@@ -9,7 +9,7 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 | Multi-session tabs | Several concurrent sessions in browser-style tabs; terminals and file previews can sit in the same tab strip | [Sessions & tabs](guides/sessions.md) |
 | AI providers | Pick Claude Code or OpenAI Codex per session — per-provider models, permission vocabularies, effort scales, defaults, and in-app CLI login. Codex support is experimental | [AI providers](guides/providers.md) |
 | Session setup panel | One-tap provider / model / permissions / effort / account pills on every fresh session, gone after the first message | [AI providers](guides/providers.md) |
-| Streaming chat | Live-rendered markdown, collapsible tool and thinking blocks, syntax highlighting, per-block line-wrap toggle, clickable file references | [Sessions & tabs](guides/sessions.md) |
+| Streaming chat | Live-rendered markdown, collapsible tool and thinking blocks, syntax highlighting, per-block line-wrap toggle, Mermaid diagrams, clickable file references | [Sessions & tabs](guides/sessions.md) |
 | Per-turn summary bar | Context usage, token delta, files changed, tools used, duration, cost, and model after every turn | [Sessions & tabs](guides/sessions.md) |
 | Reconnect & resume | Claude keeps running when the tab disconnects; page refresh reattaches; resume any session in the CLI with `claude --resume` | [Sessions & tabs](guides/sessions.md) |
 | Quick switcher & command palette | Fuzzy-jump between sessions, files, and actions from the keyboard | [Sessions & tabs](guides/sessions.md) |
@@ -33,7 +33,7 @@ Everything pAInapple Code and the web client can do, in one place. Each area lin
 | Feature | What it does | Guide |
 |---|---|---|
 | Terminal | Real PTY (xterm.js), persistent, floating or docked, mobile keyboard bar and touch d-pad | [Embedded terminal](guides/terminal.md) |
-| File explorer & preview | Tree/list/search/bookmarks views; preview with editing (CodeMirror), markdown quick-edit, CSV, images, Excalidraw, Vega-Lite charts | [Files, preview & editing](guides/files.md) |
+| File explorer & preview | Tree/list/search/bookmarks views; preview with editing (CodeMirror), markdown quick-edit, Mermaid diagrams, CSV, images, Excalidraw, Vega-Lite charts | [Files, preview & editing](guides/files.md) |
 | Search in files | Project-wide content search (ripgrep-backed, VS Code-style) — regex, globs, click-through to the exact line | [Files, preview & editing](guides/files.md#search-in-files) |
 | Browser widget | Renders local HTML or proxies external URLs in a sandboxed iframe | [Files, preview & editing](guides/files.md) |
 | Git widget & diff viewer | Status, history, side-by-side and unified diffs, Shadow-Git history bar, compare wizard — read-only by design | [Git & diff viewer](guides/git-and-diffs.md) |

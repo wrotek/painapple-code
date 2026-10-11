@@ -42,7 +42,7 @@ While a preview is open, the widget polls the file's modification time every few
 
 The preview picks a plugin by file type; each adds a rendered view alongside the raw code view:
 
-- **Markdown** (`.md`) — rendered by default, with YAML front matter shown as a neat header. Press ++e++ in the rendered view to enter *quick edit*: click any block — paragraph, heading, list item, blockquote — and edit its raw markdown in place. ++enter++ saves to disk, ++shift+enter++ adds a newline, ++escape++ cancels. Task-list checkboxes (`- [ ]` / `- [x]`) become clickable and toggle straight through to the file.
+- **Markdown** (`.md`) — rendered by default, with YAML front matter shown as a neat header. Press ++e++ in the rendered view to enter *quick edit*: click any block — paragraph, heading, list item, blockquote — and edit its raw markdown in place. ++enter++ saves to disk, ++shift+enter++ adds a newline, ++escape++ cancels. Task-list checkboxes (`- [ ]` / `- [x]`) become clickable and toggle straight through to the file. Mermaid code blocks (```` ```mermaid ```` fences, or untagged blocks that start with a diagram header like `flowchart TD`) render as diagrams, with a toggle back to the source; the same happens in chat.
 
     ![Editing a list item in place in the rendered markdown preview, then toggling a task checkbox](../assets/markdown-quick-edit.gif)
 
