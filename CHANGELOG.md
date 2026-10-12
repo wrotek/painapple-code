@@ -2,6 +2,16 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.10 — 2026-10-12
+
+### Added
+
+- Codex sessions support `/goal`. `/goal <objective>` sets a goal, and Codex then starts turns on its own until it marks the goal complete. `/goal pause`, `resume` and `clear` control it, and a bare `/goal` shows the current one. A goal bar above the input shows the objective, its status and the tokens and time it has used, with Pause/Resume and Clear buttons. The chat records each change, for example "Goal set", "Goal paused" and "Goal complete — 18.3k tokens · 8s". Pressing Stop pauses an active goal. Codex's own commands (`/goal`, `/compact`) now appear in the `/` popup.
+
+### Fixed
+
+- Codex no longer leaves an empty message bubble at the end of some turns.
+
 ## 1.1.9 — 2026-10-12
 
 ### Added
