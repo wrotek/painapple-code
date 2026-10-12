@@ -1624,9 +1624,36 @@ activity:
     working: "Working..."
     compacting: "Compacting..."
     starting: "Starting..."
+    goal: "Working on goal..."
   agents:
     one: "{desc} · ×{tools} tools"
     many: "{count} agents · ×{tools} tools"
+
+# ============================================================
+# Goal bar — provider thread goal (Codex /goal), above the input
+# ============================================================
+goal_bar:
+  label: "Goal"
+  tooltip: "Codex keeps starting turns on its own until this goal is complete"
+  status:
+    active: "Active"
+    paused: "Paused"
+    blocked: "Blocked"
+    usageLimited: "Usage limit"
+    budgetLimited: "Budget reached"
+    complete: "Complete"
+  usage: "{tokens} tokens"
+  usage_budget: "{tokens} / {budget} tokens"
+  pause: "Pause"
+  resume: "Resume"
+  clear: "Clear"
+  clear_confirm: "Clear goal?"
+  expand_tooltip: "Show the full objective"
+  collapse_tooltip: "Collapse"
+  pause_tooltip: "Stop after the current turn (/goal pause)"
+  resume_tooltip: "Let Codex continue toward the goal (/goal resume)"
+  clear_tooltip: "Remove the goal (/goal clear)"
+  not_connected: "Not connected — reconnect to change the goal"
 
 # ============================================================
 # Agent progress (background task_progress events)

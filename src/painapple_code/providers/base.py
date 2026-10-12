@@ -685,6 +685,30 @@ class Provider(ABC):
         plugin system. The plugins route uses this instead of assuming Claude."""
         return None
 
+    # --- provider slash commands ------------------------------------------
+    #
+    # A provider's CLI usually interprets its own slash commands in its UI
+    # layer, which we replace — so commands the wire protocol can't take as
+    # prompt text are declared and handled here. `slash_commands()` feeds the
+    # client's `/` popup (via describe); `parse_control_command()` claims a user
+    # message that is a CONTROL action (no user turn of its own — it changes
+    # thread state, and any work it triggers arrives as provider-started turns)
+    # before ws_chat opens a turn for it.
+
+    def slash_commands(self) -> list[dict]:
+        """Commands this provider handles natively: ``[{"cmd": "/goal",
+        "desc": str, "args": str}]`` (args = an argument hint, may be "")."""
+        return []
+
+    def parse_control_command(self, message: dict) -> Optional[dict]:
+        """Parse a canonical user message into a control command, or None.
+
+        The returned dict is opaque to the session layer except for
+        ``"command"`` (its name, echoed to the client); it is handed back to the
+        transport's ``run_control()``.
+        """
+        return None
+
     def describe(self) -> dict:
         """Serialize provider metadata (capabilities, availability, accounts)."""
         from dataclasses import asdict
@@ -707,4 +731,5 @@ class Provider(ABC):
             "permission_modes": self.permission_modes(),
             "default_permission_mode": self.default_permission_mode(),
             "cli_resume_template": self.cli_resume_template,
+            "slash_commands": self.slash_commands(),
         }

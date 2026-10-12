@@ -9,7 +9,8 @@ schema; only the canonical-event *builders* (`_assistant`/`_tool_use`/
 mixin.
 
     thread/started               → system/init  (+ session id)
-    turn/started                 → (nothing)
+    turn/started                 → system/turn_started (opens provider-started turns)
+    thread/goal/updated|cleared  → system/goal_update {goal | None}
     item/completed reasoning     → assistant {thinking}
     item/completed agentMessage  → assistant {text}
     item/* commandExecution      → assistant {tool_use Bash} + user {tool_result}
@@ -68,7 +69,18 @@ class _TranslateMixin(_CodexExecTranslateMixin):
 
         if method == "turn/started":
             state.pop("error_result_sent", None)
-            return []
+            # Lets the session open a turn Codex started on its own (a goal
+            # continuing) — turns we start are already open by then.
+            turn = params.get("turn") or {}
+            return [{"type": "system", "subtype": "turn_started",
+                     "turn_id": turn.get("id")}]
+
+        if method == "thread/goal/updated":
+            return [{"type": "system", "subtype": "goal_update",
+                     "goal": params.get("goal")}]
+
+        if method == "thread/goal/cleared":
+            return [{"type": "system", "subtype": "goal_update", "goal": None}]
 
         if method == "thread/tokenUsage/updated":
             # No usage on the Turn object — it arrives here. Stash this turn's
@@ -137,6 +149,11 @@ class _TranslateMixin(_CodexExecTranslateMixin):
 
         if itype == "agentMessage" and completed:
             text = item.get("text", "")
+            if not text.strip():
+                # Codex can close a turn with an empty agentMessage (seen on
+                # the final turn of a /goal it just marked complete) — no
+                # empty bubble.
+                return []
             state["last_text"] = text  # surfaced as result.result
             return [self._assistant([{"type": "text", "text": text}])]
 

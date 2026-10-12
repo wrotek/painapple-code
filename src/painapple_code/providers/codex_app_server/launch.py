@@ -138,26 +138,77 @@ class _LaunchMixin:
             params["model"] = model
         return params
 
-    @staticmethod
-    def is_compact_command(message: dict) -> bool:
-        """True when the user turn is the `/compact` slash command.
+    # Codex's TUI interprets slash commands itself; the app-server it drives
+    # does NOT — text sent as `turn/start` input reaches the model verbatim. So
+    # we play the TUI's part: commands that map to an app-server RPC are routed
+    # here instead of being sent as a prompt.
+    _GOAL_ACTIONS = ("clear", "pause", "resume")
 
-        Claude's CLI interprets `/compact` itself; the app-server has no slash
-        commands — typed text goes to the model verbatim — so it has to become
-        a `thread/compact/start` request instead of a `turn/start`. Trailing
-        instructions (`/compact keep the API notes`) are accepted but unused:
-        the RPC takes only a thread id.
+    def slash_commands(self) -> list[dict]:
+        return [
+            {"cmd": "/goal",
+             "desc": "Set a goal Codex keeps working toward on its own; "
+                     "/goal pause | resume | clear; bare /goal shows it",
+             "args": "<objective> | pause | resume | clear"},
+            {"cmd": "/compact",
+             "desc": "Summarize the conversation to free up context",
+             "args": ""},
+        ]
+
+    @staticmethod
+    def _message_text(message: dict) -> tuple[Optional[str], bool]:
+        """(text of a canonical user message, whether non-text blocks ride along).
+
+        Text is None when the content isn't text-shaped at all.
         """
         content = (message or {}).get("message", {}).get("content", "")
         if isinstance(content, list):
             texts = [b.get("text", "") for b in content
                      if isinstance(b, dict) and b.get("type") == "text"]
-            if any(isinstance(b, dict) and b.get("type") != "text" for b in content):
-                return False   # an image rides along → a real prompt
-            content = "\n".join(texts)
-        if not isinstance(content, str):
-            return False
-        return re.match(r"/compact(\s|$)", content.strip()) is not None
+            attachments = any(isinstance(b, dict) and b.get("type") != "text"
+                              for b in content)
+            return "\n".join(texts), attachments
+        if isinstance(content, str):
+            return content, False
+        return None, False
+
+    @classmethod
+    def is_compact_command(cls, message: dict) -> bool:
+        """True when the user turn is the `/compact` slash command.
+
+        Routed to `thread/compact/start` (a turn of its own) rather than sent as
+        `turn/start` text. Trailing instructions (`/compact keep the API
+        notes`) are accepted but unused: the RPC takes only a thread id.
+        """
+        text, attachments = cls._message_text(message)
+        if text is None or attachments:
+            return False   # an image rides along → a real prompt
+        return re.match(r"/compact(\s|$)", text.strip()) is not None
+
+    def parse_control_command(self, message: dict) -> Optional[dict]:
+        """`/goal …` → a goal control command (see `run_control`).
+
+        Forms (matching the Codex TUI): bare `/goal` shows the current goal,
+        `/goal pause|resume|clear` change its state, anything else sets the
+        objective. A goal opens no user turn: Codex itself starts the turns
+        that pursue it.
+        """
+        text, attachments = self._message_text(message)
+        if text is None:
+            return None
+        m = re.match(r"/goal(?:\s+(.*))?$", text.strip(), re.DOTALL)
+        if not m:
+            return None
+        arg = (m.group(1) or "").strip()
+        if attachments:
+            return {"command": "goal", "action": "invalid",
+                    "error": "Attachments can't be added to /goal — set the "
+                             "goal as text, then send the files as a message."}
+        if not arg:
+            return {"command": "goal", "action": "show"}
+        if arg.lower() in self._GOAL_ACTIONS:
+            return {"command": "goal", "action": arg.lower()}
+        return {"command": "goal", "action": "set", "objective": arg}
 
     def build_turn_input(self, message: dict) -> list[dict]:
         """Canonical user message → app-server `UserInput[]`.

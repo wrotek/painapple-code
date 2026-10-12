@@ -181,6 +181,19 @@ export const agentStreamMethods = {
             return;
         }
 
+        // Provider thread goal changed (Codex /goal: set, per-turn token
+        // counters, status, cleared) — state only; transition rows are
+        // server-stored and arrive as message_stored.
+        if (data.type === 'system' && data.subtype === 'goal_update') {
+            this.setGoal(data.goal || null);
+            return;
+        }
+        // Server-side bookkeeping marker; the dedicated `turn_started` WS
+        // frame (handle-message.js) is what drives the UI.
+        if (data.type === 'system' && data.subtype === 'turn_started') {
+            return;
+        }
+
         // Handle task_progress — live updates for background agents
         if (data.type === 'system' && data.subtype === 'task_progress') {
             this._handleTaskProgress(data);

@@ -38,6 +38,17 @@ Each provider self-describes its capabilities, and the UI follows:
 - **Cost** — Codex reports tokens only, no dollar figure, so the `$` cost readouts hide on Codex sessions and the turn bar shows token counts.
 - **Continue in the CLI** — the **Continue in CLI** quick action is provider-aware: a Claude session gives you `claude -r <id>`, a Codex session `codex exec resume <id>`.
 - **Auto-journal** — the [Shadow Git journal](shadow-git.md) fork always runs on the session's own provider (only the owner of a conversation can fork it), and each provider has its own journal-summarizer model setting.
+- **Slash commands** — the `/` popup lists the active provider's own commands alongside the app's built-ins. On Codex that means `/goal` and `/compact`, which painapple routes to the Codex app-server (typed as plain text, they'd just reach the model as a prompt).
+
+## Codex goals (`/goal`)
+
+A goal is a task Codex keeps working on **by itself**: after `/goal <objective>`, Codex starts turn after turn without new messages until it decides the objective is met and marks the goal complete.
+
+- `/goal <objective>` — set (or replace) the goal; Codex starts right away.
+- `/goal pause` / `/goal resume` — stop after the current turn / continue.
+- `/goal clear` — remove it. Bare `/goal` shows the current goal and what it has used.
+
+While a goal exists, a **goal bar** sits above the input: status (Active, Paused, Complete, or stopped by a usage/budget limit), the objective (click to expand), tokens and time used, and Pause / Resume / Clear buttons. The transcript records each transition ("Goal set", "Goal paused", "Goal complete — 18.3k tokens · 8s"), and every turn Codex runs on its own gets the usual turn bar and journal entry. **Stop** interrupts the current turn *and* pauses the goal, so it doesn't quietly resume later.
 
 ## Settings → Providers
 

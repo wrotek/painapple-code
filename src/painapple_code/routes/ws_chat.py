@@ -244,6 +244,9 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
             "provider_caps": asdict(session_provider.capabilities),
             # Provider still switchable? Locks permanently after the first turn.
             "provider_locked": provider_is_locked(store_data or {}),
+            # Provider thread goal (Codex /goal) for the goal bar.
+            "goal": agent_session.goal if agent_session.goal is not None
+                    else (store_data or {}).get("goal"),
         }
         # Include turn start time so client can show accurate elapsed timer on reconnect
         if is_actively_processing and agent_session.turn_tracker and agent_session.turn_tracker.turn_start:
@@ -283,6 +286,8 @@ async def websocket_chat(websocket: WebSocket, cwd: str = None, session: str = N
                     await _handle_permission_response(websocket, agent_session, data, agents)
                 elif msg_type == "set_permission_mode":
                     await _handle_set_permission_mode(websocket, agent_session, store_id, data, agents)
+                elif msg_type == "control_command":
+                    await _handle_control_command(websocket, agent_session, data, agents)
                 else:
                     logger.warning(f"Unknown message type: {msg_type}")
 
@@ -326,9 +331,7 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
     or model overrides delivered with this turn, ensures Claude is running,
     and forwards the message (text + images) to the subprocess.
     """
-    # Lazy imports to keep module-load cheap and avoid pulling DuckDB if
-    # the chat WS is never opened.
-    from painapple_code.shadow_db import get_shadow_db
+    from painapple_code.services.agent_session import record_turn_start
 
     content = data.get("content", "")
     images = data.get("images", [])  # List of image objects from /api/upload-image
@@ -472,54 +475,27 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
             stored_msg["verifiedFiles"] = verified_files
         await websocket.send_json(stored_msg)
 
+    # Provider control commands (Codex `/goal …`) change thread state rather
+    # than prompting the model: no turn opens for them. The prompt row above
+    # stays in the transcript as the record of what was typed.
+    control = agent_session.provider.parse_control_command(agent_msg)
+    if control is not None:
+        await _run_control_command(agent_session, agents, control)
+        return
+
     # Shadow Git: Set prompt for this turn and reset tracker
     agent_session.turn_tracker.reset()
     agent_session.turn_tracker.set_prompt(content)
     agent_session._ask_tool_id = None  # Reset AskUserQuestion retry suppression
 
-    # Shadow DB: Record turn start (prompt is never lost)
-    try:
-        if agent_session.cwd:
-            db = get_shadow_db()
-            # Get git branch cheaply for turn metadata
-            git_branch = None
-            try:
-                import subprocess as _sp
-                git_branch = _sp.run(
-                    ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                    cwd=agent_session.cwd, capture_output=True,
-                    text=True, encoding="utf-8", errors="replace", timeout=2
-                ).stdout.strip() or None
-            except Exception:
-                pass
-            db_turn_id = db.start_turn(
-                session_id=store_id,
-                project_hash=paths.get_project_hash(agent_session.cwd),
-                # display_content, NOT `display_content or content`: the two
-                # are different KINDS of value — display_content is what the
-                # user typed, content is the composed, model-facing text with
-                # the stash block prepended. The falsy fallback only ever fired
-                # on a stash-only send (typed text empty), which is exactly the
-                # case where it swapped in the composed blob — so messages.jsonl
-                # recorded "" while this column recorded the full stash text for
-                # the same turn. One rule now: user_prompt is what the user
-                # typed. The composed text is still preserved in the shadow-git
-                # commit body via the turn_tracker.set_prompt(content) above.
-                # (An empty user_prompt is already a normal state here — an
-                # image-only send has produced one since long before stash.)
-                user_prompt=display_content,
-                # turn_number moves on finalize, so the turn being opened is
-                # the NEXT one (the column sat NULL on every row before this).
-                turn_number=agent_session.turn_number + 1,
-                has_images=len(images) > 0,
-                git_branch=git_branch,
-                git_repo_hash=paths.get_git_repo_hash(agent_session.cwd),
-                is_plan=plan_mode,
-                provider=agent_session.provider.name,
-            )
-            agent_session.turn_tracker.db_turn_id = db_turn_id
-    except Exception as e:
-        logger.warning(f"Shadow DB start_turn failed: {e}")
+    # Shadow DB: Record turn start (prompt is never lost). user_prompt is
+    # display_content, NOT `display_content or content`: display_content is
+    # what the user typed, content the composed model-facing text with the
+    # stash block prepended — the falsy fallback only ever fired on a
+    # stash-only send and swapped in the composed blob. The composed text is
+    # preserved in the shadow-git commit body via set_prompt(content) above.
+    record_turn_start(agent_session, display_content,
+                      has_images=len(images) > 0, is_plan=plan_mode)
 
     # Apply token profile from message (sent with every prompt)
     msg_token_profile = data.get("token_profile")  # string or absent
@@ -653,6 +629,48 @@ async def _handle_stop(websocket, agent_session, agents) -> None:
             "type": "error",
             "message": "Could not interrupt Claude (not running)"
         })
+
+
+async def _run_control_command(agent_session, agents, control: dict) -> None:
+    """Run a provider control command and report back to every client.
+
+    Starts the provider if needed (the command may be a session's first
+    message). `command_result.turn_active` tells clients whether a turn is
+    running — a goal that starts work opens its turn via `turn_started`, so
+    the sender's optimistic activity strip is cleared only when none is.
+    """
+    if not agent_session.is_running:
+        if not await agents.start_agent(agent_session):
+            await agent_session.safe_send({
+                "type": "command_result", "command": control.get("command"),
+                "error": agent_session.start_error
+                         or f"Failed to start {agent_session.provider.display_name}",
+                "turn_active": False,
+            })
+            return
+    result = await agents.run_control_command(agent_session, control)
+    await agent_session.safe_send({
+        "type": "command_result",
+        "command": control.get("command"),
+        "action": control.get("action"),
+        "error": result.get("error"),
+        "goal": agent_session.goal,
+        "turn_active": not agent_session.is_idle,
+    })
+
+
+async def _handle_control_command(websocket, agent_session, data, agents) -> None:
+    """A `control_command` frame — a provider command issued from UI chrome
+    (the goal bar's Pause/Resume/Clear), not typed: nothing is stored as a
+    user message."""
+    text = (data.get("text") or "").strip()
+    control = agent_session.provider.parse_control_command(
+        {"type": "user", "message": {"role": "user", "content": text}})
+    if control is None:
+        await websocket.send_json({"type": "error",
+                                   "message": f"Not a command: {text[:80]}"})
+        return
+    await _run_control_command(agent_session, agents, control)
 
 
 async def _handle_clear_session(websocket, agent_session, store_id, agents) -> None:

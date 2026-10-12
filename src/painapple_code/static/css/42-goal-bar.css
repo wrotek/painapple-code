@@ -1,0 +1,118 @@
+/* ═══════════════════════════════════════════════════════════════════
+   GOAL BAR — provider thread goal (Codex /goal), above the input
+   Sits under the activity strip in #input-area. One line by default;
+   clicking the objective expands it to the full text.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.goal-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    max-width: 900px;
+    margin: 0 0 var(--sp-6);
+    padding: var(--sp-4) var(--sp-8);
+    font-size: var(--font-size-xs);
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-left: 3px solid var(--goal-tone, var(--accent));
+    border-radius: var(--radius-sm);
+    min-width: 0;
+}
+
+.goal-bar[hidden] { display: none; }
+
+.goal-bar.tone-active   { --goal-tone: var(--accent); }
+.goal-bar.tone-paused   { --goal-tone: var(--warning); }
+.goal-bar.tone-stopped  { --goal-tone: var(--error); }
+.goal-bar.tone-complete { --goal-tone: var(--success); }
+
+.goal-bar.pending .goal-bar-actions { opacity: 0.5; pointer-events: none; }
+
+.goal-bar-icon {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    color: var(--goal-tone, var(--accent));
+    display: flex;
+}
+.goal-bar-icon svg { width: 14px; height: 14px; }
+
+.goal-bar-status {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-4);
+    color: var(--goal-tone, var(--accent));
+    font-weight: 600;
+}
+
+.goal-bar-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+.goal-bar.running .goal-bar-dot { animation: goal-bar-pulse 1.4s ease-in-out infinite; }
+
+@keyframes goal-bar-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+}
+
+/* Objective — the button IS the text; one line, ellipsis, click to expand */
+.goal-bar-objective {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.goal-bar.expanded { align-items: flex-start; }
+.goal-bar.expanded .goal-bar-objective {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.goal-bar-usage {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+    white-space: nowrap;
+}
+
+.goal-bar-actions {
+    flex-shrink: 0;
+    display: inline-flex;
+    gap: var(--sp-4);
+}
+
+.goal-bar-btn {
+    padding: var(--sp-2) var(--sp-8);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-xs);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+}
+.goal-bar-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.goal-bar-btn-primary { color: var(--accent); border-color: var(--accent-muted); }
+.goal-bar-btn-clear.armed {
+    color: var(--error);
+    border-color: var(--error);
+}
+
+/* Narrow screens: usage drops first, the objective keeps the room */
+@media (max-width: 600px) {
+    .goal-bar-usage { display: none; }
+}

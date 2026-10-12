@@ -5,6 +5,7 @@
  * from app.js; applied to App.prototype via Object.assign. Uses `this` (App
  * instance) plus the imports below.
  */
+import { GoalBar } from '../goal-bar.js';
 import { CONFIG, HAS_PHYSICAL_KEYBOARD, debug } from '../config.js';
 import { Storage } from '../utils.js';
 import { Session } from '../session.js';
@@ -295,6 +296,9 @@ export const sessionSwitchMethods = {
 
         // Load preferred model for this session
         this.statusBar.setSession(session.storeId || null);
+
+        // Goal bar (Codex /goal) follows the active session
+        GoalBar.render(session);
 
         // Restore selection state if saved (from previous tab switch)
         if (session.selectionState) {

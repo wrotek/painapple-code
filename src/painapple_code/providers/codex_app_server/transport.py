@@ -67,6 +67,25 @@ _MCP_TOOL_RE = re.compile(r'run tool "([^"]+)"')
 _PERSIST_DESTINATION = {"session": "session", "always": "userSettings"}
 
 
+def _rpc_error_text(err: Exception) -> str:
+    """Human message from a JSON-RPC error raised by `_request`.
+
+    `intake` raises RuntimeError(str(error_dict)); unwrap its `message`, and
+    turn "method not found" into something actionable (an older CLI).
+    """
+    import ast
+    raw = str(err)
+    try:
+        data = ast.literal_eval(raw)
+    except (ValueError, SyntaxError):
+        return raw
+    if isinstance(data, dict):
+        if data.get("code") == -32601:
+            return "This Codex CLI doesn't support that command — update codex."
+        return str(data.get("message") or raw)
+    return raw
+
+
 def _client_version() -> str:
     try:
         from painapple_code import __version__
@@ -238,6 +257,52 @@ class JsonRpcTransport:
                 self._active_turn_id = turn["id"]
         return True
 
+    async def run_control(self, cmd: dict) -> dict:
+        """Execute a control command from `parse_control_command`.
+
+        Returns ``{"goal": dict | None}`` on success or ``{"error": str}``.
+        Never opens a turn itself; any turn Codex starts in response (setting
+        or resuming a goal) arrives as an ordinary `turn/started`, which the
+        session layer opens as a provider-started turn.
+        """
+        if cmd.get("action") == "invalid":
+            return {"error": cmd.get("error") or "Invalid command"}
+        async with self._send_lock:
+            if not self._initialized:
+                await self.initialize()
+            if self._thread_id is None:
+                await self._ensure_thread()
+            try:
+                if cmd.get("command") == "goal":
+                    return await self._run_goal(cmd)
+            except RuntimeError as e:
+                return {"error": _rpc_error_text(e)}
+        return {"error": f"Unknown command: {cmd.get('command')}"}
+
+    async def _run_goal(self, cmd: dict) -> dict:
+        tid = self._thread_id
+        action = cmd.get("action")
+        if action == "set":
+            res = await self._request("thread/goal/set", {
+                "threadId": tid, "objective": cmd["objective"], "status": "active"})
+            return {"goal": (res or {}).get("goal")}
+        if action == "clear":
+            await self._request("thread/goal/clear", {"threadId": tid})
+            return {"goal": None}
+        current = ((await self._request("thread/goal/get", {"threadId": tid})) or {}).get("goal")
+        if action == "show":
+            return {"goal": current}
+        if not current:
+            return {"error": "No goal is set — start one with /goal <objective>."}
+        if action == "resume" and current.get("status") == "complete":
+            return {"error": "That goal is already complete — set a new one "
+                             "with /goal <objective>."}
+        status = "paused" if action == "pause" else "active"
+        if current.get("status") == status:
+            return {"goal": current}
+        res = await self._request("thread/goal/set", {"threadId": tid, "status": status})
+        return {"goal": (res or {}).get("goal")}
+
     def _queue(self, message: dict, why: str) -> None:
         self._queued.append(message)
         logger.info(f"codex app-server: queued follow-up until the active turn "
@@ -252,12 +317,13 @@ class JsonRpcTransport:
         queued, self._queued = self._queued, []
         for message in queued:
             try:
-                await self.send_turn(message)
                 # The finished turn's result frame flipped the session idle;
-                # this send opened the next turn, so mark it busy again. Safe
-                # to do after the await: the ack is read by the same reader
-                # AFTER it has finished handling turn/completed (finalize).
+                # this send opens the next turn, so mark it busy BEFORE the
+                # request: its turn/started may be read before the ack, and an
+                # idle session takes turn/started for a provider-started
+                # (goal) turn.
                 self.session.is_idle = False
+                await self.send_turn(message)
             except Exception as e:
                 logger.error(f"codex app-server: queued follow-up failed: {e}")
                 await self.session.safe_send({
@@ -283,6 +349,15 @@ class JsonRpcTransport:
                 await self._request("turn/interrupt", params, timeout=10.0)
             except Exception as e:
                 logger.info(f"codex app-server turn/interrupt: {e}")
+            # An interrupted goal stops continuing but still reports `active`;
+            # pause it so the goal bar tells the truth and Resume restarts it.
+            goal = getattr(self.session, "goal", None)
+            if isinstance(goal, dict) and goal.get("status") == "active":
+                try:
+                    await self._request("thread/goal/set", {
+                        "threadId": self._thread_id, "status": "paused"}, timeout=10.0)
+                except Exception as e:
+                    logger.info(f"codex app-server goal pause on stop: {e}")
 
     # --- internals --------------------------------------------------------
 

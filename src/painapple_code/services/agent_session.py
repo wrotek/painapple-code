@@ -153,6 +153,11 @@ class AgentSession:
     # Compacting state (for UI feedback on reconnect)
     is_compacting: bool = False
     compaction_failed: bool = False  # Set when a /compact settles with compact_result=failed
+    # Provider thread goal (Codex `/goal`): the latest ThreadGoal dict, or None.
+    # Mirrored to meta["goal"] so the goal bar survives reconnects/restarts;
+    # _goal_loaded marks that meta has been consulted for the previous value.
+    goal: Optional[dict] = None
+    _goal_loaded: bool = False
     _turn_heartbeat_task: Optional[asyncio.Task] = None  # Periodic pings while a turn is active
     # Lazy persistence - don't store empty sessions
     _store_meta: dict = None  # Pending store metadata (not yet persisted)
@@ -480,6 +485,85 @@ async def _background_shadow_commit(
         raise  # Re-raise to properly mark task as cancelled
     except Exception as e:
         logger.exception(f"Shadow Git commit failed: {e}")
+
+
+def record_turn_start(session: "AgentSession", user_prompt: str, *,
+                      has_images: bool = False, is_plan: bool = False) -> None:
+    """Shadow DB: INSERT the turn row when a turn opens (prompt is never lost).
+
+    Shared by user-sent turns (ws_chat) and provider-started ones (a Codex goal
+    continuing on its own). Sets `turn_tracker.db_turn_id`; failures are logged,
+    never raised — a turn must not die on its bookkeeping.
+    """
+    from painapple_code import paths
+    from painapple_code.shadow_db import get_shadow_db
+    if not session.cwd or not session.store_id:
+        return
+    try:
+        git_branch = None
+        try:
+            import subprocess as _sp
+            git_branch = _sp.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=session.cwd, capture_output=True,
+                text=True, encoding="utf-8", errors="replace", timeout=2
+            ).stdout.strip() or None
+        except Exception:
+            pass
+        session.turn_tracker.db_turn_id = get_shadow_db().start_turn(
+            session_id=session.store_id,
+            project_hash=paths.get_project_hash(session.cwd),
+            user_prompt=user_prompt,
+            # turn_number moves on finalize, so the turn being opened is the
+            # NEXT one.
+            turn_number=session.turn_number + 1,
+            has_images=has_images,
+            git_branch=git_branch,
+            git_repo_hash=paths.get_git_repo_hash(session.cwd),
+            is_plan=is_plan,
+            provider=session.provider.name,
+        )
+    except Exception as e:
+        logger.warning(f"Shadow DB start_turn failed: {e}")
+
+
+def _fmt_tokens(n) -> str:
+    n = int(n or 0)
+    return f"{n / 1000:.1f}k" if n >= 1000 else str(n)
+
+
+def _fmt_seconds(sec) -> str:
+    sec = int(sec or 0)
+    if sec < 60:
+        return f"{sec}s"
+    m, s_ = divmod(sec, 60)
+    if m < 60:
+        return f"{m}m {s_}s" if s_ else f"{m}m"
+    h, m = divmod(m, 60)
+    return f"{h}h {m}m" if m else f"{h}h"
+
+
+def goal_usage_text(goal: dict) -> str:
+    """"12.3k tokens · 4m 12s" — what a goal has spent so far."""
+    parts = [f"{_fmt_tokens(goal.get('tokensUsed'))} tokens"]
+    budget = goal.get("tokenBudget")
+    if budget:
+        parts[0] = f"{_fmt_tokens(goal.get('tokensUsed'))}/{_fmt_tokens(budget)} tokens"
+    if goal.get("timeUsedSeconds"):
+        parts.append(_fmt_seconds(goal["timeUsedSeconds"]))
+    return " · ".join(parts)
+
+
+# Chat row for a goal status transition (status → text). `active` is handled
+# separately: a NEW goal reads "Goal set", a paused/limited one coming back
+# reads "Goal resumed".
+_GOAL_STATUS_ROWS = {
+    "paused": "Goal paused",
+    "blocked": "Goal blocked — Codex is waiting on you",
+    "usageLimited": "Goal stopped: usage limit reached",
+    "budgetLimited": "Goal stopped: token budget reached",
+    "complete": "Goal complete",
+}
 
 
 class AgentManager:
@@ -1314,6 +1398,19 @@ class AgentManager:
         """Handle system messages: init metadata, compaction detection."""
         subtype = msg.get("subtype", "")
 
+        if subtype == "turn_started":
+            # A turn we opened (user send / queued flush) is already non-idle.
+            # One arriving while idle was started by the provider itself — a
+            # Codex goal continuing — and needs the same bookkeeping a user
+            # turn gets, or its result would finalize a turn that never opened.
+            if session.is_idle:
+                await self._open_provider_turn(session)
+            return
+
+        if subtype == "goal_update":
+            await self._apply_goal_update(session, msg.get("goal"))
+            return
+
         if subtype == "init" and session.store_id:
             if msg.get("model"):
                 SessionStore.update_metadata(session.store_id, model=msg["model"])
@@ -1452,6 +1549,126 @@ class AgentManager:
                     )
                 except Exception as e:
                     logger.exception(f"Compaction checkpoint failed: {e}")
+
+    async def _open_provider_turn(self, session: AgentSession):
+        """Open a turn the provider started without a user message.
+
+        Mirrors what ws_chat does for a sent prompt — tracker reset, DB row,
+        busy flag — minus storing a user message: there is none. The DB row's
+        user_prompt stays empty (an image-only send already produces one); the
+        summarizer gets the goal as the turn's context instead.
+        """
+        goal = session.goal or {}
+        objective = goal.get("objective") or ""
+        session.is_idle = False
+        session.touch()
+        session.turn_tracker.reset()
+        session.turn_tracker.set_prompt(
+            "(No new user message — the agent continued on its own toward the "
+            f"thread goal.)\nGoal: {objective}" if objective else
+            "(No new user message — the agent started this turn on its own.)")
+        session._ask_tool_id = None
+        record_turn_start(session, "")
+        logger.info(f"Provider-started turn opened for session {session.store_id}"
+                    f"{' (goal)' if objective else ''}")
+        await session.safe_send({
+            "type": "turn_started",
+            "source": "goal" if objective else "provider",
+            "turn_start": session.turn_tracker.turn_start,
+            "goal": session.goal,
+        })
+
+    def _load_goal(self, session: AgentSession) -> Optional[dict]:
+        """The session's last known goal — in memory, else persisted meta."""
+        if not session._goal_loaded:
+            session._goal_loaded = True
+            if session.goal is None and session.store_id:
+                meta = SessionStore.load_meta(session.store_id) or {}
+                session.goal = meta.get("goal")
+        return session.goal
+
+    async def _store_goal_row(self, session: AgentSession, row_id: str, content: str,
+                              role: str = "info") -> None:
+        """Persist + broadcast one goal chat row (stable id → no duplicates)."""
+        if not session.store_id:
+            return
+        row = {
+            "id": row_id,
+            "role": role,
+            "content": content,
+            "source": "goal",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        line = SessionStore.add_message(session.store_id, row)
+        await session.safe_send({"type": "message_stored", "message": row, "line": line})
+
+    async def _apply_goal_update(self, session: AgentSession, goal: Optional[dict]):
+        """Record a goal change: state, meta, and a chat row on transitions.
+
+        `thread/goal/updated` fires on every turn (token counters) — only a new
+        objective, a status change, or a clear earns a row; everything else
+        just refreshes the goal bar.
+        """
+        prev = self._load_goal(session)
+        session.goal = goal
+        if session.store_id:
+            SessionStore.update_metadata(session.store_id, goal=goal)
+        if goal is None:
+            if prev:
+                await self._store_goal_row(
+                    session, f"goal-{prev.get('createdAt')}-cleared-{int(time.time())}",
+                    "Goal cleared")
+            return
+        status = goal.get("status")
+        key = f"goal-{goal.get('createdAt')}-{goal.get('updatedAt')}-{status}"
+        is_new = (not prev or prev.get("createdAt") != goal.get("createdAt")
+                  or prev.get("objective") != goal.get("objective"))
+        if is_new and status == "active":
+            await self._store_goal_row(session, key, f"Goal set: {goal.get('objective', '')}")
+        elif prev and prev.get("status") != status:
+            if status == "active":
+                await self._store_goal_row(session, key, "Goal resumed")
+            elif status in _GOAL_STATUS_ROWS:
+                text = _GOAL_STATUS_ROWS[status]
+                if status in ("complete", "budgetLimited", "usageLimited"):
+                    text = f"{text} — {goal_usage_text(goal)}"
+                await self._store_goal_row(session, key, text)
+
+    async def run_control_command(self, session: AgentSession, cmd: dict) -> dict:
+        """Run a provider control command (e.g. Codex `/goal`) — no user turn.
+
+        Returns the transport's result (``{"goal": …}`` / ``{"error": …}``).
+        State changes surface through the provider's own notifications
+        (goal_update → rows); this only adds rows a notification can't carry:
+        the answer to a bare `/goal`, and errors.
+        """
+        transport = session._transport
+        if transport is None or not hasattr(transport, "run_control"):
+            result = {"error": f"{session.provider.display_name} can't run "
+                               f"/{cmd.get('command')} here."}
+        else:
+            try:
+                result = await transport.run_control(cmd)
+            except Exception as e:
+                logger.error(f"Control command {cmd} failed: {e}")
+                result = {"error": str(e)}
+        stamp = int(time.time() * 1000)
+        if result.get("error"):
+            await self._store_goal_row(session, f"goal-error-{stamp}",
+                                       result["error"], role="error")
+        elif cmd.get("action") == "show":
+            goal = result.get("goal")
+            if goal:
+                await self._apply_goal_update(session, goal)
+                await self._store_goal_row(
+                    session, f"goal-show-{stamp}",
+                    f"Goal ({goal.get('status')}, {goal_usage_text(goal)}): "
+                    f"{goal.get('objective', '')}")
+            else:
+                await self._store_goal_row(
+                    session, f"goal-show-{stamp}",
+                    "No goal set — /goal <objective> starts one.")
+        return result
 
     def _start_turn_heartbeat(self, session: AgentSession):
         """Ping the client every 10s while a turn is active.

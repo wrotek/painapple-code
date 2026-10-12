@@ -104,6 +104,8 @@ export const wsHandlerMethods = {
                     // Load prompt history from server (for up/down navigation)
                     this.loadPromptHistory();
                 }
+                // Provider thread goal (Codex /goal) — server is authoritative.
+                this.setGoal(msg.goal || null);
                 // Show appropriate connection message and update typing state
                 // Track per-session Claude running state from server
                 this.isAgentRunning = msg.agent_running || false;
@@ -484,6 +486,38 @@ export const wsHandlerMethods = {
                 // This prevents green dot on reconnect to idle sessions
                 this.updateTab();
                 this._setActivity({ active: false });
+                break;
+
+            case 'turn_started':
+                // The provider started a turn on its own (a Codex goal
+                // continuing) — no prompt was sent from here, so nothing has
+                // lit the strip or started the timer yet.
+                if (msg.turn_start) {
+                    this._turnStartTime = new Date(msg.turn_start).getTime();
+                }
+                if (msg.goal !== undefined) this.setGoal(msg.goal);
+                this.isAgentRunning = true;
+                this._setActivity({
+                    active: true,
+                    icon: msg.source === 'goal' ? 'target' : 'sparkle',
+                    label: msg.source === 'goal' ? S.activity.states.goal : S.activity.states.working,
+                });
+                this.updateTab();
+                break;
+
+            case 'command_result':
+                // A provider control command (Codex /goal) settled. Its rows
+                // (errors, "Goal set", …) arrive as message_stored; this frame
+                // carries the resulting state and whether a turn is running —
+                // the send path lit the strip optimistically, and a command
+                // that started no work must turn it back off.
+                document.getElementById('goal-bar')?.classList.remove('pending');
+                if (msg.goal !== undefined) this.setGoal(msg.goal);
+                if (!msg.turn_active) this._setActivity({ active: false });
+                if (msg.error && !this.storeId) {
+                    // No store yet → the server couldn't persist the row.
+                    this.addMessage({ role: 'error', content: msg.error });
+                }
                 break;
 
             case 'session_cleared':

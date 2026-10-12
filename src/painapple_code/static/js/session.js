@@ -23,6 +23,7 @@ import S from './strings.js';
 import { CONFIG, debug, HAS_PHYSICAL_KEYBOARD } from './config.js';
 import { genId, Storage } from './utils.js';
 import { effortSettings } from './effort-settings.js';
+import { GoalBar } from './goal-bar.js';
 
 import { restoreMessages } from './session/restore.js';
 import { messageWriteMethods } from './session/messages.js';
@@ -106,6 +107,10 @@ export class Session {
         // conversation lives in that provider's format). Server-reported on
         // connect; providerSessionId doubles as the live post-turn signal.
         this.providerLocked = options.providerLocked || false;
+        // Provider thread goal (Codex /goal) — ThreadGoal dict or null.
+        // Server-authoritative: arrives on `connected`, goal_update frames and
+        // command_result; painted by goal-bar.js for the active session.
+        this.goal = null;
         // Client-side caches of the per-session prefs the status-bar managers
         // fetch on switch. Seeded from persistence/meta and written back on
         // every fetch/pick, they let a tab switch paint the correct model /
@@ -664,7 +669,26 @@ export class Session {
         if (this.isActive) {
             const app = getApp();
             app.setActivity(this._lastActivity || activity);
+            // The goal bar's "running" pulse follows the turn.
+            if (this.goal) GoalBar.render(this);
         }
+    }
+
+    /** Adopt the server's goal state (null = none) and repaint if visible. */
+    setGoal(goal) {
+        this.goal = goal || null;
+        if (this.isActive) GoalBar.render(this);
+    }
+
+    /**
+     * Send a provider control command (e.g. "/goal pause") over the socket.
+     * Unlike a typed prompt, nothing is stored as a user message.
+     * @returns {boolean} false when not connected
+     */
+    sendControlCommand(text) {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+        this.ws.send(JSON.stringify({ type: 'control_command', text }));
+        return true;
     }
 
     /**

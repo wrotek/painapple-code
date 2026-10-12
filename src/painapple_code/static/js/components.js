@@ -16,6 +16,7 @@ import {
     parseLineInfo
 } from './linkify-utils.js';
 import { isAbsolutePath, joinPath, basename } from './path-utils.js';
+import { providerInfo, PROVIDERS_INFO } from './status-bar.js';
 
 // Helper to get app instance
 const getApp = () => window.app;
@@ -1481,14 +1482,30 @@ export class AutocompleteUI {
             const allCommands = [];
             const seenCmds = new Set();
 
-            // 1. Built-in commands (highest priority)
+            // 0. Provider-native commands (e.g. Codex /goal) — declared by the
+            //    active session's provider and handled server-side, because
+            //    the CLI UI that would normally parse them isn't in the loop.
+            //    First, so a provider's own description wins over a generic
+            //    built-in of the same name (/compact).
+            const app = getApp();
+            const activeSession = app?.activeSession;
+            const providerName = activeSession?.provider || activeSession?.pendingProvider
+                || PROVIDERS_INFO?.default;
+            for (const pc of providerInfo(providerName)?.slash_commands || []) {
+                if (seenCmds.has(pc.cmd)) continue;
+                allCommands.push({ cmd: pc.cmd, desc: pc.desc, hasArgs: !!pc.args,
+                                   isProviderCommand: true });
+                seenCmds.add(pc.cmd);
+            }
+
+            // 1. Built-in commands
             for (const cmd of COMMANDS) {
+                if (seenCmds.has(cmd.cmd)) continue;
                 allCommands.push(cmd);
                 seenCmds.add(cmd.cmd);
             }
 
             // 2. Custom commands from CommandStore
-            const app = getApp();
             const projectPath = app?.cwd || null;
             const commandStore = getCommandStore();
             const customCommands = commandStore.getCommands(projectPath);

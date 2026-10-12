@@ -503,3 +503,232 @@ def test_file_change_delete_renders_as_removal_and_rename_keeps_path():
                      "diff": ""}]}}}
     assert _tool_uses(_app_server().translate_events(rename, _fresh_state())) == [
         ("x_0", "Edit", {"file_path": "/w/b"})]
+
+
+# --- /goal: provider control command ------------------------------------------
+#
+# Codex's TUI parses /goal itself; the app-server we drive does not, so the
+# command used to reach the model as prompt text. Now: parse → thread/goal/*
+# RPC, goal notifications → goal_update frames, and turns Codex starts on its
+# own to pursue the goal → opened by the session layer as provider turns.
+
+def test_parse_goal_control_command_forms():
+    p = _app_server()
+    assert p.parse_control_command(_user("/goal")) == {"command": "goal", "action": "show"}
+    assert p.parse_control_command(_user("/goal  Pause ")) == {"command": "goal", "action": "pause"}
+    assert p.parse_control_command(_user("/goal resume"))["action"] == "resume"
+    assert p.parse_control_command(_user("/goal clear"))["action"] == "clear"
+    assert p.parse_control_command(_user("/goal ship it\nwith tests")) == {
+        "command": "goal", "action": "set", "objective": "ship it\nwith tests"}
+    assert p.parse_control_command(_user("/goals x")) is None
+    assert p.parse_control_command(_user("please /goal x")) is None
+    assert p.parse_control_command(_user("hello")) is None
+    with_image = p.parse_control_command(_user([
+        {"type": "text", "text": "/goal x"},
+        {"type": "image", "source": {"type": "base64", "data": ""}}]))
+    assert with_image["action"] == "invalid" and with_image["error"]
+
+
+def test_goal_is_declared_for_the_slash_popup_and_claude_stays_clean():
+    names = [c["cmd"] for c in _app_server().describe()["slash_commands"]]
+    assert "/goal" in names
+    claude = get_provider("claude-sdk")
+    assert claude.slash_commands() == []
+    assert claude.parse_control_command(_user("/goal x")) is None
+
+
+def test_goal_and_turn_lifecycle_notifications_translate():
+    p = _app_server()
+    st = _fresh_state()
+    assert p.translate_events({"method": "turn/started",
+                               "params": {"turn": {"id": "U1"}}}, st) == [
+        {"type": "system", "subtype": "turn_started", "turn_id": "U1"}]
+    goal = {"objective": "o", "status": "active", "tokensUsed": 5}
+    assert p.translate_events({"method": "thread/goal/updated",
+                               "params": {"goal": goal}}, st) == [
+        {"type": "system", "subtype": "goal_update", "goal": goal}]
+    assert p.translate_events({"method": "thread/goal/cleared",
+                               "params": {"threadId": "T1"}}, st) == [
+        {"type": "system", "subtype": "goal_update", "goal": None}]
+
+
+def _goal_transport(responses, goal=None):
+    """A transport with a scripted `_request` (method → result | Exception)."""
+    from types import SimpleNamespace
+    session = SimpleNamespace(cwd="/w", session_id="T1", store_id=None,
+                              _xlate_state={}, goal=goal)
+    t = _app_server().make_transport(process=None, opts=LaunchOptions(), session=session)
+    t._initialized = True
+    t._thread_id = "T1"
+    calls = []
+
+    async def fake_request(method, params, timeout=None):
+        calls.append((method, params))
+        r = responses.get(method)
+        if isinstance(r, Exception):
+            raise r
+        return r
+    t._request = fake_request
+    return t, calls
+
+
+def test_run_control_goal_actions():
+    import asyncio
+    g_active = {"objective": "o", "status": "active"}
+    g_paused = {"objective": "o", "status": "paused"}
+
+    t, calls = _goal_transport({"thread/goal/set": {"goal": g_active}})
+    assert asyncio.run(t.run_control({"command": "goal", "action": "set",
+                                      "objective": "o"})) == {"goal": g_active}
+    assert calls == [("thread/goal/set", {"threadId": "T1", "objective": "o",
+                                          "status": "active"})]
+
+    t, calls = _goal_transport({"thread/goal/get": {"goal": g_active},
+                                "thread/goal/set": {"goal": g_paused}})
+    assert asyncio.run(t.run_control({"command": "goal", "action": "pause"})) == {"goal": g_paused}
+    assert calls[-1] == ("thread/goal/set", {"threadId": "T1", "status": "paused"})
+
+    # Already in the asked-for state → no write.
+    t, calls = _goal_transport({"thread/goal/get": {"goal": g_paused}})
+    assert asyncio.run(t.run_control({"command": "goal", "action": "pause"})) == {"goal": g_paused}
+    assert [m for m, _ in calls] == ["thread/goal/get"]
+
+    t, _ = _goal_transport({"thread/goal/get": {"goal": None}})
+    assert "No goal" in asyncio.run(t.run_control({"command": "goal", "action": "resume"}))["error"]
+
+    t, _ = _goal_transport({"thread/goal/get": {"goal": {"objective": "o", "status": "complete"}}})
+    assert "complete" in asyncio.run(t.run_control({"command": "goal", "action": "resume"}))["error"]
+
+    t, calls = _goal_transport({"thread/goal/clear": {}})
+    assert asyncio.run(t.run_control({"command": "goal", "action": "clear"})) == {"goal": None}
+
+    t, _ = _goal_transport({"thread/goal/get": {"goal": g_active}})
+    assert asyncio.run(t.run_control({"command": "goal", "action": "show"})) == {"goal": g_active}
+
+
+def test_run_control_reports_rpc_errors_readably():
+    import asyncio
+    t, _ = _goal_transport({"thread/goal/set": RuntimeError(
+        str({"code": -32601, "message": "Method not found"}))})
+    err = asyncio.run(t.run_control({"command": "goal", "action": "set", "objective": "o"}))["error"]
+    assert "update codex" in err
+    t, _ = _goal_transport({"thread/goal/set": RuntimeError(
+        str({"code": -32600, "message": "ephemeral thread does not support goals"}))})
+    assert asyncio.run(t.run_control({"command": "goal", "action": "set", "objective": "o"})) == {
+        "error": "ephemeral thread does not support goals"}
+
+
+def test_stop_pauses_an_active_goal():
+    # turn/interrupt halts the goal's continuation but leaves it reporting
+    # `active` (verified live on 0.159.3) — pause it so the bar tells the truth.
+    import asyncio
+    t, calls = _goal_transport({}, goal={"objective": "o", "status": "active"})
+    t._active_turn_id = "U1"
+    asyncio.run(t.interrupt())
+    assert [m for m, _ in calls] == ["turn/interrupt", "thread/goal/set"]
+    assert calls[1][1] == {"threadId": "T1", "status": "paused"}
+
+    t, calls = _goal_transport({}, goal={"objective": "o", "status": "paused"})
+    asyncio.run(t.interrupt())
+    assert [m for m, _ in calls] == ["turn/interrupt"]
+
+
+@pytest.fixture
+def goal_session():
+    from unittest.mock import patch
+    from painapple_code.services.agent_session import AgentManager, AgentSession
+    with patch("painapple_code.services.agent_session.SessionStore") as store:
+        store.load_meta.return_value = {}
+        store.add_message.return_value = 7
+        sess = AgentSession(store_id="store_goal", cwd="/tmp")
+        sent = []
+
+        async def safe_send(msg):
+            sent.append(msg)
+        sess.safe_send = safe_send
+        yield AgentManager(), sess, store, sent
+
+
+def _rows(store):
+    return [c.args[1]["content"] for c in store.add_message.call_args_list]
+
+
+def test_goal_updates_store_rows_only_on_transitions(goal_session):
+    import asyncio
+    agents, sess, store, _ = goal_session
+    g = {"objective": "ship", "status": "active", "createdAt": 1, "updatedAt": 1,
+         "tokensUsed": 0, "timeUsedSeconds": 0}
+    run = lambda goal: asyncio.run(agents._handle_system_msg(
+        sess, {"type": "system", "subtype": "goal_update", "goal": goal}))
+    run(g)
+    run({**g, "updatedAt": 2, "tokensUsed": 900})          # per-turn counters
+    run({**g, "updatedAt": 3, "tokensUsed": 2400})
+    run({**g, "updatedAt": 4, "status": "paused"})
+    run({**g, "updatedAt": 5, "status": "active"})
+    run({**g, "updatedAt": 6, "status": "complete", "tokensUsed": 12300,
+         "timeUsedSeconds": 252})
+    run(None)
+    assert _rows(store) == [
+        "Goal set: ship", "Goal paused", "Goal resumed",
+        "Goal complete — 12.3k tokens · 4m 12s", "Goal cleared"]
+    assert sess.goal is None
+    store.update_metadata.assert_called_with("store_goal", goal=None)
+
+
+def test_goal_snapshot_after_restart_does_not_duplicate_goal_set(goal_session):
+    # A resumed thread re-announces its goal; meta already has it → no new row.
+    import asyncio
+    agents, sess, store, _ = goal_session
+    g = {"objective": "ship", "status": "active", "createdAt": 1, "updatedAt": 9}
+    store.load_meta.return_value = {"goal": g}
+    asyncio.run(agents._handle_system_msg(
+        sess, {"type": "system", "subtype": "goal_update", "goal": g}))
+    assert _rows(store) == []
+
+
+def test_turn_started_while_idle_opens_a_provider_turn(goal_session):
+    import asyncio
+    from unittest.mock import patch
+    agents, sess, store, sent = goal_session
+    sess.goal = {"objective": "ship", "status": "active"}
+    sess._goal_loaded = True
+    sess.is_idle = True
+    with patch("painapple_code.services.agent_session.record_turn_start") as rec:
+        asyncio.run(agents._handle_system_msg(sess, {"type": "system", "subtype": "turn_started"}))
+    assert sess.is_idle is False
+    rec.assert_called_once_with(sess, "")
+    assert "Goal: ship" in sess.turn_tracker.user_prompt
+    assert sent[-1]["type"] == "turn_started" and sent[-1]["source"] == "goal"
+
+    # A turn we started ourselves is already busy → left alone.
+    sent.clear()
+    with patch("painapple_code.services.agent_session.record_turn_start") as rec:
+        asyncio.run(agents._handle_system_msg(sess, {"type": "system", "subtype": "turn_started"}))
+    rec.assert_not_called()
+    assert sent == []
+
+
+def test_bare_goal_reports_current_goal_and_errors_become_rows(goal_session):
+    import asyncio
+    agents, sess, store, _ = goal_session
+
+    class T:
+        def __init__(self, result):
+            self.result = result
+
+        async def run_control(self, cmd):
+            return self.result
+    sess._transport = T({"goal": None})
+    asyncio.run(agents.run_control_command(sess, {"command": "goal", "action": "show"}))
+    sess._transport = T({"error": "boom"})
+    asyncio.run(agents.run_control_command(sess, {"command": "goal", "action": "pause"}))
+    assert _rows(store) == ["No goal set — /goal <objective> starts one.", "boom"]
+    assert store.add_message.call_args_list[-1].args[1]["role"] == "error"
+
+
+def test_empty_agent_message_renders_no_bubble():
+    p = _app_server()
+    st = _fresh_state()
+    assert p.translate_events({"method": "item/completed", "params": {
+        "item": {"type": "agentMessage", "id": "m", "text": "  "}}}, st) == []
+    assert "last_text" not in st

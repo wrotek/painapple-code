@@ -339,6 +339,7 @@ class SessionStoreV2:
                 "total_cost", "message_count", "slash_commands", "max_thinking_tokens",
                 "token_profile", "preferred_model", "permission_level",
                 "effort_level", "provider",
+                "goal",  # provider thread goal (Codex /goal) — drives the goal bar
             }
             for key, value in kwargs.items():
                 if key in meta or key in allowed_fields:
