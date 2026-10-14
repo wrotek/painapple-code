@@ -96,7 +96,7 @@ function invalidateModelsCache() {
 
 /**
  * Friendly label for a model ID. Looks it up in MODELS first, then falls
- * back to deriving from the ID pattern. "claude-haiku-4-5" → "Haiku 4.5".
+ * back to deriving from the ID pattern. "claude-haiku-5-5" → "Haiku 5.5".
  */
 function formatModelLabel(id) {
     if (!id) return '';

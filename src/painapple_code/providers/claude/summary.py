@@ -41,8 +41,9 @@ class _SummaryMixin:
         from painapple_code.paths import get_summary_model
         from painapple_code.utils.token_profiles import build_env as build_token_env
 
-        # Always plain haiku — the [1m] variant hangs with --fork-session from
-        # opus[1m] sessions (every fork times out at 300s even for 30k context).
+        # Never a `[1m]`-suffixed id — that variant hung with --fork-session from
+        # opus[1m] sessions (every fork timed out at 300s even for 30k context).
+        # Haiku 5.5 is 1M-context natively, so the plain id needs no suffix.
         summary_model = get_summary_model()
         return SummaryForkPlan(
             argv=[

@@ -60,7 +60,7 @@ class _CapabilitiesMixin:
         from painapple_code import paths
         cleaned = (value or "").strip() or (
             paths.get_default_models_config().get("summary_model")
-            or "claude-haiku-4-5")
+            or "claude-haiku-5-5")
         paths.save_models_config({
             "selectable": paths.get_selectable_models(),
             "summary_model": cleaned,

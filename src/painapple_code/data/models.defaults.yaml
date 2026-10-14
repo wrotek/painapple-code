@@ -15,4 +15,4 @@ selectable:
 - id: claude-fable-5-1[1m]
   label: Fable 5.1
   desc: Most capable, premium cost
-summary_model: claude-haiku-4-5
+summary_model: claude-haiku-5-5

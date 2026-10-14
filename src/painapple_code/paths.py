@@ -681,7 +681,7 @@ def load_models_config() -> dict:
     global _models_cache, _models_mtime
     yaml_path = PACKAGE_DIR / "data" / "models.yaml"
     if not yaml_path.exists():
-        return {"selectable": [], "summary_model": "claude-haiku-4-5"}
+        return {"selectable": [], "summary_model": "claude-haiku-5-5"}
     mtime = yaml_path.stat().st_mtime
     if mtime == _models_mtime and _models_cache:
         return _models_cache
@@ -696,7 +696,7 @@ def get_summary_model() -> str:
     """Model ID for shadow-git summary / auto-journal forks (Claude → Haiku)."""
     cfg = load_models_config()
     # Back-compat: the models.yaml key was `haiku:` before the rename.
-    return cfg.get("summary_model") or cfg.get("haiku") or "claude-haiku-4-5"
+    return cfg.get("summary_model") or cfg.get("haiku") or "claude-haiku-5-5"
 
 
 def get_selectable_models() -> list:
@@ -708,7 +708,7 @@ def get_default_models_config() -> dict:
     """Load the pristine default model list from models.defaults.yaml."""
     yaml_path = PACKAGE_DIR / "data" / "models.defaults.yaml"
     if not yaml_path.exists():
-        return {"selectable": [], "summary_model": "claude-haiku-4-5"}
+        return {"selectable": [], "summary_model": "claude-haiku-5-5"}
     import yaml
     with open(yaml_path, encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
