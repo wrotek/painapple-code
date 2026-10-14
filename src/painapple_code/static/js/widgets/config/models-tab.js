@@ -421,6 +421,7 @@ function renderProviderPanel(container) {
         ? `<p class="provider-card-status unavailable">${escapeHtml(p.unavailable_reason || '')}</p>` : '';
     const pathBlock = p.path_configurable ? `
         <p class="provider-card-status" data-role="version"></p>
+        <p class="provider-card-status unavailable provider-version-warning" data-role="version-warning" hidden></p>
         <div class="provider-path-row">
             <input type="text" class="system-text-input provider-path-input"
                    placeholder="${escapeHtml(p.default_binary || '')}"
@@ -536,6 +537,18 @@ function applyProviderPathInfo(root, data) {
         const ver = data.version || S.settings.hints.provider_path_missing;
         versionEl.textContent = data.resolved ? `${ver} · ${data.resolved}` : ver;
         versionEl.classList.toggle('unavailable', !data.version);
+    }
+    // Below the provider's self-described minimum CLI version (still runs,
+    // but e.g. the default journal model is unknown to it). Reason + upgrade
+    // hint are provider-described; the frame sentence lives in strings.yaml.
+    const warnEl = root.querySelector('[data-role="version-warning"]');
+    if (warnEl) {
+        const tooOld = data.version && data.version_ok === false;
+        warnEl.hidden = !tooOld;
+        warnEl.textContent = tooOld
+            ? [S.settings.hints.provider_version_too_old.replace('{min}', data.min_version || ''),
+               data.reason, data.upgrade_hint].filter(Boolean).join(' — ')
+            : '';
     }
     if (resetBtn) resetBtn.disabled = !data.path;
 }

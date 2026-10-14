@@ -1110,3 +1110,58 @@ def test_codex_app_server_empty_reasoning_items_skipped():
     blk = msgs[0]["message"]["content"][0]
     assert blk["type"] == "thinking"
     assert blk["thinking"] == "planning the fix"
+
+
+# ── Minimum CLI version (self-described floor, warn-only) ─────────────────
+
+
+def test_cli_version_status_compares_numerically():
+    p = get_provider("claude-sdk")
+    floor = p.min_cli_version
+    assert floor  # claude-sdk ships a floor (Haiku 5.5 journal default)
+    # 2.1.292 < 2.1.293 numerically; "2.1.1000" would sort below as a string.
+    old = p.cli_version_status("2.1.292 (Claude Code)")
+    assert old["version_ok"] is False
+    assert old["min_version"] == floor
+    assert old["reason"] and old["upgrade_hint"]
+    assert p.cli_version_status(f"{floor} (Claude Code)")["version_ok"] is True
+    assert p.cli_version_status("2.1.1000 (Claude Code)")["version_ok"] is True
+    # No probe / unparseable → never warn.
+    assert p.cli_version_status(None)["version_ok"] is True
+    assert p.cli_version_status("dev build")["version_ok"] is True
+    ok = p.cli_version_status("9.9.9")
+    assert ok["reason"] is None and ok["upgrade_hint"] is None
+
+
+def test_cli_version_status_no_floor_never_warns():
+    p = get_provider("codex-app-server")
+    assert p.min_cli_version is None
+    assert p.cli_version_status("0.0.1")["version_ok"] is True
+
+
+def test_startup_check_warns_on_stale_cli(client, monkeypatch, caplog):
+    import logging
+    from painapple_code import server
+    p = get_provider("claude-sdk")
+    cls = type(p)
+    monkeypatch.setattr(cls, "is_available", lambda self: (True, None))
+    monkeypatch.setattr(cls, "cli_version", lambda self, resolved=None, timeout=5: "2.1.285 (Claude Code)")
+    with caplog.at_level(logging.WARNING):
+        stale = server.check_provider_cli_versions(client.app)
+    assert [s["provider"] for s in stale] == ["claude-sdk"]
+    assert "too old: 2.1.285" in caplog.text and p.min_cli_version in caplog.text
+
+    monkeypatch.setattr(cls, "cli_version", lambda self, resolved=None, timeout=5: "2.1.299 (Claude Code)")
+    assert server.check_provider_cli_versions(client.app) == []
+
+
+def test_provider_path_reports_version_floor(client, monkeypatch, tmp_path):
+    fake = tmp_path / "claude"
+    fake.write_text("#!/bin/sh\necho '2.1.200 (Claude Code)'\n")
+    fake.chmod(0o755)
+    _patch_config_store(monkeypatch, {"claude_path": str(fake)})
+    data = client.get("/api/app/provider-path/claude-sdk").json()
+    assert data["version"] == "2.1.200 (Claude Code)"
+    assert data["version_ok"] is False
+    assert data["min_version"] == get_provider("claude-sdk").min_cli_version
+    assert data["upgrade_hint"]

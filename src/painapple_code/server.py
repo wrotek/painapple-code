@@ -105,6 +105,40 @@ for _sig in (signal.SIGTERM, getattr(signal, "SIGHUP", None)):
     if _sig is not None:
         signal.signal(_sig, _signal_handler)
 
+def check_provider_cli_versions(app) -> list[dict]:
+    """Warn once per enabled+available provider whose CLI is below its floor.
+
+    Returns the offenders (``{provider, version, min_version}``) for tests.
+    Never raises — a broken probe must not take boot down with it.
+    """
+    stale = []
+    try:
+        from painapple_code.providers import all_providers
+        from painapple_code.routes.dependencies import provider_enabled_map
+        enabled = provider_enabled_map(app)
+        for p in all_providers():
+            if not p.min_cli_version or not enabled.get(p.name):
+                continue
+            if not p.is_available()[0]:
+                continue
+            version = p.cli_version()
+            status = p.cli_version_status(version)
+            if status["version_ok"]:
+                continue
+            stale.append({"provider": p.name, "version": version,
+                          "min_version": p.min_cli_version})
+            msg = (f"{p.display_name} CLI is too old: {version}, minimum "
+                   f"supported is {p.min_cli_version}")
+            if status["reason"]:
+                msg += f" — {status['reason']}"
+            if status["upgrade_hint"]:
+                msg += f". {status['upgrade_hint']}"
+            logger.warning(msg)
+    except Exception:
+        logger.exception("CLI version check failed")
+    return stale
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown."""
@@ -132,6 +166,13 @@ async def lifespan(app: FastAPI):
             "git not found on PATH — the auto-journal (shadow git) and the "
             "Git panel are both disabled. Install git and restart." + hint
         )
+
+    # Agent CLIs older than their provider's self-described floor: still
+    # launch, but something that needs the newer CLI fails (quietly, for the
+    # background journal fork). Probing spawns `<cli> --version` per enabled
+    # provider, so it runs off the loop and boot doesn't wait on it.
+    app.state.cli_version_check = asyncio.create_task(
+        asyncio.to_thread(check_provider_cli_versions, app))
 
     # Server is created in main() before uvicorn.run() so --cwd is available
     if agents:

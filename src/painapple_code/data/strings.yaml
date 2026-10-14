@@ -1098,6 +1098,7 @@ settings:
     provider_path_save: "Save"
     provider_path_reset: "Reset"
     provider_path_missing: "CLI not found"
+    provider_version_too_old: "Older than the minimum supported version {min}"
     provider_models_readonly: "Model definitions come from the provider's own CLI. Use the toggles to choose which are listed in pickers."
     provider_models_empty: "No models reported yet — run this provider's CLI once to populate its catalog."
     provider_model_toggle_title: "Show or hide this model in pickers"

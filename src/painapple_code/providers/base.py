@@ -178,6 +178,14 @@ class PluginBackend:
     marketplace_root: Optional[object] = None  # Path for component inventory; None → skip
 
 
+def _parse_version(text: Optional[str]) -> Optional[tuple]:
+    """First dotted number in `text` as an int tuple ("2.1.293 (Claude Code)"
+    → (2, 1, 293)); None when there isn't one."""
+    import re
+    m = re.search(r"\d+(?:\.\d+)+", text or "")
+    return tuple(int(x) for x in m.group(0).split(".")) if m else None
+
+
 class StderrClass(str, Enum):
     """Classification of a single stderr line. The session layer applies its
     own state gates (retry budget, etc.) on top of this pure-text verdict."""
@@ -213,6 +221,16 @@ class Provider(ABC):
     # same binary), so the setting edits the provider, not the driver.
     path_config_key: Optional[str] = None
     default_binary: str = ""
+    # Oldest CLI release this provider is known to work with. Checked (never
+    # enforced) at startup and in the Settings version row: an older CLI still
+    # launches, but a feature that needs the newer one fails — usually quietly,
+    # e.g. a default model the CLI rejects as unrecognized. None → no floor.
+    # `min_cli_version_reason` says what breaks below it; `cli_upgrade_hint` how
+    # to fix it. Compared numerically on the first dotted number in
+    # `<binary> --version` output; an unparseable version never warns.
+    min_cli_version: Optional[str] = None
+    min_cli_version_reason: str = ""
+    cli_upgrade_hint: str = ""
     # Copy-paste CLI hint for the "Continue in CLI" quick action: a shell
     # command template that resumes a session by id ("{id}" placeholder). Self-
     # described so the client never hardcodes a provider's resume verb (Claude
@@ -525,6 +543,49 @@ class Provider(ABC):
         if not found:
             return False, f"{binary} not found on PATH"
         return True, None
+
+    def cli_version(self, resolved: Optional[str] = None, timeout: float = 5) -> Optional[str]:
+        """Raw `<binary> --version` output (stripped), or None if it can't run.
+
+        Blocking — callers on the event loop wrap it in ``asyncio.to_thread``.
+        `resolved` is a full path when the caller already resolved one (on
+        win32 a bare npm-shim name isn't spawnable, the shutil.which path is).
+        """
+        import shutil
+        import subprocess
+        from pathlib import Path
+        if resolved is None:
+            try:
+                binary = self.binary()
+            except Exception:
+                return None
+            resolved = binary if Path(binary).is_absolute() else shutil.which(binary)
+        if not resolved:
+            return None
+        try:
+            result = subprocess.run(
+                [resolved, "--version"], capture_output=True, text=True,
+                encoding="utf-8", errors="replace", timeout=timeout)
+        except Exception:
+            return None
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    def cli_version_status(self, version_text: Optional[str]) -> dict:
+        """Compare probed `--version` output against `min_cli_version`.
+
+        ``{min_version, version_ok, reason, upgrade_hint}`` — ``version_ok`` is
+        False only when both sides parse and the CLI is older; no floor, no
+        probe, or an unparseable version all count as OK (never cry wolf).
+        """
+        found = _parse_version(version_text)
+        floor = _parse_version(self.min_cli_version)
+        ok = not (found and floor and found < floor)
+        return {
+            "min_version": self.min_cli_version,
+            "version_ok": ok,
+            "reason": None if ok else (self.min_cli_version_reason or None),
+            "upgrade_hint": None if ok else (self.cli_upgrade_hint or None),
+        }
 
     def parse_auth_status(self, returncode: int, stdout: str, stderr: str) -> dict:
         """Interpret the `auth_status_args` probe → ``{logged_in, detail}``.

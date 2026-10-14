@@ -86,25 +86,10 @@ async def _provider_path_payload(p) -> dict:
     current = configured or p.default_binary
     resolved = current if Path(current).is_absolute() else shutil.which(current)
 
-    version = None
-    if resolved:
-        try:
-            # Off the event loop — a hung `<cli> --version` would otherwise
-            # block every other request for up to 5s.
-            result = await asyncio.to_thread(
-                subprocess.run,
-                # `resolved`, not `current`: on win32 a bare npm-shim name
-                # ("claude" → claude.cmd) isn't spawnable, but the full
-                # path shutil.which returned is.
-                [resolved, "--version"],
-                capture_output=True,
-                text=True, encoding="utf-8", errors="replace",
-                timeout=5,
-            )
-            if result.returncode == 0:
-                version = result.stdout.strip()
-        except Exception:
-            pass
+    # Off the event loop — a hung `<cli> --version` would otherwise block
+    # every other request for up to 5s. `resolved`, not `current`: on win32 a
+    # bare npm-shim name ("claude" → claude.cmd) isn't spawnable.
+    version = await asyncio.to_thread(p.cli_version, resolved) if resolved else None
 
     return {
         "provider": p.name,
@@ -113,6 +98,9 @@ async def _provider_path_payload(p) -> dict:
         "default_binary": p.default_binary,
         "resolved": resolved,
         "version": version,
+        # min_version / version_ok / reason / upgrade_hint — the client warns
+        # when this CLI is older than the provider's self-described floor.
+        **p.cli_version_status(version),
     }
 
 

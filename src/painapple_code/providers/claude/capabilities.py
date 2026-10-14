@@ -36,6 +36,16 @@ class _CapabilitiesMixin:
     # paste-back code, which works fine inside a PTY terminal tab.
     auth_status_args = ["auth", "status", "--json"]
     auth_login_args = ["auth", "login"]
+    # 2.1.293 is the first CLI that knows claude-haiku-5-5 (bisected: 2.1.292
+    # rejects it as unrecognized_model) — the shipped auto-journal default.
+    # npm's `stable` dist-tag lagged behind it at release, hence `@latest`.
+    min_cli_version = "2.1.293"
+    min_cli_version_reason = (
+        "it doesn't know Haiku 5.5, the default auto-journal model, so journal "
+        "summaries fail")
+    cli_upgrade_hint = (
+        "Run `claude update` or `npm install -g @anthropic-ai/claude-code@latest` "
+        "(no server restart needed — every fork spawns the CLI fresh).")
 
     def binary(self) -> str:
         return get_claude_binary()
