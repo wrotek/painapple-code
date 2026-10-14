@@ -2,6 +2,13 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.1.11 — 2026-10-14
+
+### Fixed
+
+- The quick switcher's file search (Cmd/Ctrl+K) no longer loses the project's own files when an extra directory is attached. A large extra directory used to fill the whole 20,000-file list, so the project's files vanished from search, for example every `.php` file in a PHP project. Project files now always come first, and hits from extra directories rank below in-project ones.
+- Files from extra directories show their absolute path with the leading `/` (`/data/...`) instead of `data/...`, which looked like a folder inside the project.
+
 ## 1.1.10 — 2026-10-12
 
 ### Added
