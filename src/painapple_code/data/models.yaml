@@ -9,10 +9,10 @@ selectable:
 - id: claude-opus-5-5[1m]
   label: Opus 5.5 (1M)
   desc: Long-running agentic coding and knowledge work
-- id: claude-opus-5[1m]
-  label: Opus 5 (1M)
-  desc: Previous Opus tier (1M context)
 - id: claude-fable-5-1[1m]
   label: Fable 5.1
   desc: Most capable, premium cost
+- id: claude-haiku-5-5
+  label: Haiku 5.5
+  desc: Fastest and cheapest, 1M context
 summary_model: claude-haiku-5-5
