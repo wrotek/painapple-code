@@ -208,6 +208,44 @@ def all_providers() -> list[Provider]:
     return list(_PROVIDERS.values())
 
 
+def stale_cli_versions(enabled: dict) -> list[dict]:
+    """Enabled+available providers whose CLI is below its `min_cli_version`.
+
+    `enabled` is ``dependencies.provider_enabled_map(app)``. Blocking — probes
+    `<cli> --version` per candidate; call off the event loop. Each entry is
+    ``{provider, display_name, version, min_version, reason, upgrade_hint,
+    update_command}`` (`update_command` = shell-quoted binary + the
+    provider's `cli_update_args`, or None).
+    """
+    from painapple_code.utils.proc import shell_join
+    out = []
+    for p in all_providers():
+        if not p.min_cli_version or not enabled.get(p.name):
+            continue
+        if not p.is_available()[0]:
+            continue
+        version = p.cli_version()
+        status = p.cli_version_status(version)
+        if status["version_ok"]:
+            continue
+        update = None
+        if p.cli_update_args:
+            try:
+                update = shell_join([p.binary(), *p.cli_update_args])
+            except Exception:
+                update = None
+        out.append({
+            "provider": p.name,
+            "display_name": p.display_name,
+            "version": version,
+            "min_version": p.min_cli_version,
+            "reason": status["reason"],
+            "upgrade_hint": status["upgrade_hint"],
+            "update_command": update,
+        })
+    return out
+
+
 def valid_permission_values() -> set[str]:
     """Every permission value any provider accepts — the union of every
     provider's registered ``permission_modes()`` (Claude included; it's just

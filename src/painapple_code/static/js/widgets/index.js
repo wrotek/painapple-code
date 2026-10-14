@@ -32,6 +32,7 @@ import { registerSnippetsWidget, SnippetsWidget } from './snippets-widget.js';
 import { registerDiffViewerWidget, DiffViewerWidget } from './diff-viewer-widget.js';
 import { registerZenWidget, openZen, closeZen, toggleZen, isZenOpen } from './zen-widget.js';
 import { registerHelpersInstallWidget, HelpersInstallWidget } from './helpers-install-widget.js';
+import { registerCliVersionWidget } from './cli-version-widget.js';
 import { registerBrowserWidget, BrowserWidget } from './browser-widget.js';
 import { registerAboutWidget, AboutWidget } from './about-widget.js';
 import { initQuickActionsMenu, quickActionsMenu } from '../quick-actions-menu.js';
@@ -69,6 +70,7 @@ export function initWidgets() {
     registerDiffViewerWidget();
     registerZenWidget();
     registerHelpersInstallWidget();
+    registerCliVersionWidget();
     registerBrowserWidget();
     registerAboutWidget();
 

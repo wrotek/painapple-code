@@ -104,6 +104,21 @@ async def _provider_path_payload(p) -> dict:
     }
 
 
+@router.get("/api/app/cli-versions")
+async def get_cli_versions(request: Request):
+    """Agent CLIs below their provider's self-described minimum version.
+
+    Drives the out-of-date popup on app load (and its post-update re-check).
+    Probed live — not the boot-time result — so upgrading the CLI clears it
+    without a server restart. ``{"stale": [...]}``, empty when all is well.
+    """
+    from painapple_code.providers import stale_cli_versions
+    from painapple_code.routes.dependencies import provider_enabled_map
+    stale = await asyncio.to_thread(
+        stale_cli_versions, provider_enabled_map(request.app))
+    return {"stale": stale}
+
+
 @router.get("/api/app/provider-path/{provider_name}")
 async def get_provider_path(provider_name: str):
     """Configured CLI binary for one provider (provider self-describes the

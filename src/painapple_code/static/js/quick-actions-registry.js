@@ -600,6 +600,15 @@ QuickActionsRegistry.register('about', {
     execute: () => WidgetManager.open('about'),
 });
 
+QuickActionsRegistry.register('cli-version', {
+    keywords: ['claude', 'codex', 'cli', 'version', 'update', 'upgrade', 'outdated'],
+    icon: 'warning',
+    label: S.quick_actions_registry.actions.cli_version.label,
+    description: S.quick_actions_registry.actions.cli_version.desc,
+    category: S.quick_actions_registry.categories.utilities,
+    execute: () => WidgetManager.open('cli-version'),
+});
+
 QuickActionsRegistry.register('help', {
     keywords: ['docs', 'shortcuts', 'tips', 'manual'],
     icon: 'help-circle',

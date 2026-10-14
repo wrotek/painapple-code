@@ -1165,3 +1165,29 @@ def test_provider_path_reports_version_floor(client, monkeypatch, tmp_path):
     assert data["version_ok"] is False
     assert data["min_version"] == get_provider("claude-sdk").min_cli_version
     assert data["upgrade_hint"]
+
+
+def test_cli_versions_endpoint_lists_stale_with_update_command(client, monkeypatch):
+    cls = type(get_provider("claude-sdk"))
+    monkeypatch.setattr(cls, "is_available", lambda self: (True, None))
+    monkeypatch.setattr(cls, "binary", lambda self: "claude")
+    monkeypatch.setattr(cls, "cli_version", lambda self, resolved=None, timeout=5: "2.1.285 (Claude Code)")
+    stale = client.get("/api/app/cli-versions").json()["stale"]
+    entry = next(s for s in stale if s["provider"] == "claude-sdk")
+    assert entry["version"] == "2.1.285 (Claude Code)"
+    assert entry["min_version"] == cls.min_cli_version
+    assert entry["update_command"] == "claude update"
+    assert entry["display_name"] and entry["reason"]
+
+    monkeypatch.setattr(cls, "cli_version", lambda self, resolved=None, timeout=5: "2.1.299 (Claude Code)")
+    stale = client.get("/api/app/cli-versions").json()["stale"]
+    assert not any(s["provider"] == "claude-sdk" for s in stale)
+
+
+def test_cli_versions_skips_disabled_provider(monkeypatch):
+    from painapple_code.providers import stale_cli_versions
+    cls = type(get_provider("claude-sdk"))
+    monkeypatch.setattr(cls, "is_available", lambda self: (True, None))
+    monkeypatch.setattr(cls, "cli_version", lambda self, resolved=None, timeout=5: "1.0.0")
+    assert stale_cli_versions({"claude-sdk": False}) == []
+    assert [s["provider"] for s in stale_cli_versions({"claude-sdk": True})] == ["claude-sdk"]

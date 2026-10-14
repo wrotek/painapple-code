@@ -1795,6 +1795,7 @@ quick_actions_registry:
     settings: { label: "Settings", desc: "Open settings panel" }
     help: { label: "Help", desc: "Show keyboard shortcuts" }
     about: { label: "About", desc: "Version, license, and source code" }
+    cli_version: { label: "CLI Version Check", desc: "Check agent CLIs against the minimum supported version" }
     send_message: { label: "Send", desc: "Send message to Claude" }
     stop: { label: "Stop", desc: "Stop Claude's response" }
     scroll_bottom: { label: "Scroll Down", desc: "Jump to latest message" }
@@ -1957,6 +1958,18 @@ models:
 # Pill is always visible — clicking opens a modal that explains the
 # auto-journal feature and offers install / update / reinstall.
 # ============================================================
+cli_version:
+  title: "Agent CLI out of date"
+  heading: "{name} CLI is out of date"
+  versions: "Installed {version} · minimum supported {min}"
+  reason_prefix: "Below that,"
+  update_btn: "Update in terminal"
+  later_btn: "Later"
+  dont_show: "Don't show again for this version"
+  terminal_tab: "Update {name}"
+  updated_toast: "{name} CLI updated — all set"
+  all_ok: "All agent CLIs are up to date."
+
 helpers:
   pill:
     # The pill names the RECORDING state, not the helper-file state — a

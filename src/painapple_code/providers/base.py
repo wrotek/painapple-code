@@ -231,6 +231,10 @@ class Provider(ABC):
     min_cli_version: Optional[str] = None
     min_cli_version_reason: str = ""
     cli_upgrade_hint: str = ""
+    # The CLI's own self-update verb, appended to the binary (["update"] →
+    # `claude update`). The out-of-date popup runs it in a terminal tab; None
+    # → no one-click update, the popup shows `cli_upgrade_hint` only.
+    cli_update_args: Optional[list] = None
     # Copy-paste CLI hint for the "Continue in CLI" quick action: a shell
     # command template that resumes a session by id ("{id}" placeholder). Self-
     # described so the client never hardcodes a provider's resume verb (Claude

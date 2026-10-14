@@ -10,6 +10,7 @@ import S from '../strings.js';
 import { CONFIG, INSTANCE } from '../config.js';
 import { Storage } from '../utils.js';
 import { WidgetManager, TerminalWidget } from '../widget-system/init.js';
+import { fetchStaleCliVersions, allDismissed } from '../widgets/cli-version-widget.js';
 import { OpenDialog } from '../open-dialog.js';
 
 export const settingsHelperMethods = {
@@ -175,6 +176,21 @@ export const settingsHelperMethods = {
 
             if (status.any_outdated || !dismissed) {
                 WidgetManager.open('helpers-install', { status });
+            }
+        } catch { /* silent — never block the app */ }
+    },
+
+    /**
+     * Pop the out-of-date-CLI warning when an enabled provider's agent CLI is
+     * below its self-described minimum version (GET /api/app/cli-versions —
+     * probed live, so an upgrade clears it with no restart). Skipped when the
+     * user ticked "Don't show again" for exactly these versions.
+     */
+    async _checkCliVersions() {
+        try {
+            const stale = await fetchStaleCliVersions();
+            if (stale.length && !allDismissed(stale)) {
+                WidgetManager.open('cli-version', { stale });
             }
         } catch { /* silent — never block the app */ }
     },

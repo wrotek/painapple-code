@@ -106,36 +106,26 @@ for _sig in (signal.SIGTERM, getattr(signal, "SIGHUP", None)):
         signal.signal(_sig, _signal_handler)
 
 def check_provider_cli_versions(app) -> list[dict]:
-    """Warn once per enabled+available provider whose CLI is below its floor.
+    """Log a warning per enabled provider whose CLI is below its floor.
 
-    Returns the offenders (``{provider, version, min_version}``) for tests.
-    Never raises — a broken probe must not take boot down with it.
+    Returns the offenders (see ``providers.stale_cli_versions``). Never
+    raises — a broken probe must not take boot down with it.
     """
-    stale = []
     try:
-        from painapple_code.providers import all_providers
+        from painapple_code.providers import stale_cli_versions
         from painapple_code.routes.dependencies import provider_enabled_map
-        enabled = provider_enabled_map(app)
-        for p in all_providers():
-            if not p.min_cli_version or not enabled.get(p.name):
-                continue
-            if not p.is_available()[0]:
-                continue
-            version = p.cli_version()
-            status = p.cli_version_status(version)
-            if status["version_ok"]:
-                continue
-            stale.append({"provider": p.name, "version": version,
-                          "min_version": p.min_cli_version})
-            msg = (f"{p.display_name} CLI is too old: {version}, minimum "
-                   f"supported is {p.min_cli_version}")
-            if status["reason"]:
-                msg += f" — {status['reason']}"
-            if status["upgrade_hint"]:
-                msg += f". {status['upgrade_hint']}"
-            logger.warning(msg)
+        stale = stale_cli_versions(provider_enabled_map(app))
     except Exception:
         logger.exception("CLI version check failed")
+        return []
+    for s in stale:
+        msg = (f"{s['display_name']} CLI is too old: {s['version']}, minimum "
+               f"supported is {s['min_version']}")
+        if s["reason"]:
+            msg += f" — {s['reason']}"
+        if s["upgrade_hint"]:
+            msg += f". {s['upgrade_hint']}"
+        logger.warning(msg)
     return stale
 
 

@@ -46,6 +46,7 @@ class _CapabilitiesMixin:
     cli_upgrade_hint = (
         "Run `claude update` or `npm install -g @anthropic-ai/claude-code@latest` "
         "(no server restart needed — every fork spawns the CLI fresh).")
+    cli_update_args = ["update"]
 
     def binary(self) -> str:
         return get_claude_binary()

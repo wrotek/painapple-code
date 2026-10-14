@@ -1,0 +1,107 @@
+/* "Agent CLI out of date" popup — widgets/cli-version-widget.js.
+   Buttons/footer mirror 68-helpers-install-widget.css so the two app-load
+   popups read as one family. */
+
+.cli-version-widget {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: var(--sp-16);
+    gap: var(--sp-12);
+    box-sizing: border-box;
+}
+
+.cli-version-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-12);
+}
+
+.cli-version-entry {
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    border-left: 3px solid var(--color-warning, #f59e0b);
+    border-radius: var(--radius-sm);
+    padding: var(--sp-12) var(--sp-14);
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+}
+
+.cli-version-heading {
+    font-weight: 600;
+    color: var(--color-warning, #f59e0b);
+}
+
+.cli-version-versions {
+    font-family: 'SF Mono', Menlo, Monaco, monospace;
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary, var(--text-muted));
+}
+
+.cli-version-reason,
+.cli-version-hint {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    line-height: 1.45;
+}
+
+.cli-version-update-row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    flex-wrap: wrap;
+    margin-top: var(--sp-4);
+}
+.cli-version-update-row:empty { display: none; }
+
+.cli-version-cmd {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.cli-version-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-8);
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    padding-top: var(--sp-10);
+}
+
+.cli-version-dont-show {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-8);
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+}
+.cli-version-dont-show input[type="checkbox"] { margin: 0; cursor: pointer; }
+
+.cli-version-btn {
+    height: var(--layout-btn-sm);
+    padding: 0 var(--sp-14);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    background: transparent;
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+}
+.cli-version-btn:hover { background: var(--bg-elevated, rgba(255, 255, 255, 0.04)); }
+.cli-version-btn-primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: var(--bg, #0d1117);
+    font-weight: 600;
+}
+.cli-version-btn-primary:hover { filter: brightness(1.1); background: var(--accent); }
+
+.cli-version-ok {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}

@@ -2067,6 +2067,8 @@ setTimeout(() => import('./editor-view.js').then(m => m.preloadCodeMirror()).cat
 // Check helper install state once the app has settled — silently updates the
 // status-bar pill, and pops the install modal when state warrants it.
 setTimeout(() => window.app?._checkHelpersInstall?.(), 800);
+// After the helpers check so the two popups don't open in the same frame.
+setTimeout(() => window.app?._checkCliVersions?.(), 1500);
 window.WidgetManager = WidgetManager;
 window.DiffViewerWidget = DiffViewerWidget;
 // Expose DeviceManager and FileExplorerWidget for console probing
