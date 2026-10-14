@@ -7,7 +7,7 @@ Here's what you need before installing pAInapple Code, and a frank note on what 
 Running the server directly on a host (pip / pipx / source checkout):
 
 - **Python 3.12+**
-- **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and authenticated — either a Claude subscription (`claude login`) or an Anthropic API key
+- **[Claude Code CLI](https://github.com/anthropics/claude-code)** installed and authenticated — either a Claude subscription (`claude login`) or an Anthropic API key. **Version 2.1.293 or newer**: older CLIs don't know Haiku 5.5, the default auto-journal model. The app checks on startup and offers a one-click `claude update` when yours is behind.
 - **Git** on `PATH` — the [auto-journal](../guides/shadow-git.md) records every turn as a commit in a shadow repository, and the Git panel shells out to it for diffs. Without git the server still runs, but it journals nothing and the Git panel stays empty; you'll get a warning in the log at startup.
 - **Network access between client and server** — any modern browser works as a client
 - *Optional:* the **[OpenAI Codex CLI](https://github.com/openai/codex)** if you want sessions on the Codex [provider](../guides/providers.md) — you can even log it in from inside the app. **Codex support is experimental** — newer and less exercised than the Claude path.
