@@ -239,7 +239,13 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
                 seen.add(resolved)
                 extra_dirs.append(d)
 
-        # Enumerate files from each extra directory (absolute paths)
+        # Enumerate files from each extra directory (absolute paths). Kept in
+        # their own list: they used to be appended to `files` and the whole
+        # thing sorted then capped at 20k — and an absolute `/data/...` sorts
+        # before every relative project path, so one big extra dir pushed
+        # the project's OWN files out of the response entirely.
+        files.sort()
+        extra_files_abs: list[str] = []
         for extra_dir in extra_dirs:
             extra_path = safe_resolve(extra_dir)
             if not extra_path.is_dir():
@@ -250,8 +256,7 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
                     extra_path, include_ignored=include_ignored
                 )
                 walk_truncated = walk_truncated or extra_truncated
-                for f in extra_files:
-                    files.append(str(extra_path / f))
+                extra_files_abs.extend(sorted(str(extra_path / f) for f in extra_files))
             except Exception as e:
                 logger.warning(f"Failed to enumerate extra dir {extra_dir}: {e}")
 
@@ -271,17 +276,21 @@ async def list_project_files(cwd: str, refresh: bool = False, include_ignored: b
                 f"File enumeration hit its cap under {p} — returning a partial list"
             )
 
+        # Project files first, extras fill whatever budget is left
+        # (20k files ≈ 1MB JSON).
+        total = len(files) + len(extra_files_abs)
+        files = (files + extra_files_abs)[:20000]
         return {
             "cwd": str(p),
-            "files": sorted(files)[:20000],  # 20k files ≈ 1MB JSON
+            "files": files,
             "directories": sorted(dirs),
-            "total": len(files),
+            "total": total,
             # Either cap counts: the 20k response budget, or the walk's own
             # 50k/15s ceiling. The latter used to cut the list off with no
             # signal at all, so the client rendered a partial project as a
             # complete one and an @-mention that found nothing looked like
             # a missing file.
-            "truncated": len(files) > 20000 or walk_truncated,
+            "truncated": total > 20000 or walk_truncated,
         }
 
     except PermissionError:

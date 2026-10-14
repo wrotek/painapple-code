@@ -16,7 +16,7 @@ import { scoreFuzzy } from '../fuzzy-scorer.js';
 import { copyToClipboard, showToast } from '../../context-menu.js';
 import { getRecentOpens } from '../../recent-opens.js';
 import S from '../../strings.js';
-import { basename, dirname, relativeTo, resolvePath, splitPath } from '../../path-utils.js';
+import { basename, dirname, isAbsolutePath, relativeTo, resolvePath, splitPath } from '../../path-utils.js';
 
 const CACHE_TTL = 60_000;
 const RECENT_TTL = 30_000;
@@ -29,6 +29,10 @@ const RECENT_POOL_SIZE = 100;
 // this much older — an edit 10 min ago outranks a read 5 min ago, but a
 // read 5 min ago still beats an edit from three hours ago.
 const READ_ONLY_HANDICAP_MS = 60 * 60 * 1000;
+// Files from extra_dirs (absolute paths, outside the project) rank below
+// in-project hits: more than the filename-prefix boost, less than an exact
+// filename match — typing a full name from an extra dir still finds it.
+const OUTSIDE_PROJECT_PENALTY = 150;
 
 /** Parse a DuckDB TIMESTAMPTZ string (e.g. "2026-06-30 14:22:10.123+00")
  *  to epoch ms, for comparison against client open-times (Date.now()).
@@ -228,7 +232,8 @@ export class FileProvider extends BaseProvider {
             const depth = splitPath(path, cwd).length - 1;
             const info = recent.get(resolvePath(cwd, path)) || null;
             const boost = this._recentBoost(info?.rank);
-            return { path, score: score - depth * 2 + boost, matches: nameMatches, info };
+            const outside = isAbsolutePath(path, cwd) ? OUTSIDE_PROJECT_PENALTY : 0;
+            return { path, score: score - depth * 2 + boost - outside, matches: nameMatches, info };
         };
 
         const scored = [];

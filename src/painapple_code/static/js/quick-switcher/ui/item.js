@@ -29,7 +29,10 @@ export function renderItem(item, index, isSelected) {
         ? highlightMatches(item.label, item.matches, escapeHtml)
         : escapeHtml(item.label);
 
-    const desc = item.description ? `<span class="qs-item-desc">${escapeHtml(item.description)}</span>` : '';
+    // The desc box is `direction: rtl` so long paths ellipsize from the start;
+    // without the LRM marks the bidi algorithm moves a leading `/` to the
+    // END (`/data` rendered as `data/`, reading as project-relative).
+    const desc = item.description ? `<span class="qs-item-desc">&lrm;${escapeHtml(item.description)}&lrm;</span>` : '';
     const meta = item.meta ? `<span class="qs-item-meta">${escapeHtml(item.meta)}</span>` : '';
     const cls = `qs-item qs-item-${item.type || 'generic'}${isSelected ? ' selected' : ''}`;
 
