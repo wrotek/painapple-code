@@ -2,6 +2,18 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.2.0 — 2026-10-14
+
+### Added
+
+- When an enabled agent CLI is older than the version pAInapple Code needs, a popup now says so on load. It shows the installed and minimum versions and what breaks below the minimum, and has an **Update in terminal** button that runs `claude update` in a terminal tab and confirms when it's done. You can choose **Later** or **Don't show again for this version**. The same warning appears in the server log at startup and under the version line in Settings → Providers. It's also available as the "CLI Version Check" quick action.
+
+### Changed
+
+- **Requires Claude Code CLI 2.1.293 or newer** for the default auto-journal model. Older CLIs reject Haiku 5.5, and journal summaries fail until you update.
+- The auto-journal now uses Haiku 5.5 by default, replacing Haiku 4.5.
+- The model picker adds Haiku 5.5 and drops Opus 5 (Opus 5.5 remains). Sessions that had Opus 5 selected fall back to the default model.
+
 ## 1.1.11 — 2026-10-14
 
 ### Fixed
