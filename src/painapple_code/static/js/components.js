@@ -177,7 +177,10 @@ export class MarkdownRenderer {
             // — a title containing `"` could otherwise close the attribute and
             // inject new ones. DOMPurify runs after this and would strip an
             // injected handler, but that's the backstop, not the seatbelt.
-            return `<a href="${escapeAttr(safe)}" target="_blank" rel="noopener noreferrer"${title ? ` data-tooltip="${escapeAttr(title)}"` : ''}>${text}</a>`;
+            // Tooltip falls back to the full URL (same as local links fall
+            // back to the path) — link text often hides where it points.
+            const tip = title || (safe !== '#' ? safe : '');
+            return `<a href="${escapeAttr(safe)}" target="_blank" rel="noopener noreferrer"${tip ? ` data-tooltip="${escapeAttr(tip)}"` : ''}>${text}</a>`;
         };
 
         // `![alt](/abs/shot.png)` — same local-path story as links: marked's
