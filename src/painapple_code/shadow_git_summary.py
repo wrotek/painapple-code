@@ -230,7 +230,8 @@ class _SummaryMixin:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self.project_path),
-                env=plan.env,
+                # User env overrides (Settings → Providers → Environment).
+                env=provider.apply_env(plan.env),
                 **popen_kwargs_detached(),  # isolate from server's process group
             )
 

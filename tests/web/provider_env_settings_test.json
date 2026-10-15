@@ -1,0 +1,58 @@
+{
+  "name": "Settings → Providers → Environment (per-provider env overrides)",
+  "description": "The Claude provider panel lists an Environment block: the suggested CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT row renders DISABLED with a 'suggested' badge, a description and a read-only name; ticking it persists via PUT /api/app/provider-env/claude-sdk; a custom row can be added (Enter in the add inputs), edited on blur and removed with the two-click arm; invalid and reserved names are refused without saving. The live config is snapshotted first and restored in the last step. No tokens.",
+  "config": { "browser": "chromium", "headless": true, "viewport": { "width": 1366, "height": 1000 } },
+  "steps": [
+    { "action": "navigate", "url": "https://claude-dev.wrt.lol/app?tkn={{TKN}}" },
+    { "action": "waitFor", "selector": "#app", "timeout": 10000 },
+    { "action": "delay", "ms": 2000 },
+    {
+      "action": "execute",
+      "comment": "Guard tab-state writes + snapshot the live env rows (restored at the end)",
+      "script": "(async () => { const sm = window.app.sessionManager; sm.saveSessions = () => {}; sm.saveSessionsImmediate = () => {}; const snap = await fetch('/api/app/provider-env/claude-sdk').then(r => r.json()); window._envSnap = snap.entries.filter(e => !e.suggested || e.enabled).map(({name, value, enabled}) => ({name, value, enabled})); await fetch('/api/app/provider-env/claude-sdk', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries: [] }) }); return { snapshot: window._envSnap }; })()"
+    },
+    { "action": "execute", "script": "(() => { window.WidgetManager.open('config'); return 'opened'; })()" },
+    { "action": "delay", "ms": 800 },
+    { "action": "execute", "script": "(() => { document.querySelector('.config-tab[data-tab=\"models\"]')?.click(); return 'providers tab'; })()" },
+    { "action": "delay", "ms": 1500 },
+    { "action": "execute", "script": "(() => { document.querySelector('.provider-subtab[data-provider=\"claude-sdk\"]')?.click(); return 'claude-sdk subtab'; })()" },
+    { "action": "delay", "ms": 1200 },
+    {
+      "action": "execute",
+      "comment": "TEST 1: suggested row present, disabled, badge + description, name read-only",
+      "script": "(() => { const rows = [...document.querySelectorAll('#provider-panel .provider-env-row')]; const row = rows.find(r => r.querySelector('[data-field=\"name\"]')?.value === 'CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT'); const t = row?.querySelector('.provider-env-toggle'); const ok = !!row && t && !t.checked && row.classList.contains('env-off') && !!row.querySelector('.provider-env-badge') && !!row.querySelector('.provider-env-desc') && row.querySelector('[data-field=\"name\"]').readOnly && row.querySelector('[data-field=\"value\"]').value === '1' && !row.querySelector('.provider-env-delete'); return { PASS: ok, rows: rows.length }; })()"
+    },
+    { "action": "screenshot", "path": "01-env-suggested-off.png" },
+    {
+      "action": "execute",
+      "comment": "TEST 2: ticking the suggestion persists it as enabled",
+      "script": "(async () => { const row = [...document.querySelectorAll('#provider-panel .provider-env-row')].find(r => r.querySelector('[data-field=\"name\"]').value === 'CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT'); row.querySelector('.provider-env-toggle').click(); await new Promise(r => setTimeout(r, 800)); const api = await fetch('/api/app/provider-env/claude-sdk').then(r => r.json()); const e = api.entries.find(x => x.name === 'CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT'); const row2 = [...document.querySelectorAll('#provider-panel .provider-env-row')].find(r => r.querySelector('[data-field=\"name\"]').value === 'CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT'); return { PASS: e?.enabled === true && e?.value === '1' && row2.querySelector('.provider-env-toggle').checked && !row2.classList.contains('env-off'), entry: e }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "TEST 3: add a custom row via Enter; it lands enabled",
+      "script": "(async () => { const n = document.querySelector('.provider-env-add-name'); const v = document.querySelector('.provider-env-add-value'); n.value = 'WEBTEST_ENV_VAR'; v.value = 'hello world'; v.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); await new Promise(r => setTimeout(r, 800)); const api = await fetch('/api/app/provider-env/claude-sdk').then(r => r.json()); const e = api.entries.find(x => x.name === 'WEBTEST_ENV_VAR'); return { PASS: e?.enabled === true && e?.value === 'hello world' && n.value === '' && !!document.querySelector('#provider-panel .provider-env-delete'), entry: e }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "TEST 4: editing the value persists on blur",
+      "script": "(async () => { const row = [...document.querySelectorAll('#provider-panel .provider-env-row')].find(r => r.querySelector('[data-field=\"name\"]').value === 'WEBTEST_ENV_VAR'); const val = row.querySelector('[data-field=\"value\"]'); val.focus(); val.value = 'changed'; val.blur(); await new Promise(r => setTimeout(r, 800)); const api = await fetch('/api/app/provider-env/claude-sdk').then(r => r.json()); return { PASS: api.entries.find(x => x.name === 'WEBTEST_ENV_VAR')?.value === 'changed' }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "TEST 5: invalid and reserved names are refused client-side (nothing saved, typed name kept, reserved toast)",
+      "script": "(async () => { const n = document.querySelector('.provider-env-add-name'); n.value = '9BAD NAME'; document.querySelector('.provider-env-add-btn').click(); await new Promise(r => setTimeout(r, 500)); n.value = 'CLAUDE_CODE_OAUTH_TOKEN'; document.querySelector('.provider-env-add-btn').click(); await new Promise(r => setTimeout(r, 800)); const kept = n.value === 'CLAUDE_CODE_OAUTH_TOKEN'; const toast = [...document.querySelectorAll('.toast, [class*=toast]')].some(t => /managed by the app/.test(t.textContent)); n.value = ''; const api = await fetch('/api/app/provider-env/claude-sdk').then(r => r.json()); const names = api.entries.map(e => e.name); return { PASS: !names.includes('9BAD NAME') && !names.includes('CLAUDE_CODE_OAUTH_TOKEN') && names.includes('WEBTEST_ENV_VAR') && kept && toast, kept, toast, names }; })()"
+    },
+    { "action": "screenshot", "path": "02-env-enabled-and-custom.png" },
+    {
+      "action": "execute",
+      "comment": "TEST 6: delete needs two clicks (first only arms)",
+      "script": "(async () => { const del = () => [...document.querySelectorAll('#provider-panel .provider-env-row')].find(r => r.querySelector('[data-field=\"name\"]').value === 'WEBTEST_ENV_VAR')?.querySelector('.provider-env-delete'); del().click(); await new Promise(r => setTimeout(r, 400)); const armed = del().classList.contains('armed'); let api = await fetch('/api/app/provider-env/claude-sdk').then(r => r.json()); const stillThere = api.entries.some(e => e.name === 'WEBTEST_ENV_VAR'); del().click(); await new Promise(r => setTimeout(r, 800)); api = await fetch('/api/app/provider-env/claude-sdk').then(r => r.json()); const gone = !api.entries.some(e => e.name === 'WEBTEST_ENV_VAR'); return { PASS: armed && stillThere && gone && !del() }; })()"
+    },
+    {
+      "action": "execute",
+      "comment": "Restore the snapshot taken at the start",
+      "script": "(async () => { const r = await fetch('/api/app/provider-env/claude-sdk', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries: window._envSnap || [] }) }); const api = await r.json(); return { restored: r.ok, entries: api.entries.map(e => [e.name, e.enabled]) }; })()"
+    }
+  ]
+}

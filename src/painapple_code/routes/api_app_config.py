@@ -15,6 +15,7 @@ These endpoints manage:
 
 import asyncio
 import logging
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -226,6 +227,88 @@ async def set_provider_models(provider_name: str, request: Request):
     logger.info(f"Hidden models for {key}: {cleaned or '(none)'}")
 
     return _provider_models_payload(p)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Provider environment overrides (extra env for every spawned CLI)
+# ═══════════════════════════════════════════════════════════════════
+
+_ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_ENV_MAX_ROWS = 64
+_ENV_MAX_VALUE = 8192
+
+
+def _provider_env_payload(p) -> dict:
+    return {
+        "provider": p.name,
+        "env_key": p.env_key,
+        "entries": p.env_entries(),
+        "reserved": sorted(p.reserved_env) + ["PAINAPPLE_*"],
+    }
+
+
+@router.get("/api/app/provider-env/{provider_name}")
+async def get_provider_env(provider_name: str):
+    """Env rows (stored + disabled suggestions) for one provider."""
+    return _provider_env_payload(_provider_or_404(provider_name))
+
+
+@router.put("/api/app/provider-env/{provider_name}")
+async def set_provider_env(provider_name: str, request: Request):
+    """Replace one provider's env rows: ``{entries: [{name, value, enabled}]}``.
+
+    Stored under the provider's `env_key` (driver pairs share a CLI, so they
+    share its env). Takes effect on the next spawn — new sessions at once,
+    idle live sessions respawn on their next message. Rejects malformed or
+    duplicate names and app-owned (reserved) ones. An untouched suggestion
+    needn't be sent; it reappears disabled.
+    """
+    p = _provider_or_404(provider_name)
+    body = await request.json()
+    entries = body.get("entries") if isinstance(body, dict) else None
+    if not isinstance(entries, list) or len(entries) > _ENV_MAX_ROWS:
+        raise HTTPException(status_code=400, detail="entries must be a list")
+
+    cleaned, seen = [], set()
+    for e in entries:
+        if not isinstance(e, dict):
+            raise HTTPException(status_code=400, detail="each entry must be an object")
+        name = str(e.get("name") or "").strip()
+        value = e.get("value", "")
+        if not isinstance(value, str):
+            value = str(value)
+        if not name:
+            continue  # blank row from the editor
+        if not _ENV_NAME_RE.match(name):
+            raise HTTPException(status_code=400, detail=f"Invalid variable name: {name}")
+        if p.env_reserved(name):
+            raise HTTPException(status_code=400, detail=f"{name} is managed by the app and can't be overridden")
+        if name in seen:
+            raise HTTPException(status_code=400, detail=f"Duplicate variable: {name}")
+        if "\x00" in value or len(value) > _ENV_MAX_VALUE:
+            raise HTTPException(status_code=400, detail=f"Invalid value for {name}")
+        seen.add(name)
+        cleaned.append({"name": name, "value": value, "enabled": bool(e.get("enabled"))})
+
+    config = paths.load_global_config()
+    store = dict(config.get("provider_env") or {})
+    if cleaned:
+        store[p.env_key] = cleaned
+    else:
+        store.pop(p.env_key, None)
+    if store:
+        config["provider_env"] = store
+    else:
+        config.pop("provider_env", None)
+    paths.save_global_config(config)
+    if store:
+        # Env values may be secrets (API keys) — keep config.json owner-only
+        # once it holds any. Never loosened back: a clear doesn't widen it.
+        paths.lock_mode(paths.get_global_config_path(), 0o600)
+    # Names only — values may be secrets.
+    logger.info(f"Provider env for {p.env_key}: "
+                f"{[x['name'] for x in cleaned if x['enabled']] or '(none enabled)'}")
+    return _provider_env_payload(p)
 
 
 # ═══════════════════════════════════════════════════════════════════

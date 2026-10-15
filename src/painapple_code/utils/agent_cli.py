@@ -112,7 +112,7 @@ def parse_token_value(val: str) -> int:
     return int(float(val))
 
 
-async def fetch_context_tokens(cwd: str, provider_session_id: str = None, token_profile: str = None, model: str = None) -> Optional[dict]:
+async def fetch_context_tokens(cwd: str, provider_session_id: str = None, token_profile: str = None, model: str = None, provider=None) -> Optional[dict]:
     """
     Run /context command to get accurate token usage for a session.
 
@@ -145,6 +145,10 @@ async def fetch_context_tokens(cwd: str, provider_session_id: str = None, token_
 
         from painapple_code.utils.token_profiles import build_env as build_token_env
         subprocess_env = build_token_env(token_profile)
+        # User env overrides (Settings → Providers → Environment) — the probe
+        # must see the same CLI config as the chat process it measures.
+        if provider is not None:
+            subprocess_env = provider.apply_env(subprocess_env)
 
         from painapple_code.utils.proc import popen_kwargs_detached, resolve_binary
         process = await asyncio.create_subprocess_exec(

@@ -46,6 +46,8 @@ let _tab = {
     providerModels: {},     // models_key → full catalog defs [{id,label,desc}]
     disabledByKey: {},    // models_key → Set(hidden ids, incl. stale extras)
     providerDefaults: {},   // provider name → /api/app/provider-defaults payload
+    providerEnv: {},      // provider name → env rows [{name,value,enabled,suggested,desc}]
+    providerEnvReserved: {},  // provider name → app-owned names (a trailing * = prefix)
 };
 
 export function setupModelsTab(container) {
@@ -504,12 +506,193 @@ function renderProviderPanel(container) {
         <div class="models-list" data-role="models"></div>
         ${modelsFooter}
         ${defaultsBlock}
-        ${journalBlock}`;
+        ${journalBlock}
+        <h4 class="provider-card-subtitle">${S.settings.sections.provider_env}</h4>
+        <div class="provider-env-list" data-role="env"></div>
+        <div class="provider-env-add-row">
+            <span class="models-toggle-spacer"></span>
+            <input type="text" class="system-text-input provider-env-add-name"
+                   placeholder="${escapeHtml(S.settings.hints.provider_env_name_placeholder)}"
+                   spellcheck="false" autocomplete="off" autocapitalize="off">
+            <input type="text" class="system-text-input provider-env-add-value"
+                   placeholder="${escapeHtml(S.settings.hints.provider_env_value_placeholder)}"
+                   spellcheck="false" autocomplete="off" autocapitalize="off">
+            <button type="button" class="system-save-btn provider-env-add-btn">${S.settings.hints.provider_env_add_button}</button>
+        </div>
+        <p class="config-hint">${S.settings.hints.provider_env_hint}</p>`;
     renderPanelModels(container, p);
     renderPanelDefaultModelOptions(container, p);
     if (p.path_configurable) loadProviderPath(root, p.name);
     loadProviderAuth(root, p.name);
     loadProviderDefaults(root, container, p.name);
+    loadProviderEnv(root, p.name);
+}
+
+// --- Environment overrides (/api/app/provider-env/{name}) --------------
+
+async function loadProviderEnv(root, name) {
+    try {
+        const resp = await fetch(`/api/app/provider-env/${encodeURIComponent(name)}`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        _tab.providerEnv[name] = data.entries || [];
+        _tab.providerEnvReserved[name] = data.reserved || [];
+    } catch { return; }
+    if (root.dataset.provider === name) renderPanelEnv(root, name);
+}
+
+function renderPanelEnv(root, name) {
+    const listEl = root.querySelector('[data-role="env"]');
+    if (!listEl) return;
+    const rows = _tab.providerEnv[name] || [];
+    const H = S.settings.hints;
+    listEl.innerHTML = rows.map((e, i) => `
+        <div class="provider-env-row${e.enabled ? '' : ' env-off'}" data-index="${i}">
+            <input type="checkbox" class="provider-env-toggle" data-index="${i}"
+                   ${e.enabled ? 'checked' : ''} data-tooltip="${escapeHtml(H.provider_env_toggle_title)}">
+            <input type="text" class="system-text-input provider-env-input" data-index="${i}"
+                   data-field="name" value="${escapeHtml(e.name)}"${e.suggested ? ' readonly' : ''}
+                   spellcheck="false" autocomplete="off" autocapitalize="off">
+            <input type="text" class="system-text-input provider-env-input" data-index="${i}"
+                   data-field="value" value="${escapeHtml(e.value)}"
+                   placeholder="${escapeHtml(H.provider_env_value_placeholder)}"
+                   spellcheck="false" autocomplete="off" autocapitalize="off">
+            ${e.suggested
+                ? `<span class="provider-env-badge">${escapeHtml(H.provider_env_suggested)}</span>`
+                : `<button type="button" class="provider-env-delete" data-index="${i}"
+                           data-tooltip="${escapeHtml(H.provider_env_delete_title)}">×</button>`}
+            ${e.desc ? `<p class="provider-env-desc">${escapeHtml(e.desc)}</p>` : ''}
+        </div>`).join('');
+}
+
+const ENV_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** PUT the full row list; on failure restore the last saved state. */
+async function saveProviderEnv(root, name, rows) {
+    const previous = _tab.providerEnv[name] || [];
+    _tab.providerEnv[name] = rows;
+    renderPanelEnv(root, name);
+    try {
+        const resp = await fetch(`/api/app/provider-env/${encodeURIComponent(name)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                entries: rows.map(({ name: n, value, enabled }) => ({ name: n, value, enabled })),
+            }),
+        });
+        if (!resp.ok) throw new Error((await resp.json().catch(() => ({}))).detail || resp.status);
+        _tab.providerEnv[name] = (await resp.json()).entries || [];
+    } catch (err) {
+        _tab.providerEnv[name] = previous;
+        showToast(S.settings.hints.provider_env_save_failed.replace('{error}', err.message || err));
+    }
+    if (root.dataset.provider === name) renderPanelEnv(root, name);
+}
+
+/** Client-side check mirroring the server's, so typos fail fast. */
+function envNameProblem(rows, name, skipIndex = -1, provider = null) {
+    const H = S.settings.hints;
+    if (!ENV_NAME_RE.test(name)) return H.provider_env_name_invalid;
+    const reserved = _tab.providerEnvReserved[provider] || [];
+    if (reserved.some(r => r.endsWith('*')
+            ? name.toUpperCase().startsWith(r.slice(0, -1).toUpperCase())
+            : r === name)) {
+        return H.provider_env_reserved.replace('{name}', name);
+    }
+    if (rows.some((r, i) => i !== skipIndex && r.name === name)) {
+        return H.provider_env_name_dupe.replace('{name}', name);
+    }
+    return null;
+}
+
+function wireProviderEnv(root) {
+    let armedIndex = null;
+    let armTimer = null;
+    const disarm = () => {
+        armedIndex = null;
+        if (armTimer) { clearTimeout(armTimer); armTimer = null; }
+        root.querySelectorAll('.provider-env-delete.armed').forEach(b => {
+            b.classList.remove('armed');
+            b.dataset.tooltip = S.settings.hints.provider_env_delete_title;
+        });
+    };
+    const rowsFor = () => (_tab.providerEnv[root.dataset.provider] || []).map(r => ({ ...r }));
+
+    root.addEventListener('change', (e) => {
+        const toggle = e.target.closest('.provider-env-toggle');
+        if (!toggle) return;
+        const rows = rowsFor();
+        const row = rows[+toggle.dataset.index];
+        if (!row) return;
+        row.enabled = toggle.checked;
+        saveProviderEnv(root, root.dataset.provider, rows);
+    });
+
+    root.addEventListener('click', (e) => {
+        if (e.target.closest('.provider-env-add-btn')) {
+            const nameEl = root.querySelector('.provider-env-add-name');
+            const valueEl = root.querySelector('.provider-env-add-value');
+            const name = nameEl?.value.trim() || '';
+            if (!name) { nameEl?.focus(); return; }
+            const rows = rowsFor();
+            const problem = envNameProblem(rows, name, -1, root.dataset.provider);
+            if (problem) { showToast(problem); return; }
+            rows.push({ name, value: valueEl?.value || '', enabled: true, suggested: false, desc: '' });
+            nameEl.value = '';
+            if (valueEl) valueEl.value = '';
+            saveProviderEnv(root, root.dataset.provider, rows);
+            return;
+        }
+        // Two-click arm/commit (window.confirm no-ops in the iPad PWA).
+        const del = e.target.closest('.provider-env-delete');
+        if (del) {
+            const index = +del.dataset.index;
+            if (armedIndex !== index) {
+                disarm();
+                armedIndex = index;
+                del.classList.add('armed');
+                del.dataset.tooltip = S.settings.hints.provider_env_delete_armed;
+                armTimer = setTimeout(disarm, 4000);
+                return;
+            }
+            disarm();
+            const rows = rowsFor();
+            rows.splice(index, 1);
+            saveProviderEnv(root, root.dataset.provider, rows);
+            return;
+        }
+        if (armedIndex !== null) disarm();
+    });
+
+    // Inline edits — save on blur when changed
+    root.addEventListener('blur', (e) => {
+        const input = e.target;
+        if (!input.matches?.('.provider-env-input') || input.readOnly) return;
+        const rows = rowsFor();
+        const index = +input.dataset.index;
+        const row = rows[index];
+        if (!row) return;
+        const field = input.dataset.field;
+        const value = field === 'name' ? input.value.trim() : input.value;
+        if (row[field] === value) return;
+        if (field === 'name') {
+            const problem = envNameProblem(rows, value, index, root.dataset.provider);
+            if (problem) { showToast(problem); input.value = row.name; return; }
+        }
+        row[field] = value;
+        saveProviderEnv(root, root.dataset.provider, rows);
+    }, true);
+
+    root.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        if (e.target.matches?.('.provider-env-input')) {
+            e.preventDefault();
+            e.target.blur();
+        } else if (e.target.matches?.('.provider-env-add-name, .provider-env-add-value')) {
+            e.preventDefault();
+            root.querySelector('.provider-env-add-btn')?.click();
+        }
+    });
 }
 
 // --- CLI path (generic /api/app/provider-path/{name}) -----------------
@@ -743,6 +926,7 @@ async function saveModelVisibility(container, p, toggleEl) {
 function wireProviderPanel(container) {
     const root = container.querySelector('#provider-panel');
     if (!root) return;
+    wireProviderEnv(root);
 
     // Two-click arm/commit instead of confirm(): window.confirm() silently
     // no-ops (and can hang the webview) in the iPad standalone PWA. First

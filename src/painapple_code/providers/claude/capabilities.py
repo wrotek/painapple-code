@@ -47,6 +47,20 @@ class _CapabilitiesMixin:
         "Run `claude update` or `npm install -g @anthropic-ai/claude-code@latest` "
         "(no server restart needed — every fork spawns the CLI fresh).")
     cli_update_args = ["update"]
+    # Settings → Providers → Environment. The token profile owns the OAuth
+    # variable; CLAUDECODE is stripped on purpose (nested-session guard).
+    reserved_env = frozenset({"CLAUDE_CODE_OAUTH_TOKEN", "CLAUDECODE"})
+    suggested_env = (
+        {
+            "name": "CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT",
+            "value": "1",
+            # CLI 2.1.29x asks before running a `bash -c` script whose rm
+            # targets it can't analyse — an ask YOLO can't auto-allow.
+            "desc": ("Skip the CLI's approval prompt for `bash -c` scripts that "
+                     "run rm it can't check (CLI 2.1.299+). Without it, those "
+                     "commands stop for approval even in YOLO mode."),
+        },
+    )
 
     def binary(self) -> str:
         return get_claude_binary()
@@ -146,6 +160,7 @@ class _CapabilitiesMixin:
             provider_session_id=session_id,
             token_profile=token_profile,
             model=model,
+            provider=self,
         )
 
     # --- customization roots (skills / agents / plugins) ------------------

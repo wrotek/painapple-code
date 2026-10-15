@@ -61,6 +61,7 @@ While a goal exists, a **goal bar** sits above the input: status (Active, Paused
     - **Model catalog** — every model with a show/hide toggle (hidden models disappear from all pickers). Claude's catalog is fully editable (add/edit/delete, restore defaults); Codex's is read-only because the Codex CLI owns it.
     - **New Session Defaults** — that provider's default model, default effort (its own vocabulary), default permissions (its own modes — e.g. Codex Full access), and default account/token profile where applicable.
     - **Auto-journal model** — which model writes the [Shadow Git](shadow-git.md) summaries for sessions on this provider.
+    - <a id="environment"></a>**Environment** — extra environment variables for every process the provider's CLI runs (chat, auto-journal, context probe), each with an enable toggle. New sessions pick a change up immediately; open sessions restart their idle CLI on the next message — no server restart. Suggested rows ship disabled, one tick away: Claude lists `CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT=1`, which skips the approval prompt Claude Code 2.1.299+ shows for `bash -c` scripts that run `rm` it can't check (otherwise those commands stop for approval even in YOLO mode). Variables the app manages itself (the account token, `PAINAPPLE_*`) can't be overridden. Values are stored in the server config, which becomes owner-readable only once it holds any.
 
 ## Related
 

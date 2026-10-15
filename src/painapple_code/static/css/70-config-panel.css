@@ -1381,7 +1381,8 @@
     opacity: 0.45;
 }
 
-.models-row-delete {
+.models-row-delete,
+.provider-env-delete {
     width: var(--layout-btn-sm);
     height: var(--layout-btn-sm);
     padding: 0;
@@ -1395,7 +1396,8 @@
     transition: all 0.15s;
 }
 
-.models-row-delete:hover {
+.models-row-delete:hover,
+.provider-env-delete:hover {
     background: var(--color-error-bg, rgba(239, 68, 68, 0.1));
     border-color: var(--color-error, #ef4444);
     color: var(--color-error, #ef4444);
@@ -1405,7 +1407,9 @@
    Replaces confirm() (no-ops/hangs in the iPad PWA). The fill is the signal
    on touch devices, where the title tooltip never shows. */
 .models-row-delete.armed,
-.models-row-delete.armed:hover {
+.models-row-delete.armed:hover,
+.provider-env-delete.armed,
+.provider-env-delete.armed:hover {
     background: var(--color-error, #ef4444);
     border-color: var(--color-error, #ef4444);
     color: #fff;
@@ -1432,6 +1436,69 @@
     padding: var(--sp-6) var(--sp-8);
 }
 
+/* Settings → Providers → Environment: toggle | NAME | value | delete/badge,
+   with an optional description line under suggested rows. */
+.provider-env-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-6);
+}
+
+.provider-env-row,
+.provider-env-add-row {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 320px) 1fr auto;
+    gap: var(--sp-6);
+    align-items: center;
+}
+
+.provider-env-add-row {
+    margin-top: var(--sp-8);
+    padding-top: var(--sp-12);
+    border-top: 1px dashed var(--border-color, #2d2d44);
+}
+
+.provider-env-toggle {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.provider-env-row .system-text-input,
+.provider-env-add-row .system-text-input {
+    min-width: 0;
+    font-family: 'SF Mono', Menlo, Monaco, monospace;
+    font-size: var(--font-size-sm);
+    padding: var(--sp-6) var(--sp-8);
+}
+
+.provider-env-row .provider-env-input[readonly] {
+    color: var(--text-secondary, #c9d1d9);
+    cursor: default;
+}
+
+.provider-env-row.env-off .provider-env-input {
+    opacity: 0.45;
+}
+
+.provider-env-badge {
+    padding: var(--sp-2) var(--sp-6);
+    border: 1px solid var(--border-color, #2d2d44);
+    border-radius: var(--radius-xs);
+    color: var(--text-muted, #9ca3af);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+.provider-env-desc {
+    grid-column: 2 / -1;
+    margin: 0;
+    color: var(--text-muted, #9ca3af);
+    font-size: var(--font-size-xs);
+    line-height: 1.4;
+}
+
 .models-empty {
     padding: var(--sp-16);
     color: var(--text-muted, #9ca3af);
@@ -1449,8 +1516,13 @@
 
 @media (max-width: 600px) {
     .models-row,
-    .models-add-row {
+    .models-add-row,
+    .provider-env-row,
+    .provider-env-add-row {
         grid-template-columns: 1fr;
+    }
+    .provider-env-desc {
+        grid-column: auto;
     }
     .models-toggle-spacer {
         display: none;

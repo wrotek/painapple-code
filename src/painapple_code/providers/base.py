@@ -19,6 +19,7 @@ so a single provider instance can be shared across all sessions.
 from __future__ import annotations
 
 import json
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -274,6 +275,16 @@ class Provider(ABC):
     # means for this provider (e.g. Codex inherits the session's model).
     summary_model_config_key: Optional[str] = None
     summary_model_placeholder: str = ""
+    # Extra environment for every CLI process this provider spawns (chat,
+    # summary fork, /context probe) — Settings → Providers → Environment.
+    # Stored in the global config's `provider_env` map under `models_key`
+    # (driver pairs share one CLI, so they share its env). `suggested_env`
+    # lists known knobs the panel offers as ready-made rows, DISABLED until
+    # the user ticks them: ``{"name", "value", "desc"}``. `reserved_env`
+    # names this provider's CLI that the app itself owns (e.g. the token
+    # profile's OAuth variable) — the user can't override those.
+    suggested_env: tuple = ()
+    reserved_env: frozenset = frozenset()
     capabilities: Capabilities = Capabilities()
 
     # --- launch -----------------------------------------------------------
@@ -679,6 +690,69 @@ class Provider(ABC):
         if not disabled:
             return self.models()
         return [m for m in self.models() if m.get("id") not in disabled]
+
+    # --- environment overrides (Settings → Providers → Environment) ----------
+
+    @property
+    def env_key(self) -> str:
+        """Namespace in the `provider_env` config map (shared by driver pairs)."""
+        return self.models_key or self.name
+
+    def env_reserved(self, name: str) -> bool:
+        """True when `name` is app-owned and can't be set by the user."""
+        return name.upper().startswith("PAINAPPLE_") or name in self.reserved_env
+
+    def env_entries(self) -> list[dict]:
+        """Stored env rows + not-yet-stored suggestions (disabled), in order.
+
+        Each row: ``{name, value, enabled, suggested, desc}``. A stored row
+        whose name matches a suggestion keeps the suggestion's description, so
+        a ticked suggestion still explains itself.
+        """
+        from painapple_code import paths
+        raw = (paths.load_global_config().get("provider_env") or {}).get(self.env_key)
+        suggestions = {s["name"]: s for s in self.suggested_env}
+        rows, seen = [], set()
+        for e in raw if isinstance(raw, list) else []:
+            if not isinstance(e, dict) or not isinstance(e.get("name"), str):
+                continue
+            name = e["name"]
+            if name in seen:
+                continue
+            seen.add(name)
+            s = suggestions.get(name)
+            rows.append({
+                "name": name,
+                "value": str(e.get("value") or ""),
+                "enabled": bool(e.get("enabled")),
+                "suggested": s is not None,
+                "desc": s.get("desc", "") if s else "",
+            })
+        for name, s in suggestions.items():
+            if name not in seen:
+                rows.append({"name": name, "value": s.get("value", ""),
+                             "enabled": False, "suggested": True,
+                             "desc": s.get("desc", "")})
+        return rows
+
+    def env_overrides(self) -> dict:
+        """The enabled, non-reserved rows as a ``{name: value}`` dict."""
+        return {e["name"]: e["value"] for e in self.env_entries()
+                if e["enabled"] and not self.env_reserved(e["name"])}
+
+    def apply_env(self, base: Optional[dict]) -> Optional[dict]:
+        """Layer `env_overrides()` onto a spawn env.
+
+        `base` follows the spawners' convention: None = inherit the server's
+        environment. Returns None again when there's nothing to add, so the
+        no-override path is byte-for-byte what it was.
+        """
+        overrides = self.env_overrides()
+        if not overrides:
+            return base
+        env = dict(base) if base is not None else os.environ.copy()
+        env.update(overrides)
+        return env
 
     def effort_levels(self) -> list[str]:
         """Effort levels this provider meaningfully distinguishes, low→high.

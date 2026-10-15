@@ -573,6 +573,16 @@ async def _handle_user_message(websocket, agent_session, store_id, data, agents)
             await agents.stop_session(agent_session)
             logger.info(f"Killed idle process for {store_id} (permission mode changed to: {agent_session.permission_mode})")
 
+    # Same lazy apply for provider env overrides (Settings → Providers →
+    # Environment): the CLI reads its env once at start, so a changed set
+    # needs a fresh process. Idle only — a running turn keeps its env.
+    if (agent_session.process and agent_session.is_idle
+            and agent_session._launched_env is not None
+            and agent_session.provider.env_overrides() != agent_session._launched_env):
+        agent_session._interrupting = True
+        await agents.stop_session(agent_session)
+        logger.info(f"Killed idle process for {store_id} (provider env changed)")
+
     # Ephemeral providers (e.g. Codex) run one subprocess per turn with the
     # prompt in argv — there is no persistent stdin to stream into. Stash the
     # turn's prompt/images for start_agent to embed, then spawn. A fresh spawn

@@ -199,6 +199,9 @@ class AgentSession:
     # conservative, proven route. Spawn-time property, which is why live
     # mode switches don't update this.
     _launched_resolved_mode: Optional[str] = None
+    # Provider env overrides the live process was spawned with (None = no
+    # process yet). A differing current set respawns an idle process.
+    _launched_env: Optional[dict] = None
     # OAuth token profile (file name from ~/.config/painapple-code/tokens/)
     token_profile: Optional[str] = None  # None = inherit parent env auth
     # Preferred model (e.g. claude-sonnet-4-7, claude-opus-4-7)
@@ -861,6 +864,11 @@ class AgentManager:
 
             # Build subprocess environment with token profile if configured
             subprocess_env = build_token_env(resolve_profile(session.token_profile, session.provider))
+            # User env overrides (Settings → Providers → Environment). The
+            # snapshot lets the next message respawn an idle process when the
+            # set changed (same lazy-apply as a permission-mode change).
+            session._launched_env = session.provider.env_overrides()
+            subprocess_env = session.provider.apply_env(subprocess_env)
             if sys.platform == "win32":
                 # Python children (claude_sdk driver + the SDK inside it) must
                 # do UTF-8 file/pipe IO regardless of the console codepage;
