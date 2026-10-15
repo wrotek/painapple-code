@@ -192,10 +192,12 @@ class AgentSession:
     # The *resolved* mode the process launched with (the snapshot above is the
     # desired value and may be None = inherit default). Immutable for the
     # process lifetime — set only by start_agent. Consulted by the
-    # live-controls bypass guard: a bypassPermissions launch attaches no
-    # can_use_tool gate (claude_sdk/driver.py), so switching out of bypass
-    # must respawn, never live-apply. Gate attachment is a spawn-time
-    # property, which is why live mode switches don't update this.
+    # live-controls bypass guard: switching out of a bypassPermissions launch
+    # always respawns, never live-applies. Historically a bypass launch had no
+    # can_use_tool gate; the driver now attaches one in every mode (CLI safety
+    # asks reach it even in bypass), but the respawn path is kept as the
+    # conservative, proven route. Spawn-time property, which is why live
+    # mode switches don't update this.
     _launched_resolved_mode: Optional[str] = None
     # OAuth token profile (file name from ~/.config/painapple-code/tokens/)
     token_profile: Optional[str] = None  # None = inherit parent env auth

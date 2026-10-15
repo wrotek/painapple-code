@@ -175,12 +175,24 @@ async def _amain(args: argparse.Namespace) -> int:
             interrupt=bool(resp.get("interrupt")),
         )
 
-    # bypassPermissions (YOLO) auto-approves every tool call before can_use_tool
-    # is ever consulted, so wiring the callback does nothing except trip the
-    # SDK's CanUseToolShadowedWarning — which the server's stderr reader surfaces
-    # as a scary (but harmless) error line. Only attach the permission gate for
-    # modes that can actually prompt.
-    gate = None if args.permission_mode == "bypassPermissions" else on_permission
+    # The gate is attached in EVERY mode, bypassPermissions (YOLO) included.
+    # Bypass auto-approves ordinary tool calls before can_use_tool is
+    # consulted, but CLI safety checks can still return "ask" decisions that
+    # no mode can auto-allow — e.g. 2.1.29x's dangerous-rm check on an
+    # uncheckable `bash -c` script ("requires explicit approval and cannot be
+    # auto-allowed"). With no gate attached, the headless CLI resolves such an
+    # ask as a denial, so YOLO sessions saw tool calls "blocked by YOLO
+    # permission mode". With the gate, the ask becomes an approve/deny card.
+    # The SDK warns (CanUseToolShadowedWarning) that bypass shadows the
+    # callback; that's expected here and the server's stderr reader would
+    # surface it as an error line, so silence it.
+    if args.permission_mode == "bypassPermissions":
+        import warnings
+        import claude_agent_sdk
+        shadowed = getattr(claude_agent_sdk, "CanUseToolShadowedWarning", None)
+        if shadowed is not None:
+            warnings.filterwarnings("ignore", category=shadowed)
+    gate = on_permission
 
     options = ClaudeAgentOptions(
         can_use_tool=gate,
@@ -231,11 +243,9 @@ async def _amain(args: argparse.Namespace) -> int:
     # `permission_prompt_tool_name="stdio"` injection (it only applies it to
     # the transport it would have built itself), so set it on the *transport's*
     # options copy here. It must NOT go on the client's options — the client
-    # rejects it alongside `can_use_tool`. Pair it with the gate: in bypass mode
-    # there's nothing to route to stdio, so keep that path a clean pass-through.
-    transport_opts = dataclasses.replace(options, can_use_tool=None)
-    if gate is not None:
-        transport_opts = dataclasses.replace(transport_opts, permission_prompt_tool_name="stdio")
+    # rejects it alongside `can_use_tool`.
+    transport_opts = dataclasses.replace(
+        options, can_use_tool=None, permission_prompt_tool_name="stdio")
     transport = _make_tee_transport(transport_opts)
     client = ClaudeSDKClient(options=options, transport=transport)
     try:

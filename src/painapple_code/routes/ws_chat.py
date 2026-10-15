@@ -842,10 +842,10 @@ async def _handle_set_permission_mode(websocket, agent_session, store_id, data, 
     # place — even mid-turn — instead of waiting for the lazy respawn. The
     # launched-mode bookkeeping is updated ONLY on ack, so a failed control
     # leaves the lazy check armed and the next message respawns exactly as
-    # before. Guard: a process launched in bypassPermissions has no
-    # can_use_tool gate attached (claude_sdk/driver.py) — a live switch out
-    # of bypass would leave an ask-capable mode with nothing to answer
-    # prompts, so that direction must take the respawn path.
+    # before. Guard: switching out of a bypassPermissions launch takes the
+    # respawn path. (Bypass launches used to attach no can_use_tool gate; the
+    # driver now attaches one in every mode, but respawn stays the proven
+    # route for leaving bypass.)
     applied = "next_turn"
     if (agent_session.provider
             and agent_session.provider.capabilities.live_controls
