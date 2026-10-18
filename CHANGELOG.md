@@ -2,6 +2,20 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.2.1 — 2026-10-18
+
+### Added
+
+- Settings → Providers has a new **Environment** section in each provider's panel. Use it to set extra environment variables for everything that provider's CLI runs: chat, auto-journal and the context probe. Each variable has its own enable toggle. New sessions use a change right away, and open sessions pick it up on their next message, with no server restart. Claude offers `CLAUDE_CODE_DISABLE_INLINE_SHELL_RM_PROMPT=1` as a suggested row, disabled until you tick it. Variables the app manages itself, such as the account token and `PAINAPPLE_*`, can't be overridden. Once any value is stored, the server config file becomes readable only by its owner.
+
+### Changed
+
+- When you hover a web link in chat or in a Markdown preview, the tooltip now shows the full URL.
+
+### Fixed
+
+- In YOLO mode, Claude Code CLI safety checks that need explicit approval (for example, 2.1.299+'s prompt for `bash -c` scripts that run `rm`) now show an approve/deny card. Before, they failed as "blocked by YOLO permission mode".
+
 ## 1.2.0 — 2026-10-14
 
 ### Added
