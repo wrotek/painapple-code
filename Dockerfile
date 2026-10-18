@@ -3,7 +3,7 @@
 # prompts to pick one when ~/.config/containers/registries.conf lists multiple
 # unqualified-search-registries (quay.io / ghcr.io / docker.io). Docker ignores
 # the prefix, so the same Dockerfile works on both runtimes.
-FROM docker.io/library/python:3.13-slim-bookworm
+FROM docker.io/library/python:3.14-slim-bookworm
 
 # OCI image metadata — surfaces on Docker Hub / GHCR as the image's title,
 # description, license, and "Source" link. These are the values a local
