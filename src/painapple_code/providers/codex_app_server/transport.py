@@ -206,6 +206,9 @@ class JsonRpcTransport:
         try:
             await self._request("initialize", {
                 "clientInfo": {"name": "painapple-code", "version": _client_version()},
+                # Required for `excludeTurns` on thread/resume + thread/fork
+                # (0.144 rejects the field without this opt-in).
+                "capabilities": {"experimentalApi": True},
             })
             await self._notify("initialized")
             self._initialized = True

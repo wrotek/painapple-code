@@ -74,30 +74,52 @@ def short_model_name(model_id: str) -> str:
     return model_id.split("-")[1] if "-" in model_id else model_id
 
 
+class LineTooLongError(ValueError):
+    """A single stream line exceeded MAX_LINE_SIZE.
+
+    Raised only AFTER the rest of the line has been drained up to its newline,
+    so the stream is positioned at the next line and a reader may skip the
+    oversized one and keep going rather than tear the process down.
+    """
+
+    def __init__(self, size: int):
+        self.size = size
+        super().__init__(f"Line exceeds maximum size of {MAX_LINE_SIZE} bytes ({size} bytes)")
+
+
 async def read_line_unlimited(stream: asyncio.StreamReader) -> bytes:
     """Read a line from stream without the default 64KB limit.
 
     Claude's thinking output can exceed the default asyncio readline limit.
-    This function reads in chunks until a newline is found.
+    This function reads in chunks until a newline is found. A line larger than
+    MAX_LINE_SIZE is discarded (drained to its newline, never buffered whole)
+    and reported via LineTooLongError.
     """
     chunks = []
     total_size = 0
+    overflow = False
 
     while True:
         try:
-            # Try to read until newline with a large limit
             chunk = await stream.readuntil(b'\n')
+            total_size += len(chunk)
+            if overflow or total_size > MAX_LINE_SIZE:
+                raise LineTooLongError(total_size)
             chunks.append(chunk)
             return b''.join(chunks)
         except asyncio.LimitOverrunError as e:
             # Line is longer than buffer limit, read what we can and continue
             chunk = await stream.read(e.consumed)
-            chunks.append(chunk)
             total_size += len(chunk)
             if total_size > MAX_LINE_SIZE:
-                raise ValueError(f"Line exceeds maximum size of {MAX_LINE_SIZE} bytes")
+                overflow = True
+                chunks.clear()          # stop buffering; keep draining
+            elif not overflow:
+                chunks.append(chunk)
         except asyncio.IncompleteReadError as e:
             # EOF reached
+            if overflow:
+                raise LineTooLongError(total_size + len(e.partial))
             chunks.append(e.partial)
             return b''.join(chunks)
 

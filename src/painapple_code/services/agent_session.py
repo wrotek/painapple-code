@@ -33,7 +33,7 @@ from painapple_code.turn_tracker import (
     TurnTracker, summarize_bash_file_ops, summarize_edit_output, summarize_write_output,
 )
 from painapple_code.utils.bash_file_ops import classify_bash_command, snapshot_existing, verify_ops
-from painapple_code.utils.agent_cli import read_line_unlimited
+from painapple_code.utils.agent_cli import LineTooLongError, read_line_unlimited
 from painapple_code.utils.proc import (
     interrupt_process,
     pid_alive,
@@ -1194,7 +1194,18 @@ class AgentManager:
         """
         try:
             while session.process and session.is_running:
-                line = await read_line_unlimited(session.process.stdout)
+                try:
+                    line = await read_line_unlimited(session.process.stdout)
+                except LineTooLongError as e:
+                    # One oversized JSON-RPC frame must not kill a persistent
+                    # session (resume is deterministic, so it would recur on
+                    # every respawn). The line is already drained — skip it;
+                    # a request waiting on it times out on its own.
+                    logger.warning(f"{session.provider.name}: skipped oversized output line: {e}")
+                    if session.store_id:
+                        SessionStore.log_raw_error(session.store_id, f"Skipped oversized output line: {e}", "")
+                    await session.safe_send({"type": "stderr", "data": f"Skipped oversized {session.provider.name} message ({e.size} bytes)"})
+                    continue
                 if not line:
                     break
                 line_str = line.decode('utf-8').strip()

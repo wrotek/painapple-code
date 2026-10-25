@@ -89,6 +89,12 @@ class _LaunchMixin:
             "cwd": cwd,
             "sandbox": _SANDBOX_BY_MODE.get(opts.permission_mode or "", _DEFAULT_SANDBOX),
             "approvalPolicy": "never",
+            # Without it the RESPONSE carries the whole thread history
+            # (thread.turns with every item) on ONE stdout line — a long
+            # thread blew past the reader's 10 MiB line cap and killed the
+            # session on resume. The transport never reads those turns; the
+            # model context is unaffected.
+            "excludeTurns": True,
         }
         model = self._wire_model(opts.model)
         if model:
@@ -113,6 +119,9 @@ class _LaunchMixin:
             "cwd": cwd,
             "sandbox": _SANDBOX_BY_MODE.get(opts.permission_mode or "", _DEFAULT_SANDBOX),
             "approvalPolicy": "never",
+            # Same reason as thread_resume_params: keep the full history out
+            # of the single-line response. The fork still carries it.
+            "excludeTurns": True,
         }
         model = self._wire_model(opts.model)
         if model:

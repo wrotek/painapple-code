@@ -732,3 +732,56 @@ def test_empty_agent_message_renders_no_bubble():
     assert p.translate_events({"method": "item/completed", "params": {
         "item": {"type": "agentMessage", "id": "m", "text": "  "}}}, st) == []
     assert "last_text" not in st
+
+
+def test_resume_and_fork_exclude_turns_and_initialize_opts_in():
+    # Without excludeTurns the thread/resume RESPONSE hydrates the whole
+    # thread history onto one stdout line; a long thread passed the reader's
+    # 10 MiB cap and killed the session on every respawn (mac-vm, /goal resume).
+    import asyncio
+    from painapple_code.providers.base import LaunchOptions
+    from painapple_code.providers.codex_app_server.transport import JsonRpcTransport
+
+    p = _app_server()
+    assert p.thread_resume_params(LaunchOptions(), "thr-1", "/w")["excludeTurns"] is True
+    assert p.thread_fork_params(LaunchOptions(), "thr-1", "/w")["excludeTurns"] is True
+
+    sent = {}
+    tr = JsonRpcTransport(process=None, opts=None, session=None, provider=None)
+
+    async def fake_request(method, params, timeout=None):
+        sent[method] = params
+        return {}
+
+    async def fake_notify(method, params=None):
+        pass
+
+    tr._request = fake_request
+    tr._notify = fake_notify
+    asyncio.run(tr.initialize())
+    assert sent["initialize"]["capabilities"] == {"experimentalApi": True}
+
+
+def test_read_line_unlimited_drains_oversized_line_and_recovers(monkeypatch):
+    import asyncio
+    from painapple_code.utils import agent_cli
+    from painapple_code.utils.agent_cli import LineTooLongError, read_line_unlimited
+
+    monkeypatch.setattr(agent_cli, "MAX_LINE_SIZE", 1000)
+
+    async def run():
+        reader = asyncio.StreamReader(limit=64)
+        reader.feed_data(b"x" * 5000 + b"\n" + b'{"ok":1}\n' + b"y" * 900 + b"\n")
+        reader.feed_eof()
+        try:
+            await read_line_unlimited(reader)
+        except LineTooLongError as e:
+            assert e.size == 5001
+        else:
+            raise AssertionError("expected LineTooLongError")
+        # Stream is positioned at the next line — reading continues cleanly.
+        assert await read_line_unlimited(reader) == b'{"ok":1}\n'
+        assert await read_line_unlimited(reader) == b"y" * 900 + b"\n"
+        assert await read_line_unlimited(reader) == b""
+
+    asyncio.run(run())
