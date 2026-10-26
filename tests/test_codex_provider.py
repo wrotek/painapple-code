@@ -785,3 +785,60 @@ def test_read_line_unlimited_drains_oversized_line_and_recovers(monkeypatch):
         assert await read_line_unlimited(reader) == b""
 
     asyncio.run(run())
+
+
+def test_codex_turn_error_becomes_a_row_and_explains_a_blocked_goal(goal_session):
+    # "Selected model is at capacity" rode only in result.result — the client
+    # never renders that, so a goal turn failed silently and the bar just said
+    # "Blocked". Now the error is a stored row and the blocked row names it.
+    import asyncio
+    from unittest.mock import AsyncMock
+    agents, sess, store, sent = goal_session
+    agents._finalize_turn = AsyncMock()
+    msg = "Selected model is at capacity. Please try a different model."
+    p = _app_server()
+    st = {}
+    g = {"objective": "ship", "status": "active", "createdAt": 1, "updatedAt": 1}
+    sess.provider = p
+    sess.goal, sess._goal_loaded = g, True
+
+    async def flow():
+        for native in (
+            {"method": "turn/started", "params": {"turn": {"id": "t1"}}},
+            {"method": "error", "params": {"error": {"message": msg}, "willRetry": False}},
+            {"method": "turn/completed", "params": {"turn": {"id": "t1", "status": "failed"}}},
+            {"method": "thread/goal/updated",
+             "params": {"goal": {**g, "updatedAt": 2, "status": "blocked"}}},
+        ):
+            for ev in p.translate_events(native, st):
+                if ev["type"] == "system":
+                    await agents._handle_system_msg(sess, ev)
+                elif ev["type"] == "result":
+                    await agents._handle_result_msg(sess, ev, "ts")
+    sess.is_idle = False                      # a turn we're already tracking
+    asyncio.run(flow())
+
+    errors = [c.args[1] for c in store.add_message.call_args_list
+              if c.args[1].get("role") == "error"]
+    assert [e["content"] for e in errors] == [msg]
+    rows = [c.args[1].get("content") for c in store.add_message.call_args_list]
+    assert rows[-1] == f"Goal blocked by an error: {msg}"
+    agents._finalize_turn.assert_awaited_once()
+
+    # The next turn starts clean — a later plain block isn't blamed on it.
+    asyncio.run(agents._handle_system_msg(sess, {"type": "system", "subtype": "turn_started"}))
+    assert sess._last_turn_error is None
+
+
+def test_claude_error_results_do_not_add_a_duplicate_row(goal_session):
+    # Claude's CLI already shows the error as an assistant bubble; its result
+    # carries no surface_error flag, so no extra row.
+    import asyncio
+    from unittest.mock import AsyncMock
+    from painapple_code.providers import get_provider
+    agents, sess, store, _ = goal_session
+    agents._finalize_turn = AsyncMock()
+    sess.provider = get_provider("claude-sdk")
+    asyncio.run(agents._handle_result_msg(
+        sess, {"type": "result", "is_error": True, "result": "Some failure"}, "ts"))
+    assert not [c for c in store.add_message.call_args_list if c.args[1].get("role") == "error"]

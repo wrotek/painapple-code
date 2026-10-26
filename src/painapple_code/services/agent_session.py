@@ -221,6 +221,9 @@ class AgentSession:
     _api_retry_pending: bool = False  # True while waiting for retry delay
     _api_error_detected: bool = False  # Suppresses stderr/result forwarding during retry
     _last_agent_msg: Optional[dict] = None  # Last message sent to Claude (for resend)
+    # Text of the last surfaced turn error (result.surface_error) — explains a
+    # goal that goes `blocked` right after it. Cleared when a turn starts.
+    _last_turn_error: Optional[str] = None
     # Auth-failure state. The CLI retries a 401 up to ~10x (~60s) via
     # system/api_retry events before surfacing the result, so we detect the
     # auth failure on those retry events and abort early instead of making the
@@ -1420,6 +1423,7 @@ class AgentManager:
         subtype = msg.get("subtype", "")
 
         if subtype == "turn_started":
+            session._last_turn_error = None
             # A turn we opened (user send / queued flush) is already non-idle.
             # One arriving while idle was started by the provider itself — a
             # Codex goal continuing — and needs the same bookkeeping a user
@@ -1609,7 +1613,7 @@ class AgentManager:
         return session.goal
 
     async def _store_goal_row(self, session: AgentSession, row_id: str, content: str,
-                              role: str = "info") -> None:
+                              role: str = "info", source: str = "goal") -> None:
         """Persist + broadcast one goal chat row (stable id → no duplicates)."""
         if not session.store_id:
             return
@@ -1617,7 +1621,7 @@ class AgentManager:
             "id": row_id,
             "role": role,
             "content": content,
-            "source": "goal",
+            "source": source,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
         line = SessionStore.add_message(session.store_id, row)
@@ -1651,6 +1655,8 @@ class AgentManager:
                 await self._store_goal_row(session, key, "Goal resumed")
             elif status in _GOAL_STATUS_ROWS:
                 text = _GOAL_STATUS_ROWS[status]
+                if status == "blocked" and session._last_turn_error:
+                    text = f"Goal blocked by an error: {session._last_turn_error}"
                 if status in ("complete", "budgetLimited", "usageLimited"):
                     text = f"{text} — {goal_usage_text(goal)}"
                 await self._store_goal_row(session, key, text)
@@ -2379,6 +2385,16 @@ class AgentManager:
             logger.info(f"Retryable API error in result for {session.store_id}: {result_text[:200]}")
             asyncio.create_task(self._attempt_api_retry(session, source="result"))
             return  # Skip normal result processing — retry takes over
+
+        # Providers whose error text rides ONLY in the result (Codex: model at
+        # capacity, invalid request, …) flag it; without a row the turn just
+        # stopped silently and a goal flipped to "blocked" with no reason.
+        # Auth failures already got their re-login card.
+        if msg.get("is_error") and msg.get("surface_error") and result_text and not is_auth_failure:
+            session._last_turn_error = result_text
+            await self._store_goal_row(
+                session, f"turn-error-{int(time.time() * 1000)}", result_text,
+                role="error", source="provider-error")
 
         await self._finalize_turn(session, result_msg=msg, reason="result")
 

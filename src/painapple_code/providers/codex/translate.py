@@ -43,4 +43,9 @@ class _TranslateMixin:
             "num_turns": 1,
             "result": message,
             "usage": {},
+            # Nothing else in the stream carries this text (Claude's CLI also
+            # emits it as an assistant bubble; Codex doesn't), so the server
+            # must store + show it as an error row or the user never sees why
+            # the turn stopped.
+            "surface_error": True,
         }
