@@ -21,7 +21,7 @@ jobs:
                     - mcr.microsoft.com/devcontainers/base:ubuntu
                     - debian:bookworm-slim
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
             - name: Install devcontainers CLI
               run: npm install -g @devcontainers/cli
             - name: Test ${{ matrix.feature }} on ${{ matrix.baseImage }}
