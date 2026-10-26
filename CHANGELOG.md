@@ -2,6 +2,12 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.2.2 — 2026-10-26
+
+### Fixed
+
+- Long Codex sessions can be resumed again. Before, resuming a large Codex thread (including via `/goal resume`) failed with "Line exceeds maximum size of 10485760 bytes", and every retry failed the same way. The resume no longer pulls the whole thread history in one message. If an oversized message ever does arrive, the session now skips it with a notice instead of ending.
+
 ## 1.2.1 — 2026-10-18
 
 ### Added
