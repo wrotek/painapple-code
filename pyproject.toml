@@ -57,9 +57,9 @@ tls = [
     "cryptography>=50.0.0; (platform_machine != \"ARM64\" or sys_platform != \"win32\") and (platform_machine != \"x86_64\" or sys_platform != \"darwin\")",
     # Windows/ARM64: 46.0.3 is the last win_arm64 wheel. Expected to be
     # unnecessary once pyca/cryptography#15350 lands and restores the platform.
-    "cryptography>=43.0.1,<=46.0.3; platform_machine == \"ARM64\" and sys_platform == \"win32\"",
+    "cryptography>=43.0.1,<=50.0.2; platform_machine == \"ARM64\" and sys_platform == \"win32\"",
     # macOS/Intel: 48.0.1 is the last universal2 wheel; 49.0.0 went arm64-only.
-    "cryptography>=43.0.1,<49; platform_machine == \"x86_64\" and sys_platform == \"darwin\"",
+    "cryptography>=43.0.1,<51; platform_machine == \"x86_64\" and sys_platform == \"darwin\"",
 ]
 
 [project.urls]
