@@ -648,7 +648,7 @@ LANG_MAP = {
     '.json': 'json', '.html': 'html', '.css': 'css',
     '.sh': 'bash', '.yaml': 'yaml', '.yml': 'yaml',
     '.toml': 'toml', '.xml': 'xml', '.sql': 'sql',
-    '.go': 'go', '.rs': 'rust', '.rb': 'ruby',
+    '.go': 'go', '.rs': 'rust', '.rb': 'ruby', '.lua': 'lua',
 }
 
 

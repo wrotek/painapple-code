@@ -46,7 +46,7 @@ const LANG_MAP = {
     js: 'javascript', ts: 'typescript', jsx: 'javascript', tsx: 'typescript',
     py: 'python', rb: 'ruby', go: 'go', rs: 'rust', java: 'java',
     c: 'c', cpp: 'cpp', h: 'c', hpp: 'cpp', cs: 'csharp',
-    php: 'php', swift: 'swift', kt: 'kotlin', scala: 'scala',
+    php: 'php', swift: 'swift', kt: 'kotlin', scala: 'scala', lua: 'lua',
     html: 'xml', htm: 'xml', xml: 'xml', svg: 'xml',
     css: 'css', scss: 'scss', less: 'less', sass: 'sass',
     json: 'json', yaml: 'yaml', yml: 'yaml', toml: 'ini', ini: 'ini',

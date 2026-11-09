@@ -103,7 +103,7 @@ function sessionIdsMatch(sessionId, currentId) {
 // consistent across both widgets.
 const FILE_TYPES = {
     code: {
-        extensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rb', '.go', '.rs', '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.php', '.swift', '.kt', '.scala', '.vue', '.svelte', '.css', '.scss', '.sass', '.less', '.html', '.xml', '.json', '.yaml', '.yml', '.toml', '.sh', '.bash', '.zsh', '.fish', '.sql', '.graphql', '.proto'],
+        extensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rb', '.go', '.rs', '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.php', '.swift', '.kt', '.scala', '.lua', '.vue', '.svelte', '.css', '.scss', '.sass', '.less', '.html', '.xml', '.json', '.yaml', '.yml', '.toml', '.sh', '.bash', '.zsh', '.fish', '.sql', '.graphql', '.proto'],
         icon: 'code',
         color: 'var(--accent-blue)',
     },

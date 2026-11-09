@@ -699,6 +699,7 @@ function getLanguage(ext) {
         swift: 'swift',
         kt: 'kotlin',
         scala: 'scala',
+        lua: 'lua',
         sh: 'bash',
         bash: 'bash',
         zsh: 'bash',

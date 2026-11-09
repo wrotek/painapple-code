@@ -100,6 +100,7 @@ import { dockerFile as dockerfileMode } from '@codemirror/legacy-modes/mode/dock
 import { nginx as nginxMode } from '@codemirror/legacy-modes/mode/nginx';
 import { toml as tomlMode } from '@codemirror/legacy-modes/mode/toml';
 import { properties as propertiesMode } from '@codemirror/legacy-modes/mode/properties';
+import { lua as luaMode } from '@codemirror/legacy-modes/mode/lua';
 
 export const shell = () => StreamLanguage.define(shellMode);
 export const ruby = () => StreamLanguage.define(rubyMode);
@@ -111,6 +112,7 @@ export const kotlin = () => StreamLanguage.define(kotlinMode);
 export const dockerfile = () => StreamLanguage.define(dockerfileMode);
 export const nginx = () => StreamLanguage.define(nginxMode);
 export const toml = () => StreamLanguage.define(tomlMode);
+export const lua = () => StreamLanguage.define(luaMode);
 
 // .env / .properties / .ini: the CM5 properties mode tags keys as "def" (→
 // variableName.definition) and values as "quote" (→ an unstyled tag). "def"

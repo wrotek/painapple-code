@@ -47,6 +47,7 @@ export function getHighlightLanguage(lang) {
         shell: 'bash',
         fish: 'bash',
         scala: 'scala',
+        lua: 'lua',
         nginx: 'nginx',
         dockerfile: 'dockerfile',
         makefile: 'makefile',
@@ -93,6 +94,7 @@ export const AVAILABLE_LANGUAGES = [
     { value: 'diff', label: 'Diff' },
     { value: 'sql', label: 'SQL' },
     { value: 'scala', label: 'Scala' },
+    { value: 'lua', label: 'Lua' },
     { value: 'dockerfile', label: 'Dockerfile' },
     { value: 'makefile', label: 'Makefile' },
     { value: 'nginx', label: 'Nginx' },
@@ -142,7 +144,7 @@ export function detectContentLanguage(content) {
         swift: 'swift', kotlin: 'kotlin', css: 'css', scss: 'scss',
         json: 'json', yaml: 'yaml', markdown: 'markdown', sql: 'sql',
         bash: 'shell', dockerfile: 'dockerfile', makefile: 'makefile',
-        xml: 'html', ini: 'ini', scala: 'scala', nginx: 'nginx'
+        xml: 'html', ini: 'ini', scala: 'scala', nginx: 'nginx', lua: 'lua'
     };
     return reverseMap[result.language] || null;
 }

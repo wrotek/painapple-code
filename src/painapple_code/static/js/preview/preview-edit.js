@@ -299,7 +299,7 @@ const LANG_EXTENSIONS = {
     text: '.txt', javascript: '.js', typescript: '.ts', python: '.py',
     shell: '.sh', fish: '.fish', ruby: '.rb', go: '.go', rust: '.rs',
     java: '.java', c: '.c', cpp: '.cpp', csharp: '.cs', php: '.php',
-    swift: '.swift', kotlin: '.kt', html: '.html', css: '.css', scss: '.scss',
+    swift: '.swift', kotlin: '.kt', lua: '.lua', html: '.html', css: '.css', scss: '.scss',
     json: '.json', yaml: '.yaml', xml: '.xml', markdown: '.md', sql: '.sql',
     dockerfile: '', makefile: '', toml: '.toml', ini: '.ini', csv: '.csv',
 };

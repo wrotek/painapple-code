@@ -182,7 +182,7 @@ function setSortPrefs(next) {
 
 const FILE_TYPES = {
     code: {
-        extensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rb', '.go', '.rs', '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.php', '.swift', '.kt', '.scala', '.vue', '.svelte', '.css', '.scss', '.sass', '.less', '.html', '.xml', '.json', '.yaml', '.yml', '.toml', '.sh', '.bash', '.zsh', '.fish', '.sql', '.graphql', '.proto'],
+        extensions: ['.js', '.ts', '.jsx', '.tsx', '.py', '.rb', '.go', '.rs', '.java', '.c', '.cpp', '.h', '.hpp', '.cs', '.php', '.swift', '.kt', '.scala', '.lua', '.vue', '.svelte', '.css', '.scss', '.sass', '.less', '.html', '.xml', '.json', '.yaml', '.yml', '.toml', '.sh', '.bash', '.zsh', '.fish', '.sql', '.graphql', '.proto'],
         icon: 'code',
         color: 'var(--accent-blue)',
         label: 'Code'
@@ -261,6 +261,7 @@ const EXTENSION_LABELS = {
     '.swift': 'Swift',
     '.kt': 'Kotlin',
     '.scala': 'Scala',
+    '.lua': 'Lua',
     '.vue': 'Vue', '.svelte': 'Svelte',
     '.css': 'CSS', '.scss': 'SCSS', '.sass': 'Sass', '.less': 'Less',
     '.sh': 'Shell', '.bash': 'Shell', '.zsh': 'Shell', '.fish': 'Shell',

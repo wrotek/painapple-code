@@ -93,6 +93,7 @@ async function loadCodeMirror() {
                 swift: cm.swift,
                 csharp: cm.csharp,
                 scala: cm.scala,
+                lua: cm.lua,
                 dockerfile: cm.dockerfile,
                 nginx: cm.nginx,
                 toml: cm.toml,
