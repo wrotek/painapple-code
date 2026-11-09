@@ -2,6 +2,16 @@
 
 Notable changes are documented here per release. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [SemVer](https://semver.org/), and the git tag is the single source of truth for the version (the PyPI wheel, the Docker image tag, and `__version__` all derive from it).
 
+## 1.2.3 — 2026-11-09
+
+### Added
+
+- Lua files (`.lua`) now get syntax highlighting in the file editor, the preview's Code view, the `/view` page and chat tool blocks, and "Lua" is selectable in the preview's language picker.
+
+### Fixed
+
+- Codex turn errors (for example "Selected model is at capacity") are now shown in chat as an error row that survives a reload. Before, the turn just stopped silently, and a goal flipped to "blocked" with "Codex is waiting on you". A goal blocked right after such an error now says "Goal blocked by an error: …".
+
 ## 1.2.2 — 2026-10-26
 
 ### Fixed
