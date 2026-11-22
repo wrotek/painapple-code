@@ -270,3 +270,26 @@ def test_shadow_query_reads_exported_auth_config(tmp_path):
     assert "URL https://127.0.0.1:9/api/shadow-db/sql?format=tsv" in r.stdout
     assert "tok-from-exported-config" in r.stdout
     assert f"--cacert {cfg}" in r.stdout
+
+
+# ── shadow-db-helper hidden from # suggestions by default ─────────────────
+
+
+def test_shadow_db_helper_hidden_by_default_until_user_saves(client, monkeypatch):
+    from painapple_code import paths
+    store = {"disabled_agents": ["personal:other"]}
+    monkeypatch.setattr(paths, "load_global_config", lambda: dict(store))
+    monkeypatch.setattr(paths, "save_global_config",
+                        lambda cfg: (store.clear(), store.update(cfg)))
+
+    # Fresh and upgraded configs alike: the default joins the user's set,
+    # without a write on read.
+    got = client.get("/api/user/snippets").json()["disabled_agents"]
+    assert got == ["personal:other", "personal:shadow-db-helper"]
+    assert "disabled_agents_defaults_seen" not in store
+
+    # The user un-hides it: the saved set wins from then on.
+    r = client.put("/api/user/snippets", json={"disabled_agents": ["personal:other"]})
+    assert r.json()["disabled_agents"] == ["personal:other"]
+    assert client.get("/api/user/snippets").json()["disabled_agents"] == ["personal:other"]
+    assert store["disabled_agents_defaults_seen"] == ["personal:shadow-db-helper"]

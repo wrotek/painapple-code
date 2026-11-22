@@ -126,6 +126,22 @@ async def save_shortcut_overrides(payload: ShortcutsPayload):
 
 DEFAULT_AGENT_PATTERN = "Consult with agent {agent}: "
 
+# Agents hidden from the `#` suggestions until the user decides otherwise.
+# shadow-db-helper is installed for the model to use, but shadow-git-helper is
+# the better pick for a human reaching for one. Applied on read until the
+# user's first save of the hidden set; that save records every id here in
+# `disabled_agents_defaults_seen`, so un-hiding one sticks.
+DEFAULT_HIDDEN_AGENTS = ["personal:shadow-db-helper"]
+
+
+def _effective_disabled_agents(config: dict) -> list:
+    disabled = list(config.get("disabled_agents", []))
+    seen = set(config.get("disabled_agents_defaults_seen", []))
+    for agent_id in DEFAULT_HIDDEN_AGENTS:
+        if agent_id not in seen and agent_id not in disabled:
+            disabled.append(agent_id)
+    return disabled
+
 
 @router.get("/api/user/snippets")
 async def get_user_snippets():
@@ -136,7 +152,7 @@ async def get_user_snippets():
         snippets = config.get("favorites", [])
     return {
         "snippets": snippets,
-        "disabled_agents": config.get("disabled_agents", [])
+        "disabled_agents": _effective_disabled_agents(config),
     }
 
 
@@ -151,6 +167,11 @@ async def update_user_snippets(request: Request):
         config.pop("favorites", None)
     if "disabled_agents" in body:
         config["disabled_agents"] = body["disabled_agents"]
+        # The client saved the full set it was shown, defaults included —
+        # from here on, the user's set alone decides.
+        config["disabled_agents_defaults_seen"] = sorted(
+            set(config.get("disabled_agents_defaults_seen", []))
+            | set(DEFAULT_HIDDEN_AGENTS))
 
     paths.save_global_config(config)
     return await get_user_snippets()
