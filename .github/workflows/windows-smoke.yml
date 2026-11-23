@@ -29,11 +29,11 @@ jobs:
             # fetch-depth: 0 so setuptools-scm can resolve a version from
             # tags; without it the build falls back to 0.1.devN, which is
             # fine for a smoke test but noisy in logs.
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v7
               with:
                   fetch-depth: 0
 
-            - uses: actions/setup-python@v5
+            - uses: actions/setup-python@v7
               with:
                   python-version: ${{ matrix.python-version }}
 
